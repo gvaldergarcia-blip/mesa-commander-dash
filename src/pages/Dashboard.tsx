@@ -3,13 +3,14 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { useRestaurants } from "@/hooks/useRestaurants";
 
-// Mock data - will be replaced with Supabase queries
+// Real-time metrics will be calculated from Supabase data
 const mockMetrics = {
-  queueSize: 12,
-  avgWaitTime: "25 min",
-  todayReservations: 34,
-  weeklyGrowth: 15.2
+  queueSize: 0,
+  avgWaitTime: "-- min",
+  todayReservations: 0,
+  weeklyGrowth: 0
 };
 
 const recentActivity = [
@@ -20,13 +21,16 @@ const recentActivity = [
 ];
 
 export default function Dashboard() {
+  const { restaurants, loading } = useRestaurants();
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do seu restaurante</p>
+          <p className="text-muted-foreground">
+            {loading ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
+          </p>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline">
