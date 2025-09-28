@@ -1,0 +1,393 @@
+import { useState } from "react";
+import { Search, UserPlus, Phone, Mail, Calendar, TrendingUp, Heart, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Mock data - will be replaced with Supabase queries
+const mockCustomers = [
+  {
+    id: 1,
+    name: "Maria Silva",
+    phone: "(11) 99999-9999",
+    email: "maria@email.com",
+    marketing_opt_in: true,
+    lifetime_visits: 8,
+    last_visit_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    total_spent: 1250.00,
+    avg_party_size: 3,
+    favorite_table: "Mesa 12",
+    notes: "Cliente VIP - prefere mesa na varanda"
+  },
+  {
+    id: 2,
+    name: "João Santos",
+    phone: "(11) 88888-8888",
+    email: "joao@email.com",
+    marketing_opt_in: false,
+    lifetime_visits: 3,
+    last_visit_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    total_spent: 320.00,
+    avg_party_size: 2,
+    favorite_table: null,
+    notes: ""
+  },
+  {
+    id: 3,
+    name: "Ana Costa",
+    phone: "(11) 77777-7777",
+    email: "ana@email.com",
+    marketing_opt_in: true,
+    lifetime_visits: 15,
+    last_visit_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    total_spent: 2100.00,
+    avg_party_size: 4,
+    favorite_table: "Mesa 8",
+    notes: "Sempre pede sobremesa especial"
+  },
+];
+
+export default function Customers() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<typeof mockCustomers[0] | null>(null);
+
+  const filteredCustomers = mockCustomers.filter(customer => {
+    return customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           customer.phone.includes(searchTerm) ||
+           customer.email.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const totalCustomers = mockCustomers.length;
+  const activeCustomers = mockCustomers.filter(c => 
+    new Date(c.last_visit_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  ).length;
+  const vipCustomers = mockCustomers.filter(c => c.lifetime_visits >= 10).length;
+  const marketingOptIns = mockCustomers.filter(c => c.marketing_opt_in).length;
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const getDaysAgo = (date: Date) => {
+    const days = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
+    return days === 0 ? 'Hoje' : days === 1 ? 'Ontem' : `${days} dias atrás`;
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
+          <p className="text-muted-foreground">Gerencie sua base de clientes</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Novo Cliente
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input placeholder="Nome completo" />
+              <Input placeholder="Telefone" />
+              <Input placeholder="Email (opcional)" />
+              <Input placeholder="Observações especiais (opcional)" />
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="marketing" />
+                <label htmlFor="marketing" className="text-sm">
+                  Cliente aceita receber promoções por email
+                </label>
+              </div>
+              <Button className="w-full">Cadastrar Cliente</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">{totalCustomers}</p>
+                <p className="text-sm text-muted-foreground">Total clientes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-5 w-5 text-success" />
+              <div>
+                <p className="text-2xl font-bold">{activeCustomers}</p>
+                <p className="text-sm text-muted-foreground">Ativos (30 dias)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Heart className="h-5 w-5 text-accent" />
+              <div>
+                <p className="text-2xl font-bold">{vipCustomers}</p>
+                <p className="text-sm text-muted-foreground">VIPs (10+ visitas)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Mail className="h-5 w-5 text-warning" />
+              <div>
+                <p className="text-2xl font-bold">{marketingOptIns}</p>
+                <p className="text-sm text-muted-foreground">Marketing opt-in</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, telefone ou email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Customers Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Clientes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Contato</TableHead>
+                <TableHead>Visitas</TableHead>
+                <TableHead>Última Visita</TableHead>
+                <TableHead>Total Gasto</TableHead>
+                <TableHead>Marketing</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCustomers.map((customer) => (
+                <TableRow key={customer.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {getInitials(customer.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{customer.name}</div>
+                        {customer.lifetime_visits >= 10 && (
+                          <Badge variant="secondary" className="bg-accent/10 text-accent text-xs">
+                            VIP
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="flex items-center text-muted-foreground">
+                        <Phone className="w-3 h-3 mr-1" />
+                        {customer.phone}
+                      </div>
+                      <div className="flex items-center text-muted-foreground">
+                        <Mail className="w-3 h-3 mr-1" />
+                        {customer.email}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{customer.lifetime_visits}</div>
+                    <div className="text-xs text-muted-foreground">
+                      ~{customer.avg_party_size} pessoas/visita
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{formatDate(customer.last_visit_at)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {getDaysAgo(customer.last_visit_at)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{formatCurrency(customer.total_spent)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Ticket médio: {formatCurrency(customer.total_spent / customer.lifetime_visits)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={customer.marketing_opt_in ? "default" : "secondary"}
+                      className={customer.marketing_opt_in ? "bg-success/10 text-success" : ""}
+                    >
+                      {customer.marketing_opt_in ? "Sim" : "Não"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setSelectedCustomer(customer)}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Customer Detail Dialog */}
+      <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Cliente</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
+            <Tabs defaultValue="info" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="info">Informações</TabsTrigger>
+                <TabsTrigger value="history">Histórico</TabsTrigger>
+                <TabsTrigger value="preferences">Preferências</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="info" className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <Avatar className="w-16 h-16">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                      {getInitials(selectedCustomer.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-xl font-semibold">{selectedCustomer.name}</h3>
+                    <p className="text-muted-foreground">{selectedCustomer.phone}</p>
+                    <p className="text-muted-foreground">{selectedCustomer.email}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Estatísticas</h4>
+                    <p>Total de visitas: {selectedCustomer.lifetime_visits}</p>
+                    <p>Última visita: {formatDate(selectedCustomer.last_visit_at)}</p>
+                    <p>Total gasto: {formatCurrency(selectedCustomer.total_spent)}</p>
+                    <p>Ticket médio: {formatCurrency(selectedCustomer.total_spent / selectedCustomer.lifetime_visits)}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Preferências</h4>
+                    <p>Tamanho médio do grupo: {selectedCustomer.avg_party_size} pessoas</p>
+                    <p>Mesa preferida: {selectedCustomer.favorite_table || "Nenhuma"}</p>
+                    <p>Marketing: {selectedCustomer.marketing_opt_in ? "Aceita" : "Não aceita"}</p>
+                  </div>
+                </div>
+                
+                {selectedCustomer.notes && (
+                  <div>
+                    <h4 className="font-semibold">Observações</h4>
+                    <p className="text-muted-foreground italic">"{selectedCustomer.notes}"</p>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="history">
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">Histórico de Visitas</h3>
+                  <p className="text-muted-foreground">
+                    Histórico detalhado será implementado com a integração Supabase.
+                  </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="preferences">
+                <div className="text-center py-8">
+                  <Heart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">Preferências Detalhadas</h3>
+                  <p className="text-muted-foreground">
+                    Sistema de preferências será implementado em breve.
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {filteredCustomers.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="font-semibold mb-2">Nenhum cliente encontrado</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm 
+                ? "Nenhum resultado encontrado com o termo de busca."
+                : "Ainda não há clientes cadastrados."}
+            </p>
+            <Button>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Cadastrar Primeiro Cliente
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

@@ -1,73 +1,137 @@
-# Welcome to your Lovable project
+# MesaClik - Painel de Controle
 
-## Project info
+Sistema completo de gestão para restaurantes com fila de espera, reservas, clientes e promoções em tempo real.
 
-**URL**: https://lovable.dev/projects/8745614f-4684-4931-9f6e-917b37b60a47
+## 📱 Funcionalidades
 
-## How can I edit this code?
+### Dashboard Principal
+- **Visão geral** com métricas em tempo real
+- **Atividade recente** de fila e reservas  
+- **Ações rápidas** para operações frequentes
+- **Status da fila** com indicadores visuais
 
-There are several ways of editing your application.
+### 🔄 Fila de Espera
+- Gestão completa da fila em tempo real
+- Posicionamento automático dos clientes
+- Sistema de prioridades (Normal, Alta, VIP)
+- Tempo de espera estimado
+- Ações rápidas: Chamar, Sentar, Cancelar
 
-**Use Lovable**
+### 📅 Reservas  
+- Agenda integrada com visões diária/semanal
+- Status: Pendente, Confirmada, Sentada, Cancelada
+- Controle de check-in
+- Gestão de no-shows
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/8745614f-4684-4931-9f6e-917b37b60a47) and start prompting.
+### 👥 Clientes
+- Base completa de clientes
+- Histórico de visitas e preferências
+- Segmentação por frequência (VIP, Regular, Novo)
+- Sistema de marketing opt-in/opt-out
+- Análise de valor do cliente (LTV)
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📧 Promoções & Marketing
+- Criação e gestão de campanhas
+- Envio de emails segmentados
+- Métricas de engajamento (abertura, cliques)
+- ROI de campanhas
+- Logs detalhados de envio
 
-**Use your preferred IDE**
+### 📊 Relatórios & Análises
+- KPIs do negócio em tempo real
+- Análise de conversão de reservas
+- Performance da fila de espera  
+- Segmentação de clientes
+- ROI de marketing
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🚀 Para começar
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Configuração do ambiente
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+1. **Clone e instale dependências:**
+```bash
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+cd mesaclik-painel
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+2. **Configure as variáveis de ambiente:**
+   
+Crie um arquivo `.env.local` com:
+```env
+NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_publica
+SUPABASE_SERVICE_ROLE_KEY=sua_chave_servico  # server-only
+RESEND_API_KEY=sua_chave_resend              # opcional para emails
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+⚠️ **IMPORTANTE**: Nunca exponha `SUPABASE_SERVICE_ROLE_KEY` no cliente!
 
-**Use GitHub Codespaces**
+### Integração com Supabase
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Este painel foi desenvolvido para consumir dados de um schema Supabase existente. **NÃO** crie ou altere tabelas - apenas utilize os dados existentes.
 
-## What technologies are used for this project?
+**Schema necessário:**
+- `restaurants` - Dados dos restaurantes
+- `queue_entries` - Fila de espera 
+- `reservations` - Sistema de reservas
+- `customers` - Base de clientes
+- `promotions` - Campanhas de marketing
+- `emails_log` - Logs de envio de email
 
-This project is built with:
+### Segurança (RLS)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Todas as queries filtram por `restaurant_id`
+- Row Level Security (RLS) deve estar ativo
+- User metadata deve conter `current_restaurant_id`
 
-## How can I deploy this project?
+## 🏗️ Arquitetura
 
-Simply open [Lovable](https://lovable.dev/projects/8745614f-4684-4931-9f6e-917b37b60a47) and click on Share -> Publish.
+### Frontend (React + Vite)
+- **Framework**: Vite + React + TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui  
+- **Icons**: Lucide React
+- **Routing**: React Router
+- **State**: React Query para cache/sync
 
-## Can I connect a custom domain to my Lovable project?
+### Componentes principais:
+```
+src/
+├── components/
+│   ├── layout/          # Layout e sidebar
+│   └── ui/             # Componentes reutilizáveis
+├── pages/              # Páginas do dashboard  
+└── lib/                # Utilities e configuração
+```
 
-Yes, you can!
+### Integração Backend
+- **Client-side**: `createBrowserClient()` com chaves públicas
+- **Server-side**: `createServiceClient()` com service role  
+- **Realtime**: Canais WebSocket para atualizações ao vivo
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📋 Checklist de Deploy
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- [ ] Configurar variáveis de ambiente
+- [ ] Verificar RLS policies no Supabase
+- [ ] Testar integração com dados reais
+- [ ] Configurar domínio personalizado (opcional)
+- [ ] Configurar RESEND_API_KEY para emails
+
+## 🔐 Segurança
+
+1. **Nunca** exponha service role key no frontend
+2. Use RLS policies para isolamento por restaurante  
+3. Valide `restaurant_id` em todas as operações
+4. Sanitize inputs do usuário
+
+## 📞 Suporte
+
+Para dúvidas sobre integração ou configuração:
+- Verifique se o schema Supabase está correto
+- Confirme que as RLS policies estão ativas
+- Teste a conexão com dados de exemplo
+
+---
+
+**Tecnologias**: React, Vite, TypeScript, Tailwind CSS, Supabase, shadcn/ui
