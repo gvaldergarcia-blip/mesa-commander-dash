@@ -14,6 +14,328 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          last_visit_date: string | null
+          marketing_opt_in: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          total_spent: number
+          total_visits: number
+          updated_at: string
+          vip_status: boolean
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_visit_date?: string | null
+          marketing_opt_in?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          total_spent?: number
+          total_visits?: number
+          updated_at?: string
+          vip_status?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_visit_date?: string | null
+          marketing_opt_in?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          total_spent?: number
+          total_visits?: number
+          updated_at?: string
+          vip_status?: boolean
+        }
+        Relationships: []
+      }
+      email_logs: {
+        Row: {
+          clicked_at: string | null
+          created_at: string
+          customer_id: string
+          delivered_at: string | null
+          email: string
+          error_message: string | null
+          id: string
+          opened_at: string | null
+          promotion_id: string
+          sent_at: string
+          status: Database["public"]["Enums"]["email_status"]
+        }
+        Insert: {
+          clicked_at?: string | null
+          created_at?: string
+          customer_id: string
+          delivered_at?: string | null
+          email: string
+          error_message?: string | null
+          id?: string
+          opened_at?: string | null
+          promotion_id: string
+          sent_at?: string
+          status?: Database["public"]["Enums"]["email_status"]
+        }
+        Update: {
+          clicked_at?: string | null
+          created_at?: string
+          customer_id?: string
+          delivered_at?: string | null
+          email?: string
+          error_message?: string | null
+          id?: string
+          opened_at?: string | null
+          promotion_id?: string
+          sent_at?: string
+          status?: Database["public"]["Enums"]["email_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_logs_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          audience_filter: string
+          created_at: string
+          description: string | null
+          ends_at: string
+          id: string
+          restaurant_id: string
+          starts_at: string
+          status: Database["public"]["Enums"]["promotion_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience_filter?: string
+          created_at?: string
+          description?: string | null
+          ends_at: string
+          id?: string
+          restaurant_id: string
+          starts_at: string
+          status?: Database["public"]["Enums"]["promotion_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience_filter?: string
+          created_at?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          restaurant_id?: string
+          starts_at?: string
+          status?: Database["public"]["Enums"]["promotion_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      queue_entries: {
+        Row: {
+          called_at: string | null
+          canceled_at: string | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          estimated_wait_time: number | null
+          id: string
+          notes: string | null
+          party_size: number
+          phone: string
+          position_number: number | null
+          priority: Database["public"]["Enums"]["queue_priority"]
+          queue_id: string
+          seated_at: string | null
+          status: Database["public"]["Enums"]["queue_status"]
+          updated_at: string
+        }
+        Insert: {
+          called_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          estimated_wait_time?: number | null
+          id?: string
+          notes?: string | null
+          party_size: number
+          phone: string
+          position_number?: number | null
+          priority?: Database["public"]["Enums"]["queue_priority"]
+          queue_id: string
+          seated_at?: string | null
+          status?: Database["public"]["Enums"]["queue_status"]
+          updated_at?: string
+        }
+        Update: {
+          called_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          estimated_wait_time?: number | null
+          id?: string
+          notes?: string | null
+          party_size?: number
+          phone?: string
+          position_number?: number | null
+          priority?: Database["public"]["Enums"]["queue_priority"]
+          queue_id?: string
+          seated_at?: string | null
+          status?: Database["public"]["Enums"]["queue_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      queues: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queues_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservations: {
+        Row: {
+          cancel_reason: string | null
+          canceled_at: string | null
+          canceled_by: string | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          id: string
+          notes: string | null
+          party_size: number
+          phone: string
+          reservation_datetime: string
+          restaurant_id: string
+          status: Database["public"]["Enums"]["reservation_status"]
+          updated_at: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          canceled_at?: string | null
+          canceled_by?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          id?: string
+          notes?: string | null
+          party_size: number
+          phone: string
+          reservation_datetime: string
+          restaurant_id: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          canceled_at?: string | null
+          canceled_by?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          id?: string
+          notes?: string | null
+          party_size?: number
+          phone?: string
+          reservation_datetime?: string
+          restaurant_id?: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_hours: {
         Row: {
           close_time: string | null
@@ -139,12 +461,12 @@ export type Database = {
           canceled_at: string
           canceled_by: string
           id: string
-          status: "pending" | "confirmed" | "canceled" | "no_show" | "completed"
+          status: Database["public"]["Enums"]["reservation_status"]
         }[]
       }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
-        Returns: unknown
+        Returns: Database["public"]["Tables"]["queue_entries"]["Row"]
       }
       get_queue_position: {
         Args: { p_ticket_id: string }
@@ -185,6 +507,27 @@ export type Database = {
         | "Uruguaia"
         | "Latino Americana"
         | "Outros"
+      email_status:
+        | "sent"
+        | "delivered"
+        | "opened"
+        | "clicked"
+        | "bounced"
+        | "failed"
+      promotion_status:
+        | "draft"
+        | "scheduled"
+        | "active"
+        | "completed"
+        | "canceled"
+      queue_priority: "normal" | "high" | "vip"
+      queue_status: "waiting" | "called" | "seated" | "canceled" | "no_show"
+      reservation_status:
+        | "pending"
+        | "confirmed"
+        | "seated"
+        | "completed"
+        | "canceled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -345,6 +688,30 @@ export const Constants = {
         "Uruguaia",
         "Latino Americana",
         "Outros",
+      ],
+      email_status: [
+        "sent",
+        "delivered",
+        "opened",
+        "clicked",
+        "bounced",
+        "failed",
+      ],
+      promotion_status: [
+        "draft",
+        "scheduled",
+        "active",
+        "completed",
+        "canceled",
+      ],
+      queue_priority: ["normal", "high", "vip"],
+      queue_status: ["waiting", "called", "seated", "canceled", "no_show"],
+      reservation_status: [
+        "pending",
+        "confirmed",
+        "seated",
+        "completed",
+        "canceled",
       ],
     },
   },

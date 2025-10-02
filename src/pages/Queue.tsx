@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle } from "lucide-react";
+import { useRestaurants } from "@/hooks/useRestaurants";
+import { useQueue } from "@/hooks/useQueue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,56 +22,20 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
-// Mock data - will be replaced with Supabase queries
-const mockQueueData = [
-  {
-    id: 1,
-    position: 1,
-    customer_name: "Maria Silva",
-    phone: "(11) 99999-9999",
-    party_size: 4,
-    priority: "normal",
-    status: "waiting" as const,
-    notes: "Aniversário - mesa especial se possível",
-    waiting_time: "25 min",
-    created_at: new Date(Date.now() - 25 * 60 * 1000)
-  },
-  {
-    id: 2,
-    position: 2,
-    customer_name: "João Santos",
-    phone: "(11) 88888-8888",
-    party_size: 2,
-    priority: "high",
-    status: "waiting" as const,
-    notes: "",
-    waiting_time: "20 min",
-    created_at: new Date(Date.now() - 20 * 60 * 1000)
-  },
-  {
-    id: 3,
-    position: 3,
-    customer_name: "Ana Costa",
-    phone: "(11) 77777-7777",
-    party_size: 3,
-    priority: "normal",
-    status: "called" as const,
-    notes: "Cliente VIP",
-    waiting_time: "15 min",
-    created_at: new Date(Date.now() - 15 * 60 * 1000)
-  },
-];
-
 export default function Queue() {
+  const { restaurants } = useRestaurants();
+  const firstRestaurant = restaurants[0];
+  const { queueEntries, loading, updateQueueStatus } = useQueue(firstRestaurant?.id);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
 
-  const totalWaiting = mockQueueData.filter(entry => entry.status === "waiting").length;
-  const totalPeople = mockQueueData.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.party_size, 0);
+  const totalWaiting = queueEntries.filter(entry => entry.status === "waiting").length;
+  const totalPeople = queueEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.party_size, 0);
   const avgWaitTime = "25 min";
 
-  const filteredQueue = mockQueueData.filter(entry => {
+  const filteredQueue = queueEntries.filter(entry => {
     const matchesSearch = entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          entry.phone.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
@@ -77,6 +43,14 @@ export default function Queue() {
     
     return matchesSearch && matchesStatus && matchesPriority;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -222,7 +196,7 @@ export default function Queue() {
                 <div className="flex items-center space-x-4">
                   <div className="text-center">
                     <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
-                      {entry.position}
+                      {filteredQueue.indexOf(entry) + 1}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Posição</p>
                   </div>
@@ -249,7 +223,7 @@ export default function Queue() {
                       </span>
                       <span className="flex items-center">
                         <Clock className="w-3 h-3 mr-1" />
-                        {entry.waiting_time}
+                        {entry.estimated_wait_time ? `${entry.estimated_wait_time} min` : '--'}
                       </span>
                     </div>
                     {entry.notes && (
@@ -263,18 +237,30 @@ export default function Queue() {
                 <div className="flex items-center space-x-2">
                   {entry.status === "waiting" && (
                     <>
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => updateQueueStatus(entry.id, "called")}
+                      >
                         <PhoneCall className="w-4 h-4 mr-1" />
                         Chamar
                       </Button>
-                      <Button size="sm" className="bg-success hover:bg-success/90">
+                      <Button 
+                        size="sm" 
+                        className="bg-success hover:bg-success/90"
+                        onClick={() => updateQueueStatus(entry.id, "seated")}
+                      >
                         <CheckCircle className="w-4 h-4 mr-1" />
                         Sentar
                       </Button>
                     </>
                   )}
                   {entry.status === "called" && (
-                    <Button size="sm" className="bg-success hover:bg-success/90">
+                    <Button 
+                      size="sm" 
+                      className="bg-success hover:bg-success/90"
+                      onClick={() => updateQueueStatus(entry.id, "seated")}
+                    >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Sentar
                     </Button>
@@ -282,7 +268,11 @@ export default function Queue() {
                   <Button size="sm" variant="outline">
                     <Edit2 className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="destructive">
+                  <Button 
+                    size="sm" 
+                    variant="destructive"
+                    onClick={() => updateQueueStatus(entry.id, "canceled")}
+                  >
                     <XCircle className="w-4 h-4" />
                   </Button>
                 </div>

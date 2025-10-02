@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Search, UserPlus, Phone, Mail, Calendar, TrendingUp, Heart, Eye } from "lucide-react";
+import { useCustomers } from "@/hooks/useCustomers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,65 +23,23 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Mock data - will be replaced with Supabase queries
-const mockCustomers = [
-  {
-    id: 1,
-    name: "Maria Silva",
-    phone: "(11) 99999-9999",
-    email: "maria@email.com",
-    marketing_opt_in: true,
-    lifetime_visits: 8,
-    last_visit_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    total_spent: 1250.00,
-    avg_party_size: 3,
-    favorite_table: "Mesa 12",
-    notes: "Cliente VIP - prefere mesa na varanda"
-  },
-  {
-    id: 2,
-    name: "João Santos",
-    phone: "(11) 88888-8888",
-    email: "joao@email.com",
-    marketing_opt_in: false,
-    lifetime_visits: 3,
-    last_visit_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    total_spent: 320.00,
-    avg_party_size: 2,
-    favorite_table: null,
-    notes: ""
-  },
-  {
-    id: 3,
-    name: "Ana Costa",
-    phone: "(11) 77777-7777",
-    email: "ana@email.com",
-    marketing_opt_in: true,
-    lifetime_visits: 15,
-    last_visit_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    total_spent: 2100.00,
-    avg_party_size: 4,
-    favorite_table: "Mesa 8",
-    notes: "Sempre pede sobremesa especial"
-  },
-];
-
 export default function Customers() {
+  const { customers, loading } = useCustomers();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof mockCustomers[0] | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<typeof customers[0] | null>(null);
 
-  const filteredCustomers = mockCustomers.filter(customer => {
+  const filteredCustomers = customers.filter(customer => {
     return customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           customer.phone.includes(searchTerm) ||
-           customer.email.toLowerCase().includes(searchTerm.toLowerCase());
+           (customer.phone && customer.phone.includes(searchTerm)) ||
+           (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
   });
 
-  const totalCustomers = mockCustomers.length;
-  const activeCustomers = mockCustomers.filter(c => 
-    new Date(c.last_visit_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const totalCustomers = customers.length;
+  const activeCustomers = customers.filter(c => 
+    c.last_visit_date && new Date(c.last_visit_date) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   ).length;
-  const vipCustomers = mockCustomers.filter(c => c.lifetime_visits >= 10).length;
-  const marketingOptIns = mockCustomers.filter(c => c.marketing_opt_in).length;
+  const vipCustomers = customers.filter(c => c.vip_status).length;
+  const marketingOptIns = customers.filter(c => c.marketing_opt_in).length;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -89,11 +48,13 @@ export default function Customers() {
     }).format(value);
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR');
   };
 
-  const getDaysAgo = (date: Date) => {
+  const getDaysAgo = (dateString: string) => {
+    const date = new Date(dateString);
     const days = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
     return days === 0 ? 'Hoje' : days === 1 ? 'Ontem' : `${days} dias atrás`;
   };
@@ -231,7 +192,7 @@ export default function Customers() {
                       </Avatar>
                       <div>
                         <div className="font-medium">{customer.name}</div>
-                        {customer.lifetime_visits >= 10 && (
+                        {customer.vip_status && (
                           <Badge variant="secondary" className="bg-accent/10 text-accent text-xs">
                             VIP
                           </Badge>
@@ -252,22 +213,30 @@ export default function Customers() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{customer.lifetime_visits}</div>
+                    <div className="font-medium">{customer.total_visits}</div>
                     <div className="text-xs text-muted-foreground">
-                      ~{customer.avg_party_size} pessoas/visita
+                      Total de visitas
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{formatDate(customer.last_visit_at)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {getDaysAgo(customer.last_visit_at)}
-                    </div>
+                    {customer.last_visit_date ? (
+                      <>
+                        <div className="text-sm">{formatDate(customer.last_visit_date)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {getDaysAgo(customer.last_visit_date)}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Nunca visitou</div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{formatCurrency(customer.total_spent)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Ticket médio: {formatCurrency(customer.total_spent / customer.lifetime_visits)}
-                    </div>
+                    {customer.total_visits > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Ticket médio: {formatCurrency(customer.total_spent / customer.total_visits)}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge 
@@ -326,16 +295,19 @@ export default function Customers() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <h4 className="font-semibold">Estatísticas</h4>
-                    <p>Total de visitas: {selectedCustomer.lifetime_visits}</p>
-                    <p>Última visita: {formatDate(selectedCustomer.last_visit_at)}</p>
+                    <p>Total de visitas: {selectedCustomer.total_visits}</p>
+                    {selectedCustomer.last_visit_date && (
+                      <p>Última visita: {formatDate(selectedCustomer.last_visit_date)}</p>
+                    )}
                     <p>Total gasto: {formatCurrency(selectedCustomer.total_spent)}</p>
-                    <p>Ticket médio: {formatCurrency(selectedCustomer.total_spent / selectedCustomer.lifetime_visits)}</p>
+                    {selectedCustomer.total_visits > 0 && (
+                      <p>Ticket médio: {formatCurrency(selectedCustomer.total_spent / selectedCustomer.total_visits)}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <h4 className="font-semibold">Preferências</h4>
-                    <p>Tamanho médio do grupo: {selectedCustomer.avg_party_size} pessoas</p>
-                    <p>Mesa preferida: {selectedCustomer.favorite_table || "Nenhuma"}</p>
                     <p>Marketing: {selectedCustomer.marketing_opt_in ? "Aceita" : "Não aceita"}</p>
+                    <p>Status VIP: {selectedCustomer.vip_status ? "Sim" : "Não"}</p>
                   </div>
                 </div>
                 

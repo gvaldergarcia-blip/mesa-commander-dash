@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Calendar, Clock, User, Phone, Search, Filter } from "lucide-react";
+import { useRestaurants } from "@/hooks/useRestaurants";
+import { useReservations } from "@/hooks/useReservations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,56 +23,36 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Mock data - will be replaced with Supabase queries
-const mockReservations = [
-  {
-    id: 1,
-    customer_name: "Carlos Oliveira",
-    phone: "(11) 99999-1111",
-    datetime: new Date(new Date().setHours(19, 30)),
-    party_size: 4,
-    status: "confirmed" as const,
-    notes: "Jantar de negócios - mesa silenciosa",
-    created_at: new Date()
-  },
-  {
-    id: 2,
-    customer_name: "Sofia Martinez",
-    phone: "(11) 88888-2222",
-    datetime: new Date(new Date().setHours(20, 0)),
-    party_size: 2,
-    status: "pending" as const,
-    notes: "Primeira vez no restaurante",
-    created_at: new Date()
-  },
-  {
-    id: 3,
-    customer_name: "Roberto Silva",
-    phone: "(11) 77777-3333",
-    datetime: new Date(new Date().setHours(21, 0)),
-    party_size: 6,
-    status: "confirmed" as const,
-    notes: "Aniversário de casamento - decoração especial",
-    created_at: new Date()
-  },
-];
-
-const todaysReservations = mockReservations;
-const upcomingReservations = [...mockReservations];
-
 export default function Reservations() {
+  const { restaurants } = useRestaurants();
+  const firstRestaurant = restaurants[0];
+  const { reservations, loading, updateReservationStatus } = useReservations(firstRestaurant?.id);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState("today");
 
-  const formatTime = (date: Date) => {
+  // Filtrar reservas de hoje
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todaysReservations = reservations.filter(reservation => {
+    const resDate = new Date(reservation.reservation_datetime);
+    return resDate >= today && resDate < tomorrow;
+  });
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleTimeString("pt-BR", { 
       hour: "2-digit", 
       minute: "2-digit" 
     });
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit"
@@ -84,6 +66,14 @@ export default function Reservations() {
     
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -241,7 +231,7 @@ export default function Reservations() {
                           <Calendar className="w-6 h-6 text-primary" />
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {formatTime(reservation.datetime)}
+                          {formatTime(reservation.reservation_datetime)}
                         </p>
                       </div>
                       
@@ -261,7 +251,7 @@ export default function Reservations() {
                           </span>
                           <span className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
-                            {formatTime(reservation.datetime)}
+                            {formatTime(reservation.reservation_datetime)}
                           </span>
                         </div>
                         {reservation.notes && (
@@ -272,24 +262,36 @@ export default function Reservations() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      {reservation.status === "pending" && (
-                        <Button size="sm" className="bg-success hover:bg-success/90">
-                          Confirmar
-                        </Button>
-                      )}
-                      {reservation.status === "confirmed" && (
-                        <Button size="sm" className="bg-accent hover:bg-accent/90">
-                          Check-in
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline">
-                        Editar
+                  <div className="flex items-center space-x-2">
+                    {reservation.status === "pending" && (
+                      <Button 
+                        size="sm" 
+                        className="bg-success hover:bg-success/90"
+                        onClick={() => updateReservationStatus(reservation.id, "confirmed")}
+                      >
+                        Confirmar
                       </Button>
-                      <Button size="sm" variant="destructive">
-                        Cancelar
+                    )}
+                    {reservation.status === "confirmed" && (
+                      <Button 
+                        size="sm" 
+                        className="bg-accent hover:bg-accent/90"
+                        onClick={() => updateReservationStatus(reservation.id, "seated")}
+                      >
+                        Check-in
                       </Button>
-                    </div>
+                    )}
+                    <Button size="sm" variant="outline">
+                      Editar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={() => updateReservationStatus(reservation.id, "canceled")}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
                   </div>
                 </CardContent>
               </Card>
