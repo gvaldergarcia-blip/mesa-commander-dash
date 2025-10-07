@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useReservationsRealtime } from './useReservationsRealtime';
 
 type Reservation = {
   id: string;
@@ -10,7 +11,7 @@ type Reservation = {
   phone: string;
   party_size: number;
   reservation_datetime: string;
-  status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled';
+  status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show';
   notes?: string;
   canceled_at?: string;
   canceled_by?: string;
@@ -25,13 +26,7 @@ export function useReservations(restaurantId?: string) {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (restaurantId) {
-      fetchReservations();
-    }
-  }, [restaurantId]);
-
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     if (!restaurantId) return;
 
     try {
@@ -55,7 +50,15 @@ export function useReservations(restaurantId?: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId, toast]);
+
+  useEffect(() => {
+    if (restaurantId) {
+      fetchReservations();
+    }
+  }, [restaurantId, fetchReservations]);
+
+  useReservationsRealtime(restaurantId, fetchReservations);
 
   const createReservation = async (reservation: Omit<Reservation, 'id' | 'created_at' | 'updated_at'>) => {
     try {

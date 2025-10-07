@@ -44,6 +44,14 @@ export default function Queue() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
+  const calculateWaitTime = (createdAt: string) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    return diffMins;
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -223,7 +231,7 @@ export default function Queue() {
                       </span>
                       <span className="flex items-center">
                         <Clock className="w-3 h-3 mr-1" />
-                        {entry.estimated_wait_time ? `${entry.estimated_wait_time} min` : '--'}
+                        {entry.estimated_wait_time ? `${entry.estimated_wait_time} min` : `${calculateWaitTime(entry.created_at)} min`}
                       </span>
                     </div>
                     {entry.notes && (

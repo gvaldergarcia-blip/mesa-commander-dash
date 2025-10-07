@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQueueRealtime } from './useQueueRealtime';
 
 type QueueEntry = {
   id: string;
@@ -27,13 +28,7 @@ export function useQueue(restaurantId?: string) {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (restaurantId) {
-      fetchQueue();
-    }
-  }, [restaurantId]);
-
-  const fetchQueue = async () => {
+  const fetchQueue = useCallback(async () => {
     if (!restaurantId) return;
 
     try {
@@ -46,9 +41,13 @@ export function useQueue(restaurantId?: string) {
         .eq('restaurant_id', restaurantId)
         .eq('is_active', true)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (queueError) throw queueError;
+      if (!queues) {
+        setQueueEntries([]);
+        return;
+      }
 
       // Buscar as entradas da fila
       const { data, error } = await supabase
@@ -70,7 +69,15 @@ export function useQueue(restaurantId?: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId, toast]);
+
+  useEffect(() => {
+    if (restaurantId) {
+      fetchQueue();
+    }
+  }, [restaurantId, fetchQueue]);
+
+  useQueueRealtime(restaurantId, fetchQueue);
 
   const addToQueue = async (entry: Omit<QueueEntry, 'id' | 'created_at' | 'updated_at' | 'queue_id'>) => {
     if (!restaurantId) return;
@@ -121,7 +128,7 @@ export function useQueue(restaurantId?: string) {
         updateData.called_at = new Date().toISOString();
       } else if (status === 'seated') {
         updateData.seated_at = new Date().toISOString();
-      } else if (status === 'canceled') {
+      } else if (status === 'canceled' || status === 'no_show') {
         updateData.canceled_at = new Date().toISOString();
       }
 
