@@ -7,27 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Reservations() {
   const { restaurants } = useRestaurants();
   const firstRestaurant = restaurants[0];
   const { reservations, loading, updateReservationStatus } = useReservations(firstRestaurant?.id);
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState("today");
@@ -38,16 +26,16 @@ export default function Reservations() {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const todaysReservations = reservations.filter(reservation => {
+  const todaysReservations = reservations.filter((reservation) => {
     const resDate = new Date(reservation.reservation_datetime);
     return resDate >= today && resDate < tomorrow;
   });
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString("pt-BR", { 
-      hour: "2-digit", 
-      minute: "2-digit" 
+    return date.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -55,15 +43,16 @@ export default function Reservations() {
     const date = new Date(dateString);
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
-      month: "2-digit"
+      month: "2-digit",
     });
   };
 
-  const filteredReservations = todaysReservations.filter(reservation => {
-    const matchesSearch = reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reservation.phone.includes(searchTerm);
+  const filteredReservations = todaysReservations.filter((reservation) => {
+    const matchesSearch =
+      reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reservation.phone.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -140,7 +129,7 @@ export default function Reservations() {
               <Clock className="h-5 w-5 text-success" />
               <div>
                 <p className="text-2xl font-bold">
-                  {todaysReservations.filter(r => r.status === "confirmed").length}
+                  {todaysReservations.filter((r) => r.status === "confirmed").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Confirmadas</p>
               </div>
@@ -152,9 +141,7 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <User className="h-5 w-5 text-warning" />
               <div>
-                <p className="text-2xl font-bold">
-                  {todaysReservations.filter(r => r.status === "pending").length}
-                </p>
+                <p className="text-2xl font-bold">{todaysReservations.filter((r) => r.status === "pending").length}</p>
                 <p className="text-sm text-muted-foreground">Pendentes</p>
               </div>
             </div>
@@ -165,9 +152,7 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <User className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-2xl font-bold">
-                  {todaysReservations.reduce((sum, r) => sum + r.party_size, 0)}
-                </p>
+                <p className="text-2xl font-bold">{todaysReservations.reduce((sum, r) => sum + r.party_size, 0)}</p>
                 <p className="text-sm text-muted-foreground">Total pessoas</p>
               </div>
             </div>
@@ -234,7 +219,7 @@ export default function Reservations() {
                           {formatTime(reservation.reservation_datetime)}
                         </p>
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="font-semibold">{reservation.customer_name}</h3>
@@ -255,43 +240,41 @@ export default function Reservations() {
                           </span>
                         </div>
                         {reservation.notes && (
-                          <p className="text-sm text-muted-foreground mt-1 italic">
-                            "{reservation.notes}"
-                          </p>
+                          <p className="text-sm text-muted-foreground mt-1 italic">"{reservation.notes}"</p>
                         )}
                       </div>
                     </div>
 
-                  <div className="flex items-center space-x-2">
-                    {reservation.status === "pending" && (
-                      <Button 
-                        size="sm" 
-                        className="bg-success hover:bg-success/90"
-                        onClick={() => updateReservationStatus(reservation.id, "confirmed")}
-                      >
-                        Confirmar
+                    <div className="flex items-center space-x-2">
+                      {reservation.status === "pending" && (
+                        <Button
+                          size="sm"
+                          className="bg-success hover:bg-success/90"
+                          onClick={() => updateReservationStatus(reservation.id, "confirmed")}
+                        >
+                          Confirmar
+                        </Button>
+                      )}
+                      {reservation.status === "confirmed" && (
+                        <Button
+                          size="sm"
+                          className="bg-accent hover:bg-accent/90"
+                          onClick={() => updateReservationStatus(reservation.id, "seated")}
+                        >
+                          Check-in
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline">
+                        Editar
                       </Button>
-                    )}
-                    {reservation.status === "confirmed" && (
-                      <Button 
-                        size="sm" 
-                        className="bg-accent hover:bg-accent/90"
-                        onClick={() => updateReservationStatus(reservation.id, "seated")}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => updateReservationStatus(reservation.id, "canceled")}
                       >
-                        Check-in
+                        Cancelar
                       </Button>
-                    )}
-                    <Button size="sm" variant="outline">
-                      Editar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      onClick={() => updateReservationStatus(reservation.id, "canceled")}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -304,9 +287,7 @@ export default function Reservations() {
             <CardContent className="p-12 text-center">
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="font-semibold mb-2">Visão Semanal</h3>
-              <p className="text-muted-foreground">
-                Visualização das reservas da semana será implementada em breve.
-              </p>
+              <p className="text-muted-foreground">Visualização das reservas da semana será implementada em breve.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -316,9 +297,7 @@ export default function Reservations() {
             <CardContent className="p-12 text-center">
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="font-semibold mb-2">Calendário</h3>
-              <p className="text-muted-foreground">
-                Calendário interativo será implementado em breve.
-              </p>
+              <p className="text-muted-foreground">Calendário interativo será implementado em breve.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -330,7 +309,7 @@ export default function Reservations() {
             <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="font-semibold mb-2">Nenhuma reserva encontrada</h3>
             <p className="text-muted-foreground mb-4">
-              {searchTerm || statusFilter !== "all" 
+              {searchTerm || statusFilter !== "all"
                 ? "Nenhum resultado encontrado com os filtros atuais."
                 : "Não há reservas para hoje."}
             </p>
