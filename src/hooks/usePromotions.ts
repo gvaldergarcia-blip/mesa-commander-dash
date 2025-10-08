@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 type Promotion = {
   id: string;
@@ -15,27 +16,23 @@ type Promotion = {
   updated_at: string;
 };
 
-export function usePromotions(restaurantId?: string) {
+export function usePromotions() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (restaurantId) {
-      fetchPromotions();
-    }
-  }, [restaurantId]);
+    fetchPromotions();
+  }, []);
 
   const fetchPromotions = async () => {
-    if (!restaurantId) return;
-
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('promotions')
         .select('*')
-        .eq('restaurant_id', restaurantId)
+        .eq('restaurant_id', RESTAURANT_ID)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
