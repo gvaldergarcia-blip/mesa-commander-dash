@@ -70,6 +70,7 @@ export function useReports() {
 
       // Get active queue
       const { data: queues } = await supabase
+        .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', RESTAURANT_ID)
@@ -80,6 +81,7 @@ export function useReports() {
 
       // Queue metrics - Current period (last 30 days)
       const { data: currentQueueEntries } = await supabase
+        .schema('mesaclik')
         .from('queue_positions')
         .select('created_at, seated_at, status, party_size')
         .eq('queue_id', queueId || '')
@@ -87,6 +89,7 @@ export function useReports() {
 
       // Queue metrics - Previous period (30-60 days ago)
       const { data: previousQueueEntries } = await supabase
+        .schema('mesaclik')
         .from('queue_positions')
         .select('created_at, seated_at, status')
         .eq('queue_id', queueId || '')
@@ -111,6 +114,7 @@ export function useReports() {
 
       // Reservations - Current period
       const { data: currentReservations } = await supabase
+        .schema('mesaclik')
         .from('reservations')
         .select('status, party_size, reservation_datetime')
         .eq('restaurant_id', RESTAURANT_ID)
@@ -118,6 +122,7 @@ export function useReports() {
 
       // Reservations - Previous period
       const { data: previousReservations } = await supabase
+        .schema('mesaclik')
         .from('reservations')
         .select('status, reservation_datetime')
         .eq('restaurant_id', RESTAURANT_ID)
@@ -146,6 +151,7 @@ export function useReports() {
 
       // Email metrics
       const { data: emailLogs } = await supabase
+        .schema('mesaclik')
         .from('email_logs')
         .select('sent_at, opened_at, clicked_at')
         .gte('sent_at', thirtyDaysAgo.toISOString());
@@ -236,6 +242,7 @@ export function useReports() {
 
       // Customer metrics
       const { data: customers } = await supabase
+        .schema('mesaclik')
         .from('customers')
         .select('created_at, total_visits, vip_status');
 

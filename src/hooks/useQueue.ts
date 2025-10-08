@@ -37,6 +37,7 @@ export function useQueue() {
       
       // Buscar a fila do restaurante
       const { data: queues, error: queueError } = await supabase
+        .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', restaurantId)
@@ -52,6 +53,7 @@ export function useQueue() {
 
       // Buscar as entradas da fila
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('queue_positions')
         .select('*')
         .eq('queue_id', queues.id)
@@ -84,6 +86,7 @@ export function useQueue() {
     try {
       // Buscar a fila do restaurante
       const { data: queues, error: queueError } = await supabase
+        .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', restaurantId)
@@ -94,6 +97,7 @@ export function useQueue() {
       if (queueError) throw queueError;
 
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('queue_positions')
         .insert([{ ...entry, queue_id: queues.id }])
         .select()
@@ -132,6 +136,7 @@ export function useQueue() {
       }
 
       const { error } = await supabase
+        .schema('mesaclik')
         .from('queue_positions')
         .update(updateData)
         .eq('id', id);

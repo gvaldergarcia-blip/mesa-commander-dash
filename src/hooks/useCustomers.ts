@@ -31,6 +31,7 @@ export function useCustomers() {
     try {
       setLoading(true);
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('customers')
         .select('*')
         .order('created_at', { ascending: false });
@@ -53,6 +54,7 @@ export function useCustomers() {
   const createCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('customers')
         .insert([customer])
         .select()

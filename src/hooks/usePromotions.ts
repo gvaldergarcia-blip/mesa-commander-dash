@@ -30,6 +30,7 @@ export function usePromotions() {
     try {
       setLoading(true);
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('promotions')
         .select('*')
         .eq('restaurant_id', RESTAURANT_ID)
@@ -53,6 +54,7 @@ export function usePromotions() {
   const createPromotion = async (promotion: Omit<Promotion, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('promotions')
         .insert([promotion])
         .select()

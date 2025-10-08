@@ -36,6 +36,7 @@ export function useDashboardMetrics() {
 
       // Get active queue for restaurant
       const { data: queues } = await supabase
+        .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', RESTAURANT_ID)
@@ -47,12 +48,14 @@ export function useDashboardMetrics() {
       if (queueId) {
         // Queue metrics
         const { data: waitingEntries } = await supabase
+          .schema('mesaclik')
           .from('queue_positions')
           .select('party_size, created_at')
           .eq('queue_id', queueId)
           .eq('status', 'waiting');
 
         const { count: calledCount } = await supabase
+          .schema('mesaclik')
           .from('queue_positions')
           .select('*', { count: 'exact', head: true })
           .eq('queue_id', queueId)
@@ -63,6 +66,7 @@ export function useDashboardMetrics() {
         today.setHours(0, 0, 0, 0);
 
         const { count: seatedToday } = await supabase
+          .schema('mesaclik')
           .from('queue_positions')
           .select('*', { count: 'exact', head: true })
           .eq('queue_id', queueId)
@@ -70,6 +74,7 @@ export function useDashboardMetrics() {
           .gte('seated_at', today.toISOString());
 
         const { count: canceledToday } = await supabase
+          .schema('mesaclik')
           .from('queue_positions')
           .select('*', { count: 'exact', head: true })
           .eq('queue_id', queueId)
@@ -78,6 +83,7 @@ export function useDashboardMetrics() {
 
         // Calculate avg wait time from seated entries today
         const { data: seatedEntries } = await supabase
+          .schema('mesaclik')
           .from('queue_positions')
           .select('created_at, seated_at')
           .eq('queue_id', queueId)
@@ -103,6 +109,7 @@ export function useDashboardMetrics() {
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         const { data: reservationsData } = await supabase
+          .schema('mesaclik')
           .from('reservations')
           .select('status, party_size')
           .eq('restaurant_id', RESTAURANT_ID)

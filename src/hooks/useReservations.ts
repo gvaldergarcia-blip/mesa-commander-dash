@@ -33,6 +33,7 @@ export function useReservations() {
     try {
       setLoading(true);
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('reservations')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -62,6 +63,7 @@ export function useReservations() {
   const createReservation = async (reservation: Omit<Reservation, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('reservations')
         .insert([reservation])
         .select()
@@ -90,6 +92,7 @@ export function useReservations() {
   const updateReservationStatus = async (id: string, status: Reservation['status']) => {
     try {
       const { error } = await supabase
+        .schema('mesaclik')
         .from('reservations')
         .update({ status })
         .eq('id', id);
