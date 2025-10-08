@@ -3,18 +3,13 @@ import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 type Customer = {
-  id: string;
   name: string;
+  phone: string;
   email?: string;
-  phone?: string;
+  last_visit_at: string;
   total_visits: number;
-  total_spent: number;
-  last_visit_date?: string;
   marketing_opt_in: boolean;
   vip_status: boolean;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
 };
 
 export function useCustomers() {
@@ -32,9 +27,9 @@ export function useCustomers() {
       setLoading(true);
       const { data, error } = await supabase
         .schema('mesaclik')
-        .from('customers')
+        .from('v_customers')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('last_visit_at', { ascending: false });
 
       if (error) throw error;
       setCustomers(data || []);
@@ -51,33 +46,14 @@ export function useCustomers() {
     }
   };
 
-  const createCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('customers')
-        .insert([customer])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: 'Sucesso',
-        description: 'Cliente criado com sucesso',
-      });
-
-      await fetchCustomers();
-      return data;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao criar cliente';
-      toast({
-        title: 'Erro',
-        description: message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
+  // TODO: Implementar criação de cliente diretamente na tabela customers quando necessário
+  const createCustomer = async (customer: { name: string; phone: string; email?: string }) => {
+    // Por enquanto, clientes são criados automaticamente via fila/reservas
+    toast({
+      title: 'Info',
+      description: 'Clientes são criados automaticamente via fila ou reservas',
+    });
+    return null;
   };
 
   return {

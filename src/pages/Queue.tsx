@@ -31,16 +31,15 @@ export default function Queue() {
   const [priorityFilter, setPriorityFilter] = useState("all");
 
   const totalWaiting = queueEntries.filter(entry => entry.status === "waiting").length;
-  const totalPeople = queueEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.party_size, 0);
+  const totalPeople = queueEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
   const avgWaitTime = "25 min";
 
   const filteredQueue = queueEntries.filter(entry => {
     const matchesSearch = entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          entry.phone.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
-    const matchesPriority = priorityFilter === "all" || entry.priority === priorityFilter;
     
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus;
   });
 
   const calculateWaitTime = (createdAt: string) => {
@@ -197,7 +196,7 @@ export default function Queue() {
       {/* Queue List */}
       <div className="space-y-3">
         {filteredQueue.map((entry) => (
-          <Card key={entry.id} className="hover:shadow-md transition-shadow">
+          <Card key={entry.entry_id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -212,12 +211,6 @@ export default function Queue() {
                     <div className="flex items-center space-x-2 mb-1">
                       <h3 className="font-semibold">{entry.customer_name}</h3>
                       <StatusBadge status={entry.status} />
-                      {entry.priority === "high" && (
-                        <Badge variant="secondary" className="bg-warning/10 text-warning">Alta</Badge>
-                      )}
-                      {entry.priority === "vip" && (
-                        <Badge variant="secondary" className="bg-accent/10 text-accent">VIP</Badge>
-                      )}
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <span className="flex items-center">
@@ -226,11 +219,11 @@ export default function Queue() {
                       </span>
                       <span className="flex items-center">
                         <Users className="w-3 h-3 mr-1" />
-                        {entry.party_size} pessoas
+                        {entry.people} pessoas
                       </span>
                       <span className="flex items-center">
                         <Clock className="w-3 h-3 mr-1" />
-                        {entry.estimated_wait_time ? `${entry.estimated_wait_time} min` : `${calculateWaitTime(entry.created_at)} min`}
+                        {calculateWaitTime(entry.created_at)} min
                       </span>
                     </div>
                     {entry.notes && (
@@ -247,7 +240,7 @@ export default function Queue() {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => updateQueueStatus(entry.id, "called")}
+                        onClick={() => updateQueueStatus(entry.entry_id, "called")}
                       >
                         <PhoneCall className="w-4 h-4 mr-1" />
                         Chamar
@@ -255,7 +248,7 @@ export default function Queue() {
                       <Button 
                         size="sm" 
                         className="bg-success hover:bg-success/90"
-                        onClick={() => updateQueueStatus(entry.id, "seated")}
+                        onClick={() => updateQueueStatus(entry.entry_id, "seated")}
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
                         Sentar
@@ -266,7 +259,7 @@ export default function Queue() {
                     <Button 
                       size="sm" 
                       className="bg-success hover:bg-success/90"
-                      onClick={() => updateQueueStatus(entry.id, "seated")}
+                      onClick={() => updateQueueStatus(entry.entry_id, "seated")}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Sentar
@@ -278,7 +271,7 @@ export default function Queue() {
                   <Button 
                     size="sm" 
                     variant="destructive"
-                    onClick={() => updateQueueStatus(entry.id, "canceled")}
+                    onClick={() => updateQueueStatus(entry.entry_id, "canceled")}
                   >
                     <XCircle className="w-4 h-4" />
                   </Button>

@@ -5,18 +5,15 @@ import { useReservationsRealtime } from './useReservationsRealtime';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 type Reservation = {
-  id: string;
+  reservation_id: string;
   restaurant_id: string;
-  customer_id?: string;
   customer_name: string;
   phone: string;
-  party_size: number;
-  reservation_datetime: string;
+  people: number;
+  starts_at: string;
   status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show';
   notes?: string;
   canceled_at?: string;
-  canceled_by?: string;
-  cancel_reason?: string;
   created_at: string;
   updated_at: string;
 };
@@ -29,15 +26,13 @@ export function useReservations() {
   const { toast } = useToast();
 
   const fetchReservations = useCallback(async () => {
-
     try {
       setLoading(true);
       const { data, error } = await supabase
         .schema('mesaclik')
-        .from('reservations')
+        .from('v_reservations')
         .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('reservation_datetime', { ascending: true });
+        .order('starts_at', { ascending: true });
 
       if (error) throw error;
       setReservations(data || []);
@@ -60,12 +55,22 @@ export function useReservations() {
 
   useReservationsRealtime(fetchReservations);
 
-  const createReservation = async (reservation: Omit<Reservation, 'id' | 'created_at' | 'updated_at'>) => {
+  const createReservation = async (reservation: { customer_name: string; phone: string; people: number; starts_at: string; notes?: string }) => {
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('reservations')
-        .insert([reservation])
+        .insert([
+          {
+            name: reservation.customer_name,
+            phone: reservation.phone,
+            party_size: reservation.people,
+            reserved_for: reservation.starts_at,
+            notes: reservation.notes,
+            restaurant_id: restaurantId,
+            status: 'pending',
+          },
+        ])
         .select()
         .single();
 

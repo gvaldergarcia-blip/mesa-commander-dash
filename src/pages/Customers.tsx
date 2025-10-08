@@ -36,17 +36,10 @@ export default function Customers() {
 
   const totalCustomers = customers.length;
   const activeCustomers = customers.filter(c => 
-    c.last_visit_date && new Date(c.last_visit_date) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    c.last_visit_at && new Date(c.last_visit_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   ).length;
   const vipCustomers = customers.filter(c => c.vip_status).length;
   const marketingOptIns = customers.filter(c => c.marketing_opt_in).length;
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -181,8 +174,8 @@ export default function Customers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id} className="cursor-pointer hover:bg-muted/50">
+              {filteredCustomers.map((customer, index) => (
+                <TableRow key={`${customer.phone}-${index}`} className="cursor-pointer hover:bg-muted/50">
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar>
@@ -219,11 +212,11 @@ export default function Customers() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {customer.last_visit_date ? (
+                    {customer.last_visit_at ? (
                       <>
-                        <div className="text-sm">{formatDate(customer.last_visit_date)}</div>
+                        <div className="text-sm">{formatDate(customer.last_visit_at)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {getDaysAgo(customer.last_visit_date)}
+                          {getDaysAgo(customer.last_visit_at)}
                         </div>
                       </>
                     ) : (
@@ -231,12 +224,8 @@ export default function Customers() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{formatCurrency(customer.total_spent)}</div>
-                    {customer.total_visits > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        Ticket médio: {formatCurrency(customer.total_spent / customer.total_visits)}
-                      </div>
-                    )}
+                    <div className="font-medium">-</div>
+                    <div className="text-xs text-muted-foreground">Em desenvolvimento</div>
                   </TableCell>
                   <TableCell>
                     <Badge 
@@ -296,12 +285,8 @@ export default function Customers() {
                   <div className="space-y-2">
                     <h4 className="font-semibold">Estatísticas</h4>
                     <p>Total de visitas: {selectedCustomer.total_visits}</p>
-                    {selectedCustomer.last_visit_date && (
-                      <p>Última visita: {formatDate(selectedCustomer.last_visit_date)}</p>
-                    )}
-                    <p>Total gasto: {formatCurrency(selectedCustomer.total_spent)}</p>
-                    {selectedCustomer.total_visits > 0 && (
-                      <p>Ticket médio: {formatCurrency(selectedCustomer.total_spent / selectedCustomer.total_visits)}</p>
+                    {selectedCustomer.last_visit_at && (
+                      <p>Última visita: {formatDate(selectedCustomer.last_visit_at)}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -310,13 +295,6 @@ export default function Customers() {
                     <p>Status VIP: {selectedCustomer.vip_status ? "Sim" : "Não"}</p>
                   </div>
                 </div>
-                
-                {selectedCustomer.notes && (
-                  <div>
-                    <h4 className="font-semibold">Observações</h4>
-                    <p className="text-muted-foreground italic">"{selectedCustomer.notes}"</p>
-                  </div>
-                )}
               </TabsContent>
               
               <TabsContent value="history">

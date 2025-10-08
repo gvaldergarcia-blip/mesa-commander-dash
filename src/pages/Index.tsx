@@ -1,4 +1,4 @@
-import { Users, Clock, Calendar, TrendingUp, Activity, CheckCircle, XCircle, PhoneCall } from "lucide-react";
+import { Users, Calendar, TrendingUp, Activity, CheckCircle, XCircle, PhoneCall } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
@@ -35,23 +35,17 @@ export default function Index() {
       </div>
 
       {/* Main Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard
           title="Pessoas na Fila"
-          value={metrics.queueWaiting.toString()}
-          description={`${metrics.queueTotalPeople} pessoas esperando`}
+          value={metrics.people_in_queue.toString()}
+          description={`${metrics.groups_in_queue} grupos esperando`}
           icon={Users}
         />
         <MetricCard
-          title="Tempo Médio de Espera"
-          value={`${metrics.avgWaitTime} min`}
-          description="Baseado em hoje"
-          icon={Clock}
-        />
-        <MetricCard
           title="Reservas Hoje"
-          value={metrics.reservationsToday.toString()}
-          description={`${metrics.reservationsConfirmed} confirmadas`}
+          value={metrics.reservations_today.toString()}
+          description="Total de reservas"
           icon={Calendar}
         />
         <MetricCard
@@ -79,7 +73,7 @@ export default function Index() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">Cliente adicionado à fila</p>
                   <p className="text-xs text-muted-foreground">
-                    {metrics.queueWaiting} grupos aguardando • agora
+                    {metrics.groups_in_queue} grupos aguardando • agora
                   </p>
                 </div>
               </div>
@@ -89,7 +83,7 @@ export default function Index() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">Reserva confirmada</p>
                   <p className="text-xs text-muted-foreground">
-                    {metrics.reservationsConfirmed} confirmadas hoje • 5 min atrás
+                    {metrics.reservations_today} reservas hoje • 5 min atrás
                   </p>
                 </div>
               </div>
@@ -99,7 +93,7 @@ export default function Index() {
                 <div className="flex-1">
                   <p className="text-sm font-medium">Cliente sentado</p>
                   <p className="text-xs text-muted-foreground">
-                    {metrics.queueSeatedToday} atendidos hoje • 10 min atrás
+                    {metrics.served_today} atendidos hoje • 10 min atrás
                   </p>
                 </div>
               </div>
@@ -112,37 +106,30 @@ export default function Index() {
           <CardHeader>
             <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <a 
-                href="/queue"
-                className="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent/10 transition-colors cursor-pointer"
-              >
-                <Users className="h-6 w-6 mb-2 text-primary" />
-                <span className="text-sm font-medium">Gerenciar Fila</span>
-              </a>
-              <a 
-                href="/reservations"
-                className="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent/10 transition-colors cursor-pointer"
-              >
-                <Calendar className="h-6 w-6 mb-2 text-accent" />
-                <span className="text-sm font-medium">Ver Reservas</span>
-              </a>
-              <a 
-                href="/customers"
-                className="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent/10 transition-colors cursor-pointer"
-              >
-                <Users className="h-6 w-6 mb-2 text-success" />
-                <span className="text-sm font-medium">Clientes</span>
-              </a>
-              <a 
-                href="/promotions"
-                className="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-accent/10 transition-colors cursor-pointer"
-              >
-                <TrendingUp className="h-6 w-6 mb-2 text-warning" />
-                <span className="text-sm font-medium">Promoções</span>
-              </a>
-            </div>
+          <CardContent className="space-y-3">
+            <a href="/queue" className="block">
+              <button className="w-full p-4 rounded-lg border border-border hover:bg-accent/10 transition text-left">
+                <div className="flex items-center space-x-3">
+                  <Users className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Gerenciar Fila</p>
+                    <p className="text-xs text-muted-foreground">Adicionar ou atender clientes</p>
+                  </div>
+                </div>
+              </button>
+            </a>
+
+            <a href="/reservations" className="block">
+              <button className="w-full p-4 rounded-lg border border-border hover:bg-accent/10 transition text-left">
+                <div className="flex items-center space-x-3">
+                  <Calendar className="h-5 w-5 text-accent" />
+                  <div>
+                    <p className="font-medium">Ver Reservas</p>
+                    <p className="text-xs text-muted-foreground">Confirmar ou gerenciar reservas</p>
+                  </div>
+                </div>
+              </button>
+            </a>
           </CardContent>
         </Card>
       </div>
@@ -150,40 +137,29 @@ export default function Index() {
       {/* Queue Status Overview */}
       <Card>
         <CardHeader>
-          <CardTitle>Status da Fila Atual</CardTitle>
+          <CardTitle>Status da Fila</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-warning/10 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <Clock className="h-5 w-5 text-warning" />
-              </div>
-              <div className="text-2xl font-bold text-warning">{metrics.queueWaiting}</div>
-              <div className="text-sm text-muted-foreground">Aguardando</div>
+              <Users className="h-6 w-6 mx-auto mb-2 text-warning" />
+              <div className="text-2xl font-bold">{metrics.groups_in_queue}</div>
+              <p className="text-xs text-muted-foreground">Esperando</p>
             </div>
-
-            <div className="text-center p-4 bg-accent/10 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <PhoneCall className="h-5 w-5 text-accent" />
-              </div>
-              <div className="text-2xl font-bold text-accent">{metrics.queueCalledNow}</div>
-              <div className="text-sm text-muted-foreground">Chamados</div>
+            <div className="text-center p-4 bg-primary/10 rounded-lg">
+              <PhoneCall className="h-6 w-6 mx-auto mb-2 text-primary" />
+              <div className="text-2xl font-bold">{metrics.called_today}</div>
+              <p className="text-xs text-muted-foreground">Chamados Hoje</p>
             </div>
-
             <div className="text-center p-4 bg-success/10 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <CheckCircle className="h-5 w-5 text-success" />
-              </div>
-              <div className="text-2xl font-bold text-success">{metrics.queueSeatedToday}</div>
-              <div className="text-sm text-muted-foreground">Atendidos Hoje</div>
+              <CheckCircle className="h-6 w-6 mx-auto mb-2 text-success" />
+              <div className="text-2xl font-bold">{metrics.served_today}</div>
+              <p className="text-xs text-muted-foreground">Atendidos Hoje</p>
             </div>
-
             <div className="text-center p-4 bg-destructive/10 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <XCircle className="h-5 w-5 text-destructive" />
-              </div>
-              <div className="text-2xl font-bold text-destructive">{metrics.queueCanceledToday}</div>
-              <div className="text-sm text-muted-foreground">Cancelados</div>
+              <XCircle className="h-6 w-6 mx-auto mb-2 text-destructive" />
+              <div className="text-2xl font-bold">{metrics.canceled_today}</div>
+              <p className="text-xs text-muted-foreground">Cancelados Hoje</p>
             </div>
           </div>
         </CardContent>

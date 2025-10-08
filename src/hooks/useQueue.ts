@@ -5,17 +5,15 @@ import { useQueueRealtime } from './useQueueRealtime';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 type QueueEntry = {
-  id: string;
+  entry_id: string;
   queue_id: string;
-  customer_id?: string;
   customer_name: string;
   phone: string;
-  party_size: number;
-  priority: 'normal' | 'high' | 'vip';
+  email?: string;
+  people: number;
   status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
-  position_number?: number;
   notes?: string;
-  estimated_wait_time?: number;
+  position?: number;
   called_at?: string;
   seated_at?: string;
   canceled_at?: string;
@@ -31,32 +29,14 @@ export function useQueue() {
   const { toast } = useToast();
 
   const fetchQueue = useCallback(async () => {
-
     try {
       setLoading(true);
       
-      // Buscar a fila do restaurante
-      const { data: queues, error: queueError } = await supabase
-        .schema('mesaclik')
-        .from('queues')
-        .select('id')
-        .eq('restaurant_id', restaurantId)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-
-      if (queueError) throw queueError;
-      if (!queues) {
-        setQueueEntries([]);
-        return;
-      }
-
-      // Buscar as entradas da fila
+      // Buscar entradas da fila usando a view
       const { data, error } = await supabase
         .schema('mesaclik')
-        .from('queue_positions')
+        .from('v_queue_current')
         .select('*')
-        .eq('queue_id', queues.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -80,26 +60,37 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: Omit<QueueEntry, 'id' | 'created_at' | 'updated_at' | 'queue_id'>) => {
-    if (!restaurantId) return;
-
+  const addToQueue = async (entry: { customer_name: string; phone: string; people: number; notes?: string }) => {
     try {
-      // Buscar a fila do restaurante
-      const { data: queues, error: queueError } = await supabase
+      // Buscar fila ativa
+      const { data: activeQueue, error: queueError } = await supabase
         .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', restaurantId)
         .eq('is_active', true)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (queueError) throw queueError;
+      if (!activeQueue) {
+        throw new Error('Nenhuma fila ativa encontrada');
+      }
 
       const { data, error } = await supabase
         .schema('mesaclik')
-        .from('queue_positions')
-        .insert([{ ...entry, queue_id: queues.id }])
+        .from('queue_entries')
+        .insert([
+          {
+            name: entry.customer_name,
+            phone: entry.phone,
+            party_size: entry.people,
+            notes: entry.notes,
+            queue_id: activeQueue.id,
+            restaurant_id: restaurantId,
+            status: 'waiting',
+          },
+        ])
         .select()
         .single();
 
@@ -137,7 +128,7 @@ export function useQueue() {
 
       const { error } = await supabase
         .schema('mesaclik')
-        .from('queue_positions')
+        .from('queue_entries')
         .update(updateData)
         .eq('id', id);
 

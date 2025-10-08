@@ -38,7 +38,7 @@ export default function Reservations() {
   tomorrow.setDate(tomorrow.getDate() + 1);
 
   const todaysReservations = reservations.filter(reservation => {
-    const resDate = new Date(reservation.reservation_datetime);
+    const resDate = new Date(reservation.starts_at);
     return resDate >= today && resDate < tomorrow;
   });
 
@@ -165,7 +165,7 @@ export default function Reservations() {
               <User className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-2xl font-bold">
-                  {todaysReservations.reduce((sum, r) => sum + r.party_size, 0)}
+                  {todaysReservations.reduce((sum, r) => sum + r.people, 0)}
                 </p>
                 <p className="text-sm text-muted-foreground">Total pessoas</p>
               </div>
@@ -221,7 +221,7 @@ export default function Reservations() {
           {/* Reservations List */}
           <div className="space-y-3">
             {filteredReservations.map((reservation) => (
-              <Card key={reservation.id} className="hover:shadow-md transition-shadow">
+              <Card key={reservation.reservation_id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -230,7 +230,7 @@ export default function Reservations() {
                           <Calendar className="w-6 h-6 text-primary" />
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {formatTime(reservation.reservation_datetime)}
+                          {formatTime(reservation.starts_at)}
                         </p>
                       </div>
                       
@@ -246,11 +246,11 @@ export default function Reservations() {
                           </span>
                           <span className="flex items-center">
                             <User className="w-3 h-3 mr-1" />
-                            {reservation.party_size} pessoas
+                            {reservation.people} pessoas
                           </span>
                           <span className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
-                            {formatTime(reservation.reservation_datetime)}
+                            {formatTime(reservation.starts_at)}
                           </span>
                         </div>
                         {reservation.notes && (
@@ -266,7 +266,7 @@ export default function Reservations() {
                       <Button 
                         size="sm" 
                         className="bg-success hover:bg-success/90"
-                        onClick={() => updateReservationStatus(reservation.id, "confirmed")}
+                        onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
                       >
                         Confirmar
                       </Button>
@@ -275,7 +275,7 @@ export default function Reservations() {
                       <Button 
                         size="sm" 
                         className="bg-accent hover:bg-accent/90"
-                        onClick={() => updateReservationStatus(reservation.id, "seated")}
+                        onClick={() => updateReservationStatus(reservation.reservation_id, "seated")}
                       >
                         Check-in
                       </Button>
@@ -286,7 +286,7 @@ export default function Reservations() {
                     <Button 
                       size="sm" 
                       variant="destructive"
-                      onClick={() => updateReservationStatus(reservation.id, "canceled")}
+                      onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
                     >
                       Cancelar
                     </Button>

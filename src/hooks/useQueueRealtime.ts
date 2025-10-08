@@ -12,7 +12,7 @@ export function useQueueRealtime(onUpdate: () => void) {
         {
           event: '*',
           schema: 'mesaclik',
-          table: 'queue_positions',
+          table: 'queue_entries',
           filter: `restaurant_id=eq.${RESTAURANT_ID}`
         },
         () => {
