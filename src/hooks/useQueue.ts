@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueueRealtime } from './useQueueRealtime';
+import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 type QueueEntry = {
   id: string;
@@ -22,14 +23,14 @@ type QueueEntry = {
   updated_at: string;
 };
 
-export function useQueue(restaurantId?: string) {
+export function useQueue() {
+  const restaurantId = RESTAURANT_ID;
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchQueue = useCallback(async () => {
-    if (!restaurantId) return;
 
     try {
       setLoading(true);
@@ -51,7 +52,7 @@ export function useQueue(restaurantId?: string) {
 
       // Buscar as entradas da fila
       const { data, error } = await supabase
-        .from('queue_entries')
+        .from('queue_positions')
         .select('*')
         .eq('queue_id', queues.id)
         .order('created_at', { ascending: true });
@@ -69,15 +70,13 @@ export function useQueue(restaurantId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [restaurantId, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    if (restaurantId) {
-      fetchQueue();
-    }
-  }, [restaurantId, fetchQueue]);
+    fetchQueue();
+  }, [fetchQueue]);
 
-  useQueueRealtime(restaurantId, fetchQueue);
+  useQueueRealtime(fetchQueue);
 
   const addToQueue = async (entry: Omit<QueueEntry, 'id' | 'created_at' | 'updated_at' | 'queue_id'>) => {
     if (!restaurantId) return;
@@ -95,7 +94,7 @@ export function useQueue(restaurantId?: string) {
       if (queueError) throw queueError;
 
       const { data, error } = await supabase
-        .from('queue_entries')
+        .from('queue_positions')
         .insert([{ ...entry, queue_id: queues.id }])
         .select()
         .single();
@@ -133,7 +132,7 @@ export function useQueue(restaurantId?: string) {
       }
 
       const { error } = await supabase
-        .from('queue_entries')
+        .from('queue_positions')
         .update(updateData)
         .eq('id', id);
 

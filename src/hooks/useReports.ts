@@ -80,14 +80,14 @@ export function useReports() {
 
       // Queue metrics - Current period (last 30 days)
       const { data: currentQueueEntries } = await supabase
-        .from('queue_entries')
+        .from('queue_positions')
         .select('created_at, seated_at, status, party_size')
         .eq('queue_id', queueId || '')
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Queue metrics - Previous period (30-60 days ago)
       const { data: previousQueueEntries } = await supabase
-        .from('queue_entries')
+        .from('queue_positions')
         .select('created_at, seated_at, status')
         .eq('queue_id', queueId || '')
         .gte('created_at', sixtyDaysAgo.toISOString())

@@ -47,13 +47,13 @@ export function useDashboardMetrics() {
       if (queueId) {
         // Queue metrics
         const { data: waitingEntries } = await supabase
-          .from('queue_entries')
+          .from('queue_positions')
           .select('party_size, created_at')
           .eq('queue_id', queueId)
           .eq('status', 'waiting');
 
         const { count: calledCount } = await supabase
-          .from('queue_entries')
+          .from('queue_positions')
           .select('*', { count: 'exact', head: true })
           .eq('queue_id', queueId)
           .eq('status', 'called');
@@ -63,14 +63,14 @@ export function useDashboardMetrics() {
         today.setHours(0, 0, 0, 0);
 
         const { count: seatedToday } = await supabase
-          .from('queue_entries')
+          .from('queue_positions')
           .select('*', { count: 'exact', head: true })
           .eq('queue_id', queueId)
           .eq('status', 'seated')
           .gte('seated_at', today.toISOString());
 
         const { count: canceledToday } = await supabase
-          .from('queue_entries')
+          .from('queue_positions')
           .select('*', { count: 'exact', head: true })
           .eq('queue_id', queueId)
           .eq('status', 'canceled')
@@ -78,7 +78,7 @@ export function useDashboardMetrics() {
 
         // Calculate avg wait time from seated entries today
         const { data: seatedEntries } = await supabase
-          .from('queue_entries')
+          .from('queue_positions')
           .select('created_at, seated_at')
           .eq('queue_id', queueId)
           .eq('status', 'seated')
@@ -144,8 +144,8 @@ export function useDashboardMetrics() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
-          table: 'queue_entries',
+          schema: 'mesaclik',
+          table: 'queue_positions',
         },
         () => {
           fetchMetrics();
@@ -155,7 +155,7 @@ export function useDashboardMetrics() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'mesaclik',
           table: 'reservations',
           filter: `restaurant_id=eq.${RESTAURANT_ID}`
         },

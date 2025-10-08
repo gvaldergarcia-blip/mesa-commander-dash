@@ -24,8 +24,7 @@ import {
 
 export default function Queue() {
   const { restaurants } = useRestaurants();
-  const firstRestaurant = restaurants[0];
-  const { queueEntries, loading, updateQueueStatus } = useQueue(firstRestaurant?.id);
+  const { queueEntries, loading, updateQueueStatus } = useQueue();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useReservationsRealtime } from './useReservationsRealtime';
+import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 type Reservation = {
   id: string;
@@ -20,14 +21,14 @@ type Reservation = {
   updated_at: string;
 };
 
-export function useReservations(restaurantId?: string) {
+export function useReservations() {
+  const restaurantId = RESTAURANT_ID;
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchReservations = useCallback(async () => {
-    if (!restaurantId) return;
 
     try {
       setLoading(true);
@@ -50,15 +51,13 @@ export function useReservations(restaurantId?: string) {
     } finally {
       setLoading(false);
     }
-  }, [restaurantId, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    if (restaurantId) {
-      fetchReservations();
-    }
-  }, [restaurantId, fetchReservations]);
+    fetchReservations();
+  }, [fetchReservations]);
 
-  useReservationsRealtime(restaurantId, fetchReservations);
+  useReservationsRealtime(fetchReservations);
 
   const createReservation = async (reservation: Omit<Reservation, 'id' | 'created_at' | 'updated_at'>) => {
     try {

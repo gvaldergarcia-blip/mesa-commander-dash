@@ -6,7 +6,7 @@
  */
 
 export const CURRENT_RESTAURANT = {
-  id: 'b01b96fb-bd8c-46d6-b16b-b4d1ffdd0208',
+  id: 'b01b96fb-bd8c-46d6-b16b-b41ffdd0208',
   name: 'Mocotó',
   ownerId: 'b1b07977-6c22-4422-88d3-3ddaa4c0eb59',
   address: 'Av. Nossa Sra. do Loreto, 1100 - Vila Medeiros, São Paulo',

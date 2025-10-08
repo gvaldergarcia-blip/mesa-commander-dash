@@ -1,19 +1,19 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
-export function useQueueRealtime(restaurantId: string | undefined, onUpdate: () => void) {
-  useEffect(() => {
-    if (!restaurantId) return;
+import { RESTAURANT_ID } from '@/config/current-restaurant';
 
+export function useQueueRealtime(onUpdate: () => void) {
+  useEffect(() => {
     const channel = supabase
       .channel('queue-realtime')
       .on(
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
-          table: 'queue_entries',
-          filter: `restaurant_id=eq.${restaurantId}`
+          schema: 'mesaclik',
+          table: 'queue_positions',
+          filter: `restaurant_id=eq.${RESTAURANT_ID}`
         },
         () => {
           onUpdate();
@@ -24,5 +24,5 @@ export function useQueueRealtime(restaurantId: string | undefined, onUpdate: () 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId, onUpdate]);
+  }, [onUpdate]);
 }

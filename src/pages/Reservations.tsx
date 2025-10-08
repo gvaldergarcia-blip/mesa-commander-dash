@@ -25,8 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Reservations() {
   const { restaurants } = useRestaurants();
-  const firstRestaurant = restaurants[0];
-  const { reservations, loading, updateReservationStatus } = useReservations(firstRestaurant?.id);
+  const { reservations, loading, updateReservationStatus } = useReservations();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
