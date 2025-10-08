@@ -19,51 +19,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// Mock data - will be replaced with Supabase queries
-const mockMetrics = {
-  avgWaitTime: {
-    current: 25,
-    previous: 30,
-    trend: -16.7
-  },
-  conversionRate: {
-    current: 85,
-    previous: 78,
-    trend: 8.9
-  },
-  noShowRate: {
-    current: 12,
-    previous: 18,
-    trend: -33.3
-  },
-  emailEngagement: {
-    current: 24,
-    previous: 19,
-    trend: 26.3
-  },
-  avgTicket: {
-    current: 85.50,
-    previous: 78.20,
-    trend: 9.3
-  }
-};
-
-const queueMetrics = [
-  { period: "Hoje", avgWait: 25, totalServed: 42, peaked: "19:30" },
-  { period: "Ontem", avgWait: 30, totalServed: 38, peaked: "20:00" },
-  { period: "7 dias", avgWait: 27, totalServed: 285, peaked: "Sáb 19:30" },
-  { period: "30 dias", avgWait: 28, totalServed: 1150, peaked: "Sáb 19:30" }
-];
-
-const reservationMetrics = [
-  { period: "Esta semana", confirmed: 45, pending: 8, noShow: 3 },
-  { period: "Semana passada", confirmed: 42, pending: 5, noShow: 6 },
-  { period: "Este mês", confirmed: 180, pending: 25, noShow: 15 },
-  { period: "Mês passado", confirmed: 165, pending: 30, noShow: 22 }
-];
+import { useReports } from "@/hooks/useReports";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Reports() {
+  const { metrics, loading } = useReports();
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Erro ao carregar relatórios.</p>
+      </div>
+    );
+  }
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -95,38 +76,38 @@ export default function Reports() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
           title="Tempo Médio de Espera"
-          value={`${mockMetrics.avgWaitTime.current} min`}
+          value={`${metrics.avgWaitTime.current} min`}
           description="Tempo na fila"
           icon={Clock}
-          trend={{ value: Math.abs(mockMetrics.avgWaitTime.trend), isPositive: mockMetrics.avgWaitTime.trend > 0 }}
+          trend={{ value: Math.abs(metrics.avgWaitTime.trend), isPositive: metrics.avgWaitTime.trend < 0 }}
         />
         <MetricCard
           title="Taxa de Conversão"
-          value={`${mockMetrics.conversionRate.current}%`}
+          value={`${metrics.conversionRate.current}%`}
           description="Reservas confirmadas"
           icon={Target}
-          trend={{ value: mockMetrics.conversionRate.trend, isPositive: true }}
+          trend={{ value: Math.abs(metrics.conversionRate.trend), isPositive: metrics.conversionRate.trend > 0 }}
         />
         <MetricCard
           title="Taxa de No-Show"
-          value={`${mockMetrics.noShowRate.current}%`}
+          value={`${metrics.noShowRate.current}%`}
           description="Faltas sem aviso"
           icon={Users}
-          trend={{ value: Math.abs(mockMetrics.noShowRate.trend), isPositive: mockMetrics.noShowRate.trend < 0 }}
+          trend={{ value: Math.abs(metrics.noShowRate.trend), isPositive: metrics.noShowRate.trend < 0 }}
         />
         <MetricCard
           title="Engajamento Email"
-          value={`${mockMetrics.emailEngagement.current}%`}
+          value={`${metrics.emailEngagement.current}%`}
           description="Taxa de abertura"
           icon={Mail}
-          trend={{ value: mockMetrics.emailEngagement.trend, isPositive: true }}
+          trend={{ value: Math.abs(metrics.emailEngagement.trend), isPositive: metrics.emailEngagement.trend > 0 }}
         />
         <MetricCard
           title="Ticket Médio"
-          value={`R$ ${mockMetrics.avgTicket.current.toFixed(2)}`}
+          value={`R$ ${metrics.avgTicket.current.toFixed(2)}`}
           description="Por cliente"
           icon={DollarSign}
-          trend={{ value: mockMetrics.avgTicket.trend, isPositive: true }}
+          trend={{ value: Math.abs(metrics.avgTicket.trend), isPositive: metrics.avgTicket.trend > 0 }}
         />
       </div>
 
@@ -149,7 +130,7 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {queueMetrics.map((metric, index) => (
+                  {metrics.queueMetrics.map((metric, index) => (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                       <div>
                         <div className="font-medium">{metric.period}</div>
@@ -180,11 +161,11 @@ export default function Reports() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-                      <div className="text-2xl font-bold text-success">94%</div>
+                      <div className="text-2xl font-bold text-success">{metrics.queueEfficiency}%</div>
                       <div className="text-sm text-muted-foreground">Eficiência</div>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-                      <div className="text-2xl font-bold text-warning">8</div>
+                      <div className="text-2xl font-bold text-warning">{metrics.avgQueueSize}</div>
                       <div className="text-sm text-muted-foreground">Média na fila</div>
                     </div>
                   </div>
@@ -220,7 +201,7 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {reservationMetrics.map((metric, index) => (
+                  {metrics.reservationMetrics.map((metric, index) => (
                     <div key={index} className="p-3 rounded-lg bg-muted/30">
                       <div className="font-medium mb-2">{metric.period}</div>
                       <div className="grid grid-cols-3 gap-4 text-sm">
@@ -305,11 +286,11 @@ export default function Reports() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/20">
-                      <div className="text-2xl font-bold text-accent">45</div>
+                      <div className="text-2xl font-bold text-accent">{metrics.newCustomers}</div>
                       <div className="text-sm text-muted-foreground">Novos (30 dias)</div>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-                      <div className="text-2xl font-bold text-success">23</div>
+                      <div className="text-2xl font-bold text-success">{metrics.vipCustomers}</div>
                       <div className="text-sm text-muted-foreground">VIPs (10+ visitas)</div>
                     </div>
                   </div>
@@ -393,15 +374,15 @@ export default function Reports() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div className="p-3 rounded-lg bg-primary/10">
-                      <div className="text-lg font-bold text-primary">156</div>
+                      <div className="text-lg font-bold text-primary">{metrics.emailsSent}</div>
                       <div className="text-xs text-muted-foreground">Enviados</div>
                     </div>
                     <div className="p-3 rounded-lg bg-accent/10">
-                      <div className="text-lg font-bold text-accent">87</div>
+                      <div className="text-lg font-bold text-accent">{metrics.emailsOpened}</div>
                       <div className="text-xs text-muted-foreground">Abertos</div>
                     </div>
                     <div className="p-3 rounded-lg bg-success/10">
-                      <div className="text-lg font-bold text-success">23</div>
+                      <div className="text-lg font-bold text-success">{metrics.emailsClicked}</div>
                       <div className="text-xs text-muted-foreground">Cliques</div>
                     </div>
                   </div>
