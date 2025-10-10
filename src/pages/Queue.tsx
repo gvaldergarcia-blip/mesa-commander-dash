@@ -30,6 +30,14 @@ export default function Queue() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
 
+  const calculateWaitTime = (createdAt: string) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    return diffMins;
+  };
+
   // Apenas status ativos são considerados
   const activeEntries = queueEntries.filter(entry => 
     entry.status === "waiting" || entry.status === "called"
@@ -54,14 +62,6 @@ export default function Queue() {
     
     return matchesSearch && matchesStatus;
   });
-
-  const calculateWaitTime = (createdAt: string) => {
-    const created = new Date(createdAt);
-    const now = new Date();
-    const diffMs = now.getTime() - created.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    return diffMins;
-  };
 
   if (loading) {
     return (
