@@ -32,11 +32,12 @@ export function useQueue() {
     try {
       setLoading(true);
       
-      // Buscar entradas da fila usando a view
+      // Buscar entradas da fila usando a view - apenas status ativos
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('v_queue_current')
         .select('*')
+        .in('status', ['waiting', 'called'])
         .order('created_at', { ascending: true });
 
       if (error) throw error;

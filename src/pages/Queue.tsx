@@ -30,11 +30,24 @@ export default function Queue() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
 
-  const totalWaiting = queueEntries.filter(entry => entry.status === "waiting").length;
-  const totalPeople = queueEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
-  const avgWaitTime = "25 min";
+  // Apenas status ativos são considerados
+  const activeEntries = queueEntries.filter(entry => 
+    entry.status === "waiting" || entry.status === "called"
+  );
+  
+  const totalWaiting = activeEntries.filter(entry => entry.status === "waiting").length;
+  const totalPeople = activeEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
+  
+  // Calcular tempo médio de espera dos que estão aguardando
+  const avgWaitTime = totalWaiting > 0
+    ? Math.round(
+        activeEntries
+          .filter(entry => entry.status === "waiting")
+          .reduce((sum, entry) => sum + calculateWaitTime(entry.created_at), 0) / totalWaiting
+      ) + " min"
+    : "0 min";
 
-  const filteredQueue = queueEntries.filter(entry => {
+  const filteredQueue = activeEntries.filter(entry => {
     const matchesSearch = entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          entry.phone.includes(searchTerm);
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
@@ -195,17 +208,26 @@ export default function Queue() {
 
       {/* Queue List */}
       <div className="space-y-3">
-        {filteredQueue.map((entry) => (
-          <Card key={entry.entry_id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="text-center">
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
-                      {filteredQueue.indexOf(entry) + 1}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Posição</p>
-                  </div>
+        {filteredQueue.map((entry, index) => {
+          // Calcular posição apenas entre os "waiting"
+          const waitingEntries = filteredQueue.filter(e => e.status === "waiting");
+          const position = entry.status === "waiting" 
+            ? waitingEntries.findIndex(e => e.entry_id === entry.entry_id) + 1
+            : null;
+          
+          return (
+            <Card key={entry.entry_id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    {position && (
+                      <div className="text-center">
+                        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
+                          {position}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Posição</p>
+                      </div>
+                    )}
                   
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
@@ -279,7 +301,8 @@ export default function Queue() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+        })}
       </div>
 
       {filteredQueue.length === 0 && (
