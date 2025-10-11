@@ -168,8 +168,6 @@ export default function Customers() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Visitas</TableHead>
                 <TableHead>Última Visita</TableHead>
-                <TableHead>Total Gasto</TableHead>
-                <TableHead>Marketing</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -222,18 +220,6 @@ export default function Customers() {
                     ) : (
                       <div className="text-sm text-muted-foreground">Nunca visitou</div>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">-</div>
-                    <div className="text-xs text-muted-foreground">Em desenvolvimento</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={customer.marketing_opt_in ? "default" : "secondary"}
-                      className={customer.marketing_opt_in ? "bg-success/10 text-success" : ""}
-                    >
-                      {customer.marketing_opt_in ? "Sim" : "Não"}
-                    </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

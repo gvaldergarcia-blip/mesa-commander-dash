@@ -1,27 +1,123 @@
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone } from "lucide-react";
+import { useState } from "react";
+import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { useRestaurants } from "@/hooks/useRestaurants";
-
-// Real-time metrics will be calculated from Supabase data
-const mockMetrics = {
-  queueSize: 0,
-  avgWaitTime: "-- min",
-  todayReservations: 0,
-  weeklyGrowth: 0
-};
-
-const recentActivity = [
-  { id: 1, type: "queue", customer: "Maria Silva", action: "Adicionada à fila", time: "há 2 min", party: 4 },
-  { id: 2, type: "reservation", customer: "João Santos", action: "Reserva confirmada", time: "há 5 min", party: 2 },
-  { id: 3, type: "queue", customer: "Ana Costa", action: "Chamada para mesa", time: "há 8 min", party: 3 },
-  { id: 4, type: "promotion", customer: "Sistema", action: "Campanha enviada", time: "há 15 min", details: "50 emails" },
-];
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useQueue } from "@/hooks/useQueue";
+import { useReservations } from "@/hooks/useReservations";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 
 export default function Dashboard() {
-  const { restaurants, loading } = useRestaurants();
+  const { restaurants, loading: loadingRestaurants } = useRestaurants();
+  const { metrics, loading: loadingMetrics } = useDashboardMetrics();
+  const { queueEntries, addToQueue } = useQueue();
+  const { reservations, createReservation } = useReservations();
+  const navigate = useNavigate();
+  
+  const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
+  
+  // Queue dialog state
+  const [queueName, setQueueName] = useState("");
+  const [queuePhone, setQueuePhone] = useState("");
+  const [queuePeople, setQueuePeople] = useState("2");
+  const [queueNotes, setQueueNotes] = useState("");
+  
+  // Reservation dialog state
+  const [resName, setResName] = useState("");
+  const [resPhone, setResPhone] = useState("");
+  const [resDate, setResDate] = useState("");
+  const [resTime, setResTime] = useState("");
+  const [resPeople, setResPeople] = useState("2");
+  const [resNotes, setResNotes] = useState("");
+  
+  const handleAddQueue = async () => {
+    if (!queueName || !queuePhone) return;
+    
+    await addToQueue({
+      customer_name: queueName,
+      phone: queuePhone,
+      people: parseInt(queuePeople),
+      notes: queueNotes || undefined,
+    });
+    
+    // Reset
+    setQueueName("");
+    setQueuePhone("");
+    setQueuePeople("2");
+    setQueueNotes("");
+    setIsQueueDialogOpen(false);
+  };
+  
+  const handleAddReservation = async () => {
+    if (!resName || !resPhone || !resDate || !resTime) return;
+    
+    const dateTime = `${resDate}T${resTime}:00`;
+    
+    await createReservation({
+      customer_name: resName,
+      phone: resPhone,
+      starts_at: dateTime,
+      people: parseInt(resPeople),
+      notes: resNotes || undefined,
+    });
+    
+    // Reset
+    setResName("");
+    setResPhone("");
+    setResDate("");
+    setResTime("");
+    setResPeople("2");
+    setResNotes("");
+    setIsReservationDialogOpen(false);
+  };
+  
+  // Recent activity from real data
+  const recentActivity = [
+    ...queueEntries.slice(0, 5).map((entry) => ({
+      id: entry.entry_id,
+      type: "queue" as const,
+      customer: entry.customer_name,
+      action: entry.status === "waiting" ? "Adicionada à fila" :
+              entry.status === "called" ? "Chamada para mesa" : "Sentada",
+      time: new Date(entry.created_at).toLocaleTimeString("pt-BR", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      }),
+      party: entry.people,
+    })),
+    ...reservations.slice(0, 5).map((res) => ({
+      id: res.reservation_id,
+      type: "reservation" as const,
+      customer: res.customer_name,
+      action: res.status === "confirmed" ? "Reserva confirmada" :
+              res.status === "pending" ? "Reserva pendente" : "Check-in realizado",
+      time: new Date(res.created_at).toLocaleTimeString("pt-BR", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      }),
+      party: res.people,
+    })),
+  ].slice(0, 10).sort((a, b) => b.time.localeCompare(a.time));
+  
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -29,7 +125,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">
-            {loading ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
+            {loadingRestaurants ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
           </p>
         </div>
         <div className="flex space-x-3">
@@ -37,7 +133,7 @@ export default function Dashboard() {
             <Calendar className="w-4 h-4 mr-2" />
             Hoje
           </Button>
-          <Button>
+          <Button onClick={() => navigate('/reports')}>
             <TrendingUp className="w-4 h-4 mr-2" />
             Relatório Semanal
           </Button>
@@ -47,31 +143,28 @@ export default function Dashboard() {
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Pessoas na Fila"
-          value={mockMetrics.queueSize}
+          title="Grupos na Fila"
+          value={metrics.groups_in_queue}
           description="Total aguardando"
           icon={Users}
-          trend={{ value: 8.2, isPositive: true }}
         />
         <MetricCard
-          title="Tempo Médio"
-          value={mockMetrics.avgWaitTime}
-          description="Tempo de espera atual"
-          icon={Clock}
+          title="Pessoas na Fila"
+          value={metrics.people_in_queue}
+          description="Total de pessoas"
+          icon={Users}
         />
         <MetricCard
           title="Reservas Hoje"
-          value={mockMetrics.todayReservations}
+          value={metrics.reservations_today}
           description="Agendamentos do dia"
           icon={Calendar}
-          trend={{ value: 12.5, isPositive: true }}
         />
         <MetricCard
-          title="Crescimento Semanal"
-          value={`+${mockMetrics.weeklyGrowth}%`}
-          description="Comparado à semana passada"
+          title="Atendidos Hoje"
+          value={metrics.served_today}
+          description="Clientes atendidos"
           icon={TrendingUp}
-          trend={{ value: mockMetrics.weeklyGrowth, isPositive: true }}
         />
       </div>
 
@@ -86,29 +179,29 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${
-                    activity.type === 'queue' ? 'bg-warning' :
-                    activity.type === 'reservation' ? 'bg-success' : 'bg-accent'
-                  }`} />
-                  <div>
-                    <p className="font-medium text-sm">{activity.customer}</p>
-                    <p className="text-xs text-muted-foreground">{activity.action}</p>
+            {recentActivity.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                Nenhuma atividade recente
+              </p>
+            ) : (
+              recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      activity.type === 'queue' ? 'bg-warning' : 'bg-success'
+                    }`} />
+                    <div>
+                      <p className="font-medium text-sm">{activity.customer}</p>
+                      <p className="text-xs text-muted-foreground">{activity.action}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                    <p className="text-xs font-medium">{activity.party} pessoas</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
-                  {activity.party && (
-                    <p className="text-xs font-medium">{activity.party} pessoas</p>
-                  )}
-                  {activity.details && (
-                    <p className="text-xs font-medium">{activity.details}</p>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -121,19 +214,128 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start" variant="outline">
-              <Users className="w-4 h-4 mr-2" />
-              Adicionar à Fila
-            </Button>
-            <Button className="w-full justify-start" variant="outline">
-              <Calendar className="w-4 h-4 mr-2" />
-              Nova Reserva
-            </Button>
-            <Button className="w-full justify-start" variant="outline">
+            <Dialog open={isQueueDialogOpen} onOpenChange={setIsQueueDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full justify-start" variant="outline">
+                  <Users className="w-4 h-4 mr-2" />
+                  Adicionar à Fila
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input 
+                    placeholder="Nome do cliente"
+                    value={queueName}
+                    onChange={(e) => setQueueName(e.target.value)}
+                  />
+                  <Input 
+                    placeholder="Telefone"
+                    value={queuePhone}
+                    onChange={(e) => setQueuePhone(e.target.value)}
+                  />
+                  <Select value={queuePeople} onValueChange={setQueuePeople}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pessoas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1,2,3,4,5,6,7,8].map(n => (
+                        <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input 
+                    placeholder="Observações (opcional)"
+                    value={queueNotes}
+                    onChange={(e) => setQueueNotes(e.target.value)}
+                  />
+                  <Button 
+                    className="w-full"
+                    onClick={handleAddQueue}
+                    disabled={!queueName || !queuePhone}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={isReservationDialogOpen} onOpenChange={setIsReservationDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full justify-start" variant="outline">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Nova Reserva
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Nova Reserva</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input 
+                    placeholder="Nome do cliente"
+                    value={resName}
+                    onChange={(e) => setResName(e.target.value)}
+                  />
+                  <Input 
+                    placeholder="Telefone"
+                    value={resPhone}
+                    onChange={(e) => setResPhone(e.target.value)}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input 
+                      type="date"
+                      value={resDate}
+                      onChange={(e) => setResDate(e.target.value)}
+                    />
+                    <Input 
+                      type="time"
+                      value={resTime}
+                      onChange={(e) => setResTime(e.target.value)}
+                    />
+                  </div>
+                  <Select value={resPeople} onValueChange={setResPeople}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pessoas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1,2,3,4,5,6].map(n => (
+                        <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input 
+                    placeholder="Observações especiais (opcional)"
+                    value={resNotes}
+                    onChange={(e) => setResNotes(e.target.value)}
+                  />
+                  <Button 
+                    className="w-full"
+                    onClick={handleAddReservation}
+                    disabled={!resName || !resPhone || !resDate || !resTime}
+                  >
+                    Criar Reserva
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/customers')}
+            >
               <UserCheck className="w-4 h-4 mr-2" />
               Cadastrar Cliente
             </Button>
-            <Button className="w-full justify-start" variant="outline">
+            
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/promotions')}
+            >
               <Megaphone className="w-4 h-4 mr-2" />
               Enviar Promoção
             </Button>
@@ -149,19 +351,19 @@ export default function Dashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-              <div className="text-2xl font-bold text-warning">8</div>
+              <div className="text-2xl font-bold text-warning">{metrics.groups_in_queue}</div>
               <div className="text-sm text-muted-foreground">Aguardando</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/20">
-              <div className="text-2xl font-bold text-accent">2</div>
+              <div className="text-2xl font-bold text-accent">{metrics.called_today}</div>
               <div className="text-sm text-muted-foreground">Chamados</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-              <div className="text-2xl font-bold text-success">15</div>
+              <div className="text-2xl font-bold text-success">{metrics.served_today}</div>
               <div className="text-sm text-muted-foreground">Atendidos Hoje</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-muted-foreground">2</div>
+              <div className="text-2xl font-bold text-muted-foreground">{metrics.canceled_today}</div>
               <div className="text-sm text-muted-foreground">Cancelados</div>
             </div>
           </div>

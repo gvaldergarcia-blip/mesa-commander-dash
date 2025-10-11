@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueue } from "@/hooks/useQueue";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,11 +25,17 @@ import {
 
 export default function Queue() {
   const { restaurants } = useRestaurants();
-  const { queueEntries, loading, updateQueueStatus } = useQueue();
+  const { queueEntries, loading, updateQueueStatus, addToQueue } = useQueue();
+  const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newPartySize, setNewPartySize] = useState("2");
+  const [newNotes, setNewNotes] = useState("");
 
   const calculateWaitTime = (createdAt: string) => {
     const created = new Date(createdAt);
@@ -55,13 +62,65 @@ export default function Queue() {
       ) + " min"
     : "0 min";
 
+  // Debounced search
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const filteredQueue = activeEntries.filter(entry => {
-    const matchesSearch = entry.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.phone.includes(searchTerm);
+    if (!entry || !entry.customer_name) return false;
+    
+    const matchesSearch = !debouncedSearchTerm || 
+                         entry.customer_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                         (entry.phone && entry.phone.includes(debouncedSearchTerm));
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
+  
+  const sendSMS = (phone: string, message: string) => {
+    // Simulate SMS sending - would use Twilio in production
+    console.log(`[SMS] To: ${phone}, Message: ${message}`);
+    toast({
+      title: "SMS Simulado",
+      description: `Mensagem enviada para ${phone}`,
+    });
+  };
+  
+  const handleAddToQueue = async () => {
+    if (!newCustomerName || !newCustomerPhone || !newPartySize) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      await addToQueue({
+        customer_name: newCustomerName,
+        phone: newCustomerPhone,
+        people: parseInt(newPartySize),
+        notes: newNotes || undefined,
+      });
+      
+      // Reset form
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewPartySize("2");
+      setNewNotes("");
+      setIsAddDialogOpen(false);
+    } catch (err) {
+      // Error already handled by addToQueue
+    }
+  };
 
   if (loading) {
     return (
@@ -79,7 +138,7 @@ export default function Queue() {
           <h1 className="text-3xl font-bold text-foreground">Fila de Espera</h1>
           <p className="text-muted-foreground">Gerencie a fila em tempo real</p>
         </div>
-        <Dialog>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -91,34 +150,42 @@ export default function Queue() {
               <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Input placeholder="Nome do cliente" />
-              <Input placeholder="Telefone" />
-              <div className="grid grid-cols-2 gap-4">
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pessoas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 pessoa</SelectItem>
-                    <SelectItem value="2">2 pessoas</SelectItem>
-                    <SelectItem value="3">3 pessoas</SelectItem>
-                    <SelectItem value="4">4 pessoas</SelectItem>
-                    <SelectItem value="5+">5+ pessoas</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Prioridade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="vip">VIP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input placeholder="Observações (opcional)" />
-              <Button className="w-full">Adicionar à Fila</Button>
+              <Input 
+                placeholder="Nome do cliente" 
+                value={newCustomerName}
+                onChange={(e) => setNewCustomerName(e.target.value)}
+              />
+              <Input 
+                placeholder="Telefone"
+                value={newCustomerPhone}
+                onChange={(e) => setNewCustomerPhone(e.target.value)}
+              />
+              <Select value={newPartySize} onValueChange={setNewPartySize}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Número de pessoas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 pessoa</SelectItem>
+                  <SelectItem value="2">2 pessoas</SelectItem>
+                  <SelectItem value="3">3 pessoas</SelectItem>
+                  <SelectItem value="4">4 pessoas</SelectItem>
+                  <SelectItem value="5">5 pessoas</SelectItem>
+                  <SelectItem value="6">6 pessoas</SelectItem>
+                  <SelectItem value="7">7 pessoas</SelectItem>
+                  <SelectItem value="8">8+ pessoas</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input 
+                placeholder="Observações (opcional)"
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+              />
+              <Button 
+                className="w-full"
+                onClick={handleAddToQueue}
+              >
+                Adicionar à Fila
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -262,7 +329,10 @@ export default function Queue() {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => updateQueueStatus(entry.entry_id, "called")}
+                        onClick={() => {
+                          updateQueueStatus(entry.entry_id, "called");
+                          sendSMS(entry.phone, `Olá ${entry.customer_name}, sua mesa está quase pronta! Por favor, dirija-se ao restaurante.`);
+                        }}
                       >
                         <PhoneCall className="w-4 h-4 mr-1" />
                         Chamar
