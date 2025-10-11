@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { useRestaurants } from "@/hooks/useRestaurants";
-import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useDashboardMetricsReal } from "@/hooks/useDashboardMetricsReal";
 import { useQueue } from "@/hooks/useQueue";
 import { useReservations } from "@/hooks/useReservations";
 import { 
@@ -27,7 +27,7 @@ import {
 
 export default function Dashboard() {
   const { restaurants, loading: loadingRestaurants } = useRestaurants();
-  const { metrics, loading: loadingMetrics } = useDashboardMetrics();
+  const { metrics, loading: loadingMetrics } = useDashboardMetricsReal();
   const { queueEntries, addToQueue } = useQueue();
   const { reservations, createReservation } = useReservations();
   const navigate = useNavigate();
@@ -144,25 +144,26 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Grupos na Fila"
-          value={metrics.groups_in_queue}
+          value={metrics.groupsInQueue.toString()}
           description="Total aguardando"
           icon={Users}
         />
         <MetricCard
           title="Pessoas na Fila"
-          value={metrics.people_in_queue}
+          value={metrics.peopleInQueue.toString()}
           description="Total de pessoas"
           icon={Users}
         />
         <MetricCard
           title="Reservas Hoje"
-          value={metrics.reservations_today}
+          value={metrics.reservationsToday.toString()}
           description="Agendamentos do dia"
           icon={Calendar}
+          trend={{ value: Math.abs(metrics.weeklyGrowth), isPositive: metrics.weeklyGrowth > 0 }}
         />
         <MetricCard
           title="Atendidos Hoje"
-          value={metrics.served_today}
+          value={metrics.servedToday.toString()}
           description="Clientes atendidos"
           icon={TrendingUp}
         />
@@ -351,19 +352,19 @@ export default function Dashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-              <div className="text-2xl font-bold text-warning">{metrics.groups_in_queue}</div>
+              <div className="text-2xl font-bold text-warning">{metrics.groupsInQueue}</div>
               <div className="text-sm text-muted-foreground">Aguardando</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/20">
-              <div className="text-2xl font-bold text-accent">{metrics.called_today}</div>
+              <div className="text-2xl font-bold text-accent">{metrics.calledToday}</div>
               <div className="text-sm text-muted-foreground">Chamados</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-              <div className="text-2xl font-bold text-success">{metrics.served_today}</div>
+              <div className="text-2xl font-bold text-success">{metrics.servedToday}</div>
               <div className="text-sm text-muted-foreground">Atendidos Hoje</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-muted-foreground">{metrics.canceled_today}</div>
+              <div className="text-2xl font-bold text-muted-foreground">{metrics.canceledToday}</div>
               <div className="text-sm text-muted-foreground">Cancelados</div>
             </div>
           </div>

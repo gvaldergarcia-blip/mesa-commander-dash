@@ -117,7 +117,10 @@ export function useQueue() {
 
   const updateQueueStatus = async (id: string, status: QueueEntry['status']) => {
     try {
-      const updateData: any = { status };
+      const updateData: any = { 
+        status,
+        updated_at: new Date().toISOString()
+      };
       
       if (status === 'called') {
         updateData.called_at = new Date().toISOString();
@@ -131,13 +134,22 @@ export function useQueue() {
         .schema('mesaclik')
         .from('queue_entries')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('restaurant_id', restaurantId);
 
       if (error) throw error;
 
+      const statusMessages: Record<QueueEntry['status'], string> = {
+        'waiting': 'Status atualizado',
+        'called': 'Cliente chamado',
+        'seated': 'Cliente sentado',
+        'canceled': 'Cliente cancelado',
+        'no_show': 'Marcado como ausente',
+      };
+
       toast({
         title: 'Sucesso',
-        description: 'Status atualizado com sucesso',
+        description: statusMessages[status],
       });
 
       await fetchQueue();

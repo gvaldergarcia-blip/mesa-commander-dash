@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle } from "lucide-react";
+import { sendSms, SMS_TEMPLATES, TWILIO_AVAILABLE } from "@/utils/sms";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueue } from "@/hooks/useQueue";
 import { useToast } from "@/hooks/use-toast";
@@ -84,13 +85,28 @@ export default function Queue() {
     return matchesSearch && matchesStatus;
   });
   
-  const sendSMS = (phone: string, message: string) => {
-    // Simulate SMS sending - would use Twilio in production
-    console.log(`[SMS] To: ${phone}, Message: ${message}`);
-    toast({
-      title: "SMS Simulado",
-      description: `Mensagem enviada para ${phone}`,
-    });
+  const handleCallCustomer = async (entry: typeof queueEntries[0]) => {
+    try {
+      await updateQueueStatus(entry.entry_id, "called");
+      const success = await sendSms(entry.phone, SMS_TEMPLATES.QUEUE_CALLED(entry.customer_name));
+      
+      if (success) {
+        toast({
+          title: "Cliente chamado",
+          description: `SMS enviado para ${entry.customer_name}${!TWILIO_AVAILABLE ? ' (simulado)' : ''}`,
+        });
+      }
+    } catch (err) {
+      // Erro já tratado pelo hook
+    }
+  };
+
+  const handleSeatCustomer = async (entryId: string) => {
+    try {
+      await updateQueueStatus(entryId, "seated");
+    } catch (err) {
+      // Erro já tratado pelo hook
+    }
   };
   
   const handleAddToQueue = async () => {
@@ -329,10 +345,7 @@ export default function Queue() {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => {
-                          updateQueueStatus(entry.entry_id, "called");
-                          sendSMS(entry.phone, `Olá ${entry.customer_name}, sua mesa está quase pronta! Por favor, dirija-se ao restaurante.`);
-                        }}
+                        onClick={() => handleCallCustomer(entry)}
                       >
                         <PhoneCall className="w-4 h-4 mr-1" />
                         Chamar
@@ -340,18 +353,18 @@ export default function Queue() {
                       <Button 
                         size="sm" 
                         className="bg-success hover:bg-success/90"
-                        onClick={() => updateQueueStatus(entry.entry_id, "seated")}
+                        onClick={() => handleSeatCustomer(entry.entry_id)}
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
                         Sentar
                       </Button>
                     </>
                   )}
-                  {entry.status === "called" && (
+                   {entry.status === "called" && (
                     <Button 
                       size="sm" 
                       className="bg-success hover:bg-success/90"
-                      onClick={() => updateQueueStatus(entry.entry_id, "seated")}
+                      onClick={() => handleSeatCustomer(entry.entry_id)}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Sentar
