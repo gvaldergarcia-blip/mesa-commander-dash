@@ -19,11 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useReports } from "@/hooks/useReports";
+import { useReportsReal } from "@/hooks/useReportsReal";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Reports() {
-  const { metrics, loading } = useReports();
+  const { metrics, loading } = useReportsReal();
 
   if (loading) {
     return (
@@ -73,7 +73,7 @@ export default function Reports() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard
           title="Tempo Médio de Espera"
           value={`${metrics.avgWaitTime.current} min`}
@@ -94,20 +94,6 @@ export default function Reports() {
           description="Faltas sem aviso"
           icon={Users}
           trend={{ value: Math.abs(metrics.noShowRate.trend), isPositive: metrics.noShowRate.trend < 0 }}
-        />
-        <MetricCard
-          title="Engajamento Email"
-          value={`${metrics.emailEngagement.current}%`}
-          description="Taxa de abertura"
-          icon={Mail}
-          trend={{ value: Math.abs(metrics.emailEngagement.trend), isPositive: metrics.emailEngagement.trend > 0 }}
-        />
-        <MetricCard
-          title="Ticket Médio"
-          value={`R$ ${metrics.avgTicket.current.toFixed(2)}`}
-          description="Por cliente"
-          icon={DollarSign}
-          trend={{ value: Math.abs(metrics.avgTicket.trend), isPositive: metrics.avgTicket.trend > 0 }}
         />
       </div>
 
@@ -362,87 +348,21 @@ export default function Reports() {
         </TabsContent>
 
         <TabsContent value="marketing" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Mail className="w-5 h-5 mr-2" />
-                  Performance de Email Marketing
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="p-3 rounded-lg bg-primary/10">
-                      <div className="text-lg font-bold text-primary">{metrics.emailsSent}</div>
-                      <div className="text-xs text-muted-foreground">Enviados</div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-accent/10">
-                      <div className="text-lg font-bold text-accent">{metrics.emailsOpened}</div>
-                      <div className="text-xs text-muted-foreground">Abertos</div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-success/10">
-                      <div className="text-lg font-bold text-success">{metrics.emailsClicked}</div>
-                      <div className="text-xs text-muted-foreground">Cliques</div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Taxa de entrega</span>
-                      <span className="text-sm font-medium">98.7%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Taxa de abertura</span>
-                      <span className="text-sm font-medium text-accent">55.8%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Taxa de clique</span>
-                      <span className="text-sm font-medium text-success">14.7%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Taxa de conversão</span>
-                      <span className="text-sm font-medium text-primary">8.3%</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Target className="w-5 h-5 mr-2" />
-                  ROI de Campanhas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center p-6 rounded-lg bg-gradient-to-br from-success/5 to-accent/5">
-                    <div className="text-3xl font-bold text-success mb-2">320%</div>
-                    <div className="text-sm text-muted-foreground">ROI médio das campanhas</div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-lg bg-muted/30">
-                      <div className="font-medium text-sm mb-1">Happy Hour Especial</div>
-                      <div className="flex justify-between text-xs">
-                        <span>ROI: 450%</span>
-                        <span>Conversões: 12</span>
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/30">
-                      <div className="font-medium text-sm mb-1">Volta dos VIPs</div>
-                      <div className="flex justify-between text-xs">
-                        <span>ROI: 280%</span>
-                        <span>Conversões: 8</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Mail className="w-5 h-5 mr-2" />
+                Performance de Marketing
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Métricas de email marketing serão implementadas quando houver campanhas ativas.</p>
+                <p className="mt-2 text-sm">Use a página "Promoções" para criar e gerenciar campanhas.</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
