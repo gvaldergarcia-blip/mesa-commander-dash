@@ -12,6 +12,10 @@ export default function Index() {
   
   // Get the current restaurant data from Supabase
   const currentRestaurant = restaurants.find(r => r.id === CURRENT_RESTAURANT.id);
+  
+  console.log('[Dashboard] Restaurants:', restaurants);
+  console.log('[Dashboard] Current restaurant:', currentRestaurant);
+  console.log('[Dashboard] Looking for ID:', CURRENT_RESTAURANT.id);
 
   // Calculate weekly growth (mock for now - would need historical data)
   const weeklyGrowth = "+12%";
