@@ -63,11 +63,17 @@ export function useQueue() {
 
   const addToQueue = async (entry: { customer_name: string; phone: string; people: number; notes?: string }) => {
     try {
-      // Usar a mesma função RPC que o app usa
-      const { data, error } = await supabase.rpc('enter_queue', {
-        p_restaurant_id: restaurantId,
-        p_party_size: entry.people
-      });
+      // Usar a função RPC do schema mesaclik com todos os parâmetros
+      const { data, error } = await supabase
+        .schema('mesaclik')
+        .rpc('enter_queue', {
+          p_restaurant_id: restaurantId,
+          p_user_id: null, // Para clientes adicionados manualmente pelo restaurante
+          p_party_size: entry.people,
+          p_name: entry.customer_name,
+          p_phone: entry.phone,
+          p_email: null
+        });
 
       if (error) throw error;
 
