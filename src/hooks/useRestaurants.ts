@@ -11,6 +11,36 @@ export function useRestaurants() {
 
   useEffect(() => {
     fetchRestaurants();
+
+    // Realtime subscription for all restaurants
+    const channel = supabase
+      .channel('restaurants-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'mesaclik',
+          table: 'restaurants',
+        },
+        (payload) => {
+          console.log('[Realtime] Restaurant changed:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setRestaurants(prev => [...prev, payload.new as Restaurant]);
+          } else if (payload.eventType === 'UPDATE') {
+            setRestaurants(prev => 
+              prev.map(r => r.id === payload.new.id ? payload.new as Restaurant : r)
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setRestaurants(prev => prev.filter(r => r.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchRestaurants = async () => {
