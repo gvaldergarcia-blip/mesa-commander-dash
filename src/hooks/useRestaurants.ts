@@ -23,14 +23,25 @@ export function useRestaurants() {
           table: 'restaurants',
         },
         (payload) => {
-          console.log('[Realtime] Restaurant changed:', payload);
+          console.log('[useRestaurants] Realtime event:', payload.eventType);
+          console.log('[useRestaurants] Payload new:', payload.new);
           
           if (payload.eventType === 'INSERT') {
             setRestaurants(prev => [...prev, payload.new as Restaurant]);
           } else if (payload.eventType === 'UPDATE') {
-            setRestaurants(prev => 
-              prev.map(r => r.id === payload.new.id ? payload.new as Restaurant : r)
-            );
+            const updatedRestaurant = payload.new as Restaurant;
+            console.log('[useRestaurants] Updating restaurant:', updatedRestaurant.id);
+            setRestaurants(prev => {
+              const updated = prev.map(r => {
+                if (r.id === updatedRestaurant.id) {
+                  console.log('[useRestaurants] Found match, updating:', r.name, '->', updatedRestaurant.name);
+                  return updatedRestaurant;
+                }
+                return r;
+              });
+              console.log('[useRestaurants] New restaurants array:', updated);
+              return updated;
+            });
           } else if (payload.eventType === 'DELETE') {
             setRestaurants(prev => prev.filter(r => r.id !== payload.old.id));
           }
