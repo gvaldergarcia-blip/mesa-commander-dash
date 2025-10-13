@@ -467,6 +467,10 @@ export type Database = {
         Args: { p_ticket_id: string }
         Returns: number
       }
+      update_queue_entry_status: {
+        Args: { p_entry_id: string; p_status: string }
+        Returns: undefined
+      }
     }
     Enums: {
       cuisine_enum:
