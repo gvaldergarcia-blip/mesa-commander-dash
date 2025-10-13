@@ -475,47 +475,23 @@ export default function Settings() {
 
               <Separator />
 
-              <FormField
-                control={form.control}
-                name="menu_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Link do Cardápio</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://exemplo.com/cardapio.pdf"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Link para o cardápio completo (PDF, site, Google Drive, etc.)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator />
-
-              <FormField
-                control={form.control}
-                name="menu_image_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Imagem do Cardápio</FormLabel>
-                    <div className="space-y-4">
-                      <FormControl>
-                        <Input
-                          placeholder="https://exemplo.com/cardapio-imagem.jpg"
-                          {...field}
-                        />
-                      </FormControl>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">ou</span>
+              <div className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="menu_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link do Cardápio</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            placeholder="https://exemplo.com/cardapio.pdf"
+                            {...field}
+                          />
+                        </FormControl>
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
                           disabled={uploadingMenuImage}
                           onClick={() => {
                             const input = document.createElement('input');
@@ -541,26 +517,35 @@ export default function Settings() {
                           )}
                         </Button>
                       </div>
-                    </div>
-                    <FormDescription>
-                      Imagem do cardápio que será exibida no app
-                    </FormDescription>
-                    {field.value && (
-                      <div className="mt-4 relative rounded-lg overflow-hidden border border-border">
-                        <img
-                          src={field.value}
-                          alt="Preview do Cardápio"
-                          className="w-full h-48 object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormDescription>
+                        Cole o link do cardápio ou anexe uma imagem
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="menu_image_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      {field.value && (
+                        <div className="relative rounded-lg overflow-hidden border border-border">
+                          <img
+                            src={field.value}
+                            alt="Preview do Cardápio"
+                            className="w-full h-48 object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
 
