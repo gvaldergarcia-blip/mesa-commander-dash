@@ -443,7 +443,7 @@ export type Database = {
         Args:
           | { p_reason: string; p_ticket_id: string; p_user_id: string }
           | { p_reason: string; p_ticket_id: string; p_user_id: string }
-        Returns: undefined
+        Returns: string
       }
       cancel_reservation: {
         Args:
@@ -457,12 +457,7 @@ export type Database = {
               p_reservation_id: string
               p_user_id: string
             }
-        Returns: {
-          canceled_at: string
-          canceled_by: string
-          id: string
-          status: Database["public"]["Enums"]["reservation_status"]
-        }[]
+        Returns: Json
       }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }

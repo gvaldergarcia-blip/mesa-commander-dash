@@ -43,12 +43,12 @@ const cuisineTypes = [
 
 const settingsSchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres").max(100),
-  address: z.string().min(5, "Endereço deve ter no mínimo 5 caracteres").max(200),
+  address_line: z.string().min(5, "Endereço deve ter no mínimo 5 caracteres").max(200),
   city: z.string().min(2, "Cidade deve ter no mínimo 2 caracteres").max(100),
   cuisine: z.enum(cuisineTypes),
   about: z.string().max(400, "Descrição deve ter no máximo 400 caracteres").optional(),
-  image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   hero_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
+  final_screen_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   menu_url: z.string().url("URL inválida").or(z.literal("")).optional(),
 });
 
@@ -65,12 +65,12 @@ export default function Settings() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       name: "",
-      address: "",
+      address_line: "",
       city: "",
       cuisine: "Outros",
       about: "",
-      image_url: "",
       hero_image_url: "",
+      final_screen_image_url: "",
       menu_url: "",
     },
   });
@@ -92,7 +92,17 @@ export default function Settings() {
         (payload) => {
           console.log('[Realtime] Restaurant updated:', payload.new);
           if (payload.new) {
-            form.reset(payload.new as SettingsFormValues);
+            const data = payload.new as any;
+            form.reset({
+              name: data.name || "",
+              address_line: data.address_line || "",
+              city: data.city || "",
+              cuisine: data.cuisine || "Outros",
+              about: data.about || "",
+              hero_image_url: data.hero_image_url || "",
+              final_screen_image_url: data.final_screen_image_url || "",
+              menu_url: data.menu_url || "",
+            });
           }
         }
       )
@@ -108,7 +118,7 @@ export default function Settings() {
       setLoading(true);
       const { data, error } = await supabase
         .from('restaurants')
-        .select('name, address, city, cuisine, about, image_url, hero_image_url, menu_url')
+        .select('name, address_line, city, cuisine, about, hero_image_url, final_screen_image_url, menu_url')
         .eq('id', RESTAURANT_ID)
         .single();
 
@@ -117,12 +127,12 @@ export default function Settings() {
       if (data) {
         form.reset({
           name: data.name || "",
-          address: data.address || "",
+          address_line: data.address_line || "",
           city: data.city || "",
           cuisine: (data.cuisine as any) || "Outros",
           about: data.about || "",
-          image_url: data.image_url || "",
           hero_image_url: data.hero_image_url || "",
+          final_screen_image_url: data.final_screen_image_url || "",
           menu_url: data.menu_url || "",
         });
       }
@@ -138,10 +148,10 @@ export default function Settings() {
     }
   };
 
-  const handleImageUpload = async (file: File, field: 'image_url' | 'hero_image_url') => {
+  const handleImageUpload = async (file: File, field: 'hero_image_url' | 'final_screen_image_url') => {
     try {
-      const isHero = field === 'hero_image_url';
-      isHero ? setUploadingHero(true) : setUploadingImage(true);
+      const isFinal = field === 'final_screen_image_url';
+      isFinal ? setUploadingHero(true) : setUploadingImage(true);
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${RESTAURANT_ID}-${field}-${Date.now()}.${fileExt}`;
@@ -171,8 +181,8 @@ export default function Settings() {
         variant: "destructive",
       });
     } finally {
-      const isHero = field === 'hero_image_url';
-      isHero ? setUploadingHero(false) : setUploadingImage(false);
+      const isFinal = field === 'final_screen_image_url';
+      isFinal ? setUploadingHero(false) : setUploadingImage(false);
     }
   };
 
@@ -184,14 +194,13 @@ export default function Settings() {
         .from('restaurants')
         .update({
           name: values.name,
-          address: values.address,
+          address_line: values.address_line,
           city: values.city,
           cuisine: values.cuisine,
           about: values.about || null,
-          image_url: values.image_url || null,
           hero_image_url: values.hero_image_url || null,
+          final_screen_image_url: values.final_screen_image_url || null,
           menu_url: values.menu_url || null,
-          updated_at: new Date().toISOString(),
         })
         .eq('id', RESTAURANT_ID);
 
@@ -257,7 +266,7 @@ export default function Settings() {
 
               <FormField
                 control={form.control}
-                name="address"
+                name="address_line"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Endereço Completo</FormLabel>
@@ -355,7 +364,7 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <FormField
                 control={form.control}
-                name="image_url"
+                name="hero_image_url"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Imagem Principal</FormLabel>
@@ -379,7 +388,7 @@ export default function Settings() {
                             input.accept = 'image/*';
                             input.onchange = (e) => {
                               const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleImageUpload(file, 'image_url');
+                              if (file) handleImageUpload(file, 'hero_image_url');
                             };
                             input.click();
                           }}
@@ -422,7 +431,7 @@ export default function Settings() {
 
               <FormField
                 control={form.control}
-                name="hero_image_url"
+                name="final_screen_image_url"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Imagem de Fundo (Tela Final)</FormLabel>
@@ -446,7 +455,7 @@ export default function Settings() {
                             input.accept = 'image/*';
                             input.onchange = (e) => {
                               const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleImageUpload(file, 'hero_image_url');
+                              if (file) handleImageUpload(file, 'final_screen_image_url');
                             };
                             input.click();
                           }}
