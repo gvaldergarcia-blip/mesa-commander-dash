@@ -28,6 +28,7 @@ export default function Promotions() {
   const { promotions, loading, createPromotion } = usePromotions();
   const [selectedPromotion, setSelectedPromotion] = useState<typeof promotions[0] | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -104,6 +105,9 @@ export default function Promotions() {
       setStartsAt("");
       setEndsAt("");
       setAudienceFilter("all");
+      
+      // Close dialog
+      setIsDialogOpen(false);
     } finally {
       setIsCreating(false);
     }
@@ -128,7 +132,7 @@ export default function Promotions() {
           <h1 className="text-3xl font-bold text-foreground">Promoções & Marketing</h1>
           <p className="text-muted-foreground">Gerencie campanhas e engaje seus clientes</p>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
