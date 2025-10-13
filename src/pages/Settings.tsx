@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -45,10 +45,9 @@ const settingsSchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres").max(100),
   address_line: z.string().min(5, "Endereço deve ter no mínimo 5 caracteres").max(200),
   city: z.string().min(2, "Cidade deve ter no mínimo 2 caracteres").max(100),
-  cuisine: z.enum(cuisineTypes),
+  cuisine: z.string(),
   about: z.string().max(400, "Descrição deve ter no máximo 400 caracteres").optional(),
-  hero_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
-  final_screen_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
+  image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   menu_url: z.string().url("URL inválida").or(z.literal("")).optional(),
 });
 
@@ -59,7 +58,6 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingHero, setUploadingHero] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -69,8 +67,7 @@ export default function Settings() {
       city: "",
       cuisine: "Outros",
       about: "",
-      hero_image_url: "",
-      final_screen_image_url: "",
+      image_url: "",
       menu_url: "",
     },
   });
@@ -99,8 +96,7 @@ export default function Settings() {
               city: data.city || "",
               cuisine: data.cuisine || "Outros",
               about: data.about || "",
-              hero_image_url: data.hero_image_url || "",
-              final_screen_image_url: data.final_screen_image_url || "",
+              image_url: data.image_url || "",
               menu_url: data.menu_url || "",
             });
           }
@@ -118,9 +114,9 @@ export default function Settings() {
       setLoading(true);
       const { data, error } = await supabase
         .from('restaurants')
-        .select('name, address_line, city, cuisine, about, hero_image_url, final_screen_image_url, menu_url')
+        .select('name, address_line, city, cuisine, about, image_url, menu_url')
         .eq('id', RESTAURANT_ID)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -129,10 +125,9 @@ export default function Settings() {
           name: data.name || "",
           address_line: data.address_line || "",
           city: data.city || "",
-          cuisine: (data.cuisine as any) || "Outros",
+          cuisine: data.cuisine || "Outros",
           about: data.about || "",
-          hero_image_url: data.hero_image_url || "",
-          final_screen_image_url: data.final_screen_image_url || "",
+          image_url: data.image_url || "",
           menu_url: data.menu_url || "",
         });
       }
@@ -148,13 +143,12 @@ export default function Settings() {
     }
   };
 
-  const handleImageUpload = async (file: File, field: 'hero_image_url' | 'final_screen_image_url') => {
+  const handleImageUpload = async (file: File) => {
     try {
-      const isFinal = field === 'final_screen_image_url';
-      isFinal ? setUploadingHero(true) : setUploadingImage(true);
+      setUploadingImage(true);
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${RESTAURANT_ID}-${field}-${Date.now()}.${fileExt}`;
+      const fileName = `${RESTAURANT_ID}-image-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -167,7 +161,7 @@ export default function Settings() {
         .from('restaurants')
         .getPublicUrl(filePath);
 
-      form.setValue(field, publicUrl);
+      form.setValue('image_url', publicUrl);
 
       toast({
         title: "Imagem enviada",
@@ -181,8 +175,7 @@ export default function Settings() {
         variant: "destructive",
       });
     } finally {
-      const isFinal = field === 'final_screen_image_url';
-      isFinal ? setUploadingHero(false) : setUploadingImage(false);
+      setUploadingImage(false);
     }
   };
 
@@ -196,10 +189,9 @@ export default function Settings() {
           name: values.name,
           address_line: values.address_line,
           city: values.city,
-          cuisine: values.cuisine,
+          cuisine: values.cuisine as any,
           about: values.about || null,
-          hero_image_url: values.hero_image_url || null,
-          final_screen_image_url: values.final_screen_image_url || null,
+          image_url: values.image_url || null,
           menu_url: values.menu_url || null,
         })
         .eq('id', RESTAURANT_ID);
@@ -364,7 +356,7 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <FormField
                 control={form.control}
-                name="hero_image_url"
+                name="image_url"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Imagem Principal</FormLabel>
@@ -388,7 +380,7 @@ export default function Settings() {
                             input.accept = 'image/*';
                             input.onchange = (e) => {
                               const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleImageUpload(file, 'hero_image_url');
+                              if (file) handleImageUpload(file);
                             };
                             input.click();
                           }}
@@ -415,73 +407,6 @@ export default function Settings() {
                         <img
                           src={field.value}
                           alt="Preview"
-                          className="w-full h-48 object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Separator />
-
-              <FormField
-                control={form.control}
-                name="final_screen_image_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Imagem de Fundo (Tela Final)</FormLabel>
-                    <div className="space-y-4">
-                      <FormControl>
-                        <Input
-                          placeholder="https://exemplo.com/imagem-fundo.jpg"
-                          {...field}
-                        />
-                      </FormControl>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">ou</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={uploadingHero}
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleImageUpload(file, 'final_screen_image_url');
-                            };
-                            input.click();
-                          }}
-                        >
-                          {uploadingHero ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Enviando...
-                            </>
-                          ) : (
-                            <>
-                              <ImageIcon className="mr-2 h-4 w-4" />
-                              Anexar Imagem
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <FormDescription>
-                      Imagem de fundo exibida na tela final quando o cliente entra na fila ou faz reserva
-                    </FormDescription>
-                    {field.value && (
-                      <div className="mt-4 relative rounded-lg overflow-hidden border border-border">
-                        <img
-                          src={field.value}
-                          alt="Preview Hero"
                           className="w-full h-48 object-cover"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
