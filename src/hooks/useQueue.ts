@@ -115,7 +115,7 @@ export function useQueue() {
     }
   };
 
-  const updateQueueStatus = async (id: string, status: QueueEntry['status']) => {
+  const updateQueueStatus = async (entryId: string, status: QueueEntry['status']) => {
     try {
       const updateData: any = { 
         status,
@@ -130,12 +130,22 @@ export function useQueue() {
         updateData.canceled_at = new Date().toISOString();
       }
 
+      // Buscar o ID real da entrada usando entry_id da view
+      const { data: entry, error: fetchError } = await supabase
+        .schema('mesaclik')
+        .from('queue_entries')
+        .select('id')
+        .eq('id', entryId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!entry) throw new Error('Entrada não encontrada');
+
       const { error } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
         .update(updateData)
-        .eq('id', id)
-        .eq('restaurant_id', restaurantId);
+        .eq('id', entry.id);
 
       if (error) throw error;
 
