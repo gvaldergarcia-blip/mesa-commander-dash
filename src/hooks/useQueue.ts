@@ -77,7 +77,10 @@ export function useQueue() {
         throw new Error('Nenhuma fila encontrada para este restaurante');
       }
 
-      // Inserir direto na tabela (sem usar RPC pois não temos user_id)
+      // Inserir direto na tabela
+      // Usar UUID zerado para clientes adicionados manualmente pelo restaurante
+      const manualUserId = '00000000-0000-0000-0000-000000000000';
+      
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
@@ -85,6 +88,7 @@ export function useQueue() {
           {
             restaurant_id: restaurantId,
             queue_id: activeQueue.id,
+            user_id: manualUserId,
             name: entry.customer_name,
             phone: entry.phone,
             party_size: entry.people,
