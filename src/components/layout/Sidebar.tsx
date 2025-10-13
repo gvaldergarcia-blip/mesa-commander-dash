@@ -22,6 +22,7 @@ const navigation = [
   { name: "Clientes", href: "/customers", icon: UserCheck },
   { name: "Promoções", href: "/promotions", icon: Megaphone },
   { name: "Relatórios", href: "/reports", icon: BarChart3 },
+  { name: "Configurações", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
