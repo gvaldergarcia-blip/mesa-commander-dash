@@ -49,6 +49,7 @@ const settingsSchema = z.object({
   about: z.string().max(400, "Descrição deve ter no máximo 400 caracteres").optional(),
   image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   menu_url: z.string().url("URL inválida").or(z.literal("")).optional(),
+  menu_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -58,6 +59,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingMenuImage, setUploadingMenuImage] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -69,6 +71,7 @@ export default function Settings() {
       about: "",
       image_url: "",
       menu_url: "",
+      menu_image_url: "",
     },
   });
 
@@ -98,6 +101,7 @@ export default function Settings() {
               about: data.about || "",
               image_url: data.image_url || "",
               menu_url: data.menu_url || "",
+              menu_image_url: data.menu_image_url || "",
             });
           }
         }
@@ -117,7 +121,7 @@ export default function Settings() {
       const { data, error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
-        .select('name, address_line, city, cuisine, about, image_url, menu_url')
+        .select('name, address_line, city, cuisine, about, image_url, menu_url, menu_image_url')
         .eq('id', RESTAURANT_ID)
         .maybeSingle();
 
@@ -135,6 +139,7 @@ export default function Settings() {
           about: data.about || "",
           image_url: data.image_url || "",
           menu_url: data.menu_url || "",
+          menu_image_url: data.menu_image_url || "",
         });
       } else {
         console.warn('[Settings] No data found for restaurant ID:', RESTAURANT_ID);
@@ -187,6 +192,42 @@ export default function Settings() {
     }
   };
 
+  const handleMenuImageUpload = async (file: File) => {
+    try {
+      setUploadingMenuImage(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${RESTAURANT_ID}-menu-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('restaurants')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('restaurants')
+        .getPublicUrl(filePath);
+
+      form.setValue('menu_image_url', publicUrl);
+
+      toast({
+        title: "Imagem do cardápio enviada",
+        description: "A imagem do cardápio foi carregada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error uploading menu image:', error);
+      toast({
+        title: "Erro ao enviar imagem do cardápio",
+        description: "Não foi possível fazer upload da imagem. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingMenuImage(false);
+    }
+  };
+
   const onSubmit = async (values: SettingsFormValues) => {
     try {
       setSaving(true);
@@ -203,6 +244,7 @@ export default function Settings() {
           about: values.about || null,
           image_url: values.image_url || null,
           menu_url: values.menu_url || null,
+          menu_image_url: values.menu_image_url || null,
         })
         .eq('id', RESTAURANT_ID);
 
@@ -448,6 +490,73 @@ export default function Settings() {
                     <FormDescription>
                       Link para o cardápio completo (PDF, site, Google Drive, etc.)
                     </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Separator />
+
+              <FormField
+                control={form.control}
+                name="menu_image_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Imagem do Cardápio</FormLabel>
+                    <div className="space-y-4">
+                      <FormControl>
+                        <Input
+                          placeholder="https://exemplo.com/cardapio-imagem.jpg"
+                          {...field}
+                        />
+                      </FormControl>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">ou</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingMenuImage}
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) handleMenuImageUpload(file);
+                            };
+                            input.click();
+                          }}
+                        >
+                          {uploadingMenuImage ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>
+                              <ImageIcon className="mr-2 h-4 w-4" />
+                              Anexar Imagem
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <FormDescription>
+                      Imagem do cardápio que será exibida no app
+                    </FormDescription>
+                    {field.value && (
+                      <div className="mt-4 relative rounded-lg overflow-hidden border border-border">
+                        <img
+                          src={field.value}
+                          alt="Preview do Cardápio"
+                          className="w-full h-48 object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
