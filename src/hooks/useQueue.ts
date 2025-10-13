@@ -81,14 +81,14 @@ export function useQueue() {
       const { data: queueData } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('position_number')
+        .select('position')
         .eq('queue_id', activeQueue.id)
         .eq('status', 'waiting')
-        .order('position_number', { ascending: false })
+        .order('position', { ascending: false })
         .limit(1);
 
       const nextPosition = queueData && queueData.length > 0 
-        ? (queueData[0].position_number || 0) + 1 
+        ? (queueData[0].position || 0) + 1 
         : 1;
 
       const { data, error } = await supabase
@@ -96,14 +96,14 @@ export function useQueue() {
         .from('queue_entries')
         .insert([
           {
-            customer_name: entry.customer_name,
+            restaurant_id: restaurantId,
+            queue_id: activeQueue.id,
+            name: entry.customer_name,
             phone: entry.phone,
             party_size: entry.people,
             notes: entry.notes,
-            queue_id: activeQueue.id,
             status: 'waiting',
-            priority: 'normal',
-            position_number: nextPosition,
+            position: nextPosition,
           },
         ])
         .select()
