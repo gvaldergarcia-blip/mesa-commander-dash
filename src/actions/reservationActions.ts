@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
+import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 export async function createReservation(data: {
-  restaurant_id: string;
   customer_name: string;
   phone: string;
   date: string;
@@ -12,12 +12,14 @@ export async function createReservation(data: {
   const datetime = `${data.date}T${data.time}:00`;
 
   const { data: reservation, error } = await supabase
+    .schema('mesaclik')
     .from('reservations')
     .insert({
-      restaurant_id: data.restaurant_id,
-      customer_name: data.customer_name,
+      restaurant_id: RESTAURANT_ID,
+      user_id: RESTAURANT_ID, // Using restaurant ID as user_id for admin panel
+      name: data.customer_name,
       phone: data.phone,
-      reservation_datetime: datetime,
+      reserved_for: datetime,
       party_size: data.party_size,
       notes: data.notes,
       status: 'pending',
@@ -31,53 +33,35 @@ export async function createReservation(data: {
 
 export async function confirmReservation(id: string) {
   const { error } = await supabase
+    .schema('mesaclik')
     .from('reservations')
-    .update({ status: 'confirmed' })
+    .update({ 
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString()
+    })
     .eq('id', id);
 
   if (error) throw error;
 }
 
 export async function seatReservation(id: string) {
-  const { data: reservation } = await supabase
-    .from('reservations')
-    .select('customer_id')
-    .eq('id', id)
-    .single();
-
   const { error } = await supabase
+    .schema('mesaclik')
     .from('reservations')
     .update({ status: 'seated' })
     .eq('id', id);
 
   if (error) throw error;
-
-  // Update customer stats if customer_id exists
-  if (reservation?.customer_id) {
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('total_visits')
-      .eq('id', reservation.customer_id)
-      .single();
-
-    if (customer) {
-      await supabase
-        .from('customers')
-        .update({
-          total_visits: customer.total_visits + 1,
-          last_visit_date: new Date().toISOString(),
-        })
-        .eq('id', reservation.customer_id);
-    }
-  }
 }
 
 export async function cancelReservation(id: string) {
   const { error } = await supabase
+    .schema('mesaclik')
     .from('reservations')
     .update({
       status: 'canceled',
       canceled_at: new Date().toISOString(),
+      canceled_by: 'admin',
     })
     .eq('id', id);
 
@@ -86,10 +70,11 @@ export async function cancelReservation(id: string) {
 
 export async function noShowReservation(id: string) {
   const { error } = await supabase
+    .schema('mesaclik')
     .from('reservations')
     .update({
       status: 'no_show',
-      canceled_at: new Date().toISOString(),
+      no_show_at: new Date().toISOString(),
     })
     .eq('id', id);
 

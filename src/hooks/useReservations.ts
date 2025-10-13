@@ -32,6 +32,7 @@ export function useReservations() {
         .schema('mesaclik')
         .from('v_reservations')
         .select('*')
+        .eq('restaurant_id', restaurantId)
         .order('starts_at', { ascending: true });
 
       if (error) throw error;
@@ -47,7 +48,7 @@ export function useReservations() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [restaurantId, toast]);
 
   useEffect(() => {
     fetchReservations();
@@ -68,6 +69,7 @@ export function useReservations() {
             reserved_for: reservation.starts_at,
             notes: reservation.notes,
             restaurant_id: restaurantId,
+            user_id: restaurantId, // Using restaurant ID as user_id for admin panel
             status: 'pending',
           },
         ])
