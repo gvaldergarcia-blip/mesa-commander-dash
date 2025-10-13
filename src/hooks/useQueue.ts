@@ -63,51 +63,11 @@ export function useQueue() {
 
   const addToQueue = async (entry: { customer_name: string; phone: string; people: number; notes?: string }) => {
     try {
-      // Buscar fila do restaurante
-      const { data: activeQueue, error: queueError } = await supabase
-        .schema('mesaclik')
-        .from('queues')
-        .select('id')
-        .eq('restaurant_id', restaurantId)
-        .limit(1)
-        .maybeSingle();
-
-      if (queueError) throw queueError;
-      if (!activeQueue) {
-        throw new Error('Nenhuma fila encontrada para este restaurante');
-      }
-
-      // Buscar próxima posição
-      const { data: queueData } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('position')
-        .eq('queue_id', activeQueue.id)
-        .eq('status', 'waiting')
-        .order('position', { ascending: false })
-        .limit(1);
-
-      const nextPosition = queueData && queueData.length > 0 
-        ? (queueData[0].position || 0) + 1 
-        : 1;
-
-      const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .insert([
-          {
-            restaurant_id: restaurantId,
-            queue_id: activeQueue.id,
-            name: entry.customer_name,
-            phone: entry.phone,
-            party_size: entry.people,
-            notes: entry.notes,
-            status: 'waiting',
-            position: nextPosition,
-          },
-        ])
-        .select()
-        .single();
+      // Usar a mesma função RPC que o app usa
+      const { data, error } = await supabase.rpc('enter_queue', {
+        p_restaurant_id: restaurantId,
+        p_party_size: entry.people
+      });
 
       if (error) throw error;
 
