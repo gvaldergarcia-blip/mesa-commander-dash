@@ -63,17 +63,37 @@ export function useQueue() {
 
   const addToQueue = async (entry: { customer_name: string; phone: string; people: number; notes?: string }) => {
     try {
-      // Usar a função RPC do schema mesaclik com todos os parâmetros
+      // Buscar fila do restaurante
+      const { data: activeQueue, error: queueError } = await supabase
+        .schema('mesaclik')
+        .from('queues')
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+        .limit(1)
+        .maybeSingle();
+
+      if (queueError) throw queueError;
+      if (!activeQueue) {
+        throw new Error('Nenhuma fila encontrada para este restaurante');
+      }
+
+      // Inserir direto na tabela (sem usar RPC pois não temos user_id)
       const { data, error } = await supabase
         .schema('mesaclik')
-        .rpc('enter_queue', {
-          p_restaurant_id: restaurantId,
-          p_user_id: null, // Para clientes adicionados manualmente pelo restaurante
-          p_party_size: entry.people,
-          p_name: entry.customer_name,
-          p_phone: entry.phone,
-          p_email: null
-        });
+        .from('queue_entries')
+        .insert([
+          {
+            restaurant_id: restaurantId,
+            queue_id: activeQueue.id,
+            name: entry.customer_name,
+            phone: entry.phone,
+            party_size: entry.people,
+            notes: entry.notes,
+            status: 'waiting',
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
