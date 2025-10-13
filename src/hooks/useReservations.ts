@@ -18,6 +18,21 @@ type Reservation = {
   updated_at: string;
 };
 
+type DbReservation = {
+  id: string;
+  restaurant_id: string;
+  user_id: string;
+  name: string;
+  phone: string;
+  party_size: number;
+  reserved_for: string;
+  status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show';
+  notes?: string;
+  canceled_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export function useReservations() {
   const restaurantId = RESTAURANT_ID;
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -96,13 +111,27 @@ export function useReservations() {
     }
   };
 
-  const updateReservationStatus = async (id: string, status: Reservation['status']) => {
+  const updateReservationStatus = async (reservationId: string, status: Reservation['status']) => {
     try {
+      const updateData: any = { status };
+      
+      // Add timestamp fields based on status
+      if (status === 'confirmed') {
+        updateData.confirmed_at = new Date().toISOString();
+      } else if (status === 'canceled') {
+        updateData.canceled_at = new Date().toISOString();
+        updateData.canceled_by = 'admin';
+      } else if (status === 'no_show') {
+        updateData.no_show_at = new Date().toISOString();
+      } else if (status === 'completed') {
+        updateData.completed_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .schema('mesaclik')
         .from('reservations')
-        .update({ status })
-        .eq('id', id);
+        .update(updateData)
+        .eq('id', reservationId);
 
       if (error) throw error;
 

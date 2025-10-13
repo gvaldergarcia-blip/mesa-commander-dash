@@ -63,17 +63,7 @@ export default function Reservations() {
     setIsDialogOpen(false);
   };
 
-  // Filtrar reservas de hoje
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const todaysReservations = reservations.filter(reservation => {
-    const resDate = new Date(reservation.starts_at);
-    return resDate >= today && resDate < tomorrow;
-  });
-
+  // Helper functions
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("pt-BR", { 
@@ -86,17 +76,56 @@ export default function Reservations() {
     const date = new Date(dateString);
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  };
+
+  const formatDateShort = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
       month: "2-digit"
     });
   };
 
-  const filteredReservations = todaysReservations.filter(reservation => {
-    const matchesSearch = reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reservation.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Filtros de data
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const weekEnd = new Date(today);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  // Filtrar reservas por aba
+  const getReservationsByTab = (tab: string) => {
+    if (tab === "today") {
+      return reservations.filter(reservation => {
+        const resDate = new Date(reservation.starts_at);
+        return resDate >= today && resDate < tomorrow;
+      });
+    } else if (tab === "week") {
+      return reservations.filter(reservation => {
+        const resDate = new Date(reservation.starts_at);
+        return resDate >= today && resDate <= weekEnd;
+      });
+    }
+    return reservations; // all
+  };
+
+  // Aplicar filtros de busca e status
+  const applyFilters = (resList: typeof reservations) => {
+    return resList.filter(reservation => {
+      const matchesSearch = reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           reservation.phone.includes(searchTerm);
+      const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  };
+
+  const todaysReservations = getReservationsByTab("today");
+  const filteredReservations = applyFilters(reservations);
 
   if (loading) {
     return (
@@ -182,8 +211,8 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <Calendar className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-2xl font-bold">{todaysReservations.length}</p>
-                <p className="text-sm text-muted-foreground">Reservas hoje</p>
+                <p className="text-2xl font-bold">{reservations.length}</p>
+                <p className="text-sm text-muted-foreground">Total Reservas</p>
               </div>
             </div>
           </CardContent>
@@ -194,7 +223,7 @@ export default function Reservations() {
               <Clock className="h-5 w-5 text-success" />
               <div>
                 <p className="text-2xl font-bold">
-                  {todaysReservations.filter(r => r.status === "confirmed").length}
+                  {reservations.filter(r => r.status === "confirmed").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Confirmadas</p>
               </div>
@@ -207,7 +236,7 @@ export default function Reservations() {
               <User className="h-5 w-5 text-warning" />
               <div>
                 <p className="text-2xl font-bold">
-                  {todaysReservations.filter(r => r.status === "pending").length}
+                  {reservations.filter(r => r.status === "pending").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Pendentes</p>
               </div>
@@ -220,7 +249,7 @@ export default function Reservations() {
               <User className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-2xl font-bold">
-                  {todaysReservations.reduce((sum, r) => sum + r.people, 0)}
+                  {reservations.reduce((sum, r) => sum + r.people, 0)}
                 </p>
                 <p className="text-sm text-muted-foreground">Total pessoas</p>
               </div>
@@ -230,12 +259,140 @@ export default function Reservations() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="today" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="all">Todas</TabsTrigger>
           <TabsTrigger value="today">Hoje</TabsTrigger>
           <TabsTrigger value="week">Esta Semana</TabsTrigger>
           <TabsTrigger value="calendar">Calendário</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="all" className="space-y-4">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome ou telefone..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="pending">Pendentes</SelectItem>
+                    <SelectItem value="confirmed">Confirmadas</SelectItem>
+                    <SelectItem value="seated">Sentadas</SelectItem>
+                    <SelectItem value="completed">Concluídas</SelectItem>
+                    <SelectItem value="canceled">Canceladas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Reservations List */}
+          <div className="space-y-3">
+            {filteredReservations.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">Nenhuma reserva encontrada</h3>
+                  <p className="text-muted-foreground">
+                    {searchTerm || statusFilter !== "all" 
+                      ? "Nenhum resultado encontrado com os filtros atuais."
+                      : "Não há reservas cadastradas ainda."}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredReservations.map((reservation) => (
+                <Card key={reservation.reservation_id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-center">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Calendar className="w-6 h-6 text-primary" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatTime(reservation.starts_at)}
+                          </p>
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-semibold">{reservation.customer_name}</h3>
+                            <StatusBadge status={reservation.status} />
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                            <span className="flex items-center">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {reservation.phone}
+                            </span>
+                            <span className="flex items-center">
+                              <User className="w-3 h-3 mr-1" />
+                              {reservation.people} pessoas
+                            </span>
+                            <span className="flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {formatDate(reservation.starts_at)} às {formatTime(reservation.starts_at)}
+                            </span>
+                          </div>
+                          {reservation.notes && (
+                            <p className="text-sm text-muted-foreground mt-1 italic">
+                              "{reservation.notes}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {reservation.status === "pending" && (
+                          <Button 
+                            size="sm" 
+                            className="bg-success hover:bg-success/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                          >
+                            Confirmar
+                          </Button>
+                        )}
+                        {reservation.status === "confirmed" && (
+                          <Button 
+                            size="sm" 
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "seated")}
+                          >
+                            Check-in
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="today" className="space-y-4">
           {/* Filters */}
@@ -275,93 +432,107 @@ export default function Reservations() {
 
           {/* Reservations List */}
           <div className="space-y-3">
-            {filteredReservations.map((reservation) => (
-              <Card key={reservation.reservation_id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-center">
-                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Calendar className="w-6 h-6 text-primary" />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatTime(reservation.starts_at)}
-                        </p>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-semibold">{reservation.customer_name}</h3>
-                          <StatusBadge status={reservation.status} />
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <Phone className="w-3 h-3 mr-1" />
-                            {reservation.phone}
-                          </span>
-                          <span className="flex items-center">
-                            <User className="w-3 h-3 mr-1" />
-                            {reservation.people} pessoas
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {formatTime(reservation.starts_at)}
-                          </span>
-                        </div>
-                        {reservation.notes && (
-                          <p className="text-sm text-muted-foreground mt-1 italic">
-                            "{reservation.notes}"
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                  <div className="flex items-center space-x-2">
-                    {reservation.status === "pending" && (
-                      <Button 
-                        size="sm" 
-                        className="bg-success hover:bg-success/90"
-                        onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
-                      >
-                        Confirmar
-                      </Button>
-                    )}
-                    {reservation.status === "confirmed" && (
-                      <Button 
-                        size="sm" 
-                        className="bg-accent hover:bg-accent/90"
-                        onClick={() => updateReservationStatus(reservation.reservation_id, "seated")}
-                      >
-                        Check-in
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline">
-                      Editar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                  </div>
+            {applyFilters(todaysReservations).length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">Nenhuma reserva para hoje</h3>
+                  <p className="text-muted-foreground">
+                    Não há reservas para hoje.
+                  </p>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              applyFilters(todaysReservations).map((reservation) => (
+                <Card key={reservation.reservation_id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-center">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                            <Calendar className="w-6 h-6 text-primary" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatTime(reservation.starts_at)}
+                          </p>
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-semibold">{reservation.customer_name}</h3>
+                            <StatusBadge status={reservation.status} />
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                            <span className="flex items-center">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {reservation.phone}
+                            </span>
+                            <span className="flex items-center">
+                              <User className="w-3 h-3 mr-1" />
+                              {reservation.people} pessoas
+                            </span>
+                            <span className="flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {formatTime(reservation.starts_at)}
+                            </span>
+                          </div>
+                          {reservation.notes && (
+                            <p className="text-sm text-muted-foreground mt-1 italic">
+                              "{reservation.notes}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {reservation.status === "pending" && (
+                          <Button 
+                            size="sm" 
+                            className="bg-success hover:bg-success/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                          >
+                            Confirmar
+                          </Button>
+                        )}
+                        {reservation.status === "confirmed" && (
+                          <Button 
+                            size="sm" 
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "seated")}
+                          >
+                            Check-in
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="week">
           <div className="space-y-3">
-            {reservations.filter(res => {
-              const resDate = new Date(res.starts_at);
-              const today = new Date();
-              const weekEnd = new Date(today);
-              weekEnd.setDate(weekEnd.getDate() + 7);
-              return resDate >= today && resDate <= weekEnd;
-            }).map((reservation) => (
+            {applyFilters(getReservationsByTab("week")).length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">Nenhuma reserva esta semana</h3>
+                  <p className="text-muted-foreground">
+                    Não há reservas para esta semana.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              applyFilters(getReservationsByTab("week")).map((reservation) => (
               <Card key={reservation.reservation_id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -390,7 +561,7 @@ export default function Reservations() {
                           </span>
                           <span className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
-                            {formatDate(reservation.starts_at)} {formatTime(reservation.starts_at)}
+                            {formatDateShort(reservation.starts_at)} {formatTime(reservation.starts_at)}
                           </span>
                         </div>
                       </div>
@@ -416,7 +587,8 @@ export default function Reservations() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            )}
           </div>
         </TabsContent>
 
@@ -432,24 +604,6 @@ export default function Reservations() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {filteredReservations.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Nenhuma reserva encontrada</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchTerm || statusFilter !== "all" 
-                ? "Nenhum resultado encontrado com os filtros atuais."
-                : "Não há reservas para hoje."}
-            </p>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Criar Primera Reserva
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
