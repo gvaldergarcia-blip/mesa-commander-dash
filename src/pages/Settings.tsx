@@ -114,7 +114,8 @@ export default function Settings() {
       setLoading(true);
       console.log('[Settings] Fetching restaurant data for ID:', RESTAURANT_ID);
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('restaurants')
         .select('name, address_line, city, cuisine, about, image_url, menu_url')
         .eq('id', RESTAURANT_ID)
@@ -191,7 +192,8 @@ export default function Settings() {
       setSaving(true);
       console.log('[Settings] Updating restaurant with values:', values);
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
+        .schema('mesaclik')
         .from('restaurants')
         .update({
           name: values.name,
