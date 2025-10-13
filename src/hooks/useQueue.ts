@@ -117,35 +117,13 @@ export function useQueue() {
 
   const updateQueueStatus = async (entryId: string, status: QueueEntry['status']) => {
     try {
-      const updateData: any = { 
-        status,
-        updated_at: new Date().toISOString()
-      };
-      
-      if (status === 'called') {
-        updateData.called_at = new Date().toISOString();
-      } else if (status === 'seated') {
-        updateData.seated_at = new Date().toISOString();
-      } else if (status === 'canceled' || status === 'no_show') {
-        updateData.canceled_at = new Date().toISOString();
-      }
+      // Usar RPC para atualizar status com cast correto do enum
+      const { error } = await supabase.rpc('update_queue_entry_status', {
+        p_entry_id: entryId,
+        p_status: status
+      });
 
-      // Buscar o ID real da entrada usando entry_id da view
-      const { data: entry, error: fetchError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('id')
-        .eq('id', entryId)
-        .single();
-
-      if (fetchError) throw fetchError;
-      if (!entry) throw new Error('Entrada não encontrada');
-
-      const { error } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .update(updateData)
-        .eq('id', entry.id);
+      if (error) throw error;
 
       if (error) throw error;
 
