@@ -1,26 +1,26 @@
 /**
  * Utilitário para envio de SMS via Twilio
- * Em produção, configurar TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_PHONE_NUMBER
  */
 
-export const TWILIO_AVAILABLE = false; // Definir como true quando credenciais forem configuradas
+import { supabase } from '@/integrations/supabase/client';
 
 export const sendSms = async (phone: string, message: string): Promise<boolean> => {
-  if (!TWILIO_AVAILABLE) {
-    // Modo simulado para desenvolvimento
-    console.warn('[SMS SIMULADO]', { phone, message });
-    return true;
-  }
-
   try {
-    // TODO: Implementar integração real com Twilio via Edge Function
-    // const response = await fetch('/api/send-sms', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ phone, message }),
-    // });
-    // return response.ok;
-    
+    console.log('Enviando SMS via Twilio Edge Function:', { phone, message });
+
+    const { data, error } = await supabase.functions.invoke('send-sms', {
+      body: {
+        to: phone,
+        message: message,
+      },
+    });
+
+    if (error) {
+      console.error('Erro ao enviar SMS:', error);
+      return false;
+    }
+
+    console.log('SMS enviado com sucesso:', data);
     return true;
   } catch (error) {
     console.error('Erro ao enviar SMS:', error);
@@ -29,8 +29,8 @@ export const sendSms = async (phone: string, message: string): Promise<boolean> 
 };
 
 export const SMS_TEMPLATES = {
-  QUEUE_CALLED: (name: string) => 
-    `Olá ${name}! Sua vez na fila chegou! Você tem 5 minutos para comparecer ao local. - Mocotó`,
+  QUEUE_CALLED: () => 
+    `Olá! Sua mesa está pronta. Você tem 5 minutos para chegar ao restaurante antes que sua vez seja passada ao próximo da fila.`,
   RESERVATION_CONFIRMED: (name: string, datetime: string) =>
     `Olá ${name}! Sua reserva para ${datetime} foi confirmada. Aguardamos você! - Mocotó`,
   RESERVATION_REMINDER: (name: string, datetime: string) =>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle } from "lucide-react";
-import { sendSms, SMS_TEMPLATES, TWILIO_AVAILABLE } from "@/utils/sms";
+import { sendSms, SMS_TEMPLATES } from "@/utils/sms";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueue } from "@/hooks/useQueue";
 import { useToast } from "@/hooks/use-toast";
@@ -88,12 +88,12 @@ export default function Queue() {
   const handleCallCustomer = async (entry: typeof queueEntries[0]) => {
     try {
       await updateQueueStatus(entry.entry_id, "called");
-      const success = await sendSms(entry.phone, SMS_TEMPLATES.QUEUE_CALLED(entry.customer_name));
+      const success = await sendSms(entry.phone, SMS_TEMPLATES.QUEUE_CALLED());
       
       if (success) {
         toast({
           title: "Cliente chamado",
-          description: `SMS enviado para ${entry.customer_name}${!TWILIO_AVAILABLE ? ' (simulado)' : ''}`,
+          description: `SMS enviado para ${entry.customer_name}`,
         });
       }
     } catch (err) {
