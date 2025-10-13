@@ -63,19 +63,18 @@ export function useQueue() {
 
   const addToQueue = async (entry: { customer_name: string; phone: string; people: number; notes?: string }) => {
     try {
-      // Buscar fila ativa
+      // Buscar fila do restaurante
       const { data: activeQueue, error: queueError } = await supabase
         .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', restaurantId)
-        .eq('is_active', true)
         .limit(1)
         .maybeSingle();
 
       if (queueError) throw queueError;
       if (!activeQueue) {
-        throw new Error('Nenhuma fila ativa encontrada');
+        throw new Error('Nenhuma fila encontrada para este restaurante');
       }
 
       const { data, error } = await supabase
@@ -83,12 +82,11 @@ export function useQueue() {
         .from('queue_entries')
         .insert([
           {
-            name: entry.customer_name,
+            customer_name: entry.customer_name,
             phone: entry.phone,
             party_size: entry.people,
             notes: entry.notes,
             queue_id: activeQueue.id,
-            restaurant_id: restaurantId,
             status: 'waiting',
           },
         ])
