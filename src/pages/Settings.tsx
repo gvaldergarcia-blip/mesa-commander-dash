@@ -112,15 +112,20 @@ export default function Settings() {
   const fetchRestaurantData = async () => {
     try {
       setLoading(true);
+      console.log('[Settings] Fetching restaurant data for ID:', RESTAURANT_ID);
+      
       const { data, error } = await supabase
         .from('restaurants')
         .select('name, address_line, city, cuisine, about, image_url, menu_url')
         .eq('id', RESTAURANT_ID)
         .maybeSingle();
 
+      console.log('[Settings] Query result:', { data, error });
+
       if (error) throw error;
 
       if (data) {
+        console.log('[Settings] Resetting form with data:', data);
         form.reset({
           name: data.name || "",
           address_line: data.address_line || "",
@@ -130,9 +135,11 @@ export default function Settings() {
           image_url: data.image_url || "",
           menu_url: data.menu_url || "",
         });
+      } else {
+        console.warn('[Settings] No data found for restaurant ID:', RESTAURANT_ID);
       }
     } catch (error) {
-      console.error('Error fetching restaurant:', error);
+      console.error('[Settings] Error fetching restaurant:', error);
       toast({
         title: "Erro ao carregar dados",
         description: "Não foi possível carregar as informações do restaurante.",
@@ -182,6 +189,7 @@ export default function Settings() {
   const onSubmit = async (values: SettingsFormValues) => {
     try {
       setSaving(true);
+      console.log('[Settings] Updating restaurant with values:', values);
 
       const { error } = await supabase
         .from('restaurants')
@@ -196,6 +204,8 @@ export default function Settings() {
         })
         .eq('id', RESTAURANT_ID);
 
+      console.log('[Settings] Update result:', { error });
+
       if (error) throw error;
 
       toast({
@@ -203,7 +213,7 @@ export default function Settings() {
         description: "As alterações já estão visíveis no app.",
       });
     } catch (error) {
-      console.error('Error updating restaurant:', error);
+      console.error('[Settings] Error updating restaurant:', error);
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as alterações. Tente novamente.",
