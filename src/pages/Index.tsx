@@ -4,14 +4,19 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { CURRENT_RESTAURANT } from "@/config/current-restaurant";
 import { Badge } from "@/components/ui/badge";
+import { useRestaurants } from "@/hooks/useRestaurants";
 
 export default function Index() {
   const { metrics, loading } = useDashboardMetrics();
+  const { restaurants, loading: loadingRestaurants } = useRestaurants();
+  
+  // Get the current restaurant data from Supabase
+  const currentRestaurant = restaurants.find(r => r.id === CURRENT_RESTAURANT.id);
 
   // Calculate weekly growth (mock for now - would need historical data)
   const weeklyGrowth = "+12%";
 
-  if (loading) {
+  if (loading || loadingRestaurants) {
     return (
       <div className="p-6">
         <p>Carregando métricas...</p>
@@ -26,7 +31,7 @@ export default function Index() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground flex items-center gap-2">
-            Painel de controle - {CURRENT_RESTAURANT.name}
+            Painel de controle - {currentRestaurant?.name || CURRENT_RESTAURANT.name}
             <Badge variant="secondary" className="bg-success/10 text-success">
               Conectado
             </Badge>

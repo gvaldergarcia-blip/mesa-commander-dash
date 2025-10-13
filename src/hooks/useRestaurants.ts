@@ -46,7 +46,8 @@ export function useRestaurants() {
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('restaurants')
         .select('*')
         .order('name');
