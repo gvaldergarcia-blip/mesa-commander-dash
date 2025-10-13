@@ -82,7 +82,7 @@ export function useQueue() {
         .from('queue_entries')
         .insert([
           {
-            customer_name: entry.customer_name,
+            name: entry.customer_name,
             phone: entry.phone,
             party_size: entry.people,
             notes: entry.notes,
