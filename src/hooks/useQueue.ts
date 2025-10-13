@@ -77,17 +77,33 @@ export function useQueue() {
         throw new Error('Nenhuma fila encontrada para este restaurante');
       }
 
+      // Buscar próxima posição
+      const { data: queueData } = await supabase
+        .schema('mesaclik')
+        .from('queue_entries')
+        .select('position_number')
+        .eq('queue_id', activeQueue.id)
+        .eq('status', 'waiting')
+        .order('position_number', { ascending: false })
+        .limit(1);
+
+      const nextPosition = queueData && queueData.length > 0 
+        ? (queueData[0].position_number || 0) + 1 
+        : 1;
+
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
         .insert([
           {
-            name: entry.customer_name,
+            customer_name: entry.customer_name,
             phone: entry.phone,
             party_size: entry.people,
             notes: entry.notes,
             queue_id: activeQueue.id,
             status: 'waiting',
+            priority: 'normal',
+            position_number: nextPosition,
           },
         ])
         .select()
