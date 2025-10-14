@@ -97,20 +97,43 @@ export default function Reservations() {
   const weekEnd = new Date(today);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
+  // Filtrar reservas expiradas não confirmadas/canceladas
+  const filterExpiredReservations = (resList: typeof reservations) => {
+    const now = new Date();
+    return resList.filter(reservation => {
+      const resDate = new Date(reservation.starts_at);
+      
+      // Se a reserva já passou e está pendente, remove da lista
+      if (resDate < now && reservation.status === 'pending') {
+        return false;
+      }
+      
+      // Remove reservas canceladas da lista
+      if (reservation.status === 'canceled') {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
   // Filtrar reservas por aba
   const getReservationsByTab = (tab: string) => {
+    let filtered = reservations;
+    
     if (tab === "today") {
-      return reservations.filter(reservation => {
+      filtered = reservations.filter(reservation => {
         const resDate = new Date(reservation.starts_at);
         return resDate >= today && resDate < tomorrow;
       });
     } else if (tab === "week") {
-      return reservations.filter(reservation => {
+      filtered = reservations.filter(reservation => {
         const resDate = new Date(reservation.starts_at);
         return resDate >= today && resDate <= weekEnd;
       });
     }
-    return reservations; // all
+    
+    return filterExpiredReservations(filtered);
   };
 
   // Aplicar filtros de busca e status
@@ -125,7 +148,7 @@ export default function Reservations() {
   };
 
   const todaysReservations = getReservationsByTab("today");
-  const filteredReservations = applyFilters(reservations);
+  const filteredReservations = applyFilters(filterExpiredReservations(reservations));
 
   if (loading) {
     return (
@@ -361,30 +384,66 @@ export default function Reservations() {
 
                       <div className="flex items-center space-x-2">
                         {reservation.status === "pending" && (
-                          <Button 
-                            size="sm" 
-                            className="bg-success hover:bg-success/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
-                          >
-                            Confirmar
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-success hover:bg-success/90"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                            >
+                              Confirmar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
                         )}
                         {reservation.status === "confirmed" && (
-                          <Button 
-                            size="sm" 
-                            className="bg-accent hover:bg-accent/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "seated")}
-                          >
-                            Check-in
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-accent hover:bg-accent/90"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                            >
+                              Concluída
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "pending")}
+                            >
+                              Pendente
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
                         )}
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
-                        >
-                          Cancelar
-                        </Button>
+                        {reservation.status === "seated" && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-accent hover:bg-accent/90"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                            >
+                              Concluída
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -486,30 +545,66 @@ export default function Reservations() {
 
                       <div className="flex items-center space-x-2">
                         {reservation.status === "pending" && (
-                          <Button 
-                            size="sm" 
-                            className="bg-success hover:bg-success/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
-                          >
-                            Confirmar
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-success hover:bg-success/90"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                            >
+                              Confirmar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
                         )}
                         {reservation.status === "confirmed" && (
-                          <Button 
-                            size="sm" 
-                            className="bg-accent hover:bg-accent/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "seated")}
-                          >
-                            Check-in
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-accent hover:bg-accent/90"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                            >
+                              Concluída
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "pending")}
+                            >
+                              Pendente
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
                         )}
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
-                        >
-                          Cancelar
-                        </Button>
+                        {reservation.status === "seated" && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              className="bg-accent hover:bg-accent/90"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                            >
+                              Concluída
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            >
+                              Cancelar
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -568,21 +663,66 @@ export default function Reservations() {
                     </div>
                     <div className="flex items-center space-x-2">
                       {reservation.status === "pending" && (
-                        <Button 
-                          size="sm" 
-                          className="bg-success hover:bg-success/90"
-                          onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
-                        >
-                          Confirmar
-                        </Button>
+                        <>
+                          <Button 
+                            size="sm" 
+                            className="bg-success hover:bg-success/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                          >
+                            Confirmar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                          >
+                            Cancelar
+                          </Button>
+                        </>
                       )}
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
-                      >
-                        Cancelar
-                      </Button>
+                      {reservation.status === "confirmed" && (
+                        <>
+                          <Button 
+                            size="sm" 
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                          >
+                            Concluída
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "pending")}
+                          >
+                            Pendente
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                          >
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
+                      {reservation.status === "seated" && (
+                        <>
+                          <Button 
+                            size="sm" 
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                          >
+                            Concluída
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                          >
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>
