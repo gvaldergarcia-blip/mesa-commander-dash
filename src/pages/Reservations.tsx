@@ -97,19 +97,14 @@ export default function Reservations() {
   const weekEnd = new Date(today);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
-  // Filtrar reservas expiradas não confirmadas/canceladas
-  const filterExpiredReservations = (resList: typeof reservations) => {
+  // Filtrar apenas reservas expiradas que estão pendentes
+  const filterExpiredPendingReservations = (resList: typeof reservations) => {
     const now = new Date();
     return resList.filter(reservation => {
       const resDate = new Date(reservation.starts_at);
       
       // Se a reserva já passou e está pendente, remove da lista
       if (resDate < now && reservation.status === 'pending') {
-        return false;
-      }
-      
-      // Remove reservas canceladas da lista
-      if (reservation.status === 'canceled') {
         return false;
       }
       
@@ -133,7 +128,7 @@ export default function Reservations() {
       });
     }
     
-    return filterExpiredReservations(filtered);
+    return filterExpiredPendingReservations(filtered);
   };
 
   // Aplicar filtros de busca e status
@@ -148,7 +143,7 @@ export default function Reservations() {
   };
 
   const todaysReservations = getReservationsByTab("today");
-  const filteredReservations = applyFilters(filterExpiredReservations(reservations));
+  const filteredReservations = applyFilters(filterExpiredPendingReservations(reservations));
 
   if (loading) {
     return (
