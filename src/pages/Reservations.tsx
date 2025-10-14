@@ -35,10 +35,9 @@ export default function Reservations() {
   
   // Wrapper para atualizar status e mudar o filtro automaticamente
   const handleUpdateStatus = async (reservationId: string, newStatus: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show') => {
-    console.log('[Reservations] Atualizando status:', { reservationId, newStatus });
+    console.log('[Reservations] Atualizando status para:', newStatus);
     await updateReservationStatus(reservationId, newStatus);
-    console.log('[Reservations] Mudando para aba:', newStatus);
-    // Muda automaticamente para a aba do novo status
+    // Muda automaticamente para visualizar o novo status
     setActiveTab("all");
     setStatusFilter(newStatus);
   };

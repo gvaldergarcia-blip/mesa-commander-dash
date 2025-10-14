@@ -43,6 +43,7 @@ export function useReservations() {
   const fetchReservations = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('[useReservations] Buscando reservas...');
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('v_reservations')
@@ -51,10 +52,12 @@ export function useReservations() {
         .order('starts_at', { ascending: true });
 
       if (error) throw error;
+      console.log('[useReservations] Reservas carregadas:', data?.length);
       setReservations(data || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar reservas';
       setError(message);
+      console.error('[useReservations] Erro:', err);
       toast({
         title: 'Erro',
         description: message,
@@ -113,6 +116,7 @@ export function useReservations() {
 
   const updateReservationStatus = async (reservationId: string, status: Reservation['status']) => {
     try {
+      console.log('[useReservations] Atualizando status:', { reservationId, status });
       const updateData: any = { status };
       
       // Add timestamp fields based on status
@@ -127,13 +131,15 @@ export function useReservations() {
         updateData.completed_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .schema('mesaclik')
         .from('reservations')
         .update(updateData)
-        .eq('id', reservationId);
+        .eq('id', reservationId)
+        .select();
 
       if (error) throw error;
+      console.log('[useReservations] Status atualizado:', data);
 
       toast({
         title: 'Sucesso',
@@ -141,8 +147,10 @@ export function useReservations() {
       });
 
       await fetchReservations();
+      console.log('[useReservations] Reservas recarregadas após update');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar status';
+      console.error('[useReservations] Erro ao atualizar:', err);
       toast({
         title: 'Erro',
         description: message,
