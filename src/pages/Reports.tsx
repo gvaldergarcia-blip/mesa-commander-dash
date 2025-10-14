@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -6,7 +7,10 @@ import {
   Calendar,
   Mail,
   DollarSign,
-  Target
+  Target,
+  Download,
+  Link2,
+  Share2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -19,11 +23,83 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useReportsReal } from "@/hooks/useReportsReal";
+import { useExportData } from "@/hooks/useExportData";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+
+type PeriodType = 'today' | '7days' | '30days' | '90days';
 
 export default function Reports() {
-  const { metrics, loading } = useReportsReal();
+  const [period, setPeriod] = useState<PeriodType>('30days');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const { metrics, loading } = useReportsReal(period);
+  const { exportQueueData, exportReservationsData, exportKPIsData } = useExportData();
+  const { toast } = useToast();
+
+  const getPeriodDates = () => {
+    const endDate = new Date();
+    const startDate = new Date();
+    
+    if (period === 'today') {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === '7days') {
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (period === '30days') {
+      startDate.setDate(startDate.getDate() - 30);
+    } else if (period === '90days') {
+      startDate.setDate(startDate.getDate() - 90);
+    }
+    
+    return { startDate, endDate };
+  };
+
+  const handleExport = async (type: 'queue' | 'reservations' | 'kpis') => {
+    try {
+      const { startDate, endDate } = getPeriodDates();
+      
+      if (type === 'queue') {
+        await exportQueueData(startDate, endDate);
+      } else if (type === 'reservations') {
+        await exportReservationsData(startDate, endDate);
+      } else if (type === 'kpis') {
+        await exportKPIsData(startDate, endDate);
+      }
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Dados exportados com sucesso!',
+      });
+      
+      setExportDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao exportar dados',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleShare = (type: 'email' | 'whatsapp') => {
+    const { startDate, endDate } = getPeriodDates();
+    const message = `Relatório MesaClik - ${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
+    
+    if (type === 'email') {
+      window.open(`mailto:?subject=${encodeURIComponent(message)}&body=${encodeURIComponent('Confira os relatórios anexados.')}`);
+    } else if (type === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`);
+    }
+    
+    setExportDialogOpen(false);
+  };
 
   if (loading) {
     return (
@@ -54,7 +130,7 @@ export default function Reports() {
           <p className="text-muted-foreground">Insights sobre o desempenho do seu restaurante</p>
         </div>
         <div className="flex space-x-3">
-          <Select defaultValue="30days">
+          <Select value={period} onValueChange={(value) => setPeriod(value as PeriodType)}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -65,10 +141,70 @@ export default function Reports() {
               <SelectItem value="90days">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Exportar Dados
-          </Button>
+          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Exportar Dados
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Exportar Dados</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Escolha o que exportar:</h4>
+                  <div className="grid gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => handleExport('queue')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Dados da Fila (CSV)
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => handleExport('reservations')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Dados de Reservas (CSV)
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => handleExport('kpis')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      KPIs Consolidados (CSV)
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="font-medium">Compartilhar:</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleShare('email')}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      E-mail
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleShare('whatsapp')}
+                    >
+                      <Share2 className="w-4 h-4 mr-2" />
+                      WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 

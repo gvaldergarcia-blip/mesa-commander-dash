@@ -29,7 +29,9 @@ type ReportMetrics = {
   }>;
 };
 
-export function useReportsReal() {
+type PeriodType = 'today' | '7days' | '30days' | '90days';
+
+export function useReportsReal(period: PeriodType = '30days') {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,17 +39,28 @@ export function useReportsReal() {
     try {
       setLoading(true);
 
-      // 1. Tempo médio de espera (últimos 30 dias)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Calcular datas baseado no período
+      const endDate = new Date();
+      const startDate = new Date();
       
+      if (period === 'today') {
+        startDate.setHours(0, 0, 0, 0);
+      } else if (period === '7days') {
+        startDate.setDate(startDate.getDate() - 7);
+      } else if (period === '30days') {
+        startDate.setDate(startDate.getDate() - 30);
+      } else if (period === '90days') {
+        startDate.setDate(startDate.getDate() - 90);
+      }
+
+      // 1. Tempo médio de espera
       const { data: queueData } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
         .select('created_at, seated_at')
         .eq('restaurant_id', RESTAURANT_ID)
         .eq('status', 'seated')
-        .gte('seated_at', thirtyDaysAgo.toISOString())
+        .gte('seated_at', startDate.toISOString())
         .not('seated_at', 'is', null);
 
       let avgWaitTime = 0;
@@ -66,15 +79,15 @@ export function useReportsReal() {
         .from('reservations')
         .select('*', { count: 'exact', head: true })
         .eq('restaurant_id', RESTAURANT_ID)
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .gte('created_at', startDate.toISOString());
 
       const { count: confirmedReservations } = await supabase
         .schema('mesaclik')
         .from('reservations')
         .select('*', { count: 'exact', head: true })
         .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'confirmed')
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .in('status', ['confirmed', 'completed', 'seated'])
+        .gte('created_at', startDate.toISOString());
 
       const conversionRate = totalReservations && totalReservations > 0
         ? Math.round((confirmedReservations || 0) / totalReservations * 100)
@@ -86,8 +99,8 @@ export function useReportsReal() {
         .from('reservations')
         .select('*', { count: 'exact', head: true })
         .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'no_show')
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .eq('status', 'canceled')
+        .gte('created_at', startDate.toISOString());
 
       const noShowRate = totalReservations && totalReservations > 0
         ? Math.round((noShowCount || 0) / totalReservations * 100)
@@ -99,57 +112,54 @@ export function useReportsReal() {
         .from('v_customers')
         .select('*');
 
-      const now = new Date();
-      const thirtyDaysAgoDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const newCustomers = customers?.filter(c => 
-        new Date(c.last_visit_at) >= thirtyDaysAgoDate
+        new Date(c.last_visit_at) >= startDate
       ).length || 0;
       
       const vipCustomers = customers?.filter(c => c.vip_status).length || 0;
 
-      // 5. Métricas de fila por período (última semana)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      const { data: weekQueueData } = await supabase
+      // 5. Métricas de fila por período
+      const { data: periodQueueData } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
         .select('created_at, seated_at, status')
         .eq('restaurant_id', RESTAURANT_ID)
-        .gte('created_at', sevenDaysAgo.toISOString());
+        .gte('created_at', startDate.toISOString());
 
       const queueMetrics = [
         {
-          period: 'Últimos 7 dias',
+          period: period === 'today' ? 'Hoje' : period === '7days' ? 'Últimos 7 dias' : period === '30days' ? 'Últimos 30 dias' : 'Últimos 90 dias',
           avgWait: avgWaitTime,
-          totalServed: weekQueueData?.filter(e => e.status === 'seated').length || 0,
+          totalServed: periodQueueData?.filter(e => e.status === 'seated').length || 0,
           peaked: '19:00 - 21:00',
         },
       ];
 
       // 6. Eficiência da fila
-      const servedCount = weekQueueData?.filter(e => e.status === 'seated').length || 0;
-      const canceledCount = weekQueueData?.filter(e => e.status === 'canceled').length || 0;
+      const servedCount = periodQueueData?.filter(e => e.status === 'seated').length || 0;
+      const canceledCount = periodQueueData?.filter(e => e.status === 'canceled').length || 0;
       const queueEfficiency = servedCount + canceledCount > 0
         ? Math.round((servedCount / (servedCount + canceledCount)) * 100)
         : 100;
 
       // 7. Métricas de reservas
-      const { data: weekReservations } = await supabase
+      const { data: periodReservations } = await supabase
         .schema('mesaclik')
         .from('reservations')
         .select('status')
         .eq('restaurant_id', RESTAURANT_ID)
-        .gte('created_at', sevenDaysAgo.toISOString());
+        .gte('created_at', startDate.toISOString());
 
       const reservationMetrics = [
         {
-          period: 'Últimos 7 dias',
-          confirmed: weekReservations?.filter(r => r.status === 'confirmed').length || 0,
-          pending: weekReservations?.filter(r => r.status === 'pending').length || 0,
-          noShow: weekReservations?.filter(r => r.status === 'no_show').length || 0,
+          period: period === 'today' ? 'Hoje' : period === '7days' ? 'Últimos 7 dias' : period === '30days' ? 'Últimos 30 dias' : 'Últimos 90 dias',
+          confirmed: periodReservations?.filter(r => r.status === 'confirmed' || r.status === 'completed').length || 0,
+          pending: periodReservations?.filter(r => r.status === 'pending').length || 0,
+          noShow: periodReservations?.filter(r => r.status === 'canceled').length || 0,
         },
       ];
+
+      const days = period === 'today' ? 1 : period === '7days' ? 7 : period === '30days' ? 30 : 90;
 
       setMetrics({
         avgWaitTime: { current: avgWaitTime, trend: 0 },
@@ -159,7 +169,7 @@ export function useReportsReal() {
         vipCustomers,
         queueMetrics,
         queueEfficiency,
-        avgQueueSize: Math.round((weekQueueData?.length || 0) / 7),
+        avgQueueSize: Math.round((periodQueueData?.length || 0) / days),
         reservationMetrics,
       });
     } catch (err) {
@@ -167,7 +177,7 @@ export function useReportsReal() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchReports();

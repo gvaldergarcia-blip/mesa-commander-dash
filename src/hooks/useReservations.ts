@@ -114,9 +114,9 @@ export function useReservations() {
     }
   };
 
-  const updateReservationStatus = async (reservationId: string, status: Reservation['status']) => {
+  const updateReservationStatus = async (reservationId: string, status: Reservation['status'], cancelReason?: string) => {
     try {
-      console.log('[useReservations] Atualizando status:', { reservationId, status });
+      console.log('[useReservations] Atualizando status:', { reservationId, status, cancelReason });
       const updateData: any = { status };
       
       // Add timestamp fields based on status
@@ -125,6 +125,9 @@ export function useReservations() {
       } else if (status === 'canceled') {
         updateData.canceled_at = new Date().toISOString();
         updateData.canceled_by = 'admin';
+        if (cancelReason) {
+          updateData.cancel_reason = cancelReason;
+        }
       } else if (status === 'no_show') {
         updateData.no_show_at = new Date().toISOString();
       } else if (status === 'completed') {

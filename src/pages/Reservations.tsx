@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Calendar, Clock, User, Phone, Search, Filter } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useReservations } from "@/hooks/useReservations";
+import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,9 +30,13 @@ export default function Reservations() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedDate, setSelectedDate] = useState("today");
+  const [periodFilter, setPeriodFilter] = useState("today");
+  const [customDateStart, setCustomDateStart] = useState("");
+  const [customDateEnd, setCustomDateEnd] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  
+  const { calendarDays, loading: calendarLoading, toggleDayAvailability, isDayAvailable } = useRestaurantCalendar();
   
   // Wrapper para atualizar status e mudar o filtro automaticamente
   const handleUpdateStatus = async (reservationId: string, newStatus: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show') => {
@@ -106,6 +111,10 @@ export default function Reservations() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const weekEnd = new Date(today);
   weekEnd.setDate(weekEnd.getDate() + 7);
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   // Filtrar apenas reservas expiradas que estão pendentes
   const filterExpiredPendingReservations = (resList: typeof reservations) => {
@@ -116,6 +125,32 @@ export default function Reservations() {
       // Se a reserva já passou e está pendente, remove da lista
       if (resDate < now && reservation.status === 'pending') {
         return false;
+      }
+      
+      return true;
+    });
+  };
+
+  // Filtrar reservas por período
+  const filterByPeriod = (resList: typeof reservations) => {
+    if (periodFilter === "all") return resList;
+    
+    return resList.filter(reservation => {
+      const resDate = new Date(reservation.starts_at);
+      
+      if (periodFilter === "today") {
+        return resDate >= today && resDate < tomorrow;
+      } else if (periodFilter === "week") {
+        return resDate >= today && resDate <= weekEnd;
+      } else if (periodFilter === "last7") {
+        return resDate >= sevenDaysAgo && resDate <= today;
+      } else if (periodFilter === "last30") {
+        return resDate >= thirtyDaysAgo && resDate <= today;
+      } else if (periodFilter === "custom" && customDateStart && customDateEnd) {
+        const start = new Date(customDateStart);
+        const end = new Date(customDateEnd);
+        end.setHours(23, 59, 59, 999);
+        return resDate >= start && resDate <= end;
       }
       
       return true;
@@ -143,7 +178,9 @@ export default function Reservations() {
 
   // Aplicar filtros de busca e status
   const applyFilters = (resList: typeof reservations) => {
-    return resList.filter(reservation => {
+    let filtered = filterByPeriod(resList);
+    
+    return filtered.filter(reservation => {
       const matchesSearch = reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            reservation.phone.includes(searchTerm);
       const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
@@ -154,6 +191,13 @@ export default function Reservations() {
 
   const todaysReservations = getReservationsByTab("today");
   const filteredReservations = applyFilters(filterExpiredPendingReservations(reservations));
+  
+  // Calcular métricas com base no período
+  const periodReservations = filterByPeriod(reservations);
+  const totalReservations = periodReservations.length;
+  const confirmedCount = periodReservations.filter(r => r.status === "confirmed").length;
+  const pendingCount = periodReservations.filter(r => r.status === "pending").length;
+  const totalPeople = periodReservations.reduce((sum, r) => sum + r.people, 0);
 
   if (loading) {
     return (
@@ -232,6 +276,49 @@ export default function Reservations() {
         </Dialog>
       </div>
 
+      {/* Filtro de Período */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block">Período</label>
+              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Hoje</SelectItem>
+                  <SelectItem value="week">Esta semana</SelectItem>
+                  <SelectItem value="last7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="last30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {periodFilter === "custom" && (
+              <>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Data início</label>
+                  <Input 
+                    type="date" 
+                    value={customDateStart}
+                    onChange={(e) => setCustomDateStart(e.target.value)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-2 block">Data fim</label>
+                  <Input 
+                    type="date" 
+                    value={customDateEnd}
+                    onChange={(e) => setCustomDateEnd(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -239,7 +326,7 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <Calendar className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-2xl font-bold">{reservations.length}</p>
+                <p className="text-2xl font-bold">{totalReservations}</p>
                 <p className="text-sm text-muted-foreground">Total Reservas</p>
               </div>
             </div>
@@ -250,9 +337,7 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <Clock className="h-5 w-5 text-success" />
               <div>
-                <p className="text-2xl font-bold">
-                  {reservations.filter(r => r.status === "confirmed").length}
-                </p>
+                <p className="text-2xl font-bold">{confirmedCount}</p>
                 <p className="text-sm text-muted-foreground">Confirmadas</p>
               </div>
             </div>
@@ -263,9 +348,7 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <User className="h-5 w-5 text-warning" />
               <div>
-                <p className="text-2xl font-bold">
-                  {reservations.filter(r => r.status === "pending").length}
-                </p>
+                <p className="text-2xl font-bold">{pendingCount}</p>
                 <p className="text-sm text-muted-foreground">Pendentes</p>
               </div>
             </div>
@@ -276,9 +359,7 @@ export default function Reservations() {
             <div className="flex items-center space-x-2">
               <User className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-2xl font-bold">
-                  {reservations.reduce((sum, r) => sum + r.people, 0)}
-                </p>
+                <p className="text-2xl font-bold">{totalPeople}</p>
                 <p className="text-sm text-muted-foreground">Total pessoas</p>
               </div>
             </div>
@@ -322,7 +403,6 @@ export default function Reservations() {
                     <SelectItem value="all">Todos os status</SelectItem>
                     <SelectItem value="pending">Pendentes</SelectItem>
                     <SelectItem value="confirmed">Confirmadas</SelectItem>
-                    <SelectItem value="seated">Sentadas</SelectItem>
                     <SelectItem value="completed">Concluídas</SelectItem>
                     <SelectItem value="canceled">Canceladas</SelectItem>
                   </SelectContent>
@@ -410,10 +490,10 @@ export default function Reservations() {
                           <>
                             <Button 
                               size="sm" 
-                              className="bg-accent hover:bg-accent/90"
+                              className="bg-success hover:bg-success/90"
                               onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                             >
-                              Concluída
+                              Concluir
                             </Button>
                             <Button 
                               size="sm" 
@@ -425,9 +505,13 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
+                              onClick={async () => {
+                                await updateReservationStatus(reservation.reservation_id, "canceled", "no_show");
+                                setActiveTab("all");
+                                setStatusFilter("canceled");
+                              }}
                             >
-                              Cancelar
+                              Não compareceu
                             </Button>
                           </>
                         )}
@@ -739,12 +823,81 @@ export default function Reservations() {
 
         <TabsContent value="calendar">
           <Card>
-            <CardContent className="p-12 text-center">
-              <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-semibold mb-2">Calendário</h3>
-              <p className="text-muted-foreground">
-                Calendário interativo será implementado em breve.
+            <CardHeader>
+              <CardTitle>Calendário de Disponibilidade</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Marque os dias em que o restaurante não estará disponível para reservas
               </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-7 gap-2">
+                  {/* Calendar implementation */}
+                  {(() => {
+                    const today = new Date();
+                    const currentMonth = today.getMonth();
+                    const currentYear = today.getFullYear();
+                    const firstDay = new Date(currentYear, currentMonth, 1);
+                    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+                    const daysInMonth = lastDay.getDate();
+                    const startingDayOfWeek = firstDay.getDay();
+                    
+                    const days = [];
+                    
+                    // Day headers
+                    ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].forEach(day => {
+                      days.push(
+                        <div key={`header-${day}`} className="text-center text-sm font-medium p-2">
+                          {day}
+                        </div>
+                      );
+                    });
+                    
+                    // Empty cells for days before month starts
+                    for (let i = 0; i < startingDayOfWeek; i++) {
+                      days.push(<div key={`empty-${i}`} className="p-2"></div>);
+                    }
+                    
+                    // Days of the month
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const date = new Date(currentYear, currentMonth, day);
+                      const dateString = date.toISOString().split('T')[0];
+                      const isAvailable = isDayAvailable(dateString);
+                      const isPast = date < today;
+                      
+                      days.push(
+                        <button
+                          key={`day-${day}`}
+                          onClick={() => !isPast && toggleDayAvailability(dateString, !isAvailable)}
+                          disabled={isPast}
+                          className={`
+                            p-2 rounded-lg text-sm transition-colors
+                            ${isPast ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
+                            ${isAvailable 
+                              ? 'bg-success/10 text-success hover:bg-success/20' 
+                              : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                            }
+                          `}
+                        >
+                          {day}
+                        </button>
+                      );
+                    }
+                    
+                    return days;
+                  })()}
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-success/20"></div>
+                    <span>Disponível</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-destructive/20"></div>
+                    <span>Indisponível</span>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
