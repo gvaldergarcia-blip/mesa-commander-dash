@@ -32,6 +32,14 @@ export default function Reservations() {
   const [selectedDate, setSelectedDate] = useState("today");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
+  // Wrapper para atualizar status e mudar o filtro automaticamente
+  const handleUpdateStatus = async (reservationId: string, newStatus: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show') => {
+    console.log('[Reservations] Atualizando status:', { reservationId, newStatus, currentFilter: statusFilter });
+    await updateReservationStatus(reservationId, newStatus);
+    console.log('[Reservations] Mudando filtro para:', newStatus);
+    setStatusFilter(newStatus);
+  };
+  
   // Form state
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -383,14 +391,14 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-success hover:bg-success/90"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "confirmed")}
                             >
                               Confirmar
                             </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                             >
                               Cancelar
                             </Button>
@@ -401,21 +409,21 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                             >
                               Concluída
                             </Button>
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "pending")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "pending")}
                             >
                               Pendente
                             </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                             >
                               Cancelar
                             </Button>
@@ -426,14 +434,14 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                             >
                               Concluída
                             </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                             >
                               Cancelar
                             </Button>
@@ -544,14 +552,14 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-success hover:bg-success/90"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "confirmed")}
                             >
                               Confirmar
                             </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                             >
                               Cancelar
                             </Button>
@@ -562,21 +570,21 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                             >
                               Concluída
                             </Button>
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "pending")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "pending")}
                             >
                               Pendente
                             </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                             >
                               Cancelar
                             </Button>
@@ -587,14 +595,14 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                             >
                               Concluída
                             </Button>
                             <Button 
                               size="sm" 
                               variant="destructive"
-                              onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                             >
                               Cancelar
                             </Button>
@@ -662,14 +670,14 @@ export default function Reservations() {
                           <Button 
                             size="sm" 
                             className="bg-success hover:bg-success/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "confirmed")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "confirmed")}
                           >
                             Confirmar
                           </Button>
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                           >
                             Cancelar
                           </Button>
@@ -680,21 +688,21 @@ export default function Reservations() {
                           <Button 
                             size="sm" 
                             className="bg-accent hover:bg-accent/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                           >
                             Concluída
                           </Button>
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "pending")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "pending")}
                           >
                             Pendente
                           </Button>
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                           >
                             Cancelar
                           </Button>
@@ -705,14 +713,14 @@ export default function Reservations() {
                           <Button 
                             size="sm" 
                             className="bg-accent hover:bg-accent/90"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "completed")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
                           >
                             Concluída
                           </Button>
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            onClick={() => updateReservationStatus(reservation.reservation_id, "canceled")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "canceled")}
                           >
                             Cancelar
                           </Button>
