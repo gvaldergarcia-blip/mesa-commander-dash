@@ -31,12 +31,15 @@ export default function Reservations() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedDate, setSelectedDate] = useState("today");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
   
   // Wrapper para atualizar status e mudar o filtro automaticamente
   const handleUpdateStatus = async (reservationId: string, newStatus: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show') => {
-    console.log('[Reservations] Atualizando status:', { reservationId, newStatus, currentFilter: statusFilter });
+    console.log('[Reservations] Atualizando status:', { reservationId, newStatus });
     await updateReservationStatus(reservationId, newStatus);
-    console.log('[Reservations] Mudando filtro para:', newStatus);
+    console.log('[Reservations] Mudando para aba:', newStatus);
+    // Muda automaticamente para a aba do novo status
+    setActiveTab("all");
     setStatusFilter(newStatus);
   };
   
@@ -285,7 +288,7 @@ export default function Reservations() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all">Todas</TabsTrigger>
           <TabsTrigger value="today">Hoje</TabsTrigger>
