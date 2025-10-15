@@ -46,20 +46,30 @@ export function useRestaurantCalendar() {
 
   const toggleDayAvailability = async (day: string, isOpen: boolean) => {
     try {
-      const { error } = await supabase
+      console.log('[useRestaurantCalendar] Toggling day:', { day, isOpen, restaurant_id: RESTAURANT_ID });
+      
+      const { data, error } = await supabase
         .schema('mesaclik')
         .from('restaurant_calendar')
         .upsert({
           restaurant_id: RESTAURANT_ID,
           day,
           is_open: isOpen,
-        });
+        }, {
+          onConflict: 'restaurant_id,day'
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useRestaurantCalendar] Error:', error);
+        throw error;
+      }
+      
+      console.log('[useRestaurantCalendar] Success:', data);
 
       toast({
         title: 'Sucesso',
-        description: `Dia ${isOpen ? 'aberto' : 'fechado'} com sucesso`,
+        description: `Dia ${isOpen ? 'disponível' : 'bloqueado'} com sucesso`,
       });
 
       await fetchCalendar();
