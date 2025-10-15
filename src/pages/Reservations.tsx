@@ -30,7 +30,7 @@ export default function Reservations() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [periodFilter, setPeriodFilter] = useState("today");
+  const [periodFilter, setPeriodFilter] = useState("week");
   const [customDateStart, setCustomDateStart] = useState("");
   const [customDateEnd, setCustomDateEnd] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -299,6 +299,7 @@ export default function Reservations() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
                   <SelectItem value="today">Hoje</SelectItem>
                   <SelectItem value="week">Esta semana</SelectItem>
                   <SelectItem value="last7">Últimos 7 dias</SelectItem>
