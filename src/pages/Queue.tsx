@@ -46,10 +46,8 @@ export default function Queue() {
     return diffMins;
   };
 
-  // Apenas status ativos são considerados
-  const activeEntries = queueEntries.filter(entry => 
-    entry.status === "waiting" || entry.status === "called"
-  );
+  // Considerar todos os entries para permitir visualização em todas as tabs
+  const activeEntries = queueEntries;
   
   const totalWaiting = activeEntries.filter(entry => entry.status === "waiting").length;
   const totalPeople = activeEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
@@ -104,6 +102,16 @@ export default function Queue() {
   const handleSeatCustomer = async (entryId: string) => {
     try {
       await updateQueueStatus(entryId, "seated");
+      setStatusFilter("seated");
+    } catch (err) {
+      // Erro já tratado pelo hook
+    }
+  };
+
+  const handleCancelCustomer = async (entryId: string) => {
+    try {
+      await updateQueueStatus(entryId, "canceled");
+      setStatusFilter("canceled");
     } catch (err) {
       // Erro já tratado pelo hook
     }
@@ -376,7 +384,7 @@ export default function Queue() {
                   <Button 
                     size="sm" 
                     variant="destructive"
-                    onClick={() => updateQueueStatus(entry.entry_id, "canceled")}
+                    onClick={() => handleCancelCustomer(entry.entry_id)}
                   >
                     <XCircle className="w-4 h-4" />
                   </Button>
