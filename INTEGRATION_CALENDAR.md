@@ -1,18 +1,32 @@
-# Integração do Calendário de Disponibilidade com o App do Cliente
+# ✅ Integração Completa - Calendário de Disponibilidade
 
-## ✅ O que já está funcionando no Painel Admin
+## 🎉 CONFIGURAÇÃO SUPABASE CONCLUÍDA
 
-O painel administrativo já possui:
-- Aba "Calendário" na página de Reservas
-- Função para bloquear/desbloquear dias (clique nos dias para alternar)
-- Salvamento automático na tabela `mesaclik.restaurant_calendar`
-- Dias bloqueados ficam vermelhos, dias disponíveis ficam verdes
+A tabela `mesaclik.restaurant_calendar` está pronta com:
+- ✅ Políticas RLS configuradas (leitura pública, escrita apenas owner)
+- ✅ Constraint única (restaurant_id + day)
+- ✅ Realtime habilitado para atualizações automáticas
+- ✅ Índices criados para performance
 
 ## 📱 Como Integrar no App do Cliente
 
-### 1. Criar o Hook de Disponibilidade
+### Passo 1: Configurar o Supabase Client
 
-Crie o arquivo `useRestaurantAvailability.ts` no seu app React Native/Web:
+No seu app, certifique-se de ter o Supabase configurado:
+
+```typescript
+// supabaseClient.ts
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://akqldesakmcroydbgkbe.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrcWxkZXNha21jcm95ZGJna2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNzU5MzMsImV4cCI6MjA3MDk1MTkzM30.z9-eadw-xSeHgnqUUO5BMm2vVkabfY3p41Yb9CGPXIM';
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+```
+
+### Passo 2: Criar o Hook de Disponibilidade
+
+Crie o arquivo `hooks/useRestaurantAvailability.ts`:
 
 ```typescript
 // useRestaurantAvailability.ts

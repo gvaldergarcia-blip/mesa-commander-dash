@@ -439,34 +439,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cancel_queue_entry: {
-        Args:
-          | { p_reason: string; p_ticket_id: string; p_user_id: string }
-          | { p_reason: string; p_ticket_id: string; p_user_id: string }
-        Returns: string
-      }
-      cancel_reservation: {
-        Args:
-          | {
+      cancel_queue_entry:
+        | {
+            Args: { p_reason: string; p_ticket_id: string; p_user_id: string }
+            Returns: string
+          }
+        | {
+            Args: { p_reason: string; p_ticket_id: string; p_user_id: string }
+            Returns: undefined
+          }
+      cancel_reservation:
+        | {
+            Args: {
               cancel_reason_param?: string
               canceled_by_param?: string
               reservation_id: string
             }
-          | {
+            Returns: Json
+          }
+        | {
+            Args: {
               p_cancel_reason?: string
               p_reservation_id: string
               p_user_id: string
             }
-        Returns: Json
-      }
+            Returns: {
+              canceled_at: string
+              canceled_by: string
+              id: string
+              status: Database["public"]["Enums"]["reservation_status"]
+            }[]
+          }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
         Returns: Database["public"]["Tables"]["queue_entries"]["Row"]
+        SetofOptions: {
+          from: "*"
+          to: "queue_entries"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      get_queue_position: {
-        Args: { p_ticket_id: string }
-        Returns: number
-      }
+      get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
       update_queue_entry_status: {
         Args: { p_entry_id: string; p_status: string }
         Returns: undefined
