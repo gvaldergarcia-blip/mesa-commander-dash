@@ -10,7 +10,9 @@ import {
   Target,
   Download,
   Link2,
-  Share2
+  Share2,
+  XCircle,
+  UserPlus
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -34,13 +36,18 @@ import { useReportsReal } from "@/hooks/useReportsReal";
 import { useExportData } from "@/hooks/useExportData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { DailyEvolutionChart } from "@/components/reports/DailyEvolutionChart";
+import { StatusDistributionChart } from "@/components/reports/StatusDistributionChart";
+import { HourlyDistributionChart } from "@/components/reports/HourlyDistributionChart";
 
 type PeriodType = 'today' | '7days' | '30days' | '90days';
+type SourceType = 'all' | 'queue' | 'reservations';
 
 export default function Reports() {
   const [period, setPeriod] = useState<PeriodType>('30days');
+  const [sourceType, setSourceType] = useState<SourceType>('all');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const { metrics, loading } = useReportsReal(period);
+  const { metrics, loading } = useReportsReal(period, sourceType);
   const { exportQueueData, exportReservationsData, exportKPIsData } = useExportData();
   const { toast } = useToast();
 
@@ -124,12 +131,22 @@ export default function Reports() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Relatórios & Análises</h1>
           <p className="text-muted-foreground">Insights sobre o desempenho do seu restaurante</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 flex-wrap">
+          <Select value={sourceType} onValueChange={(value) => setSourceType(value as SourceType)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="queue">Apenas Fila</SelectItem>
+              <SelectItem value="reservations">Apenas Reservas</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={period} onValueChange={(value) => setPeriod(value as PeriodType)}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -209,7 +226,7 @@ export default function Reports() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
           title="Tempo Médio de Espera"
           value={`${metrics.avgWaitTime.current} min`}
@@ -228,26 +245,191 @@ export default function Reports() {
           title="Taxa de No-Show"
           value={`${metrics.noShowRate.current}%`}
           description="Faltas sem aviso"
-          icon={Users}
+          icon={XCircle}
           trend={{ value: Math.abs(metrics.noShowRate.trend), isPositive: metrics.noShowRate.trend < 0 }}
+        />
+        <MetricCard
+          title="Taxa de Cancelamento"
+          value={`${metrics.cancelRate.current}%`}
+          description="Cancelamentos da fila"
+          icon={XCircle}
+          trend={{ value: Math.abs(metrics.cancelRate.trend), isPositive: metrics.cancelRate.trend < 0 }}
+        />
+        <MetricCard
+          title="Média por Grupo"
+          value={metrics.avgPartySize.current.toFixed(1)}
+          description="Pessoas por entrada"
+          icon={Users}
+          trend={{ value: Math.abs(metrics.avgPartySize.trend), isPositive: metrics.avgPartySize.trend > 0 }}
         />
       </div>
 
-      <Tabs defaultValue="queue" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="queue">Fila de Espera</TabsTrigger>
-          <TabsTrigger value="reservations">Reservas</TabsTrigger>
+      {/* Gráficos Principais */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DailyEvolutionChart data={metrics.dailyEvolution} />
+        <StatusDistributionChart data={metrics.statusDistribution} />
+      </div>
+
+      <HourlyDistributionChart data={metrics.hourlyDistribution} />
+
+      <Tabs defaultValue="insights" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="customers">Clientes</TabsTrigger>
-          <TabsTrigger value="marketing">Marketing</TabsTrigger>
+          <TabsTrigger value="details">Detalhes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="queue" className="space-y-4">
+        <TabsContent value="insights" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Atendidos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{metrics.totalServed}</div>
+                <p className="text-xs text-muted-foreground mt-1">No período selecionado</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Cancelados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">{metrics.totalCanceled}</div>
+                <p className="text-xs text-muted-foreground mt-1">Fila de espera</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Horário de Pico</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{metrics.peakHour}</div>
+                <p className="text-xs text-muted-foreground mt-1">Maior movimento</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Dia de Pico</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary capitalize">{metrics.peakDay}</div>
+                <p className="text-xs text-muted-foreground mt-1">Melhor dia</p>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Clock className="w-5 h-5 mr-2" />
-                  Tempo de Espera por Período
+                  Performance da Fila
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
+                      <div className="text-2xl font-bold text-success">{metrics.queueEfficiency}%</div>
+                      <div className="text-sm text-muted-foreground">Eficiência</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
+                      <div className="text-2xl font-bold text-warning">{metrics.avgQueueSize}</div>
+                      <div className="text-sm text-muted-foreground">Média diária</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Target className="w-5 h-5 mr-2" />
+                  Performance de Reservas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {metrics.reservationMetrics.map((metric, index) => (
+                    <div key={index} className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-success">{metric.confirmed}</div>
+                        <div className="text-xs text-muted-foreground">Confirmadas</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-warning">{metric.pending}</div>
+                        <div className="text-xs text-muted-foreground">Pendentes</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-destructive">{metric.noShow}</div>
+                        <div className="text-xs text-muted-foreground">No-show</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+
+        <TabsContent value="customers" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <UserPlus className="w-5 h-5 mr-2" />
+                  Novos Clientes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center p-6 rounded-lg bg-gradient-to-br from-accent/5 to-primary/5">
+                  <div className="text-4xl font-bold text-accent mb-2">{metrics.newCustomers}</div>
+                  <div className="text-sm text-muted-foreground">No período selecionado</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  Clientes VIP
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center p-6 rounded-lg bg-gradient-to-br from-success/5 to-accent/5">
+                  <div className="text-4xl font-bold text-success mb-2">{metrics.vipCustomers}</div>
+                  <div className="text-sm text-muted-foreground">Total de clientes VIP (10+ visitas)</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações Adicionais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Para visualizar detalhes completos dos clientes, acesse a página "Clientes" no menu lateral.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="details" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Clock className="w-5 h-5 mr-2" />
+                  Métricas de Fila
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -275,50 +457,8 @@ export default function Reports() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2" />
-                  Performance da Fila
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-                      <div className="text-2xl font-bold text-success">{metrics.queueEfficiency}%</div>
-                      <div className="text-sm text-muted-foreground">Eficiência</div>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-                      <div className="text-2xl font-bold text-warning">{metrics.avgQueueSize}</div>
-                      <div className="text-sm text-muted-foreground">Média na fila</div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Horário de pico</span>
-                      <span className="font-medium">19:00 - 21:00</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Menor movimento</span>
-                      <span className="font-medium">14:00 - 16:00</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Melhor dia</span>
-                      <span className="font-medium">Sábado</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="reservations" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
                   <Calendar className="w-5 h-5 mr-2" />
-                  Performance de Reservas
+                  Métricas de Reservas
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -326,18 +466,22 @@ export default function Reports() {
                   {metrics.reservationMetrics.map((metric, index) => (
                     <div key={index} className="p-3 rounded-lg bg-muted/30">
                       <div className="font-medium mb-2">{metric.period}</div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-4 gap-2 text-sm">
                         <div className="text-center">
                           <div className="text-lg font-bold text-success">{metric.confirmed}</div>
-                          <div className="text-muted-foreground">Confirmadas</div>
+                          <div className="text-xs text-muted-foreground">Confirmadas</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-bold text-warning">{metric.pending}</div>
-                          <div className="text-muted-foreground">Pendentes</div>
+                          <div className="text-xs text-muted-foreground">Pendentes</div>
                         </div>
                         <div className="text-center">
                           <div className="text-lg font-bold text-destructive">{metric.noShow}</div>
-                          <div className="text-muted-foreground">No-show</div>
+                          <div className="text-xs text-muted-foreground">No-show</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-muted-foreground">{metric.canceled}</div>
+                          <div className="text-xs text-muted-foreground">Canceladas</div>
                         </div>
                       </div>
                     </div>
@@ -345,160 +489,7 @@ export default function Reports() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Target className="w-5 h-5 mr-2" />
-                  Análise de Conversão
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center p-6 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5">
-                    <div className="text-3xl font-bold text-primary mb-2">85%</div>
-                    <div className="text-sm text-muted-foreground">Taxa de conversão geral</div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Pendente → Confirmada</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-20 h-2 bg-muted rounded-full">
-                          <div className="w-[85%] h-2 bg-success rounded-full"></div>
-                        </div>
-                        <span className="text-sm font-medium">85%</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Confirmada → Check-in</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-20 h-2 bg-muted rounded-full">
-                          <div className="w-[92%] h-2 bg-accent rounded-full"></div>
-                        </div>
-                        <span className="text-sm font-medium">92%</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Check-in → Finalizada</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-20 h-2 bg-muted rounded-full">
-                          <div className="w-[98%] h-2 bg-primary rounded-full"></div>
-                        </div>
-                        <span className="text-sm font-medium">98%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="customers" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="w-5 h-5 mr-2" />
-                  Segmentação de Clientes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/20">
-                      <div className="text-2xl font-bold text-accent">{metrics.newCustomers}</div>
-                      <div className="text-sm text-muted-foreground">Novos (30 dias)</div>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-                      <div className="text-2xl font-bold text-success">{metrics.vipCustomers}</div>
-                      <div className="text-sm text-muted-foreground">VIPs (10+ visitas)</div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Frequência de Visitas</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">1-2 visitas</span>
-                        <span className="text-sm font-medium">60%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">3-5 visitas</span>
-                        <span className="text-sm font-medium">25%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">6-10 visitas</span>
-                        <span className="text-sm font-medium">10%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">10+ visitas</span>
-                        <span className="text-sm font-medium">5%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <DollarSign className="w-5 h-5 mr-2" />
-                  Valor do Cliente (LTV)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center p-6 rounded-lg bg-gradient-to-br from-success/5 to-primary/5">
-                    <div className="text-3xl font-bold text-primary mb-2">R$ 340</div>
-                    <div className="text-sm text-muted-foreground">LTV médio estimado</div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Por Segmento</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Clientes VIP</span>
-                        <span className="text-sm font-medium">R$ 850</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Frequentes (6-10)</span>
-                        <span className="text-sm font-medium">R$ 520</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Regulares (3-5)</span>
-                        <span className="text-sm font-medium">R$ 280</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Novos (1-2)</span>
-                        <span className="text-sm font-medium">R$ 120</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="marketing" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Mail className="w-5 h-5 mr-2" />
-                Performance de Marketing
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Métricas de email marketing serão implementadas quando houver campanhas ativas.</p>
-                <p className="mt-2 text-sm">Use a página "Promoções" para criar e gerenciar campanhas.</p>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
