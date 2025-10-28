@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from 'recharts';
 import { PieChartIcon } from "lucide-react";
 
 interface StatusDistributionChartProps {
-  data: Array<{
+  data?: Array<{
     name: string;
     value: number;
     color: string;
@@ -11,7 +11,7 @@ interface StatusDistributionChartProps {
 }
 
 export function StatusDistributionChart({ data }: StatusDistributionChartProps) {
-  if (!data || data.length === 0) {
+  if (!data || !Array.isArray(data) || data.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -54,7 +54,7 @@ export function StatusDistributionChart({ data }: StatusDistributionChartProps) 
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip 
+            <RechartsTooltip 
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
                 border: '1px solid hsl(var(--border))',

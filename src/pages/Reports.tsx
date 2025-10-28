@@ -266,11 +266,11 @@ export default function Reports() {
 
       {/* Gráficos Principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DailyEvolutionChart data={metrics.dailyEvolution} />
-        <StatusDistributionChart data={metrics.statusDistribution} />
+        <DailyEvolutionChart data={metrics?.dailyEvolution} />
+        <StatusDistributionChart data={metrics?.statusDistribution} />
       </div>
 
-      <HourlyDistributionChart data={metrics.hourlyDistribution} />
+      <HourlyDistributionChart data={metrics?.hourlyDistribution} />
 
       <Tabs defaultValue="insights" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">

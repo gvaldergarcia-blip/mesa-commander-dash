@@ -1,16 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { BarChart3 } from "lucide-react";
 
 interface HourlyDistributionChartProps {
-  data: Array<{
+  data?: Array<{
     hour: string;
     count: number;
   }>;
 }
 
 export function HourlyDistributionChart({ data }: HourlyDistributionChartProps) {
-  if (!data || data.length === 0) {
+  if (!data || !Array.isArray(data) || data.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -46,7 +46,7 @@ export function HourlyDistributionChart({ data }: HourlyDistributionChartProps) 
               fontSize={12}
             />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <Tooltip 
+            <RechartsTooltip 
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
                 border: '1px solid hsl(var(--border))',
@@ -54,7 +54,7 @@ export function HourlyDistributionChart({ data }: HourlyDistributionChartProps) 
               }}
               labelStyle={{ color: 'hsl(var(--foreground))' }}
             />
-            <Bar 
+            <Bar
               dataKey="count" 
               name="Atendimentos"
               fill="hsl(var(--primary))" 

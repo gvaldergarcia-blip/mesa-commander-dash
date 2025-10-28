@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp } from "lucide-react";
 
 interface DailyEvolutionChartProps {
-  data: Array<{
+  data?: Array<{
     date: string;
     reservations: number;
     queue: number;
@@ -11,7 +11,7 @@ interface DailyEvolutionChartProps {
 }
 
 export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
-  if (!data || data.length === 0) {
+  if (!data || !Array.isArray(data) || data.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -47,7 +47,7 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
               fontSize={12}
             />
             <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <Tooltip 
+            <RechartsTooltip 
               contentStyle={{
                 backgroundColor: 'hsl(var(--popover))',
                 border: '1px solid hsl(var(--border))',
