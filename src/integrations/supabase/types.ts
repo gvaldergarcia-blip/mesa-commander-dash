@@ -21,6 +21,7 @@ export type Database = {
           id: string
           last_visit_date: string | null
           marketing_opt_in: boolean
+          marketing_opt_in_updated_at: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -35,6 +36,7 @@ export type Database = {
           id?: string
           last_visit_date?: string | null
           marketing_opt_in?: boolean
+          marketing_opt_in_updated_at?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -49,6 +51,7 @@ export type Database = {
           id?: string
           last_visit_date?: string | null
           marketing_opt_in?: boolean
+          marketing_opt_in_updated_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -61,43 +64,64 @@ export type Database = {
       }
       email_logs: {
         Row: {
-          clicked_at: string | null
-          created_at: string
-          customer_id: string
-          delivered_at: string | null
+          body_html: string
+          body_text: string | null
+          coupon_code: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
           email: string
           error_message: string | null
           id: string
-          opened_at: string | null
-          promotion_id: string
-          sent_at: string
-          status: Database["public"]["Enums"]["email_status"]
+          image_url: string | null
+          provider_message_id: string | null
+          restaurant_id: string
+          scheduled_for: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          updated_at: string | null
+          valid_until: string | null
         }
         Insert: {
-          clicked_at?: string | null
-          created_at?: string
-          customer_id: string
-          delivered_at?: string | null
+          body_html: string
+          body_text?: string | null
+          coupon_code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
           email: string
           error_message?: string | null
           id?: string
-          opened_at?: string | null
-          promotion_id: string
-          sent_at?: string
-          status?: Database["public"]["Enums"]["email_status"]
+          image_url?: string | null
+          provider_message_id?: string | null
+          restaurant_id: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string | null
+          valid_until?: string | null
         }
         Update: {
-          clicked_at?: string | null
-          created_at?: string
-          customer_id?: string
-          delivered_at?: string | null
+          body_html?: string
+          body_text?: string | null
+          coupon_code?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
           email?: string
           error_message?: string | null
           id?: string
-          opened_at?: string | null
-          promotion_id?: string
-          sent_at?: string
-          status?: Database["public"]["Enums"]["email_status"]
+          image_url?: string | null
+          provider_message_id?: string | null
+          restaurant_id?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string | null
+          valid_until?: string | null
         }
         Relationships: [
           {
@@ -107,11 +131,42 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      email_preferences_audit: {
+        Row: {
+          action: string
+          created_at: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          source: string
+          who: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          source: string
+          who?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          who?: string | null
+        }
+        Relationships: [
           {
-            foreignKeyName: "email_logs_promotion_id_fkey"
-            columns: ["promotion_id"]
+            foreignKeyName: "email_preferences_audit_customer_id_fkey"
+            columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "promotions"
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]

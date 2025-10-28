@@ -2,3 +2,9 @@ project_id = "akqldesakmcroydbgkbe"
 
 [functions.send-sms]
 verify_jwt = false
+
+[functions.notify-10cliks]
+verify_jwt = false
+
+[functions.send-promotion-email]
+verify_jwt = true

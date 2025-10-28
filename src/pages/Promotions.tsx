@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TenCliksTab } from "@/components/promotions/TenCliksTab";
+import { EmailLogsTab } from "@/components/promotions/EmailLogsTab";
 
 export default function Promotions() {
   const { promotions, loading, createPromotion } = usePromotions();
@@ -248,13 +249,17 @@ export default function Promotions() {
       </div>
 
       <Tabs defaultValue="promotions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="promotions">Promoções</TabsTrigger>
           <TabsTrigger value="10cliks">
             <Trophy className="w-4 h-4 mr-2" />
             10 Cliks
           </TabsTrigger>
-          <TabsTrigger value="logs">Logs de Email</TabsTrigger>
+          <TabsTrigger value="email-logs">
+            <Mail className="w-4 h-4 mr-2" />
+            Log de E-mails
+          </TabsTrigger>
+          <TabsTrigger value="logs">Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="promotions" className="space-y-4">
@@ -338,6 +343,10 @@ export default function Promotions() {
 
         <TabsContent value="10cliks">
           <TenCliksTab />
+        </TabsContent>
+
+        <TabsContent value="email-logs">
+          <EmailLogsTab />
         </TabsContent>
 
         <TabsContent value="logs">
