@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Megaphone, Mail, Calendar, TrendingUp, Eye, Send } from "lucide-react";
+import { Plus, Megaphone, Mail, Calendar, TrendingUp, Eye, Send, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TenCliksTab } from "@/components/promotions/TenCliksTab";
 
 export default function Promotions() {
   const { promotions, loading, createPromotion } = usePromotions();
@@ -247,8 +248,12 @@ export default function Promotions() {
       </div>
 
       <Tabs defaultValue="promotions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="promotions">Promoções</TabsTrigger>
+          <TabsTrigger value="10cliks">
+            <Trophy className="w-4 h-4 mr-2" />
+            10 Cliks
+          </TabsTrigger>
           <TabsTrigger value="logs">Logs de Email</TabsTrigger>
         </TabsList>
 
@@ -329,6 +334,10 @@ export default function Promotions() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="10cliks">
+          <TenCliksTab />
         </TabsContent>
 
         <TabsContent value="logs">
