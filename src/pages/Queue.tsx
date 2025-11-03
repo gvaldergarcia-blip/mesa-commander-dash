@@ -32,6 +32,7 @@ export default function Queue() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
@@ -79,8 +80,13 @@ export default function Queue() {
                          entry.customer_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
                          (entry.phone && entry.phone.includes(debouncedSearchTerm));
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
+    const matchesPartySize = partySizeFilter === "all" || 
+      (partySizeFilter === "1-2" && entry.people >= 1 && entry.people <= 2) ||
+      (partySizeFilter === "3-4" && entry.people >= 3 && entry.people <= 4) ||
+      (partySizeFilter === "5-6" && entry.people >= 5 && entry.people <= 6) ||
+      (partySizeFilter === "7+" && entry.people >= 7);
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesPartySize;
   });
   
   const handleCallCustomer = async (entry: typeof queueEntries[0]) => {
@@ -280,6 +286,18 @@ export default function Queue() {
                 <SelectItem value="called">Chamados</SelectItem>
                 <SelectItem value="seated">Sentados</SelectItem>
                 <SelectItem value="canceled">Cancelados</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tamanho do grupo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tamanhos</SelectItem>
+                <SelectItem value="1-2">1-2 pessoas</SelectItem>
+                <SelectItem value="3-4">3-4 pessoas</SelectItem>
+                <SelectItem value="5-6">5-6 pessoas</SelectItem>
+                <SelectItem value="7+">7+ pessoas</SelectItem>
               </SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>

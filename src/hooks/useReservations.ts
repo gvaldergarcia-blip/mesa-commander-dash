@@ -96,6 +96,25 @@ export function useReservations() {
 
       if (error) throw error;
 
+      // Enviar SMS com link da reserva
+      try {
+        const { sendSms, SMS_TEMPLATES } = await import('@/utils/sms');
+        const reservationUrl = `${window.location.origin}/reserva/final?code=${data.id}`;
+        const dateTime = new Date(reservation.starts_at).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        const message = `Olá ${reservation.customer_name}! Sua reserva para ${dateTime} foi criada. Acompanhe: ${reservationUrl}`;
+        await sendSms(reservation.phone, message);
+        console.log('SMS enviado com sucesso para reserva:', data.id);
+      } catch (smsError) {
+        console.warn('Erro ao enviar SMS (não crítico):', smsError);
+      }
+
       toast({
         title: 'Sucesso',
         description: 'Reserva criada com sucesso',

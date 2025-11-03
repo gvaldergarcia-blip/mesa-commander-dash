@@ -31,6 +31,7 @@ export default function Reservations() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("week");
+  const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [customDateStart, setCustomDateStart] = useState("");
   const [customDateEnd, setCustomDateEnd] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -196,8 +197,13 @@ export default function Reservations() {
       const matchesSearch = reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            reservation.phone.includes(searchTerm);
       const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
+      const matchesPartySize = partySizeFilter === "all" || 
+        (partySizeFilter === "1-2" && reservation.people >= 1 && reservation.people <= 2) ||
+        (partySizeFilter === "3-4" && reservation.people >= 3 && reservation.people <= 4) ||
+        (partySizeFilter === "5-6" && reservation.people >= 5 && reservation.people <= 6) ||
+        (partySizeFilter === "7+" && reservation.people >= 7);
       
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesPartySize;
     });
   };
 
@@ -266,7 +272,7 @@ export default function Reservations() {
                   <SelectValue placeholder="Número de pessoas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1,2,3,4,5,6].map(n => (
+                  {[1,2,3,4,5,6,7,8].map(n => (
                     <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
                   ))}
                 </SelectContent>
@@ -418,6 +424,18 @@ export default function Reservations() {
                     <SelectItem value="confirmed">Confirmadas</SelectItem>
                     <SelectItem value="completed">Concluídas</SelectItem>
                     <SelectItem value="canceled">Canceladas</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Tamanho do grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tamanhos</SelectItem>
+                    <SelectItem value="1-2">1-2 pessoas</SelectItem>
+                    <SelectItem value="3-4">3-4 pessoas</SelectItem>
+                    <SelectItem value="5-6">5-6 pessoas</SelectItem>
+                    <SelectItem value="7+">7+ pessoas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

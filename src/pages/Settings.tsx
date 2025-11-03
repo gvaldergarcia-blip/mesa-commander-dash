@@ -27,19 +27,9 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, Image as ImageIcon } from "lucide-react";
+import { CUISINE_TYPES } from "@/config/cuisines";
 
-const cuisineTypes = [
-  "Brasileira",
-  "Japonesa",
-  "Italiana",
-  "Hamburgueria",
-  "Saudável",
-  "Árabe",
-  "Doceria",
-  "Mexicana",
-  "Cervejaria",
-  "Outros"
-] as const;
+const cuisineTypes = [...CUISINE_TYPES];
 
 const settingsSchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres").max(100),

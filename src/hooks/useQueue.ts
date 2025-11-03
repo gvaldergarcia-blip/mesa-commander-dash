@@ -101,6 +101,17 @@ export function useQueue() {
 
       if (error) throw error;
 
+      // Enviar SMS com link da fila
+      try {
+        const { sendSms } = await import('@/utils/sms');
+        const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
+        const message = `Olá ${entry.customer_name}! Você entrou na fila. Acompanhe sua posição: ${queueUrl}`;
+        await sendSms(entry.phone, message);
+        console.log('SMS enviado com sucesso para fila:', data.id);
+      } catch (smsError) {
+        console.warn('Erro ao enviar SMS (não crítico):', smsError);
+      }
+
       toast({
         title: 'Sucesso',
         description: 'Cliente adicionado à fila',
