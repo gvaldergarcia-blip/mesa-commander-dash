@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Megaphone, Mail, Calendar, TrendingUp, Eye, Send, Trophy } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ export default function Promotions() {
   const [selectedPromotion, setSelectedPromotion] = useState<typeof promotions[0] | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [emailStats, setEmailStats] = useState({ sent: 0, openRate: 0 });
 
   // Form state
   const [title, setTitle] = useState("");
@@ -119,6 +121,30 @@ export default function Promotions() {
 
   const totalPromotions = promotions.length;
   const activePromotions = promotions.filter(p => getPromotionStatus(p) === "active").length;
+
+  // Buscar estatísticas de emails
+  useEffect(() => {
+    const fetchEmailStats = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('email_logs')
+          .select('status')
+          .eq('restaurant_id', RESTAURANT_ID);
+        
+        if (error) throw error;
+        
+        const sent = data?.filter(log => ['sent', 'delivered', 'opened', 'clicked'].includes(log.status)).length || 0;
+        const opened = data?.filter(log => ['opened', 'clicked'].includes(log.status)).length || 0;
+        const openRate = sent > 0 ? Math.round((opened / sent) * 100) : 0;
+        
+        setEmailStats({ sent, openRate });
+      } catch (err) {
+        console.error('Erro ao buscar estatísticas de email:', err);
+      }
+    };
+    
+    fetchEmailStats();
+  }, []);
 
   if (loading) {
     return (
@@ -231,7 +257,7 @@ export default function Promotions() {
             <div className="flex items-center space-x-2">
               <Mail className="h-5 w-5 text-accent" />
               <div>
-                <p className="text-2xl font-bold">-</p>
+                <p className="text-2xl font-bold">{emailStats.sent}</p>
                 <p className="text-sm text-muted-foreground">Emails enviados</p>
               </div>
             </div>
@@ -242,7 +268,7 @@ export default function Promotions() {
             <div className="flex items-center space-x-2">
               <TrendingUp className="h-5 w-5 text-warning" />
               <div>
-                <p className="text-2xl font-bold">-</p>
+                <p className="text-2xl font-bold">{emailStats.openRate}%</p>
                 <p className="text-sm text-muted-foreground">Taxa abertura</p>
               </div>
             </div>
