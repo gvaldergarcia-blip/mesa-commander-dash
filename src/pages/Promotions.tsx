@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Megaphone, Mail, Calendar, TrendingUp, Eye, Send, Trophy } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

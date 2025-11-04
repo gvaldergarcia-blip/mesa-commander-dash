@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export interface OptInCustomer {
@@ -24,6 +24,7 @@ export const useOptInCustomers = () => {
     try {
       setLoading(true);
       let query = supabase
+        .schema('mesaclik')
         .from('customers')
         .select('*')
         .order('total_visits', { ascending: false });
@@ -53,6 +54,7 @@ export const useOptInCustomers = () => {
     try {
       // Update customer opt-in status
       const { error: updateError } = await supabase
+        .schema('mesaclik')
         .from('customers')
         .update({
           marketing_opt_in: optIn,
