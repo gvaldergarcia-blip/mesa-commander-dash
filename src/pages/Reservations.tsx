@@ -8,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { reservationSchema, normalizeReservationToUTC } from "@/lib/validations/reservation";
+import { logAudit } from "@/lib/audit";
+import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { 
   Dialog,
   DialogContent,
@@ -60,6 +64,8 @@ export default function Reservations() {
     setStatusFilter(newStatus);
   };
   
+  const { toast } = useToast();
+
   // Form state
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -67,28 +73,106 @@ export default function Reservations() {
   const [newTime, setNewTime] = useState("");
   const [newPeople, setNewPeople] = useState("2");
   const [newNotes, setNewNotes] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleCreateReservation = async () => {
-    if (!newName || !newPhone || !newDate || !newTime) return;
-    
-    const dateTime = `${newDate}T${newTime}:00`;
-    
-    await createReservation({
-      customer_name: newName,
-      phone: newPhone,
-      starts_at: dateTime,
-      people: parseInt(newPeople),
-      notes: newNotes || undefined,
-    });
-    
-    // Reset form
-    setNewName("");
-    setNewPhone("");
-    setNewDate("");
-    setNewTime("");
-    setNewPeople("2");
-    setNewNotes("");
-    setIsDialogOpen(false);
+    setFormErrors({});
+    setIsSubmitting(true);
+
+    try {
+      // Validar com Zod
+      const validationResult = reservationSchema.safeParse({
+        customer_name: newName,
+        phone: newPhone,
+        date: newDate,
+        time: newTime,
+        party_size: parseInt(newPeople),
+        notes: newNotes,
+      });
+
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {};
+        validationResult.error.errors.forEach((err) => {
+          const path = err.path[0]?.toString() || 'form';
+          errors[path] = err.message;
+        });
+        setFormErrors(errors);
+        
+        // Mostrar primeiro erro
+        const firstError = Object.values(errors)[0];
+        toast({
+          title: "Erro de validação",
+          description: firstError,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Normalizar para UTC
+      const normalizedData = normalizeReservationToUTC(validationResult.data);
+
+      // Log do payload para debug
+      console.log('[Reservation] Payload enviado:', normalizedData);
+
+      // Criar reserva
+      const result = await createReservation(normalizedData);
+
+      // Log de auditoria
+      await logAudit({
+        entity: 'reservation',
+        entityId: result?.id || 'unknown',
+        action: 'create',
+        restaurantId: RESTAURANT_ID,
+        success: true,
+        metadata: { party_size: normalizedData.people },
+      });
+
+      toast({
+        title: "✅ Reserva criada",
+        description: `Reserva para ${newName} confirmada`,
+      });
+
+      // Reset form
+      setNewName("");
+      setNewPhone("");
+      setNewDate("");
+      setNewTime("");
+      setNewPeople("2");
+      setNewNotes("");
+      setIsDialogOpen(false);
+    } catch (err: any) {
+      console.error('[Reservation] Erro ao criar:', err);
+      
+      // Log de auditoria do erro
+      await logAudit({
+        entity: 'reservation',
+        entityId: 'failed',
+        action: 'create',
+        restaurantId: RESTAURANT_ID,
+        success: false,
+        errorMessage: err.message,
+      });
+
+      const errorMessage = err.response?.data?.message || err.message || 'Erro desconhecido';
+      const errorCode = err.response?.data?.code;
+
+      // Mensagens específicas por código
+      let userMessage = errorMessage;
+      if (errorCode === 'HorarioIndisponivel') {
+        userMessage = "⛔ Horário indisponível. Escolha outro horário.";
+      } else if (errorCode === 'CampoInvalido') {
+        userMessage = "⛔ Dados inválidos. Verifique os campos.";
+      }
+
+      toast({
+        title: "Erro ao criar reserva",
+        description: userMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Helper functions
@@ -245,28 +329,63 @@ export default function Reservations() {
               <DialogTitle>Criar Nova Reserva</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Input 
-                placeholder="Nome do cliente"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-              <Input 
-                placeholder="Telefone"
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-              />
-              <div className="grid grid-cols-2 gap-4">
+              <div>
                 <Input 
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
+                  placeholder="Nome do cliente"
+                  value={newName}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                    if (formErrors.customer_name) setFormErrors({...formErrors, customer_name: ''});
+                  }}
                 />
-                <Input 
-                  type="time"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                />
+                {formErrors.customer_name && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.customer_name}</p>
+                )}
               </div>
+
+              <div>
+                <Input 
+                  placeholder="Telefone (ex: +5511999999999)"
+                  value={newPhone}
+                  onChange={(e) => {
+                    setNewPhone(e.target.value);
+                    if (formErrors.phone) setFormErrors({...formErrors, phone: ''});
+                  }}
+                />
+                {formErrors.phone && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.phone}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Input 
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => {
+                      setNewDate(e.target.value);
+                      if (formErrors.date) setFormErrors({...formErrors, date: ''});
+                    }}
+                  />
+                  {formErrors.date && (
+                    <p className="text-sm text-destructive mt-1">{formErrors.date}</p>
+                  )}
+                </div>
+                <div>
+                  <Input 
+                    type="time"
+                    value={newTime}
+                    onChange={(e) => {
+                      setNewTime(e.target.value);
+                      if (formErrors.time) setFormErrors({...formErrors, time: ''});
+                    }}
+                  />
+                  {formErrors.time && (
+                    <p className="text-sm text-destructive mt-1">{formErrors.time}</p>
+                  )}
+                </div>
+              </div>
+
               <Select value={newPeople} onValueChange={setNewPeople}>
                 <SelectTrigger>
                   <SelectValue placeholder="Número de pessoas" />
@@ -277,17 +396,19 @@ export default function Reservations() {
                   ))}
                 </SelectContent>
               </Select>
+
               <Input 
                 placeholder="Observações especiais (opcional)"
                 value={newNotes}
                 onChange={(e) => setNewNotes(e.target.value)}
               />
+              
               <Button 
                 className="w-full"
                 onClick={handleCreateReservation}
-                disabled={!newName || !newPhone || !newDate || !newTime}
+                disabled={isSubmitting || !newName || !newPhone || !newDate || !newTime}
               >
-                Criar Reserva
+                {isSubmitting ? "Criando..." : "Criar Reserva"}
               </Button>
             </div>
           </DialogContent>

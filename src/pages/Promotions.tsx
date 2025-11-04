@@ -6,8 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { usePromotions } from "@/hooks/usePromotions";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { promotionSchema, normalizePromotionToUTC, calculatePromotionStatus } from "@/lib/validations/promotion";
+import { logAudit } from "@/lib/audit";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +34,7 @@ import { CouponBillingTab } from "@/components/promotions/CouponBillingTab";
 
 export default function Promotions() {
   const { promotions, loading, createPromotion } = usePromotions();
+  const { toast } = useToast();
   const [selectedPromotion, setSelectedPromotion] = useState<typeof promotions[0] | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -42,6 +46,7 @@ export default function Promotions() {
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [audienceFilter, setAudienceFilter] = useState("all");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -89,20 +94,71 @@ export default function Promotions() {
   };
 
   const handleCreatePromotion = async () => {
-    if (!title || !startsAt || !endsAt) {
-      return;
-    }
-
+    setFormErrors({});
     setIsCreating(true);
+
     try {
-      await createPromotion({
-        restaurant_id: RESTAURANT_ID,
+      // Validar com Zod
+      const validationResult = promotionSchema.safeParse({
         title,
-        description: description || undefined,
+        description,
         starts_at: startsAt,
         ends_at: endsAt,
         audience_filter: audienceFilter,
-        status: 'draft',
+        restaurant_id: RESTAURANT_ID,
+      });
+
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {};
+        validationResult.error.errors.forEach((err) => {
+          const path = err.path[0]?.toString() || 'form';
+          errors[path] = err.message;
+        });
+        setFormErrors(errors);
+        
+        // Mostrar primeiro erro
+        const firstError = Object.values(errors)[0];
+        toast({
+          title: "Erro de validação",
+          description: firstError,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Normalizar para UTC
+      const normalizedData = normalizePromotionToUTC(validationResult.data);
+      
+      // Calcular status automático
+      const calculatedStatus = calculatePromotionStatus(normalizedData.starts_at, normalizedData.ends_at);
+
+      // Log do payload para debug
+      console.log('[Promotion] Payload enviado:', { ...normalizedData, status: calculatedStatus });
+
+      // Criar promoção
+      const result = await createPromotion({
+        restaurant_id: RESTAURANT_ID,
+        title: normalizedData.title,
+        description: normalizedData.description,
+        starts_at: normalizedData.starts_at,
+        ends_at: normalizedData.ends_at,
+        audience_filter: normalizedData.audience_filter,
+        status: calculatedStatus,
+      });
+
+      // Log de auditoria
+      await logAudit({
+        entity: 'promotion',
+        entityId: result?.id || 'unknown',
+        action: 'create',
+        restaurantId: RESTAURANT_ID,
+        success: true,
+        metadata: { audience_filter: audienceFilter, status: calculatedStatus },
+      });
+
+      toast({
+        title: "✅ Promoção criada",
+        description: `Promoção "${title}" foi criada com sucesso`,
       });
 
       // Reset form
@@ -114,6 +170,33 @@ export default function Promotions() {
       
       // Close dialog
       setIsDialogOpen(false);
+    } catch (err: any) {
+      console.error('[Promotion] Erro ao criar:', err);
+      
+      // Log de auditoria do erro
+      await logAudit({
+        entity: 'promotion',
+        entityId: 'failed',
+        action: 'create',
+        restaurantId: RESTAURANT_ID,
+        success: false,
+        errorMessage: err.message,
+      });
+
+      const errorMessage = err.response?.data?.message || err.message || 'Erro desconhecido';
+      const errorCode = err.response?.data?.code;
+
+      // Mensagens específicas por código
+      let userMessage = errorMessage;
+      if (errorCode === 'DataInvalida') {
+        userMessage = "⛔ Datas inválidas. Verifique início e término.";
+      }
+
+      toast({
+        title: "Erro ao criar promoção",
+        description: userMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsCreating(false);
     }
@@ -174,35 +257,66 @@ export default function Promotions() {
               <DialogTitle>Criar Nova Promoção</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Input 
-                placeholder="Título da promoção" 
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-              <Textarea 
-                placeholder="Descrição detalhada da oferta"
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+              <div>
+                <Input 
+                  placeholder="Título da promoção" 
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (formErrors.title) setFormErrors({...formErrors, title: ''});
+                  }}
+                />
+                {formErrors.title && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.title}</p>
+                )}
+              </div>
+
+              <div>
+                <Textarea 
+                  placeholder="Descrição detalhada da oferta (opcional)"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (formErrors.description) setFormErrors({...formErrors, description: ''});
+                  }}
+                />
+                {formErrors.description && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.description}</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Data de início</label>
                   <Input 
                     type="datetime-local" 
                     value={startsAt}
-                    onChange={(e) => setStartsAt(e.target.value)}
+                    onChange={(e) => {
+                      setStartsAt(e.target.value);
+                      if (formErrors.starts_at) setFormErrors({...formErrors, starts_at: ''});
+                    }}
                   />
+                  {formErrors.starts_at && (
+                    <p className="text-sm text-destructive mt-1">{formErrors.starts_at}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-medium">Data de fim</label>
                   <Input 
                     type="datetime-local" 
                     value={endsAt}
-                    onChange={(e) => setEndsAt(e.target.value)}
+                    onChange={(e) => {
+                      setEndsAt(e.target.value);
+                      if (formErrors.ends_at) setFormErrors({...formErrors, ends_at: ''});
+                    }}
                   />
+                  {formErrors.ends_at && (
+                    <p className="text-sm text-destructive mt-1">{formErrors.ends_at}</p>
+                  )}
                 </div>
               </div>
+
               <div>
                 <label className="text-sm font-medium">Público-alvo</label>
                 <select 
@@ -216,6 +330,7 @@ export default function Promotions() {
                   <option value="inactive">Clientes inativos</option>
                 </select>
               </div>
+
               <Button 
                 className="w-full" 
                 onClick={handleCreatePromotion}
