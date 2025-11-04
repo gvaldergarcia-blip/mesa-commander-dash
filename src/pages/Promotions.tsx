@@ -43,6 +43,7 @@ export default function Promotions() {
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [freeMessage, setFreeMessage] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [audienceFilter, setAudienceFilter] = useState("all");
@@ -102,6 +103,7 @@ export default function Promotions() {
       const validationResult = promotionSchema.safeParse({
         title,
         description,
+        free_message: freeMessage,
         starts_at: startsAt,
         ends_at: endsAt,
         audience_filter: audienceFilter,
@@ -140,6 +142,7 @@ export default function Promotions() {
         restaurant_id: RESTAURANT_ID,
         title: normalizedData.title,
         description: normalizedData.description,
+        free_message: normalizedData.free_message,
         starts_at: normalizedData.starts_at,
         ends_at: normalizedData.ends_at,
         audience_filter: normalizedData.audience_filter,
@@ -164,6 +167,7 @@ export default function Promotions() {
       // Reset form
       setTitle("");
       setDescription("");
+      setFreeMessage("");
       setStartsAt("");
       setEndsAt("");
       setAudienceFilter("all");
@@ -210,6 +214,7 @@ export default function Promotions() {
     const fetchEmailStats = async () => {
       try {
         const { data, error } = await supabase
+          .schema('mesaclik')
           .from('email_logs')
           .select('status')
           .eq('restaurant_id', RESTAURANT_ID);
@@ -283,6 +288,21 @@ export default function Promotions() {
                 />
                 {formErrors.description && (
                   <p className="text-sm text-destructive mt-1">{formErrors.description}</p>
+                )}
+              </div>
+
+              <div>
+                <Textarea 
+                  placeholder="Mensagem personalizada para os clientes (opcional)"
+                  rows={3}
+                  value={freeMessage}
+                  onChange={(e) => {
+                    setFreeMessage(e.target.value);
+                    if (formErrors.free_message) setFormErrors({...formErrors, free_message: ''});
+                  }}
+                />
+                {formErrors.free_message && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.free_message}</p>
                 )}
               </div>
 

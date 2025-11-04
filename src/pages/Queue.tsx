@@ -195,14 +195,9 @@ export default function Queue() {
                   <SelectValue placeholder="Número de pessoas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 pessoa</SelectItem>
-                  <SelectItem value="2">2 pessoas</SelectItem>
-                  <SelectItem value="3">3 pessoas</SelectItem>
-                  <SelectItem value="4">4 pessoas</SelectItem>
-                  <SelectItem value="5">5 pessoas</SelectItem>
-                  <SelectItem value="6">6 pessoas</SelectItem>
-                  <SelectItem value="7">7 pessoas</SelectItem>
-                  <SelectItem value="8">8+ pessoas</SelectItem>
+                  {[1,2,3,4,5,6,7,8].map(n => (
+                    <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Input 

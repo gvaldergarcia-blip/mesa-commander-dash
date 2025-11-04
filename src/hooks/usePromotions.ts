@@ -8,6 +8,7 @@ type Promotion = {
   restaurant_id: string;
   title: string;
   description?: string;
+  free_message?: string;
   audience_filter: string;
   starts_at: string;
   ends_at: string;

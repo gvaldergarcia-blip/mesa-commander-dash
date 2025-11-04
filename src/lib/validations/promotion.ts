@@ -11,6 +11,11 @@ export const promotionSchema = z.object({
     .max(500, { message: "Descrição muito longa (máximo 500 caracteres)" })
     .optional(),
   
+  free_message: z.string()
+    .trim()
+    .max(1000, { message: "Mensagem muito longa (máximo 1000 caracteres)" })
+    .optional(),
+  
   starts_at: z.string()
     .min(1, { message: "Data de início é obrigatória" }),
   
