@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Calendar, Clock, User, Phone, Search, Filter } from "lucide-react";
+import { Plus, Calendar, Clock, User, Phone, Search, Filter, Mail } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useReservations } from "@/hooks/useReservations";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
@@ -279,7 +279,8 @@ export default function Reservations() {
     
     return filtered.filter(reservation => {
       const matchesSearch = reservation.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           reservation.phone.includes(searchTerm);
+                           reservation.phone.includes(searchTerm) ||
+                           (reservation.customer_email && reservation.customer_email.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesStatus = statusFilter === "all" || reservation.status === statusFilter;
       const matchesPartySize = partySizeFilter === "all" || 
         (partySizeFilter === "1-2" && reservation.people >= 1 && reservation.people <= 2) ||
@@ -528,7 +529,7 @@ export default function Reservations() {
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nome ou telefone..."
+                      placeholder="Buscar por nome, telefone ou email..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
@@ -597,11 +598,17 @@ export default function Reservations() {
                             <h3 className="font-semibold">{reservation.customer_name}</h3>
                             <StatusBadge status={reservation.status} />
                           </div>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             <span className="flex items-center">
                               <Phone className="w-3 h-3 mr-1" />
                               {reservation.phone}
                             </span>
+                            {reservation.customer_email && (
+                              <span className="flex items-center">
+                                <Mail className="w-3 h-3 mr-1" />
+                                {reservation.customer_email}
+                              </span>
+                            )}
                             <span className="flex items-center">
                               <User className="w-3 h-3 mr-1" />
                               {reservation.people} pessoas
@@ -706,7 +713,7 @@ export default function Reservations() {
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nome ou telefone..."
+                      placeholder="Buscar por nome, telefone ou email..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-9"
@@ -762,11 +769,17 @@ export default function Reservations() {
                             <h3 className="font-semibold">{reservation.customer_name}</h3>
                             <StatusBadge status={reservation.status} />
                           </div>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             <span className="flex items-center">
                               <Phone className="w-3 h-3 mr-1" />
                               {reservation.phone}
                             </span>
+                            {reservation.customer_email && (
+                              <span className="flex items-center">
+                                <Mail className="w-3 h-3 mr-1" />
+                                {reservation.customer_email}
+                              </span>
+                            )}
                             <span className="flex items-center">
                               <User className="w-3 h-3 mr-1" />
                               {reservation.people} pessoas
@@ -886,11 +899,17 @@ export default function Reservations() {
                           <h3 className="font-semibold">{reservation.customer_name}</h3>
                           <StatusBadge status={reservation.status} />
                         </div>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                           <span className="flex items-center">
                             <Phone className="w-3 h-3 mr-1" />
                             {reservation.phone}
                           </span>
+                          {reservation.customer_email && (
+                            <span className="flex items-center">
+                              <Mail className="w-3 h-3 mr-1" />
+                              {reservation.customer_email}
+                            </span>
+                          )}
                           <span className="flex items-center">
                             <User className="w-3 h-3 mr-1" />
                             {reservation.people} pessoas

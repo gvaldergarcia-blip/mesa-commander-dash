@@ -9,6 +9,7 @@ type Reservation = {
   restaurant_id: string;
   customer_name: string;
   phone: string;
+  customer_email?: string;
   people: number;
   starts_at: string;
   status: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show';

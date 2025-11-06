@@ -171,6 +171,30 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       promotions: {
         Row: {
           audience_filter: string
@@ -341,6 +365,7 @@ export type Database = {
           restaurant_id: string
           status: Database["public"]["Enums"]["reservation_status"]
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           cancel_reason?: string | null
@@ -357,6 +382,7 @@ export type Database = {
           restaurant_id: string
           status?: Database["public"]["Enums"]["reservation_status"]
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           cancel_reason?: string | null
@@ -373,6 +399,7 @@ export type Database = {
           restaurant_id?: string
           status?: Database["public"]["Enums"]["reservation_status"]
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -422,6 +449,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      restaurant_members: {
+        Row: {
+          created_at: string | null
+          restaurant_id: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          restaurant_id: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          restaurant_id?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       restaurants: {
         Row: {
