@@ -55,7 +55,46 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!response.ok) {
       console.error("Erro ao enviar SMS:", responseData);
-      throw new Error(responseData.message || "Failed to send SMS");
+      
+      // Detectar erro de conta trial com número não verificado
+      const isTwilioTrialError = responseData.code === 21608 || 
+        (responseData.message && responseData.message.includes("unverified"));
+      
+      if (isTwilioTrialError) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: "TWILIO_TRIAL_ERROR",
+            message: "Número não verificado. Conta Twilio trial só pode enviar para números verificados.",
+            details: responseData.message,
+            action: "Verifique o número em https://twilio.com/console/phone-numbers/verified ou atualize para conta paga"
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders,
+            },
+          }
+        );
+      }
+      
+      // Outros erros do Twilio
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "TWILIO_API_ERROR",
+          message: responseData.message || "Erro ao enviar SMS via Twilio",
+          code: responseData.code
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        }
+      );
     }
 
     console.log("SMS enviado com sucesso:", responseData.sid);
@@ -64,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         sid: responseData.sid,
-        message: "SMS sent successfully" 
+        message: "SMS enviado com sucesso" 
       }),
       {
         status: 200,
@@ -76,10 +115,28 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in send-sms function:", error);
+    
+    // Erro de configuração (sem credenciais)
+    if (error.message.includes("credentials")) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "CONFIG_ERROR",
+          message: "Credenciais do Twilio não configuradas corretamente"
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
+    // Outros erros
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message 
+        error: "INTERNAL_ERROR",
+        message: error.message || "Erro interno ao processar SMS"
       }),
       {
         status: 500,
