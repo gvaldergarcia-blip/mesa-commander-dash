@@ -584,6 +584,10 @@ export type Database = {
         }
       }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
+      is_restaurant_member: {
+        Args: { p_restaurant_id: string; p_user_id?: string }
+        Returns: boolean
+      }
       update_queue_entry_status: {
         Args: { p_entry_id: string; p_status: string }
         Returns: undefined
