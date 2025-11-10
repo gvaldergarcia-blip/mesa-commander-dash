@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -6,40 +6,49 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { use10Cliks } from '@/hooks/use10Cliks';
+import { useLoyaltyProgram } from '@/hooks/useLoyaltyProgram';
 import { Badge } from '@/components/ui/badge';
 import { Award, Trophy, Target } from 'lucide-react';
+import { CURRENT_RESTAURANT } from '@/config/current-restaurant';
 
 export function TenCliksTab() {
-  const { program, users, loading, saveProgram, resetUserReward } = use10Cliks();
+  const { program, points, loading, saveProgram, resetPoints } = useLoyaltyProgram(CURRENT_RESTAURANT.id);
   
   const [formData, setFormData] = useState({
-    is_active: program?.is_active ?? false,
-    reward_description: program?.reward_description ?? '',
-    validity: program?.validity ?? '',
-    rules: program?.rules ?? '',
+    enabled: false,
+    reward_description: '',
+    expires_at: '',
+    rules: '',
   });
+
+  useEffect(() => {
+    if (program) {
+      setFormData({
+        enabled: program.enabled,
+        reward_description: program.reward_description || '',
+        expires_at: program.expires_at || '',
+        rules: program.rules || '',
+      });
+    }
+  }, [program]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await saveProgram({
-      ...formData,
-      validity: formData.validity || null,
-      rules: formData.rules || null,
-    });
+    await saveProgram(formData);
   };
 
-  const getStatusBadge = (cliks: number, hasReward: boolean) => {
-    if (hasReward) {
+  const getStatusBadge = (pts: number) => {
+    if (pts >= 10) {
       return <Badge className="bg-green-500"><Award className="w-3 h-3 mr-1" />Recompensa disponível</Badge>;
     }
-    if (cliks >= 8) {
+    if (pts >= 8) {
       return <Badge className="bg-orange-500"><Trophy className="w-3 h-3 mr-1" />Próximo da meta</Badge>;
     }
     return <Badge variant="outline"><Target className="w-3 h-3 mr-1" />Em progresso</Badge>;
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | null) => {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -72,15 +81,15 @@ export function TenCliksTab() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="is_active">Ativar Programa 10 Cliks</Label>
+              <Label htmlFor="enabled">Ativar Programa 10 Cliks</Label>
               <p className="text-sm text-muted-foreground">
                 Quando ativo, clientes acumulam pontos automaticamente
               </p>
             </div>
             <Switch
-              id="is_active"
-              checked={formData.is_active}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+              id="enabled"
+              checked={formData.enabled}
+              onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
             />
           </div>
 
@@ -96,12 +105,12 @@ export function TenCliksTab() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="validity">Validade (opcional)</Label>
+            <Label htmlFor="expires_at">Data de Expiração (opcional)</Label>
             <Input
-              id="validity"
+              id="expires_at"
               type="date"
-              value={formData.validity}
-              onChange={(e) => setFormData({ ...formData, validity: e.target.value })}
+              value={formData.expires_at}
+              onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
             />
           </div>
 
@@ -125,7 +134,7 @@ export function TenCliksTab() {
       {/* Tabela de Clientes */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Clientes e Pontos</h3>
-        {users.length === 0 ? (
+        {points.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             Nenhum cliente com pontos ainda
           </div>
@@ -134,7 +143,8 @@ export function TenCliksTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID Cliente</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Cliks Atuais</TableHead>
                   <TableHead>Última Atualização</TableHead>
                   <TableHead>Status</TableHead>
@@ -142,24 +152,27 @@ export function TenCliksTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-mono text-sm">
-                      {user.user_id.slice(0, 8)}...
+                {points.map((point) => (
+                  <TableRow key={point.customer_id}>
+                    <TableCell className="font-medium">
+                      {point.customer_name}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {point.customer_email}
                     </TableCell>
                     <TableCell>
-                      <span className="font-semibold text-lg">{user.total_cliks}</span> / 10
+                      <span className="font-semibold text-lg">{point.points}</span> / 10
                     </TableCell>
-                    <TableCell>{formatDate(user.last_updated)}</TableCell>
+                    <TableCell>{formatDate(point.last_earned_at)}</TableCell>
                     <TableCell>
-                      {getStatusBadge(user.total_cliks, user.has_reward)}
+                      {getStatusBadge(point.points)}
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => resetUserReward(user.user_id)}
-                        disabled={user.total_cliks === 0}
+                        onClick={() => resetPoints(point.customer_id)}
+                        disabled={point.points === 0}
                       >
                         Resetar Pontos
                       </Button>

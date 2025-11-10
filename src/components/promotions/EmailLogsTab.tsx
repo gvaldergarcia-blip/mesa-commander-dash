@@ -21,17 +21,16 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog";
-import { useOptInCustomers } from "@/hooks/useOptInCustomers";
+import { useEligibleCustomers } from "@/hooks/useEligibleCustomers";
 import { useEmailLogs } from "@/hooks/useEmailLogs";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { CURRENT_RESTAURANT } from "@/config/current-restaurant";
 import { ComposeEmailModal } from "./ComposeEmailModal";
 import { CustomerDetailDrawer } from "./CustomerDetailDrawer";
 
 export function EmailLogsTab() {
-  const { customers, loading: customersLoading, refetch: refetchCustomers, toggleOptIn } = useOptInCustomers();
-  const { emailLogs, loading: logsLoading } = useEmailLogs(RESTAURANT_ID);
+  const { customers, loading: customersLoading, includeInactive, setIncludeInactive } = useEligibleCustomers(CURRENT_RESTAURANT.id);
+  const { emailLogs, loading: logsLoading } = useEmailLogs(CURRENT_RESTAURANT.id);
   const [searchTerm, setSearchTerm] = useState("");
-  const [includeInactive, setIncludeInactive] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -124,10 +123,7 @@ export function EmailLogsTab() {
               <Switch
                 id="include-inactive"
                 checked={includeInactive}
-                onCheckedChange={(checked) => {
-                  setIncludeInactive(checked);
-                  refetchCustomers(checked);
-                }}
+                onCheckedChange={setIncludeInactive}
               />
               <Label htmlFor="include-inactive">Incluir inativos</Label>
             </div>
@@ -159,7 +155,7 @@ export function EmailLogsTab() {
               </TableHeader>
               <TableBody>
                 {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <TableRow key={customer.customer_id}>
                     <TableCell>
                       <button
                         onClick={() => handleViewDetails(customer)}
@@ -170,9 +166,9 @@ export function EmailLogsTab() {
                     </TableCell>
                     <TableCell>{customer.email || '-'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(customer.last_visit_date)}
+                      {formatDate(customer.last_visit_at)}
                     </TableCell>
-                    <TableCell>{customer.total_visits}</TableCell>
+                    <TableCell>{customer.visits_count}</TableCell>
                     <TableCell>
                       {customer.marketing_opt_in ? (
                         <Badge className="bg-success/10 text-success">Ativo</Badge>
@@ -261,13 +257,13 @@ export function EmailLogsTab() {
             open={isComposeOpen}
             onOpenChange={setIsComposeOpen}
             customer={selectedCustomer}
-            restaurantId={RESTAURANT_ID}
+            restaurantId={CURRENT_RESTAURANT.id}
           />
           <CustomerDetailDrawer
             open={isDetailOpen}
             onOpenChange={setIsDetailOpen}
             customer={selectedCustomer}
-            onToggleOptIn={toggleOptIn}
+            onToggleOptIn={async () => {}}
             onComposeEmail={() => {
               setIsDetailOpen(false);
               handleComposeEmail(selectedCustomer);
