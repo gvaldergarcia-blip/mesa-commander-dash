@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export interface EmailLog {
@@ -46,6 +46,7 @@ export const useEmailLogs = (restaurantId?: string) => {
     try {
       setLoading(true);
       let query = supabase
+        .schema('mesaclik')
         .from('email_logs')
         .select('*')
         .order('created_at', { ascending: false });
@@ -74,6 +75,7 @@ export const useEmailLogs = (restaurantId?: string) => {
   const createEmailLog = async (params: CreateEmailLogParams) => {
     try {
       const { data, error } = await supabase
+        .schema('mesaclik')
         .from('email_logs')
         .insert({
           ...params,
@@ -127,6 +129,7 @@ export const useEmailLogs = (restaurantId?: string) => {
       }
 
       const { error } = await supabase
+        .schema('mesaclik')
         .from('email_logs')
         .update(updates)
         .eq('id', id);

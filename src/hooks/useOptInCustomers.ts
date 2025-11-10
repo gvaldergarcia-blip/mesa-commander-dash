@@ -66,6 +66,7 @@ export const useOptInCustomers = () => {
 
       // Create audit log
       const { error: auditError } = await supabase
+        .schema('mesaclik')
         .from('email_preferences_audit')
         .insert({
           customer_id: customerId,

@@ -2,7 +2,7 @@
  * Utilitário para envio de SMS via Twilio
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export const sendSms = async (phone: string, message: string): Promise<boolean> => {
   try {
