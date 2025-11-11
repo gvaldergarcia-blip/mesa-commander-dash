@@ -44,6 +44,13 @@ export function useRestaurantTerms() {
 
   const acceptTerms = async () => {
     try {
+      // Obter usuário autenticado
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        throw new Error('Você precisa estar autenticado para aceitar os termos');
+      }
+
       const { error } = await supabase
         .schema('mesaclik')
         .from('restaurant_terms_acceptance')
@@ -52,9 +59,13 @@ export function useRestaurantTerms() {
           terms_type: 'coupon_publication',
           ip_address: null,
           user_agent: navigator.userAgent,
+          accepted_by: user.id,
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao inserir termos:', error);
+        throw error;
+      }
 
       toast({
         title: 'Termos aceitos',
@@ -64,6 +75,7 @@ export function useRestaurantTerms() {
       setTermsAccepted(true);
       return true;
     } catch (err) {
+      console.error('Erro completo ao aceitar termos:', err);
       const message = err instanceof Error ? err.message : 'Erro ao aceitar termos';
       toast({
         title: 'Erro',

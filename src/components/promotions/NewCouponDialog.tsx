@@ -477,19 +477,21 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Termos de Publicação de Cupons</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>Antes de publicar seu primeiro cupom, você precisa aceitar os seguintes termos:</p>
-              <ul className="list-disc list-inside space-y-2 text-sm">
-                <li>Os cupons serão exibidos publicamente no aplicativo MesaClik</li>
-                <li>O pagamento é cobrado antecipadamente com base na duração</li>
-                <li>Você é responsável pelo conteúdo e validade dos cupons</li>
-                <li>Os cupons expiram automaticamente na data de término</li>
-                <li>Não há reembolso após a confirmação do pagamento</li>
-                <li>O MesaClik se reserva o direito de remover cupons inadequados</li>
-              </ul>
-              <p className="text-xs text-muted-foreground mt-4">
-                Este aceite será registrado com data, hora e informações de sua conta.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Antes de publicar seu primeiro cupom, você precisa aceitar os seguintes termos:</p>
+                <ul className="list-disc list-inside space-y-2 text-sm">
+                  <li>Os cupons serão exibidos publicamente no aplicativo MesaClik</li>
+                  <li>O pagamento é cobrado antecipadamente com base na duração</li>
+                  <li>Você é responsável pelo conteúdo e validade dos cupons</li>
+                  <li>Os cupons expiram automaticamente na data de término</li>
+                  <li>Não há reembolso após a confirmação do pagamento</li>
+                  <li>O MesaClik se reserva o direito de remover cupons inadequados</li>
+                </ul>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Este aceite será registrado com data, hora e informações de sua conta.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
