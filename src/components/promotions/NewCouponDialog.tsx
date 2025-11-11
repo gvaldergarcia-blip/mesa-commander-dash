@@ -12,7 +12,6 @@ import { supabase } from '@/lib/supabase/client';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { differenceInDays, format } from 'date-fns';
 import { Upload, FileText, Link as LinkIcon, X } from 'lucide-react';
-import { CouponPaymentDialog } from './CouponPaymentDialog';
 
 type NewCouponDialogProps = {
   open: boolean;
@@ -25,8 +24,6 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   const { termsAccepted, acceptTerms, loading: termsLoading } = useRestaurantTerms();
   
   const [showTermsDialog, setShowTermsDialog] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [createdCouponId, setCreatedCouponId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [couponType, setCouponType] = useState<'link' | 'upload'>('link');
   const [couponLink, setCouponLink] = useState('');
@@ -236,13 +233,27 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
 
       toast({
         title: 'Cupom criado',
-        description: `Cupom criado com sucesso`,
+        description: `Redirecionando para pagamento...`,
       });
 
-      // Armazenar ID do cupom e abrir dialog de pagamento
-      setCreatedCouponId(coupon.id);
-      setShowPaymentDialog(true);
+      // Redirecionar para página de checkout
+      const params = new URLSearchParams({
+        couponId: coupon.id,
+        amount: price.toString(),
+        startDate: startDate,
+        endDate: endDate,
+        duration: durationDays.toString(),
+        type: couponType,
+      });
+
+      // Fechar o modal
       onOpenChange(false);
+      resetForm();
+
+      // Redirecionar após um pequeno delay
+      setTimeout(() => {
+        window.location.href = `/checkout-cupom?${params.toString()}`;
+      }, 500);
     } catch (error) {
       console.error('Erro ao criar cupom:', error);
       toast({
@@ -503,22 +514,6 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Dialog de Pagamento */}
-      <CouponPaymentDialog
-        open={showPaymentDialog}
-        onOpenChange={setShowPaymentDialog}
-        couponId={createdCouponId}
-        amount={price}
-        onPaymentComplete={() => {
-          setShowPaymentDialog(false);
-          resetForm();
-          toast({
-            title: 'Pagamento confirmado',
-            description: 'Seu cupom será ativado em breve',
-          });
-        }}
-      />
     </>
   );
 }
