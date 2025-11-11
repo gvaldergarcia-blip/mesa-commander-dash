@@ -44,12 +44,8 @@ export function useRestaurantTerms() {
 
   const acceptTerms = async () => {
     try {
-      // Obter usuário autenticado
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        throw new Error('Você precisa estar autenticado para aceitar os termos');
-      }
+      // Tentar obter usuário autenticado (opcional para o painel admin)
+      const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase
         .schema('mesaclik')
@@ -59,7 +55,7 @@ export function useRestaurantTerms() {
           terms_type: 'coupon_publication',
           ip_address: null,
           user_agent: navigator.userAgent,
-          accepted_by: user.id,
+          accepted_by: user?.id || null, // Opcional se não houver autenticação
         }]);
 
       if (error) {
