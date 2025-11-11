@@ -50,13 +50,15 @@ export function useRestaurantTerms() {
       const { error } = await supabase
         .schema('mesaclik')
         .from('restaurant_terms_acceptance')
-        .insert([{
+        .upsert([{
           restaurant_id: RESTAURANT_ID,
           terms_type: 'coupon_publication',
           ip_address: null,
           user_agent: navigator.userAgent,
-          accepted_by: user?.id || null, // Opcional se não houver autenticação
-        }]);
+          accepted_by: user?.id || null,
+        }], {
+          onConflict: 'restaurant_id,terms_type'
+        });
 
       if (error) {
         console.error('Erro ao inserir termos:', error);
