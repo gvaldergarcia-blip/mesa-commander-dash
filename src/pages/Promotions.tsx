@@ -30,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TenCliksTab } from "@/components/promotions/TenCliksTab";
 import { EmailLogsTab } from "@/components/promotions/EmailLogsTab";
 import { CouponsTab } from "@/components/promotions/CouponsTab";
-import { CouponBillingTab } from "@/components/promotions/CouponBillingTab";
+import { TransactionHistoryTab } from "@/components/promotions/TransactionHistoryTab";
 
 export default function Promotions() {
   const { promotions, loading, createPromotion } = usePromotions();
@@ -393,7 +393,7 @@ export default function Promotions() {
       </div>
 
       <Tabs defaultValue="promotions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="promotions">Promoções</TabsTrigger>
           <TabsTrigger value="coupons">Cupons</TabsTrigger>
           <TabsTrigger value="10cliks">
@@ -404,6 +404,7 @@ export default function Promotions() {
             <Mail className="w-4 h-4 mr-2" />
             Log de E-mails
           </TabsTrigger>
+          <TabsTrigger value="payments">Pagamentos</TabsTrigger>
           <TabsTrigger value="logs">Histórico</TabsTrigger>
         </TabsList>
 
@@ -496,6 +497,10 @@ export default function Promotions() {
 
         <TabsContent value="email-logs">
           <EmailLogsTab />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <TransactionHistoryTab />
         </TabsContent>
 
         <TabsContent value="logs">
