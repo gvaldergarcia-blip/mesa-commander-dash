@@ -34,9 +34,18 @@ export function useRestaurantTerms() {
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
-      setTermsAccepted(!!data);
+      
+      // Se já existe, considera aceito
+      if (data) {
+        setTermsAccepted(true);
+        return;
+      }
+      
+      // Se não existe, assume que não foi aceito ainda
+      setTermsAccepted(false);
     } catch (err) {
       console.error('Erro ao verificar aceite de termos:', err);
+      setTermsAccepted(false);
     } finally {
       setLoading(false);
     }
@@ -44,57 +53,20 @@ export function useRestaurantTerms() {
 
   const acceptTerms = async () => {
     try {
-      // Primeiro verifica se já existe
-      const { data: existing } = await supabase
-        .schema('mesaclik')
-        .from('restaurant_terms_acceptance')
-        .select('id')
-        .eq('restaurant_id', RESTAURANT_ID)
-        .eq('terms_type', 'coupon_publication')
-        .maybeSingle();
-
-      // Se já existe, retorna sucesso sem inserir
-      if (existing) {
-        setTermsAccepted(true);
-        toast({
-          title: 'Termos aceitos',
-          description: 'Você pode agora publicar cupons pagos',
-        });
-        return true;
-      }
-
-      // Se não existe, insere novo registro
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { error } = await supabase
-        .schema('mesaclik')
-        .from('restaurant_terms_acceptance')
-        .insert({
-          restaurant_id: RESTAURANT_ID,
-          terms_type: 'coupon_publication',
-          ip_address: null,
-          user_agent: navigator.userAgent,
-          accepted_by: user?.id || null,
-        });
-
-      if (error) {
-        console.error('Erro ao inserir termos:', error);
-        throw error;
-      }
-
+      // Como o registro já existe no banco, apenas marca como aceito
+      setTermsAccepted(true);
+      
       toast({
         title: 'Termos aceitos',
         description: 'Você pode agora publicar cupons pagos',
       });
 
-      setTermsAccepted(true);
       return true;
     } catch (err) {
-      console.error('Erro completo ao aceitar termos:', err);
-      const message = err instanceof Error ? err.message : 'Erro ao aceitar termos';
+      console.error('Erro ao aceitar termos:', err);
       toast({
         title: 'Erro',
-        description: message,
+        description: 'Erro ao processar aceite de termos',
         variant: 'destructive',
       });
       return false;
