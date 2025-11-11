@@ -15,6 +15,8 @@ export type Coupon = {
   discount_value?: number;
   code?: string;
   redeem_link?: string;
+  coupon_type?: 'link' | 'upload';
+  file_url?: string;
   image_url?: string;
   bg_color?: string;
   tags?: string[];
@@ -23,6 +25,9 @@ export type Coupon = {
   duration_days: number;
   price: number;
   status: CouponStatus;
+  payment_status?: 'pending' | 'completed' | 'failed' | 'refunded';
+  payment_method?: string;
+  paid_at?: string;
   stripe_payment_id?: string;
   stripe_checkout_session_id?: string;
   created_by?: string;
