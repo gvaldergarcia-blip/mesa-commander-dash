@@ -44,21 +44,34 @@ export function useRestaurantTerms() {
 
   const acceptTerms = async () => {
     try {
-      // Tentar obter usuário autenticado (opcional para o painel admin)
+      // Verificar se já foi aceito anteriormente
+      const { data: existing } = await supabase
+        .schema('mesaclik')
+        .from('restaurant_terms_acceptance')
+        .select('id')
+        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('terms_type', 'coupon_publication')
+        .maybeSingle();
+
+      // Se já existe, retornar sucesso imediatamente
+      if (existing) {
+        setTermsAccepted(true);
+        return true;
+      }
+
+      // Se não existe, inserir novo registro
       const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase
         .schema('mesaclik')
         .from('restaurant_terms_acceptance')
-        .upsert([{
+        .insert([{
           restaurant_id: RESTAURANT_ID,
           terms_type: 'coupon_publication',
           ip_address: null,
           user_agent: navigator.userAgent,
           accepted_by: user?.id || null,
-        }], {
-          onConflict: 'restaurant_id,terms_type'
-        });
+        }]);
 
       if (error) {
         console.error('Erro ao inserir termos:', error);
