@@ -4,21 +4,27 @@ import { useToast } from '@/hooks/use-toast';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 export type DiscountType = 'percentage' | 'fixed';
-export type CouponStatus = 'draft' | 'scheduled' | 'active' | 'paused' | 'expired' | 'cancelled';
+export type CouponStatus = 'draft' | 'scheduled' | 'active' | 'expired' | 'cancelled';
 
 export type Coupon = {
   id: string;
   restaurant_id: string;
   title: string;
   description?: string;
-  discount_type: DiscountType;
-  discount_value: number;
+  discount_type?: DiscountType;
+  discount_value?: number;
   code?: string;
   redeem_link?: string;
   image_url?: string;
   bg_color?: string;
-  tags: string[];
+  tags?: string[];
+  start_date: string;
+  end_date: string;
+  duration_days: number;
+  price: number;
   status: CouponStatus;
+  stripe_payment_id?: string;
+  stripe_checkout_session_id?: string;
   created_by?: string;
   created_at: string;
   updated_at: string;

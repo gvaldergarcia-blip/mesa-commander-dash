@@ -10,33 +10,29 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Copy, Pause, Play, Trash2, Calendar, TrendingUp } from 'lucide-react';
+import { Plus, Copy, Trash2, TrendingUp } from 'lucide-react';
 import { useCoupons } from '@/hooks/useCoupons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { NewCouponDialog } from './NewCouponDialog';
 
 export function CouponsTab() {
-  const { coupons, loading, deleteCoupon, duplicateCoupon, updateCoupon } = useCoupons();
+  const { coupons, loading, deleteCoupon, duplicateCoupon } = useCoupons();
   const navigate = useNavigate();
+  const [showNewDialog, setShowNewDialog] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
       draft: { variant: 'secondary', label: 'Rascunho' },
       scheduled: { variant: 'default', label: 'Agendado' },
       active: { variant: 'default', label: 'Ativo' },
-      paused: { variant: 'secondary', label: 'Pausado' },
       expired: { variant: 'destructive', label: 'Expirado' },
       cancelled: { variant: 'destructive', label: 'Cancelado' },
     };
     
     const config = variants[status] || variants.draft;
     return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const handlePauseResume = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'paused' ? 'active' : 'paused';
-    await updateCoupon({ id, status: newStatus as any });
   };
 
   const activeCount = coupons.filter(c => c.status === 'active').length;
@@ -87,9 +83,9 @@ export function CouponsTab() {
       {/* Ações */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Meus Cupons</h3>
-        <Button disabled>
+        <Button onClick={() => setShowNewDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Cupom (Em breve)
+          Novo Cupom
         </Button>
       </div>
 
@@ -163,21 +159,6 @@ export function CouponsTab() {
                           <Copy className="h-4 w-4" />
                         </Button>
 
-                        {(coupon.status === 'active' || coupon.status === 'paused') && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePauseResume(coupon.id, coupon.status)}
-                            title={coupon.status === 'paused' ? 'Reativar' : 'Pausar'}
-                          >
-                            {coupon.status === 'paused' ? (
-                              <Play className="h-4 w-4" />
-                            ) : (
-                              <Pause className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
-
                         {coupon.status === 'draft' && (
                           <Button
                             variant="ghost"
@@ -197,6 +178,8 @@ export function CouponsTab() {
           </Table>
         </CardContent>
       </Card>
+
+      <NewCouponDialog open={showNewDialog} onOpenChange={setShowNewDialog} />
     </div>
   );
 }
