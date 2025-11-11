@@ -87,9 +87,9 @@ export function CouponsTab() {
       {/* Ações */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Meus Cupons</h3>
-        <Button onClick={() => navigate('/promotions/coupons/create')}>
+        <Button disabled>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Cupom
+          Novo Cupom (Em breve)
         </Button>
       </div>
 

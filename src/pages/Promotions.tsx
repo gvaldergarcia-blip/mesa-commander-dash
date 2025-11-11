@@ -43,7 +43,6 @@ export default function Promotions() {
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [freeMessage, setFreeMessage] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [audienceFilter, setAudienceFilter] = useState("all");
@@ -103,7 +102,6 @@ export default function Promotions() {
       const validationResult = promotionSchema.safeParse({
         title,
         description,
-        free_message: freeMessage,
         starts_at: startsAt,
         ends_at: endsAt,
         audience_filter: audienceFilter,
@@ -142,7 +140,6 @@ export default function Promotions() {
         restaurant_id: RESTAURANT_ID,
         title: normalizedData.title,
         description: normalizedData.description,
-        free_message: normalizedData.free_message,
         starts_at: normalizedData.starts_at,
         ends_at: normalizedData.ends_at,
         audience_filter: normalizedData.audience_filter,
@@ -167,7 +164,6 @@ export default function Promotions() {
       // Reset form
       setTitle("");
       setDescription("");
-      setFreeMessage("");
       setStartsAt("");
       setEndsAt("");
       setAudienceFilter("all");
@@ -278,8 +274,8 @@ export default function Promotions() {
 
               <div>
                 <Textarea 
-                  placeholder="Descrição detalhada da oferta (opcional)"
-                  rows={3}
+                  placeholder="Descrição detalhada da oferta"
+                  rows={5}
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value);
@@ -288,21 +284,6 @@ export default function Promotions() {
                 />
                 {formErrors.description && (
                   <p className="text-sm text-destructive mt-1">{formErrors.description}</p>
-                )}
-              </div>
-
-              <div>
-                <Textarea 
-                  placeholder="Mensagem personalizada para os clientes (opcional)"
-                  rows={3}
-                  value={freeMessage}
-                  onChange={(e) => {
-                    setFreeMessage(e.target.value);
-                    if (formErrors.free_message) setFormErrors({...formErrors, free_message: ''});
-                  }}
-                />
-                {formErrors.free_message && (
-                  <p className="text-sm text-destructive mt-1">{formErrors.free_message}</p>
                 )}
               </div>
 
@@ -412,10 +393,9 @@ export default function Promotions() {
       </div>
 
       <Tabs defaultValue="promotions" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="promotions">Promoções</TabsTrigger>
           <TabsTrigger value="coupons">Cupons</TabsTrigger>
-          <TabsTrigger value="coupon-billing">Faturamento</TabsTrigger>
           <TabsTrigger value="10cliks">
             <Trophy className="w-4 h-4 mr-2" />
             10 Cliks
@@ -508,10 +488,6 @@ export default function Promotions() {
 
         <TabsContent value="coupons">
           <CouponsTab />
-        </TabsContent>
-
-        <TabsContent value="coupon-billing">
-          <CouponBillingTab />
         </TabsContent>
 
         <TabsContent value="10cliks">
