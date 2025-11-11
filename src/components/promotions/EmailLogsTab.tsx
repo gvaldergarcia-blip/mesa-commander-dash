@@ -37,7 +37,7 @@ export function EmailLogsTab() {
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch = 
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesSearch;
@@ -161,7 +161,7 @@ export function EmailLogsTab() {
                         onClick={() => handleViewDetails(customer)}
                         className="font-medium hover:text-primary hover:underline"
                       >
-                        {customer.name}
+                        {customer.full_name}
                       </button>
                     </TableCell>
                     <TableCell>{customer.email || '-'}</TableCell>

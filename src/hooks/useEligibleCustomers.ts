@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface EligibleCustomer {
   customer_id: string;
-  name: string;
+  full_name: string;
   email: string | null;
   phone: string | null;
   marketing_opt_in: boolean;
@@ -34,7 +34,7 @@ export const useEligibleCustomers = (restaurantId: string) => {
           customer_id,
           customers:customer_id (
             id,
-            name,
+            full_name,
             email,
             phone,
             marketing_opt_in,
@@ -68,7 +68,7 @@ export const useEligibleCustomers = (restaurantId: string) => {
         })
         .map((item: any) => ({
           customer_id: item.customer_id,
-          name: item.customers.name,
+          full_name: item.customers.full_name,
           email: item.customers.email,
           phone: item.customers.phone,
           marketing_opt_in: item.customers.marketing_opt_in,

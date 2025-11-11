@@ -61,7 +61,7 @@ export const useLoyaltyProgram = (restaurantId: string) => {
         .select(`
           *,
           customers:customer_id (
-            name,
+            full_name,
             email,
             phone
           )
@@ -73,7 +73,7 @@ export const useLoyaltyProgram = (restaurantId: string) => {
 
       const formatted = (data || []).map((item: any) => ({
         ...item,
-        customer_name: item.customers?.name || 'N/A',
+        customer_name: item.customers?.full_name || 'N/A',
         customer_email: item.customers?.email || 'N/A',
         customer_phone: item.customers?.phone || 'N/A',
       }));
