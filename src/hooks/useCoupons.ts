@@ -33,6 +33,9 @@ export type Coupon = {
   created_by?: string;
   created_at: string;
   updated_at: string;
+  views_count?: number;
+  clicks_count?: number;
+  uses_count?: number;
 };
 
 export type CreateCouponParams = Omit<Coupon, 'id' | 'created_at' | 'updated_at'>;

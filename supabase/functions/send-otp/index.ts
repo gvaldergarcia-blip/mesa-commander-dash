@@ -38,7 +38,7 @@ async function hashCode(code: string): Promise<string> {
 }
 
 // Envia email via SendGrid
-async function sendEmail(to: string, code: string): Promise<{ success: boolean; error?: string }> {
+async function sendEmail(to: string, code: string): Promise<{ success: boolean; error: string }> {
   try {
     const html = `
       <!DOCTYPE html>
@@ -109,15 +109,15 @@ async function sendEmail(to: string, code: string): Promise<{ success: boolean; 
       return { success: false, error: errorText };
     }
 
-    return { success: true };
+    return { success: true, error: '' };
   } catch (error) {
     console.error("Error sending email:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
 // Envia SMS via Twilio Verify
-async function sendSms(to: string, code: string): Promise<{ success: boolean; error?: string }> {
+async function sendSms(to: string, code: string): Promise<{ success: boolean; error: string }> {
   try {
     // Formatar número para padrão internacional
     const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\D/g, '')}`;
@@ -147,10 +147,10 @@ async function sendSms(to: string, code: string): Promise<{ success: boolean; er
       return { success: false, error: responseData.message || "Failed to send SMS" };
     }
 
-    return { success: true };
+    return { success: true, error: '' };
   } catch (error) {
     console.error("Error sending SMS:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
