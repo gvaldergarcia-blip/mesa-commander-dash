@@ -27,14 +27,13 @@ export function usePaymentTransactions() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('payment_transactions')
+        .from('payment_transactions' as any)
         .select('*')
         .eq('restaurant_id', RESTAURANT_ID)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTransactions(data as any || []);
+      setTransactions((data as any) || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
@@ -49,8 +48,7 @@ export function usePaymentTransactions() {
   const createTransaction = async (transaction: Omit<PaymentTransaction, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('payment_transactions')
+        .from('payment_transactions' as any)
         .insert([transaction as any])
         .select()
         .single();
@@ -71,8 +69,7 @@ export function usePaymentTransactions() {
       if (paidAt) updateData.paid_at = paidAt;
 
       const { error } = await supabase
-        .schema('mesaclik')
-        .from('payment_transactions')
+        .from('payment_transactions' as any)
         .update(updateData)
         .eq('id', transactionId);
 

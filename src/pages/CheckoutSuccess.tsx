@@ -21,8 +21,7 @@ export default function CheckoutSuccess() {
       if (transactionId) {
         try {
           const { data, error } = await supabase
-            .schema('mesaclik')
-            .from('payment_transactions')
+            .from('payment_transactions' as any)
             .select('*')
             .eq('id', transactionId)
             .single();
