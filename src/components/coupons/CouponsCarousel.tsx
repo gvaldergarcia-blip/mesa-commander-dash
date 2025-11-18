@@ -9,6 +9,10 @@ export function CouponsCarousel() {
   const { coupons, loading, registerInteraction } = useActiveCoupons();
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
+  React.useEffect(() => {
+    console.log('CouponsCarousel - Cupons carregados:', coupons.length, coupons);
+  }, [coupons]);
+
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
       const scrollAmount = direction === 'left' ? -300 : 300;

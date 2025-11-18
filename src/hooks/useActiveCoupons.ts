@@ -8,12 +8,13 @@ export type ActiveCoupon = {
   description: string | null;
   coupon_type: 'link' | 'upload';
   coupon_link: string | null;
-  coupon_asset_url: string | null;
+  file_url: string | null;
   start_date: string;
   end_date: string;
   duration_days: number;
   price: number;
   status: string;
+  payment_status: string;
   created_at: string;
   views_count: number;
   clicks_count: number;
@@ -34,7 +35,7 @@ export function useActiveCoupons() {
   const fetchActiveCoupons = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString();
       
       const { data, error } = await supabase
         .from('coupons' as any)
@@ -49,12 +50,17 @@ export function useActiveCoupons() {
           )
         `)
         .eq('status', 'active')
+        .eq('payment_status', 'completed')
         .lte('start_date', today)
         .gte('end_date', today)
-        .order('end_date', { ascending: true });
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar cupons:', error);
+        throw error;
+      }
       
+      console.log('Cupons ativos encontrados:', data);
       setCoupons((data as any) || []);
     } catch (error) {
       console.error('Error fetching active coupons:', error);
@@ -73,11 +79,11 @@ export function useActiveCoupons() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'mesaclik',
+          schema: 'public',
           table: 'coupons',
-          filter: 'status=eq.active'
         },
-        () => {
+        (payload) => {
+          console.log('Mudança em cupons:', payload);
           fetchActiveCoupons();
         }
       )
