@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export type ActiveCoupon = {
   id: string;
@@ -39,11 +39,13 @@ export function useActiveCoupons() {
       
       console.log('[useActiveCoupons] Buscando cupons ativos...');
       
+      // Query com schema explícito
       const { data, error } = await supabase
-        .from('coupons' as any)
+        .schema('mesaclik')
+        .from('coupons')
         .select(`
           *,
-          restaurant:restaurant_id (
+          restaurants!coupons_restaurant_id_fkey (
             name,
             image_url,
             cuisine,
@@ -63,7 +65,14 @@ export function useActiveCoupons() {
       }
       
       console.log('[useActiveCoupons] Cupons ativos encontrados:', data?.length || 0, data);
-      setCoupons((data as any) || []);
+      
+      // Mapear restaurant corretamente
+      const mappedData = data?.map((coupon: any) => ({
+        ...coupon,
+        restaurant: coupon.restaurants
+      })) || [];
+      
+      setCoupons(mappedData);
     } catch (error) {
       console.error('[useActiveCoupons] Error fetching active coupons:', error);
     } finally {
@@ -81,7 +90,7 @@ export function useActiveCoupons() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'mesaclik',
           table: 'coupons',
         },
         (payload) => {
@@ -99,7 +108,8 @@ export function useActiveCoupons() {
   const registerInteraction = async (couponId: string, interactionType: 'view' | 'click' | 'use') => {
     try {
       const { error } = await supabase
-        .from('coupon_interactions' as any)
+        .schema('mesaclik')
+        .from('coupon_interactions')
         .insert([{
           coupon_id: couponId,
           interaction_type: interactionType,
