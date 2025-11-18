@@ -239,6 +239,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
       // Redirecionar para página de checkout
       const params = new URLSearchParams({
         couponId: coupon.id,
+        restaurantId: RESTAURANT_ID,
         amount: price.toString(),
         startDate: startDate,
         endDate: endDate,
