@@ -28,8 +28,8 @@ export function CouponCard({ coupon, onView, onClick, variant = 'grid' }: Coupon
     
     if (coupon.coupon_type === 'link' && coupon.coupon_link) {
       window.open(coupon.coupon_link, '_blank');
-    } else if (coupon.coupon_asset_url) {
-      window.open(coupon.coupon_asset_url, '_blank');
+    } else if (coupon.file_url) {
+      window.open(coupon.file_url, '_blank');
     }
   };
 

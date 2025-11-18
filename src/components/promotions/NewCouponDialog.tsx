@@ -212,11 +212,11 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
         }
       }
 
-      // Criar cupom com status pendente
+      // TEMPORÁRIO: Criar cupom diretamente como ativo para testar exibição no app
       const coupon = await createCoupon({
         restaurant_id: RESTAURANT_ID,
         title: `Cupom ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
-        description: '',
+        description: 'Oferta especial do restaurante',
         discount_type: 'fixed',
         discount_value: 0,
         coupon_type: couponType,
@@ -226,35 +226,26 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
         end_date: new Date(endDate).toISOString(),
         duration_days: durationDays,
         price,
-        status: 'draft',
-        payment_status: 'pending',
+        status: 'active', // ATIVO DIRETO para teste
+        payment_status: 'completed', // COMPLETO para teste
+        payment_method: 'test',
+        paid_at: new Date().toISOString(),
         tags: [],
       });
 
       toast({
-        title: 'Cupom criado',
-        description: `Redirecionando para pagamento...`,
-      });
-
-      // Redirecionar para página de checkout
-      const params = new URLSearchParams({
-        couponId: coupon.id,
-        restaurantId: RESTAURANT_ID,
-        amount: price.toString(),
-        startDate: startDate,
-        endDate: endDate,
-        duration: durationDays.toString(),
-        type: couponType,
+        title: 'Cupom criado com sucesso!',
+        description: 'O cupom já está ativo e visível no app',
       });
 
       // Fechar o modal
       onOpenChange(false);
       resetForm();
 
-      // Redirecionar após um pequeno delay
+      // Recarregar a página após 1 segundo
       setTimeout(() => {
-        window.location.href = `/checkout-cupom?${params.toString()}`;
-      }, 500);
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error('Erro ao criar cupom:', error);
       toast({
@@ -479,7 +470,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
               onClick={handleSubmit}
               disabled={loading || !acceptedTerms || durationDays === 0}
             >
-              {loading ? 'Processando...' : 'Confirmar e Pagar'}
+              {loading ? 'Criando cupom...' : 'Criar Cupom (TESTE - Sem Pagamento)'}
             </Button>
           </DialogFooter>
         </DialogContent>
