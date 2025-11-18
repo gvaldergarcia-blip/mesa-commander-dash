@@ -164,6 +164,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
       return;
     }
 
+    // Criar cupom direto sem pagamento
     await handlePayment();
   };
 
@@ -262,6 +263,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
     const accepted = await acceptTerms();
     if (accepted) {
       setShowTermsDialog(false);
+      // Criar cupom direto após aceitar termos
       await handlePayment();
     }
   };
