@@ -37,6 +37,8 @@ export function useActiveCoupons() {
       setLoading(true);
       const today = new Date().toISOString();
       
+      console.log('[useActiveCoupons] Buscando cupons ativos...');
+      
       const { data, error } = await supabase
         .from('coupons' as any)
         .select(`
@@ -56,14 +58,14 @@ export function useActiveCoupons() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar cupons:', error);
+        console.error('[useActiveCoupons] Erro ao buscar cupons:', error);
         throw error;
       }
       
-      console.log('Cupons ativos encontrados:', data);
+      console.log('[useActiveCoupons] Cupons ativos encontrados:', data?.length || 0, data);
       setCoupons((data as any) || []);
     } catch (error) {
-      console.error('Error fetching active coupons:', error);
+      console.error('[useActiveCoupons] Error fetching active coupons:', error);
     } finally {
       setLoading(false);
     }

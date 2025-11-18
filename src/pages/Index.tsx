@@ -6,10 +6,14 @@ import { CURRENT_RESTAURANT } from "@/config/current-restaurant";
 import { Badge } from "@/components/ui/badge";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { CouponsCarousel } from "@/components/coupons/CouponsCarousel";
+import { Button } from "@/components/ui/button";
+import { createTestCoupon } from "@/utils/testCoupon";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Index() {
   const { metrics, loading } = useDashboardMetrics();
   const { restaurants, loading: loadingRestaurants } = useRestaurants();
+  const { toast } = useToast();
   
   // Get the current restaurant data from Supabase
   const currentRestaurant = restaurants.find(r => r.id === CURRENT_RESTAURANT.id);
@@ -17,6 +21,23 @@ export default function Index() {
   console.log('[Dashboard] Restaurants:', restaurants);
   console.log('[Dashboard] Current restaurant:', currentRestaurant);
   console.log('[Dashboard] Looking for ID:', CURRENT_RESTAURANT.id);
+
+  const handleCreateTestCoupon = async () => {
+    try {
+      await createTestCoupon();
+      toast({
+        title: 'Cupom de teste criado!',
+        description: 'Recarregando página...',
+      });
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao criar cupom de teste',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Calculate weekly growth (mock for now - would need historical data)
   const weeklyGrowth = "+12%";
@@ -42,6 +63,9 @@ export default function Index() {
             </Badge>
           </p>
         </div>
+        <Button onClick={handleCreateTestCoupon} variant="outline">
+          🧪 Criar Cupom Teste
+        </Button>
       </div>
 
       {/* Main Metrics */}
