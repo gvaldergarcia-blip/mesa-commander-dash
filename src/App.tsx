@@ -14,6 +14,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import CheckoutCupom from "./pages/CheckoutCupom";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
+import Coupons from "./pages/Coupons";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
                 <Route path="/reservations" element={<Reservations />} />
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/promotions" element={<Promotions />} />
+                <Route path="/cupons" element={<Coupons />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

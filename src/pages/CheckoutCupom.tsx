@@ -11,6 +11,7 @@ import { OrderSummary } from '@/components/checkout/OrderSummary';
 import { PaymentMethodSelector } from '@/components/checkout/PaymentMethodSelector';
 import { PixPayment } from '@/components/checkout/PixPayment';
 import { CardPayment } from '@/components/checkout/CardPayment';
+import { supabase } from '@/integrations/supabase/client';
 
 type PaymentMethod = 'pix' | 'credit' | 'debit' | null;
 
@@ -64,12 +65,47 @@ export default function CheckoutCupom() {
     setProcessing(true);
 
     try {
-      // Simulação de processamento - integração com gateway será feita aqui
+      // Simulação de processamento de pagamento
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Gerar código de transação
+      const transactionCode = `MC-${Date.now().toString().slice(-8)}`;
+
+      // Criar registro de transação
+      const { data: transaction, error: transactionError } = await supabase
+        .from('payment_transactions' as any)
+        .insert({
+          restaurant_id: searchParams.get('restaurantId') || '',
+          coupon_id: couponId,
+          transaction_code: transactionCode,
+          payment_method: selectedMethod,
+          amount: amount,
+          status: 'completed',
+          paid_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (transactionError) throw transactionError;
+
+      // Atualizar status do cupom para ativo
+      const { error: couponError } = await supabase
+        .from('coupons' as any)
+        .update({
+          status: 'active',
+          payment_status: 'completed',
+          payment_method: selectedMethod,
+          paid_at: new Date().toISOString(),
+        })
+        .eq('id', couponId);
+
+      if (couponError) throw couponError;
+
       // Redirecionar para página de sucesso
-      navigate(`/checkout-success?couponId=${couponId}&amount=${amount}&method=${selectedMethod}`);
+      const transactionId = (transaction as any)?.id || '';
+      navigate(`/checkout-success?transactionId=${transactionId}&transactionCode=${transactionCode}&couponId=${couponId}&amount=${amount}&method=${selectedMethod}`);
     } catch (error) {
+      console.error('Erro no pagamento:', error);
       toast({
         title: 'Erro no pagamento',
         description: 'Não foi possível processar o pagamento',

@@ -5,6 +5,7 @@ import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { CURRENT_RESTAURANT } from "@/config/current-restaurant";
 import { Badge } from "@/components/ui/badge";
 import { useRestaurants } from "@/hooks/useRestaurants";
+import { CouponsCarousel } from "@/components/coupons/CouponsCarousel";
 
 export default function Index() {
   const { metrics, loading } = useDashboardMetrics();
@@ -64,6 +65,9 @@ export default function Index() {
           icon={TrendingUp}
         />
       </div>
+
+      {/* Cupons Ativos */}
+      <CouponsCarousel />
 
       {/* Recent Activity & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
