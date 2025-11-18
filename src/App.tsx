@@ -11,8 +11,6 @@ import Customers from "./pages/Customers";
 import Promotions from "./pages/Promotions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
-import CheckoutCupom from "./pages/CheckoutCupom";
-import CheckoutSuccess from "./pages/CheckoutSuccess";
 import Coupons from "./pages/Coupons";
 import NotFound from "./pages/NotFound";
 
@@ -24,10 +22,6 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <Routes>
-        {/* Rotas de checkout sem DashboardLayout */}
-        <Route path="/checkout-cupom" element={<CheckoutCupom />} />
-        <Route path="/checkout-success" element={<CheckoutSuccess />} />
-        
         {/* Rotas com DashboardLayout */}
         <Route path="/*" element={
           <DashboardLayout>
