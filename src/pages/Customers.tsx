@@ -1,18 +1,10 @@
 import { useState } from "react";
-import { Search, UserPlus, Phone, Mail, Calendar, TrendingUp, Heart, Eye } from "lucide-react";
-import { useCustomers } from "@/hooks/useCustomers";
+import { useNavigate } from "react-router-dom";
+import { Phone, Mail, Eye, Users } from "lucide-react";
+import { useCustomersEnhanced, CustomerFilter, SourceFilter } from "@/hooks/useCustomersEnhanced";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -21,25 +13,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomerKPIs } from "@/components/customers/CustomerKPIs";
+import { CustomerFilters } from "@/components/customers/CustomerFilters";
+import { CustomerStatusBadge } from "@/components/customers/CustomerStatusBadge";
 
 export default function Customers() {
-  const { customers, loading } = useCustomers();
+  const navigate = useNavigate();
+  const { customers, loading, getKPIs } = useCustomersEnhanced();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof customers[0] | null>(null);
-
-  const filteredCustomers = customers.filter(customer => {
-    return customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           (customer.phone && customer.phone.includes(searchTerm)) ||
-           (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
-
-  const totalCustomers = customers.length;
-  const activeCustomers = customers.filter(c => 
-    c.last_visit_at && new Date(c.last_visit_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  ).length;
-  const vipCustomers = customers.filter(c => c.vip_status).length;
-  const marketingOptIns = customers.filter(c => c.marketing_opt_in).length;
+  const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit'>('lastVisit');
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -56,102 +40,92 @@ export default function Customers() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // Filtrar clientes
+  const filteredCustomers = customers
+    .filter(customer => {
+      // Filtro de busca
+      const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone.includes(searchTerm) ||
+        (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // Filtro de status
+      const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
+
+      // Filtro de origem
+      let matchesSource = true;
+      if (sourceFilter === 'queue') {
+        matchesSource = customer.queue_completed > 0;
+      } else if (sourceFilter === 'reservation') {
+        matchesSource = customer.reservations_completed > 0;
+      }
+
+      return matchesSearch && matchesStatus && matchesSource;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'visits') {
+        return b.visits_completed - a.visits_completed;
+      } else {
+        // lastVisit
+        const dateA = a.last_visit_at ? new Date(a.last_visit_at).getTime() : 0;
+        const dateB = b.last_visit_at ? new Date(b.last_visit_at).getTime() : 0;
+        return dateB - dateA;
+      }
+    });
+
+  const kpis = getKPIs();
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-32 bg-muted rounded"></div>
+          <div className="h-64 bg-muted rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
-          <p className="text-muted-foreground">Gerencie sua base de clientes</p>
+          <p className="text-muted-foreground">Sistema de CRM inteligente</p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Novo Cliente
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input placeholder="Nome completo" />
-              <Input placeholder="Telefone" />
-              <Input placeholder="Email (opcional)" />
-              <Input placeholder="Observações especiais (opcional)" />
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="marketing" />
-                <label htmlFor="marketing" className="text-sm">
-                  Cliente aceita receber promoções por email
-                </label>
-              </div>
-              <Button className="w-full">Cadastrar Cliente</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {filteredCustomers.length} de {customers.length} clientes
+          </span>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-2xl font-bold">{totalCustomers}</p>
-                <p className="text-sm text-muted-foreground">Total clientes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-success" />
-              <div>
-                <p className="text-2xl font-bold">{activeCustomers}</p>
-                <p className="text-sm text-muted-foreground">Ativos (30 dias)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Heart className="h-5 w-5 text-accent" />
-              <div>
-                <p className="text-2xl font-bold">{vipCustomers}</p>
-                <p className="text-sm text-muted-foreground">VIPs (10+ visitas)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <Mail className="h-5 w-5 text-warning" />
-              <div>
-                <p className="text-2xl font-bold">{marketingOptIns}</p>
-                <p className="text-sm text-muted-foreground">Marketing opt-in</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* KPIs */}
+      <CustomerKPIs
+        total={kpis.total}
+        active={kpis.active}
+        vip={kpis.vip}
+        newCustomers={kpis.newCustomers}
+        inactive={kpis.inactive}
+      />
 
-      {/* Search */}
+      {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, telefone ou email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <CustomerFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            sourceFilter={sourceFilter}
+            onSourceFilterChange={setSourceFilter}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
+          />
         </CardContent>
       </Card>
 
@@ -161,169 +135,102 @@ export default function Customers() {
           <CardTitle>Lista de Clientes</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Visitas</TableHead>
-                <TableHead>Última Visita</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer, index) => (
-                <TableRow key={`${customer.phone}-${index}`} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {getInitials(customer.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{customer.name}</div>
-                        {customer.vip_status && (
-                          <Badge variant="secondary" className="bg-accent/10 text-accent text-xs">
-                            VIP
-                          </Badge>
+          {filteredCustomers.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="font-semibold mb-2">Nenhum cliente encontrado</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || statusFilter !== 'all' || sourceFilter !== 'all'
+                  ? "Tente ajustar os filtros de busca."
+                  : "Ainda não há clientes cadastrados."}
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Visitas Concluídas</TableHead>
+                  <TableHead>Última Visita</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow
+                    key={customer.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/customers/${customer.phone}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <Avatar>
+                          <AvatarFallback className="bg-primary text-primary-foreground">
+                            {getInitials(customer.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{customer.name}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm space-y-1">
+                        <div className="flex items-center text-muted-foreground">
+                          <Phone className="w-3 h-3 mr-1" />
+                          {customer.phone}
+                        </div>
+                        {customer.email && (
+                          <div className="flex items-center text-muted-foreground">
+                            <Mail className="w-3 h-3 mr-1" />
+                            {customer.email}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="flex items-center text-muted-foreground">
-                        <Phone className="w-3 h-3 mr-1" />
-                        {customer.phone}
+                    </TableCell>
+                    <TableCell>
+                      <CustomerStatusBadge status={customer.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-lg">{customer.visits_completed}</div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <div>🎫 Fila: {customer.queue_completed}</div>
+                        <div>📅 Reserva: {customer.reservations_completed}</div>
                       </div>
-                      <div className="flex items-center text-muted-foreground">
-                        <Mail className="w-3 h-3 mr-1" />
-                        {customer.email}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{customer.total_visits}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Total de visitas
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {customer.last_visit_at ? (
-                      <>
-                        <div className="text-sm">{formatDate(customer.last_visit_at)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {getDaysAgo(customer.last_visit_at)}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">Nunca visitou</div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => setSelectedCustomer(customer)}
+                    </TableCell>
+                    <TableCell>
+                      {customer.last_visit_at ? (
+                        <>
+                          <div className="text-sm">{formatDate(customer.last_visit_at)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {getDaysAgo(customer.last_visit_at)}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Nunca visitou</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/customers/${customer.phone}`);
+                        }}
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
-
-      {/* Customer Detail Dialog */}
-      <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Cliente</DialogTitle>
-          </DialogHeader>
-          {selectedCustomer && (
-            <Tabs defaultValue="info" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="info">Informações</TabsTrigger>
-                <TabsTrigger value="history">Histórico</TabsTrigger>
-                <TabsTrigger value="preferences">Preferências</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="info" className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="w-16 h-16">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                      {getInitials(selectedCustomer.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-xl font-semibold">{selectedCustomer.name}</h3>
-                    <p className="text-muted-foreground">{selectedCustomer.phone}</p>
-                    <p className="text-muted-foreground">{selectedCustomer.email}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">Estatísticas</h4>
-                    <p>Total de visitas: {selectedCustomer.total_visits}</p>
-                    {selectedCustomer.last_visit_at && (
-                      <p>Última visita: {formatDate(selectedCustomer.last_visit_at)}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">Preferências</h4>
-                    <p>Marketing: {selectedCustomer.marketing_opt_in ? "Aceita" : "Não aceita"}</p>
-                    <p>Status VIP: {selectedCustomer.vip_status ? "Sim" : "Não"}</p>
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="history">
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-2">Histórico de Visitas</h3>
-                  <p className="text-muted-foreground">
-                    Histórico detalhado será implementado com a integração Supabase.
-                  </p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="preferences">
-                <div className="text-center py-8">
-                  <Heart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-2">Preferências Detalhadas</h3>
-                  <p className="text-muted-foreground">
-                    Sistema de preferências será implementado em breve.
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {filteredCustomers.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Nenhum cliente encontrado</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchTerm 
-                ? "Nenhum resultado encontrado com o termo de busca."
-                : "Ainda não há clientes cadastrados."}
-            </p>
-            <Button>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Cadastrar Primeiro Cliente
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
