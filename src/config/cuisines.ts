@@ -4,16 +4,40 @@
  */
 
 export const CUISINE_TYPES = [
-  "Brasileira",
-  "Italiana",
-  "Pizzaria",
-  "Japonesa",
-  "Churrascaria",
-  "Frutos do Mar",
+  "Oriental",
+  "Peruana",
   "Mexicana",
+  "Cervejaria",
   "Árabe",
-  "Vegana/Vegetariana",
-  "Outros"
+  "Asiática",
+  "Espanhola",
+  "Indiana",
+  "Havaiana",
+  "Mediterrânea",
+  "Frutos do Mar",
+  "Portuguesa",
+  "Grega",
+  "Cafeteria",
+  "Outros",
+  "Churrascaria",
+  "Doceria",
+  "Francesa",
+  "Tailandesa",
+  "Alemã",
+  "Sorveteria",
+  "Uruguaia",
+  "Latino Americana",
+  "Saudável",
+  "Hamburgueria",
+  "Padaria",
+  "Japonesa",
+  "Contemporânea",
+  "Brasileira",
+  "Argentina",
+  "Pizzaria",
+  "Steakhouse",
+  "Italiana",
+  "Bar"
 ] as const;
 
 export type CuisineType = typeof CUISINE_TYPES[number];

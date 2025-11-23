@@ -627,6 +627,8 @@ export type Database = {
         | "Uruguaia"
         | "Latino Americana"
         | "Outros"
+        | "Cervejaria"
+        | "Árabe"
       email_status:
         | "sent"
         | "delivered"
@@ -808,6 +810,8 @@ export const Constants = {
         "Uruguaia",
         "Latino Americana",
         "Outros",
+        "Cervejaria",
+        "Árabe",
       ],
       email_status: [
         "sent",
