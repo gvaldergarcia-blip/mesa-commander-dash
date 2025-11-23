@@ -733,6 +733,18 @@ export default function Reservations() {
                     <SelectItem value="canceled">Canceladas</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Tamanho do grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tamanhos</SelectItem>
+                    <SelectItem value="1-2">1-2 pessoas</SelectItem>
+                    <SelectItem value="3-4">3-4 pessoas</SelectItem>
+                    <SelectItem value="5-6">5-6 pessoas</SelectItem>
+                    <SelectItem value="7+">7+ pessoas</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -868,7 +880,55 @@ export default function Reservations() {
           </div>
         </TabsContent>
 
-        <TabsContent value="week">
+        <TabsContent value="week" className="space-y-4">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome, telefone ou email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="pending">Pendentes</SelectItem>
+                    <SelectItem value="confirmed">Confirmadas</SelectItem>
+                    <SelectItem value="seated">Sentadas</SelectItem>
+                    <SelectItem value="completed">Concluídas</SelectItem>
+                    <SelectItem value="canceled">Canceladas</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Tamanho do grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tamanhos</SelectItem>
+                    <SelectItem value="1-2">1-2 pessoas</SelectItem>
+                    <SelectItem value="3-4">3-4 pessoas</SelectItem>
+                    <SelectItem value="5-6">5-6 pessoas</SelectItem>
+                    <SelectItem value="7+">7+ pessoas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Reservations List */}
           <div className="space-y-3">
             {applyFilters(getReservationsByTab("week")).length === 0 ? (
               <Card>
