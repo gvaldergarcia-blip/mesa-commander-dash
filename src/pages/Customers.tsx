@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Mail, Eye, Users } from "lucide-react";
-import { useCustomersEnhanced, CustomerFilter, SourceFilter } from "@/hooks/useCustomersEnhanced";
+import { Phone, Mail, Eye, Users, CheckCircle2, XCircle } from "lucide-react";
+import { useCustomersEnhanced, CustomerFilter, SourceFilter, MarketingFilter } from "@/hooks/useCustomersEnhanced";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,6 +22,7 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [marketingFilter, setMarketingFilter] = useState<MarketingFilter>("all");
   const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit'>('lastVisit');
   
   // Passar searchTerm para o hook para busca funcionar no Supabase
@@ -61,7 +62,15 @@ export default function Customers() {
         matchesSource = customer.reservations_completed > 0;
       }
 
-      return matchesSearch && matchesStatus && matchesSource;
+      // Filtro de marketing
+      let matchesMarketing = true;
+      if (marketingFilter === 'opt-in') {
+        matchesMarketing = customer.marketing_opt_in === true;
+      } else if (marketingFilter === 'opt-out') {
+        matchesMarketing = customer.marketing_opt_in === false;
+      }
+
+      return matchesSearch && matchesStatus && matchesSource && matchesMarketing;
     })
     .sort((a, b) => {
       if (sortBy === 'name') {
@@ -125,6 +134,8 @@ export default function Customers() {
             onStatusFilterChange={setStatusFilter}
             sourceFilter={sourceFilter}
             onSourceFilterChange={setSourceFilter}
+            marketingFilter={marketingFilter}
+            onMarketingFilterChange={setMarketingFilter}
             sortBy={sortBy}
             onSortByChange={setSortBy}
           />
@@ -154,6 +165,7 @@ export default function Customers() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Marketing</TableHead>
                   <TableHead>Visitas Concluídas</TableHead>
                   <TableHead>Última Visita</TableHead>
                   <TableHead>Ações</TableHead>
@@ -194,6 +206,19 @@ export default function Customers() {
                     </TableCell>
                     <TableCell>
                       <CustomerStatusBadge status={customer.status} />
+                    </TableCell>
+                    <TableCell>
+                      {customer.marketing_opt_in ? (
+                        <div className="flex items-center gap-1.5 text-sm text-success">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Aceita promoções</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <XCircle className="w-4 h-4" />
+                          <span>Não aceita</span>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-lg">{customer.visits_completed}</div>

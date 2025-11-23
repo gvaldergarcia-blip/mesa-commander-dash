@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CustomerFilter, SourceFilter } from "@/hooks/useCustomersEnhanced";
+import { CustomerFilter, SourceFilter, MarketingFilter } from "@/hooks/useCustomersEnhanced";
 
 type CustomerFiltersProps = {
   searchTerm: string;
@@ -17,6 +17,8 @@ type CustomerFiltersProps = {
   onStatusFilterChange: (value: CustomerFilter) => void;
   sourceFilter: SourceFilter;
   onSourceFilterChange: (value: SourceFilter) => void;
+  marketingFilter: MarketingFilter;
+  onMarketingFilterChange: (value: MarketingFilter) => void;
   sortBy: 'name' | 'visits' | 'lastVisit';
   onSortByChange: (value: 'name' | 'visits' | 'lastVisit') => void;
 };
@@ -28,6 +30,8 @@ export function CustomerFilters({
   onStatusFilterChange,
   sourceFilter,
   onSourceFilterChange,
+  marketingFilter,
+  onMarketingFilterChange,
   sortBy,
   onSortByChange,
 }: CustomerFiltersProps) {
@@ -65,6 +69,17 @@ export function CustomerFilters({
           <SelectItem value="all">Todos os tipos</SelectItem>
           <SelectItem value="queue">🎫 Fila</SelectItem>
           <SelectItem value="reservation">📅 Reserva</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={marketingFilter} onValueChange={onMarketingFilterChange}>
+        <SelectTrigger className="w-full md:w-[180px]">
+          <SelectValue placeholder="Marketing" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos</SelectItem>
+          <SelectItem value="opt-in">✅ Aceitam promoções</SelectItem>
+          <SelectItem value="opt-out">❌ Não aceitam</SelectItem>
         </SelectContent>
       </Select>
 
