@@ -32,13 +32,16 @@ export function useQueue() {
     try {
       setLoading(true);
       
-      // Buscar entradas da fila usando a view - apenas status ativos
+      // Buscar todas as entradas da fila (incluindo sentados e cancelados) das últimas 24h
+      const last24Hours = new Date();
+      last24Hours.setHours(last24Hours.getHours() - 24);
+      
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('v_queue_current')
         .select('*')
-        .in('status', ['waiting', 'called'])
-        .order('created_at', { ascending: true });
+        .gte('created_at', last24Hours.toISOString())
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setQueueEntries(data || []);

@@ -16,21 +16,8 @@ export function useQueueRealtime(onUpdate: () => void) {
           filter: `restaurant_id=eq.${RESTAURANT_ID}`
         },
         (payload) => {
-          // Recarregar apenas se o status for ativo ou mudou de ativo
-          const newRecord = payload.new as any;
-          const oldRecord = payload.old as any;
-          
-          // Se é INSERT/DELETE ou UPDATE que afeta status ativo, atualizar
-          if (
-            payload.eventType === 'INSERT' ||
-            payload.eventType === 'DELETE' ||
-            (payload.eventType === 'UPDATE' && (
-              ['waiting', 'called'].includes(newRecord?.status) ||
-              ['waiting', 'called'].includes(oldRecord?.status)
-            ))
-          ) {
-            onUpdate();
-          }
+          // Atualizar sempre que houver mudanças, independente do status
+          onUpdate();
         }
       )
       .subscribe();
