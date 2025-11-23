@@ -142,7 +142,7 @@ export function useReservations() {
       const { data: reservationData, error: fetchError } = await supabase
         .schema('mesaclik')
         .from('reservations')
-        .select('name, phone, email')
+        .select('name, phone')
         .eq('id', reservationId)
         .single();
 
@@ -187,7 +187,6 @@ export function useReservations() {
         await upsertCustomer({
           name: reservationData.name,
           phone: reservationData.phone,
-          email: reservationData.email,
           source: 'reservation'
         });
       }
