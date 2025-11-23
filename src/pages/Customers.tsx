@@ -19,11 +19,13 @@ import { CustomerStatusBadge } from "@/components/customers/CustomerStatusBadge"
 
 export default function Customers() {
   const navigate = useNavigate();
-  const { customers, loading, getKPIs } = useCustomersEnhanced();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit'>('lastVisit');
+  
+  // Passar searchTerm para o hook para busca funcionar no Supabase
+  const { customers, loading, getKPIs } = useCustomersEnhanced(searchTerm);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

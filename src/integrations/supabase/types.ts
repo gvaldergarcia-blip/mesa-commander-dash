@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          first_visit_at: string | null
           id: string
           last_visit_date: string | null
           marketing_opt_in: boolean
@@ -25,6 +26,8 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          queue_completed: number
+          reservations_completed: number
           total_spent: number
           total_visits: number
           updated_at: string
@@ -33,6 +36,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          first_visit_at?: string | null
           id?: string
           last_visit_date?: string | null
           marketing_opt_in?: boolean
@@ -40,6 +44,8 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          queue_completed?: number
+          reservations_completed?: number
           total_spent?: number
           total_visits?: number
           updated_at?: string
@@ -48,6 +54,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          first_visit_at?: string | null
           id?: string
           last_visit_date?: string | null
           marketing_opt_in?: boolean
@@ -55,6 +62,8 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          queue_completed?: number
+          reservations_completed?: number
           total_spent?: number
           total_visits?: number
           updated_at?: string
