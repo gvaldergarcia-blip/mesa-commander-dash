@@ -139,7 +139,7 @@ export function useQueue() {
       const { data: entryData, error: fetchError } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('customer_name, phone, email')
+        .select('name, phone, email')
         .eq('id', entryId)
         .single();
 
@@ -156,7 +156,7 @@ export function useQueue() {
       // Se status for 'seated', registrar/atualizar em customers
       if (status === 'seated' && entryData) {
         await upsertCustomer({
-          name: entryData.customer_name,
+          name: entryData.name,
           phone: entryData.phone,
           email: entryData.email,
           source: 'queue'
