@@ -56,8 +56,29 @@ export default function Reservations() {
   const { calendarDays, loading: calendarLoading, toggleDayAvailability, isDayAvailable } = useRestaurantCalendar();
   
   // Wrapper para atualizar status e mudar o filtro automaticamente
-  const handleUpdateStatus = async (reservationId: string, newStatus: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show') => {
+  const handleUpdateStatus = async (
+    reservationId: string, 
+    newStatus: 'pending' | 'confirmed' | 'seated' | 'completed' | 'canceled' | 'no_show',
+    reservationDate?: string
+  ) => {
     console.log('[Reservations] Atualizando status para:', newStatus);
+    
+    // VALIDAÇÃO: Impedir conclusão antes da data marcada
+    if (newStatus === 'completed' && reservationDate) {
+      const now = new Date();
+      const scheduledDate = new Date(reservationDate);
+      
+      // Se tentar concluir antes da data marcada
+      if (now < scheduledDate) {
+        toast({
+          title: "Ação não permitida",
+          description: "A reserva não pode ser concluída antes da data marcada pelo cliente.",
+          variant: "destructive",
+        });
+        return; // Não prosseguir com a atualização
+      }
+    }
+    
     await updateReservationStatus(reservationId, newStatus);
     
     // Muda automaticamente o filtro para o novo status
@@ -665,7 +686,7 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-success hover:bg-success/90"
-                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed", reservation.starts_at)}
                             >
                               Concluir
                             </Button>
@@ -694,7 +715,7 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed", reservation.starts_at)}
                             >
                               Concluída
                             </Button>
@@ -852,7 +873,7 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed", reservation.starts_at)}
                             >
                               Concluída
                             </Button>
@@ -877,7 +898,7 @@ export default function Reservations() {
                             <Button 
                               size="sm" 
                               className="bg-accent hover:bg-accent/90"
-                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
+                              onClick={() => handleUpdateStatus(reservation.reservation_id, "completed", reservation.starts_at)}
                             >
                               Concluída
                             </Button>
@@ -1028,7 +1049,7 @@ export default function Reservations() {
                           <Button 
                             size="sm" 
                             className="bg-accent hover:bg-accent/90"
-                            onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "completed", reservation.starts_at)}
                           >
                             Concluída
                           </Button>
@@ -1053,7 +1074,7 @@ export default function Reservations() {
                           <Button 
                             size="sm" 
                             className="bg-accent hover:bg-accent/90"
-                            onClick={() => handleUpdateStatus(reservation.reservation_id, "completed")}
+                            onClick={() => handleUpdateStatus(reservation.reservation_id, "completed", reservation.starts_at)}
                           >
                             Concluída
                           </Button>
