@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Plus, Calendar, Clock, User, Phone, Search, Filter, Mail } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
-import { useReservations } from "@/hooks/useReservations";
+import { useReservationsEnhanced } from "@/hooks/useReservationsEnhanced";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
+import { VipBadge } from "@/components/queue/VipBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Reservations() {
   const { restaurants } = useRestaurants();
-  const { reservations, loading, updateReservationStatus, createReservation } = useReservations();
+  const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -607,6 +608,10 @@ export default function Reservations() {
                           <div className="flex items-center space-x-2 mb-1">
                             <h3 className="font-semibold">{reservation.customer_name}</h3>
                             <StatusBadge status={reservation.status} />
+                            {/* TAG VIP: Exibir se cliente tem 10+ visitas concluídas */}
+                            {reservation.vipStatus && (
+                              <VipBadge show={reservation.vipStatus.isVip} />
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             <span className="flex items-center">
@@ -790,6 +795,10 @@ export default function Reservations() {
                           <div className="flex items-center space-x-2 mb-1">
                             <h3 className="font-semibold">{reservation.customer_name}</h3>
                             <StatusBadge status={reservation.status} />
+                            {/* TAG VIP: Exibir se cliente tem 10+ visitas concluídas */}
+                            {reservation.vipStatus && (
+                              <VipBadge show={reservation.vipStatus.isVip} />
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             <span className="flex items-center">
@@ -968,6 +977,10 @@ export default function Reservations() {
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="font-semibold">{reservation.customer_name}</h3>
                           <StatusBadge status={reservation.status} />
+                          {/* TAG VIP: Exibir se cliente tem 10+ visitas concluídas */}
+                          {reservation.vipStatus && (
+                            <VipBadge show={reservation.vipStatus.isVip} />
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                           <span className="flex items-center">

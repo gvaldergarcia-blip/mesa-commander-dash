@@ -1,26 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useQueue } from './useQueue';
+import { useQueue, QueueEntry } from './useQueue';
 import { getCustomerVipStatus, CustomerVipStatus } from '@/utils/customerUtils';
 
 /**
  * Hook aprimorado que adiciona informações VIP aos clientes da fila
  */
 
-type QueueEntryEnhanced = {
-  entry_id: string;
-  queue_id: string;
-  customer_name: string;
-  phone: string;
-  email?: string;
-  people: number;
-  status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
-  notes?: string;
-  position?: number;
-  called_at?: string;
-  seated_at?: string;
-  canceled_at?: string;
-  created_at: string;
-  updated_at: string;
+type QueueEntryEnhanced = QueueEntry & {
   vipStatus?: CustomerVipStatus;
 };
 

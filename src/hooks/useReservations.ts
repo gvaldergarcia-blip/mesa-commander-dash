@@ -19,6 +19,8 @@ type Reservation = {
   updated_at: string;
 };
 
+export type { Reservation };
+
 type DbReservation = {
   id: string;
   restaurant_id: string;
