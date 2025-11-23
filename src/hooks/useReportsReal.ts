@@ -108,19 +108,19 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const { data: currentReservations } = await supabase
         .schema('mesaclik')
         .from('reservations')
-        .select('created_at, reservation_datetime, status, party_size, phone')
+        .select('created_at, reserved_for, status, party_size, phone')
         .eq('restaurant_id', RESTAURANT_ID)
-        .gte('reservation_datetime', startDate.toISOString())
-        .lte('reservation_datetime', endDate.toISOString());
+        .gte('reserved_for', startDate.toISOString())
+        .lte('reserved_for', endDate.toISOString());
 
       // PERÍODO ANTERIOR - Dados de reservas
       const { data: previousReservations } = await supabase
         .schema('mesaclik')
         .from('reservations')
-        .select('created_at, reservation_datetime, status, party_size')
+        .select('created_at, reserved_for, status, party_size')
         .eq('restaurant_id', RESTAURANT_ID)
-        .gte('reservation_datetime', previousStartDate.toISOString())
-        .lt('reservation_datetime', previousEndDate.toISOString());
+        .gte('reserved_for', previousStartDate.toISOString())
+        .lt('reserved_for', previousEndDate.toISOString());
 
       // Filtrar por tipo de origem
       const filterBySource = <T extends { }>(queue: T[] | null, reservations: T[] | null): T[] => {
@@ -209,7 +209,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       });
 
       currentReservations?.forEach(r => {
-        const date = new Date(r.reservation_datetime);
+        const date = new Date(r.reserved_for);
         const hour = date.getHours();
         const day = date.toLocaleDateString('pt-BR', { weekday: 'long' });
         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
@@ -223,7 +223,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const dailyMap: { [key: string]: { reservations: number; queue: number } } = {};
       
       currentReservations?.forEach(r => {
-        const date = new Date(r.reservation_datetime).toLocaleDateString('pt-BR');
+        const date = new Date(r.reserved_for).toLocaleDateString('pt-BR');
         if (!dailyMap[date]) dailyMap[date] = { reservations: 0, queue: 0 };
         dailyMap[date].reservations++;
       });
