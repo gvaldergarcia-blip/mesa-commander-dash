@@ -48,19 +48,7 @@ export default function Reservations() {
     console.log('[Reservations] Atualizando status para:', newStatus);
     await updateReservationStatus(reservationId, newStatus);
     
-    // Mapear status para a aba correspondente
-    const tabMap: Record<string, string> = {
-      'pending': 'pending',
-      'confirmed': 'confirmed',
-      'seated': 'completed',
-      'completed': 'completed',
-      'canceled': 'canceled',
-      'no_show': 'canceled'
-    };
-    
-    // Muda automaticamente para a aba do novo status
-    const targetTab = tabMap[newStatus] || 'all';
-    setActiveTab(targetTab);
+    // Muda automaticamente o filtro para o novo status
     setStatusFilter(newStatus);
   };
   
