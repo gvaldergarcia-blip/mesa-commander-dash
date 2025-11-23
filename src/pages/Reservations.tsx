@@ -41,6 +41,17 @@ export default function Reservations() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   
+  // Debug: Log quando os filtros mudarem
+  useEffect(() => {
+    console.log('[Reservations] Filtros atualizados:', { 
+      statusFilter, 
+      searchTerm, 
+      partySizeFilter,
+      periodFilter,
+      activeTab 
+    });
+  }, [statusFilter, searchTerm, partySizeFilter, periodFilter, activeTab]);
+  
   const { calendarDays, loading: calendarLoading, toggleDayAvailability, isDayAvailable } = useRestaurantCalendar();
   
   // Wrapper para atualizar status e mudar o filtro automaticamente
@@ -282,6 +293,17 @@ export default function Reservations() {
 
   const todaysReservations = getReservationsByTab("today");
   const filteredReservations = applyFilters(filterExpiredPendingReservations(reservations));
+  
+  // Debug: Log reservas filtradas
+  useEffect(() => {
+    console.log('[Reservations] Reservas filtradas:', {
+      total: reservations.length,
+      filtered: filteredReservations.length,
+      today: todaysReservations.length,
+      statusFilter,
+      matchingStatus: reservations.filter(r => statusFilter === 'all' || r.status === statusFilter).length
+    });
+  }, [filteredReservations.length, reservations.length, statusFilter, todaysReservations.length]);
   
   // Calcular métricas com base no período
   const periodReservations = filterByPeriod(reservations);
