@@ -432,7 +432,7 @@ export default function Queue() {
                 ? "Nenhum resultado encontrado com os filtros atuais."
                 : "A fila está vazia no momento."}
             </p>
-            <Button>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Adicionar Primeiro Cliente
             </Button>
