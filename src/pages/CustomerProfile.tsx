@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, Calendar, TrendingUp, Clock, Star } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Calendar, TrendingUp, Clock, Star, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -288,6 +288,42 @@ export default function CustomerProfile() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Marketing Preferences */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Preferências de Marketing</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            {customer.marketing_opt_in ? (
+              <>
+                <div className="p-3 bg-success/10 rounded-lg">
+                  <CheckCircle2 className="w-6 h-6 text-success" />
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">Aceita receber promoções</p>
+                  <p className="text-sm text-muted-foreground">
+                    Este cliente autorizou o recebimento de ofertas e comunicações de marketing.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-muted rounded-lg">
+                  <XCircle className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">Não aceita promoções</p>
+                  <p className="text-sm text-muted-foreground">
+                    Este cliente não deseja receber ofertas ou comunicações de marketing.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Visit History */}
       <Card>

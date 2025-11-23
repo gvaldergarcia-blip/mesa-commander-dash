@@ -26,6 +26,7 @@ export type CustomerEnhanced = {
 
 export type CustomerFilter = 'all' | 'vip' | 'new' | 'inactive' | 'active';
 export type SourceFilter = 'all' | 'queue' | 'reservation';
+export type MarketingFilter = 'all' | 'opt-in' | 'opt-out';
 
 export function useCustomersEnhanced(searchTerm: string = '') {
   const [customers, setCustomers] = useState<CustomerEnhanced[]>([]);

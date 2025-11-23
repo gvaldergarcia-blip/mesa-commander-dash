@@ -60,10 +60,12 @@ export const useEligibleCustomers = (restaurantId: string) => {
       );
 
       // Combinar dados
+      // LGPD: Sempre filtrar por opt-in, independente de includeInactive
       const formatted: EligibleCustomer[] = (rcData || [])
         .filter((item: any) => {
           if (!item.customers) return false;
-          if (!includeInactive && !item.customers.marketing_opt_in) return false;
+          // Sempre exigir opt-in para promoções
+          if (!item.customers.marketing_opt_in) return false;
           return true;
         })
         .map((item: any) => ({
