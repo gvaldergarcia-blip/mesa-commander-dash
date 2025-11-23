@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 type AuditAction = 'create' | 'update' | 'delete' | 'cancel' | 'confirm';
 type AuditEntity = 'reservation' | 'promotion' | 'queue_entry';

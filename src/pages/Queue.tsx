@@ -4,6 +4,7 @@ import { sendSms, SMS_TEMPLATES } from "@/utils/sms";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueue } from "@/hooks/useQueue";
 import { useToast } from "@/hooks/use-toast";
+import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -117,6 +118,18 @@ export default function Queue() {
   const handleCancelCustomer = async (entryId: string) => {
     try {
       await updateQueueStatus(entryId, "canceled");
+      
+      // Log de auditoria
+      const { logAudit } = await import('@/lib/audit');
+      await logAudit({
+        entity: 'queue_entry',
+        entityId: entryId,
+        action: 'cancel',
+        restaurantId: RESTAURANT_ID,
+        success: true,
+        metadata: { canceled_by: 'restaurant', source: 'dashboard' }
+      });
+      
       setStatusFilter("canceled");
     } catch (err) {
       // Erro já tratado pelo hook
