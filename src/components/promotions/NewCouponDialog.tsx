@@ -44,8 +44,8 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
       const days = Math.max(1, differenceInDays(end, start) + 1); // +1 para incluir o dia final
       setDurationDays(days);
       
-      // Nova regra: R$ 2,00 a cada 2 dias, sem limite
-      const calculatedPrice = Math.ceil(days / 2) * 2;
+      // Nova regra: R$ 4,90 por dia de exibição
+      const calculatedPrice = days * 4.90;
       setPrice(calculatedPrice);
     } else {
       setDurationDays(0);
@@ -437,7 +437,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
                   <span className="text-primary">R$ {price.toFixed(2)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  R$ 2,00 por cada 2 dias de exibição. Sem limite máximo de duração.
+                  R$ 4,90 por dia de exibição. Sem limite máximo de duração.
                 </p>
               </div>
             )}
