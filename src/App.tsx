@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Queue from "./pages/Queue";
 import Reservations from "./pages/Reservations";
 import Customers from "./pages/Customers";
+import CustomerProfile from "./pages/CustomerProfile";
 import Promotions from "./pages/Promotions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/queue" element={<Queue />} />
               <Route path="/reservations" element={<Reservations />} />
               <Route path="/customers" element={<Customers />} />
+              <Route path="/customers/:customerId" element={<CustomerProfile />} />
               <Route path="/promotions" element={<Promotions />} />
               <Route path="/cupons" element={<Coupons />} />
               <Route path="/reports" element={<Reports />} />
