@@ -154,6 +154,9 @@ export function useReservations() {
         updateData.completed_at = new Date().toISOString();
       }
 
+      console.log('[useReservations] Update data:', updateData);
+      console.log('[useReservations] Reservation ID:', reservationId);
+
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('reservations')
@@ -161,8 +164,12 @@ export function useReservations() {
         .eq('id', reservationId)
         .select();
 
-      if (error) throw error;
-      console.log('[useReservations] Status atualizado:', data);
+      if (error) {
+        console.error('[useReservations] Erro no update:', error);
+        throw error;
+      }
+      
+      console.log('[useReservations] Status atualizado com sucesso:', data);
 
       toast({
         title: 'Sucesso',
