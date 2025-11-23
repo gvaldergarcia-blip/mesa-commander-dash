@@ -135,6 +135,16 @@ export function useQueue() {
 
   const updateQueueStatus = async (entryId: string, status: QueueEntry['status']) => {
     try {
+      // Buscar dados do cliente antes de atualizar
+      const { data: entryData, error: fetchError } = await supabase
+        .schema('mesaclik')
+        .from('queue_entries')
+        .select('customer_name, phone, email')
+        .eq('id', entryId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       // Usar RPC para atualizar status com cast correto do enum
       const { error } = await supabase.rpc('update_queue_entry_status', {
         p_entry_id: entryId,
@@ -142,6 +152,16 @@ export function useQueue() {
       });
 
       if (error) throw error;
+
+      // Se status for 'seated', registrar/atualizar em customers
+      if (status === 'seated' && entryData) {
+        await upsertCustomer({
+          name: entryData.customer_name,
+          phone: entryData.phone,
+          email: entryData.email,
+          source: 'queue'
+        });
+      }
 
       const statusMessages: Record<QueueEntry['status'], string> = {
         'waiting': 'Status atualizado',
@@ -165,6 +185,76 @@ export function useQueue() {
         variant: 'destructive',
       });
       throw err;
+    }
+  };
+
+  // Função auxiliar para upsert de clientes
+  const upsertCustomer = async (data: { name: string; phone: string; email?: string; source: 'queue' | 'reservation' }) => {
+    try {
+      // Buscar cliente existente pelo telefone
+      const { data: existingCustomer, error: searchError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone', data.phone)
+        .maybeSingle();
+
+      if (searchError) throw searchError;
+
+      const now = new Date().toISOString();
+
+      if (existingCustomer) {
+        // Atualizar cliente existente
+        const updates: any = {
+          last_visit_date: now,
+          updated_at: now
+        };
+
+        if (data.source === 'queue') {
+          updates.queue_completed = (existingCustomer.queue_completed || 0) + 1;
+        } else {
+          updates.reservations_completed = (existingCustomer.reservations_completed || 0) + 1;
+        }
+
+        // Calcular total de visitas e status VIP
+        const totalVisits = (updates.queue_completed || existingCustomer.queue_completed || 0) + 
+                           (updates.reservations_completed || existingCustomer.reservations_completed || 0);
+        updates.total_visits = totalVisits;
+        updates.vip_status = totalVisits >= 10;
+
+        // Atualizar first_visit_at se estiver vazio
+        if (!existingCustomer.first_visit_at) {
+          updates.first_visit_at = now;
+        }
+
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update(updates)
+          .eq('id', existingCustomer.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Criar novo cliente
+        const newCustomer: any = {
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          queue_completed: data.source === 'queue' ? 1 : 0,
+          reservations_completed: data.source === 'reservation' ? 1 : 0,
+          total_visits: 1,
+          vip_status: false,
+          first_visit_at: now,
+          last_visit_date: now
+        };
+
+        const { error: insertError } = await supabase
+          .from('customers')
+          .insert([newCustomer]);
+
+        if (insertError) throw insertError;
+      }
+    } catch (error) {
+      console.error('Erro ao registrar cliente:', error);
+      // Não lançar erro para não bloquear a operação principal
     }
   };
 
