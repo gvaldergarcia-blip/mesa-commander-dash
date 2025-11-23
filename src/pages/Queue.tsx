@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { sendSms, SMS_TEMPLATES } from "@/utils/sms";
 import { useRestaurants } from "@/hooks/useRestaurants";
-import { useQueue } from "@/hooks/useQueue";
+import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useToast } from "@/hooks/use-toast";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { VipBadge } from "@/components/queue/VipBadge";
+import { QueueAlert } from "@/components/queue/QueueAlert";
 import { 
   Dialog,
   DialogContent,
@@ -27,8 +29,12 @@ import {
 
 export default function Queue() {
   const { restaurants } = useRestaurants();
-  const { queueEntries, loading, updateQueueStatus, addToQueue } = useQueue();
+  const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue } = useQueueEnhanced();
   const { toast } = useToast();
+
+  // CONFIGURAÇÃO: Limite de capacidade da fila
+  // TODO: Futuramente buscar de uma tabela de configurações do restaurante
+  const QUEUE_CAPACITY_LIMIT = 10;
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -55,13 +61,30 @@ export default function Queue() {
   const totalPeople = activeEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
   
   // Calcular tempo médio de espera dos que estão aguardando
-  const avgWaitTime = totalWaiting > 0
+  const avgWaitTimeMinutes = totalWaiting > 0
     ? Math.round(
         activeEntries
           .filter(entry => entry.status === "waiting")
           .reduce((sum, entry) => sum + calculateWaitTime(entry.created_at), 0) / totalWaiting
-      ) + " min"
-    : "0 min";
+      )
+    : 0;
+  
+  const avgWaitTime = avgWaitTimeMinutes + " min";
+
+  // LÓGICA: Fila cheia
+  const isQueueFull = totalWaiting >= QUEUE_CAPACITY_LIMIT;
+  const isQueueCritical = totalWaiting >= QUEUE_CAPACITY_LIMIT;
+
+  /**
+   * LÓGICA: Calcular estimativa de tempo de espera para cada grupo
+   * Fórmula: tempo_estimado = tempo_medio_atual * posição_do_grupo
+   * @param position - Posição do grupo na fila (1, 2, 3...)
+   * @returns Tempo estimado em minutos
+   */
+  const calculateEstimatedWaitTime = (position: number): number => {
+    if (avgWaitTimeMinutes === 0) return 0;
+    return avgWaitTimeMinutes * position;
+  };
 
   // Debounced search
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -175,6 +198,9 @@ export default function Queue() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Alerta de Fila Cheia */}
+      <QueueAlert totalWaiting={totalWaiting} capacityLimit={QUEUE_CAPACITY_LIMIT} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -231,13 +257,24 @@ export default function Queue() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className={isQueueFull ? "border-2 border-destructive bg-destructive/5" : ""}>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-primary" />
+              {isQueueFull ? (
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              ) : (
+                <Users className="h-5 w-5 text-primary" />
+              )}
               <div>
-                <p className="text-2xl font-bold">{totalWaiting}</p>
+                <p className={`text-2xl font-bold ${isQueueFull ? 'text-destructive' : ''}`}>
+                  {totalWaiting}
+                </p>
                 <p className="text-sm text-muted-foreground">Grupos na fila</p>
+                {isQueueFull && (
+                  <p className="text-xs text-destructive font-semibold mt-1">
+                    Fila cheia ({QUEUE_CAPACITY_LIMIT}+ grupos)
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -350,6 +387,10 @@ export default function Queue() {
                     <div className="flex items-center space-x-2 mb-1">
                       <h3 className="font-semibold">{entry.customer_name}</h3>
                       <StatusBadge status={entry.status} />
+                      {/* TAG VIP: Exibir apenas se cliente é VIP (10+ visitas concluídas) */}
+                      {entry.vipStatus && (
+                        <VipBadge show={entry.vipStatus.isVip} />
+                      )}
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <span className="flex items-center">
@@ -364,6 +405,13 @@ export default function Queue() {
                         <Clock className="w-3 h-3 mr-1" />
                         {calculateWaitTime(entry.created_at)} min
                       </span>
+                      {/* ESTIMATIVA DE ESPERA: Baseado na posição e tempo médio */}
+                      {position && avgWaitTimeMinutes > 0 && (
+                        <span className="flex items-center text-muted-foreground/80 italic">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Estimativa: {calculateEstimatedWaitTime(position)} min
+                        </span>
+                      )}
                     </div>
                     {entry.notes && (
                       <p className="text-sm text-muted-foreground mt-1 italic">
