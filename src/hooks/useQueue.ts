@@ -21,6 +21,8 @@ type QueueEntry = {
   updated_at: string;
 };
 
+export type { QueueEntry };
+
 export function useQueue() {
   const restaurantId = RESTAURANT_ID;
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);

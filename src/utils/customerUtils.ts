@@ -2,12 +2,13 @@
  * REGRA OFICIAL VIP - MESA CLIK
  * 
  * Um cliente é considerado VIP quando:
- * visits_completed >= 10
+ * total_visits >= 10
  * 
  * Onde:
- * visits_completed = fila_concluida + reservas_concluidas
+ * total_visits = queue_completed + reservations_completed
  * 
- * Esta função calcula se um cliente é VIP baseado nos dados do Supabase
+ * FONTE OFICIAL: tabela customers
+ * Esta função busca o status VIP DIRETO da tabela customers
  */
 
 import { supabase } from '@/lib/supabase/client';
@@ -20,34 +21,38 @@ export type CustomerVipStatus = {
 };
 
 /**
- * Calcula o status VIP de um cliente baseado no telefone
+ * Busca o status VIP de um cliente da tabela customers (FONTE OFICIAL)
  * @param phone - Telefone do cliente
  * @returns Status VIP com contadores detalhados
  */
 export async function getCustomerVipStatus(phone: string): Promise<CustomerVipStatus> {
   try {
-    // Contar fila concluída (status = 'seated')
-    const { count: queueCount } = await supabase
-      .schema('mesaclik')
-      .from('queue_entries')
-      .select('*', { count: 'exact', head: true })
+    // BUSCAR DIRETO DA TABELA CUSTOMERS (fonte oficial)
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .select('vip_status, queue_completed, reservations_completed, total_visits')
       .eq('phone', phone)
-      .eq('status', 'seated');
+      .maybeSingle();
 
-    // Contar reservas concluídas (status = 'completed')
-    const { count: reservationCount } = await supabase
-      .schema('mesaclik')
-      .from('reservations')
-      .select('*', { count: 'exact', head: true })
-      .eq('phone', phone)
-      .eq('status', 'completed');
+    if (error) throw error;
 
-    const queueCompleted = queueCount || 0;
-    const reservationsCompleted = reservationCount || 0;
-    const totalVisitsCompleted = queueCompleted + reservationsCompleted;
+    // Se cliente não existe na tabela customers, NÃO é VIP
+    if (!customer) {
+      return {
+        isVip: false,
+        queueCompleted: 0,
+        reservationsCompleted: 0,
+        totalVisitsCompleted: 0,
+      };
+    }
 
-    // REGRA VIP: >= 10 visitas concluídas
-    const isVip = totalVisitsCompleted >= 10;
+    // Usar dados da tabela customers
+    const queueCompleted = customer.queue_completed || 0;
+    const reservationsCompleted = customer.reservations_completed || 0;
+    const totalVisitsCompleted = customer.total_visits || 0;
+
+    // REGRA VIP: vip_status OU total_visits >= 10
+    const isVip = customer.vip_status || totalVisitsCompleted >= 10;
 
     return {
       isVip,
@@ -56,7 +61,7 @@ export async function getCustomerVipStatus(phone: string): Promise<CustomerVipSt
       totalVisitsCompleted,
     };
   } catch (error) {
-    console.error('Erro ao calcular status VIP:', error);
+    console.error('Erro ao buscar status VIP do cliente:', error);
     return {
       isVip: false,
       queueCompleted: 0,
