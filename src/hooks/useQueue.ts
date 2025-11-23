@@ -140,8 +140,6 @@ export function useQueue() {
 
       if (error) throw error;
 
-      if (error) throw error;
-
       const statusMessages: Record<QueueEntry['status'], string> = {
         'waiting': 'Status atualizado',
         'called': 'Cliente chamado',
