@@ -23,14 +23,14 @@ export function useReservationSettings(restaurantId: string) {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('reservation_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .maybeSingle();
 
       if (error) throw error;
-      setSettings(data);
+      setSettings(data as ReservationSettings | null);
     } catch (error) {
       console.error('Error fetching reservation settings:', error);
     } finally {
@@ -40,7 +40,7 @@ export function useReservationSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<ReservationSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('reservation_settings')
         .upsert({
           ...values,

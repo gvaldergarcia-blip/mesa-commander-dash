@@ -60,7 +60,12 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
   const onSubmit = async (values: QueueSettingsFormValues) => {
     await saveSettings({
       restaurant_id: restaurantId,
-      ...values,
+      max_party_size: values.max_party_size,
+      queue_capacity: values.queue_capacity,
+      avg_time_1_2: values.avg_time_1_2,
+      avg_time_3_4: values.avg_time_3_4,
+      avg_time_5_6: values.avg_time_5_6,
+      avg_time_7_8: values.avg_time_7_8,
     });
   };
 

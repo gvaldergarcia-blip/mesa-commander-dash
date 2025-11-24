@@ -50,7 +50,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
         .order('day_of_week');
 
       if (hoursData) {
-        setWeekHours(hoursData.map(h => ({
+        setWeekHours(hoursData.map((h: any) => ({
           day_of_week: h.day_of_week || 0,
           open_time: h.open_time || '08:00',
           close_time: h.close_time || '22:00',
@@ -65,14 +65,14 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
       }
 
       // Fetch special dates
-      const { data: specialData } = await supabase
+      const { data: specialData } = await (supabase as any)
         .from('restaurant_special_dates')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .order('date');
 
       if (specialData) {
-        setSpecialDates(specialData.map(d => ({
+        setSpecialDates(specialData.map((d: any) => ({
           id: d.id,
           date: d.date,
           open_time: d.open_time || '08:00',
@@ -82,14 +82,14 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
       }
 
       // Fetch closures
-      const { data: closuresData } = await supabase
+      const { data: closuresData } = await (supabase as any)
         .from('restaurant_closures')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .order('date');
 
       if (closuresData) {
-        setClosures(closuresData.map(c => ({
+        setClosures(closuresData.map((c: any) => ({
           id: c.id,
           date: c.date,
           reason: c.reason || '',
@@ -159,7 +159,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
     };
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('restaurant_special_dates')
         .insert({
           restaurant_id: restaurantId,
@@ -191,7 +191,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
   const deleteSpecialDate = async (id?: string) => {
     if (!id) return;
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('restaurant_special_dates')
         .delete()
         .eq('id', id);
@@ -214,7 +214,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
     };
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('restaurant_closures')
         .insert({
           restaurant_id: restaurantId,
@@ -244,7 +244,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
   const deleteClosure = async (id?: string) => {
     if (!id) return;
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('restaurant_closures')
         .delete()
         .eq('id', id);

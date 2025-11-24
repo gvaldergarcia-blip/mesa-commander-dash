@@ -47,7 +47,8 @@ export function ReservationSettings({ restaurantId }: { restaurantId: string }) 
   const onSubmit = async (values: ReservationSettingsFormValues) => {
     await saveSettings({
       restaurant_id: restaurantId,
-      ...values,
+      max_party_size: values.max_party_size,
+      tolerance_minutes: values.tolerance_minutes,
     });
   };
 
