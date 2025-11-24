@@ -32,6 +32,10 @@ import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 
+import { HoursSettings } from "@/components/settings/HoursSettings";
+import { QueueSettings } from "@/components/settings/QueueSettings";
+import { ReservationSettings } from "@/components/settings/ReservationSettings";
+
 const cuisineTypes = [...CUISINE_TYPES];
 
 const settingsSchema = z.object({
@@ -594,132 +598,17 @@ export default function Settings() {
 
         {/* Tab 2: Horários & Funcionamento */}
         <TabsContent value="hours">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                Horários & Funcionamento
-              </CardTitle>
-              <CardDescription>
-                Configure os horários de funcionamento do seu restaurante
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-              
-              <div className="grid gap-4 opacity-50 pointer-events-none">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Segunda-feira</label>
-                  <div className="flex gap-4">
-                    <Input placeholder="08:00" className="bg-background" />
-                    <Input placeholder="22:00" className="bg-background" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Terça-feira</label>
-                  <div className="flex gap-4">
-                    <Input placeholder="08:00" className="bg-background" />
-                    <Input placeholder="22:00" className="bg-background" />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <HoursSettings restaurantId={RESTAURANT_ID} />
         </TabsContent>
 
         {/* Tab 3: Fila de Espera */}
         <TabsContent value="queue">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Configurações da Fila de Espera
-              </CardTitle>
-              <CardDescription>
-                Gerencie as configurações da fila de espera do seu restaurante
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="space-y-4 opacity-50 pointer-events-none">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Tamanho máximo do grupo</label>
-                  <Input type="number" placeholder="10" className="bg-background" />
-                  <p className="text-xs text-muted-foreground">Número máximo de pessoas por grupo na fila</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Capacidade limite da fila</label>
-                  <Input type="number" placeholder="20" className="bg-background" />
-                  <p className="text-xs text-muted-foreground">Número máximo de grupos aguardando simultaneamente</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <QueueSettings restaurantId={RESTAURANT_ID} />
         </TabsContent>
 
         {/* Tab 4: Reservas */}
         <TabsContent value="reservation">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Configurações de Reserva
-              </CardTitle>
-              <CardDescription>
-                Configure as regras de reserva do seu restaurante
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="space-y-4 opacity-50 pointer-events-none">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Tempo de tolerância (minutos)</label>
-                  <Input type="number" placeholder="15" className="bg-background" />
-                  <p className="text-xs text-muted-foreground">Tempo de espera antes de cancelar automaticamente</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Antecedência mínima (horas)</label>
-                  <Input type="number" placeholder="2" className="bg-background" />
-                  <p className="text-xs text-muted-foreground">Tempo mínimo necessário para fazer uma reserva</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ReservationSettings restaurantId={RESTAURANT_ID} />
         </TabsContent>
 
         {/* Tab 5: Notificações */}

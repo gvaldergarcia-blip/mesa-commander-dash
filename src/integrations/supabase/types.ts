@@ -323,6 +323,53 @@ export type Database = {
           },
         ]
       }
+      queue_settings: {
+        Row: {
+          avg_time_1_2: number
+          avg_time_3_4: number
+          avg_time_5_6: number
+          avg_time_7_8: number
+          created_at: string | null
+          id: string
+          max_party_size: number
+          queue_capacity: number
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avg_time_1_2?: number
+          avg_time_3_4?: number
+          avg_time_5_6?: number
+          avg_time_7_8?: number
+          created_at?: string | null
+          id?: string
+          max_party_size?: number
+          queue_capacity?: number
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avg_time_1_2?: number
+          avg_time_3_4?: number
+          avg_time_5_6?: number
+          avg_time_7_8?: number
+          created_at?: string | null
+          id?: string
+          max_party_size?: number
+          queue_capacity?: number
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_settings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       queues: {
         Row: {
           created_at: string
@@ -353,6 +400,41 @@ export type Database = {
             foreignKeyName: "queues_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          max_party_size: number
+          restaurant_id: string
+          tolerance_minutes: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          max_party_size?: number
+          restaurant_id: string
+          tolerance_minutes?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          max_party_size?: number
+          restaurant_id?: string
+          tolerance_minutes?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_settings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -427,6 +509,41 @@ export type Database = {
           },
         ]
       }
+      restaurant_closures: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          reason: string | null
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          reason?: string | null
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          reason?: string | null
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_closures_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_hours: {
         Row: {
           close_time: string | null
@@ -479,6 +596,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      restaurant_special_dates: {
+        Row: {
+          close_time: string | null
+          created_at: string | null
+          date: string
+          id: string
+          open_time: string | null
+          reason: string | null
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          close_time?: string | null
+          created_at?: string | null
+          date: string
+          id?: string
+          open_time?: string | null
+          reason?: string | null
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          close_time?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          open_time?: string | null
+          reason?: string | null
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_special_dates_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurants: {
         Row: {

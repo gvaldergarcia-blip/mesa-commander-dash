@@ -27,14 +27,14 @@ export function useQueueSettings(restaurantId: string) {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('queue_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .maybeSingle();
 
       if (error) throw error;
-      setSettings(data);
+      setSettings(data as QueueSettings | null);
     } catch (error) {
       console.error('Error fetching queue settings:', error);
     } finally {
@@ -44,7 +44,7 @@ export function useQueueSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<QueueSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('queue_settings')
         .upsert({
           ...values,
