@@ -31,7 +31,7 @@ import {
 export default function Queue() {
   const { restaurants } = useRestaurants();
   const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue } = useQueueEnhanced();
-  const { getAverageForSize, loading: loadingAverages } = useQueueWaitTimeAverages(RESTAURANT_ID);
+  const { getAverageForSize, generalAverage, loading: loadingAverages } = useQueueWaitTimeAverages(RESTAURANT_ID);
   const { toast } = useToast();
 
   // CONFIGURAÇÃO: Limite de capacidade da fila
@@ -406,19 +406,31 @@ export default function Queue() {
                     {/* TEMPO MÉDIO HISTÓRICO: Baseado em dados reais dos últimos 30 dias */}
                     {!loadingAverages && (() => {
                       const avgTime = getAverageForSize(entry.people);
+                      
+                      // 1. Se tiver média da faixa específica, usa ela
                       if (avgTime !== null) {
                         return (
                           <p className="text-xs text-muted-foreground/70 mt-1">
                             Tempo médio histórico para grupos desse tamanho: <span className="font-medium">{avgTime} min</span>
                           </p>
                         );
-                      } else {
+                      }
+                      
+                      // 2. Se não tiver média da faixa, usa a média geral
+                      if (generalAverage !== null) {
                         return (
-                          <p className="text-xs text-muted-foreground/50 mt-1 italic">
-                            Ainda sem dados suficientes para calcular o tempo médio.
+                          <p className="text-xs text-muted-foreground/70 mt-1">
+                            Tempo médio geral de espera: <span className="font-medium">{generalAverage} min</span>
                           </p>
                         );
                       }
+                      
+                      // 3. Só mostra "sem dados" se não tiver nada
+                      return (
+                        <p className="text-xs text-muted-foreground/50 mt-1 italic">
+                          Ainda sem dados suficientes para calcular o tempo médio.
+                        </p>
+                      );
                     })()}
                     {entry.notes && (
                       <p className="text-sm text-muted-foreground mt-1 italic">

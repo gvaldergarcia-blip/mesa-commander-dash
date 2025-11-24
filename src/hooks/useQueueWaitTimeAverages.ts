@@ -20,6 +20,7 @@ type WaitTimeAveragesMap = {
  */
 export function useQueueWaitTimeAverages(restaurantId: string) {
   const [averages, setAverages] = useState<WaitTimeAveragesMap>({});
+  const [generalAverage, setGeneralAverage] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,17 +38,28 @@ export function useQueueWaitTimeAverages(restaurantId: string) {
 
         // Converter array para map para fácil acesso
         const averagesMap: WaitTimeAveragesMap = {};
+        let totalWaitTime = 0;
+        let totalSamples = 0;
+        
         (data as WaitTimeAverage[])?.forEach(item => {
-          // Só incluir se tiver pelo menos 5 amostras para ser confiável
-          if (item.sample_count >= 5) {
+          // Incluir faixas com pelo menos 1 amostra (critério reduzido)
+          if (item.sample_count >= 1) {
             averagesMap[item.size_range as keyof WaitTimeAveragesMap] = item.avg_wait_time_min;
+            // Acumular para calcular média geral ponderada
+            totalWaitTime += item.avg_wait_time_min * item.sample_count;
+            totalSamples += item.sample_count;
           }
         });
 
+        // Calcular tempo médio geral (ponderado)
+        const generalAvg = totalSamples > 0 ? Math.round(totalWaitTime / totalSamples) : null;
+
         setAverages(averagesMap);
+        setGeneralAverage(generalAvg);
       } catch (error) {
         console.error('Erro ao buscar tempos médios:', error);
         setAverages({});
+        setGeneralAverage(null);
       } finally {
         setLoading(false);
       }
@@ -74,6 +86,7 @@ export function useQueueWaitTimeAverages(restaurantId: string) {
 
   return {
     averages,
+    generalAverage,
     loading,
     getAverageForSize,
   };
