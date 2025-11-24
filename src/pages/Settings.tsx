@@ -26,8 +26,11 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, Image as ImageIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, Bell, Gift, Tag, CreditCard, Shield, Info } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -267,301 +270,689 @@ export default function Settings() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto py-8 px-4 max-w-7xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Configurações do Restaurante</h1>
+        <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
         <p className="text-muted-foreground mt-2">
-          Gerencie as informações que aparecem no app MesaClik. As alterações são aplicadas em tempo real.
+          Gerencie todas as configurações do seu restaurante no MesaClik
         </p>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Informações Básicas */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Básicas</CardTitle>
-              <CardDescription>
-                Dados principais do seu restaurante
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Restaurante</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Restaurante Sabor & Arte" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <Tabs defaultValue="restaurant" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto gap-2 bg-muted/50 p-2">
+          <TabsTrigger value="restaurant" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Restaurante</span>
+          </TabsTrigger>
+          <TabsTrigger value="hours" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <span className="hidden sm:inline">Horários</span>
+          </TabsTrigger>
+          <TabsTrigger value="queue" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Fila</span>
+          </TabsTrigger>
+          <TabsTrigger value="reservation" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">Reservas</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            <span className="hidden sm:inline">Notificações</span>
+          </TabsTrigger>
+          <TabsTrigger value="loyalty" className="flex items-center gap-2">
+            <Gift className="h-4 w-4" />
+            <span className="hidden sm:inline">10 Cliks</span>
+          </TabsTrigger>
+          <TabsTrigger value="promotions" className="flex items-center gap-2">
+            <Tag className="h-4 w-4" />
+            <span className="hidden sm:inline">Cupons</span>
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Plano</span>
+          </TabsTrigger>
+          <TabsTrigger value="privacy" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            <span className="hidden sm:inline">Privacidade</span>
+          </TabsTrigger>
+        </TabsList>
 
-              <FormField
-                control={form.control}
-                name="address_line"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço Completo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Rua das Flores, 123 - Centro" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cidade</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: São Paulo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="cuisine"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tipo de Culinária</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+        {/* Tab 1: Informações do Restaurante */}
+        <TabsContent value="restaurant">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    Informações do Restaurante
+                  </CardTitle>
+                  <CardDescription>
+                    Dados principais que aparecem no app MesaClik. As alterações são aplicadas em tempo real.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Restaurante *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
+                          <Input placeholder="Ex: Restaurante Sabor & Arte" {...field} />
                         </FormControl>
-                        <SelectContent className="bg-popover z-50">
-                          {cuisineTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Sobre o Restaurante */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sobre o Restaurante</CardTitle>
-              <CardDescription>
-                Descrição que aparecerá na tela de detalhes do app
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                control={form.control}
-                name="about"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição (até 400 caracteres)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Conte um pouco sobre a história, especialidades e diferenciais do seu restaurante..."
-                        className="min-h-[120px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {field.value?.length || 0} / 400 caracteres
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Imagens e Cardápio */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Imagens e Cardápio</CardTitle>
-              <CardDescription>
-                URLs das imagens que aparecem no app e link do cardápio
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="image_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Imagem Principal</FormLabel>
-                    <div className="space-y-4">
-                      <FormControl>
-                        <Input
-                          placeholder="https://exemplo.com/imagem-restaurante.jpg"
-                          {...field}
-                        />
-                      </FormControl>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">ou</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={uploadingImage}
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleImageUpload(file);
-                            };
-                            input.click();
-                          }}
-                        >
-                          {uploadingImage ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Enviando...
-                            </>
-                          ) : (
-                            <>
-                              <ImageIcon className="mr-2 h-4 w-4" />
-                              Anexar Imagem
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <FormDescription>
-                      Esta imagem aparece no bloco do restaurante na Home Page e nas listagens
-                    </FormDescription>
-                    {field.value && (
-                      <div className="mt-4 relative rounded-lg overflow-hidden border border-border">
-                        <img
-                          src={field.value}
-                          alt="Preview"
-                          className="w-full h-48 object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </div>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  />
 
-              <Separator />
-
-              <div className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="menu_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Link do Cardápio</FormLabel>
-                      <div className="flex gap-2">
+                  <FormField
+                    control={form.control}
+                    name="address_line"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Endereço Completo *</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="https://exemplo.com/cardapio.pdf"
+                          <Input placeholder="Ex: Rua das Flores, 123 - Centro" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cidade *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Ex: São Paulo" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="cuisine"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Culinária *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-popover z-50">
+                              {cuisineTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <FormField
+                    control={form.control}
+                    name="about"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descrição do Restaurante</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Conte um pouco sobre a história, especialidades e diferenciais do seu restaurante..."
+                            className="min-h-[120px]"
                             {...field}
                           />
                         </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={uploadingMenuImage}
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) handleMenuImageUpload(file);
-                            };
-                            input.click();
-                          }}
-                        >
-                          {uploadingMenuImage ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Enviando...
-                            </>
-                          ) : (
-                            <>
-                              <ImageIcon className="mr-2 h-4 w-4" />
-                              Anexar Imagem
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      <FormDescription>
-                        Cole o link do cardápio ou anexe uma imagem
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormDescription>
+                          {field.value?.length || 0} / 400 caracteres
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="menu_image_url"
-                  render={({ field }) => (
-                    <FormItem>
-                      {field.value && (
-                        <div className="relative rounded-lg overflow-hidden border border-border">
-                          <img
-                            src={field.value}
-                            alt="Preview do Cardápio"
-                            className="w-full h-48 object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
+                  <Separator />
+
+                  <FormField
+                    control={form.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Imagem Principal do Restaurante</FormLabel>
+                        <div className="space-y-4">
+                          <FormControl>
+                            <Input
+                              placeholder="https://exemplo.com/imagem-restaurante.jpg"
+                              {...field}
+                            />
+                          </FormControl>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">ou</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={uploadingImage}
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = (e) => {
+                                  const file = (e.target as HTMLInputElement).files?.[0];
+                                  if (file) handleImageUpload(file);
+                                };
+                                input.click();
+                              }}
+                            >
+                              {uploadingImage ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Enviando...
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="mr-2 h-4 w-4" />
+                                  Anexar Imagem
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
+                        <FormDescription>
+                          Esta imagem aparece no bloco do restaurante na Home Page e nas listagens
+                        </FormDescription>
+                        {field.value && (
+                          <div className="mt-4 relative rounded-lg overflow-hidden border border-border">
+                            <img
+                              src={field.value}
+                              alt="Preview"
+                              className="w-full h-48 object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Separator />
+
+                  <div className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="menu_url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Link do Cardápio</FormLabel>
+                          <div className="flex gap-2">
+                            <FormControl>
+                              <Input
+                                placeholder="https://exemplo.com/cardapio.pdf"
+                                {...field}
+                              />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={uploadingMenuImage}
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = (e) => {
+                                  const file = (e.target as HTMLInputElement).files?.[0];
+                                  if (file) handleMenuImageUpload(file);
+                                };
+                                input.click();
+                              }}
+                            >
+                              {uploadingMenuImage ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Enviando...
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="mr-2 h-4 w-4" />
+                                  Anexar Imagem
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <FormDescription>
+                            Cole o link do cardápio ou anexe uma imagem
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </FormItem>
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="menu_image_url"
+                      render={({ field }) => (
+                        <FormItem>
+                          {field.value && (
+                            <div className="relative rounded-lg overflow-hidden border border-border">
+                              <img
+                                src={field.value}
+                                alt="Preview do Cardápio"
+                                className="w-full h-48 object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end sticky bottom-4 z-10">
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={saving}
+                  className="min-w-[200px] shadow-lg"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Salvar Alterações
+                    </>
                   )}
-                />
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </TabsContent>
+
+        {/* Tab 2: Horários & Funcionamento */}
+        <TabsContent value="hours">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Horários & Funcionamento
+              </CardTitle>
+              <CardDescription>
+                Configure os horários de funcionamento do seu restaurante
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+              
+              <div className="grid gap-4 opacity-50 pointer-events-none">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Segunda-feira</label>
+                  <div className="flex gap-4">
+                    <Input placeholder="08:00" className="bg-background" />
+                    <Input placeholder="22:00" className="bg-background" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Terça-feira</label>
+                  <div className="flex gap-4">
+                    <Input placeholder="08:00" className="bg-background" />
+                    <Input placeholder="22:00" className="bg-background" />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Botão Salvar */}
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={saving}
-              className="min-w-[200px]"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvar Alterações
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </Form>
+        {/* Tab 3: Fila de Espera */}
+        <TabsContent value="queue">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Configurações da Fila de Espera
+              </CardTitle>
+              <CardDescription>
+                Gerencie as configurações da fila de espera do seu restaurante
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="space-y-4 opacity-50 pointer-events-none">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tamanho máximo do grupo</label>
+                  <Input type="number" placeholder="10" className="bg-background" />
+                  <p className="text-xs text-muted-foreground">Número máximo de pessoas por grupo na fila</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Capacidade limite da fila</label>
+                  <Input type="number" placeholder="20" className="bg-background" />
+                  <p className="text-xs text-muted-foreground">Número máximo de grupos aguardando simultaneamente</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 4: Reservas */}
+        <TabsContent value="reservation">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Configurações de Reserva
+              </CardTitle>
+              <CardDescription>
+                Configure as regras de reserva do seu restaurante
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="space-y-4 opacity-50 pointer-events-none">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tempo de tolerância (minutos)</label>
+                  <Input type="number" placeholder="15" className="bg-background" />
+                  <p className="text-xs text-muted-foreground">Tempo de espera antes de cancelar automaticamente</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Antecedência mínima (horas)</label>
+                  <Input type="number" placeholder="2" className="bg-background" />
+                  <p className="text-xs text-muted-foreground">Tempo mínimo necessário para fazer uma reserva</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 5: Notificações */}
+        <TabsContent value="notifications">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                Notificações
+              </CardTitle>
+              <CardDescription>
+                Configure como e quando enviar notificações aos clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="space-y-4 opacity-50 pointer-events-none">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-background">
+                  <div>
+                    <p className="font-medium">Notificações por SMS</p>
+                    <p className="text-sm text-muted-foreground">Enviar SMS para confirmações e lembretes</p>
+                  </div>
+                  <Switch disabled />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-background">
+                  <div>
+                    <p className="font-medium">Notificações por E-mail</p>
+                    <p className="text-sm text-muted-foreground">Enviar e-mails para confirmações e lembretes</p>
+                  </div>
+                  <Switch disabled />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 6: Programa de Fidelidade */}
+        <TabsContent value="loyalty">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-primary" />
+                Programa de Fidelidade 10 Cliks
+              </CardTitle>
+              <CardDescription>
+                Fidelize seus clientes com pontos e recompensas
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="p-6 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 opacity-50">
+                <h3 className="font-semibold text-lg mb-2">Como funciona o 10 Cliks?</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  A cada 10 visitas completas, seu cliente ganha uma recompensa especial. 
+                  Configure prêmios, promoções e incentive a fidelização.
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Programa ativo</span>
+                  <Switch disabled />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 7: Cupons & Promoções */}
+        <TabsContent value="promotions">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5 text-primary" />
+                Cupons & Promoções
+              </CardTitle>
+              <CardDescription>
+                Configure preferências de marketing e promoções
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="p-6 border rounded-lg bg-background opacity-50">
+                <h3 className="font-semibold mb-2">Ofertas por E-mail</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Envie cupons e promoções exclusivas para clientes que aceitaram receber ofertas.
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Aceitar enviar ofertas</span>
+                  <Switch disabled />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 8: Plano & Pagamento */}
+        <TabsContent value="billing">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Plano & Pagamento
+              </CardTitle>
+              <CardDescription>
+                Gerencie sua assinatura e método de pagamento
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="p-6 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 opacity-50">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">Plano Profissional</h3>
+                    <p className="text-sm text-muted-foreground">Ativo desde 01/01/2025</p>
+                  </div>
+                  <Badge className="bg-primary">Ativo</Badge>
+                </div>
+                <Separator className="my-4" />
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valor mensal</span>
+                    <span className="font-medium">R$ 99,90</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Próxima renovação</span>
+                    <span className="font-medium">01/02/2025</span>
+                  </div>
+                </div>
+                <Button variant="outline" className="w-full mt-4" disabled>
+                  Alterar Plano
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 9: Privacidade & Segurança */}
+        <TabsContent value="privacy">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                Privacidade, LGPD e Segurança
+              </CardTitle>
+              <CardDescription>
+                Configurações de privacidade e proteção de dados
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Em desenvolvimento</p>
+                    <p className="text-sm text-muted-foreground">
+                      Esta funcionalidade estará disponível em breve
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="secondary">Em breve</Badge>
+              </div>
+
+              <div className="space-y-4 opacity-50">
+                <div className="p-4 border rounded-lg bg-background">
+                  <h4 className="font-medium mb-2">Proteção de Dados (LGPD)</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Todos os dados dos seus clientes são protegidos conforme a Lei Geral de Proteção de Dados.
+                  </p>
+                  <Button variant="link" className="p-0 h-auto" disabled>
+                    Ver política de privacidade →
+                  </Button>
+                </div>
+
+                <div className="p-4 border rounded-lg bg-background">
+                  <h4 className="font-medium mb-2">Segurança</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Suas informações são criptografadas e armazenadas com segurança.
+                  </p>
+                  <Button variant="link" className="p-0 h-auto" disabled>
+                    Ver documentação de segurança →
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
