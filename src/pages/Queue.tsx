@@ -362,12 +362,18 @@ export default function Queue() {
 
       {/* Queue List */}
       <div className="space-y-3">
-        {filteredQueue.map((entry, index) => {
-          // Calcular posição apenas entre os "waiting"
-          const waitingEntries = filteredQueue.filter(e => e.status === "waiting");
-          const position = entry.status === "waiting" 
-            ? waitingEntries.findIndex(e => e.entry_id === entry.entry_id) + 1
-            : null;
+        {(() => {
+          // Calcular posições UMA VEZ para todos os "waiting" da lista completa (não filtrada)
+          // Isso garante que a posição seja sempre baseada na ordem real da fila
+          const allWaitingEntries = activeEntries.filter(e => e.status === "waiting");
+          const positionMap = new Map<string, number>();
+          allWaitingEntries.forEach((entry, idx) => {
+            positionMap.set(entry.entry_id, idx + 1);
+          });
+          
+          return filteredQueue.map((entry) => {
+            // Pegar posição do mapa (só existe para entries "waiting")
+            const position = positionMap.get(entry.entry_id) || null;
           
           return (
             <Card key={entry.entry_id} className="hover:shadow-md transition-shadow">
@@ -467,7 +473,8 @@ export default function Queue() {
             </CardContent>
           </Card>
         );
-        })}
+        });
+        })()}
       </div>
 
       {filteredQueue.length === 0 && (

@@ -43,7 +43,7 @@ export function useQueue() {
         .from('v_queue_current')
         .select('*')
         .gte('created_at', last24Hours.toISOString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       setQueueEntries(data || []);
