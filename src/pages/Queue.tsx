@@ -76,14 +76,37 @@ export default function Queue() {
   const isQueueCritical = totalWaiting >= QUEUE_CAPACITY_LIMIT;
 
   /**
+   * LÓGICA: Calcular fator de ajuste baseado no tamanho do grupo
+   * Grupos maiores tendem a demorar mais para serem acomodados
+   */
+  const getPartySizeFactor = (partySize: number): number => {
+    if (partySize <= 2) return 1.0;
+    if (partySize <= 4) return 1.2;
+    if (partySize <= 6) return 1.5;
+    return 1.8; // 7+ pessoas
+  };
+
+  /**
    * LÓGICA: Calcular estimativa de tempo de espera para cada grupo
-   * Fórmula: tempo_estimado = tempo_medio_atual * posição_do_grupo
+   * Fórmula: tempo_estimado = grupos_na_frente × tempo_medio_global × fator_tamanho
    * @param position - Posição do grupo na fila (1, 2, 3...)
+   * @param partySize - Tamanho do grupo (número de pessoas)
    * @returns Tempo estimado em minutos
    */
-  const calculateEstimatedWaitTime = (position: number): number => {
-    if (avgWaitTimeMinutes === 0) return 0;
-    return avgWaitTimeMinutes * position;
+  const calculateEstimatedWaitTime = (position: number, partySize: number): number => {
+    // Se não há tempo médio, usar 5 minutos como fallback
+    const avgTime = avgWaitTimeMinutes > 0 ? avgWaitTimeMinutes : 5;
+    
+    // Grupos na frente = posição - 1 (posição 1 tem 0 grupos na frente)
+    const groupsAhead = position - 1;
+    
+    // Fator de ajuste baseado no tamanho do grupo
+    const sizeFactor = getPartySizeFactor(partySize);
+    
+    // Cálculo final
+    const estimatedMinutes = groupsAhead * avgTime * sizeFactor;
+    
+    return Math.round(estimatedMinutes);
   };
 
   // Debounced search
@@ -411,11 +434,11 @@ export default function Queue() {
                         <Clock className="w-3 h-3 mr-1" />
                         {calculateWaitTime(entry.created_at)} min
                       </span>
-                      {/* ESTIMATIVA DE ESPERA: Baseado na posição e tempo médio */}
-                      {position && avgWaitTimeMinutes > 0 && (
+                      {/* ESTIMATIVA DE ESPERA: Baseado na posição, tempo médio e tamanho do grupo */}
+                      {position && (
                         <span className="flex items-center text-muted-foreground/80 italic">
                           <Clock className="w-3 h-3 mr-1" />
-                          Estimativa: {calculateEstimatedWaitTime(position)} min
+                          Estimativa: {calculateEstimatedWaitTime(position, entry.people)} min
                         </span>
                       )}
                     </div>
