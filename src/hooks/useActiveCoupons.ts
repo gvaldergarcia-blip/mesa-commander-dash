@@ -7,8 +7,9 @@ export type ActiveCoupon = {
   title: string;
   description: string | null;
   coupon_type: 'link' | 'upload';
-  coupon_link: string | null;
+  redeem_link: string | null;
   file_url: string | null;
+  image_url: string | null;
   start_date: string;
   end_date: string;
   duration_days: number;
@@ -28,19 +29,29 @@ export type ActiveCoupon = {
   };
 };
 
-export function useActiveCoupons() {
+export function useActiveCoupons(restaurantId?: string) {
   const [coupons, setCoupons] = useState<ActiveCoupon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<any>(null);
 
   const fetchActiveCoupons = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString();
+      setError(null);
+      
+      // Usar data atual no formato correto (início do dia em UTC)
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
       
       console.log('[useActiveCoupons] Buscando cupons ativos...');
+      console.log('[useActiveCoupons] Data atual:', now.toISOString());
+      console.log('[useActiveCoupons] Início do dia:', todayStart);
+      console.log('[useActiveCoupons] Restaurant ID filtro:', restaurantId || 'todos');
       
-      // Query com schema explícito
-      const { data, error } = await supabase
+      // Build query
+      let query = (supabase as any)
         .schema('mesaclik')
         .from('coupons')
         .select(`
@@ -55,16 +66,26 @@ export function useActiveCoupons() {
         `)
         .eq('status', 'active')
         .eq('payment_status', 'completed')
-        .lte('start_date', today)
-        .gte('end_date', today)
-        .order('created_at', { ascending: false });
+        .lte('start_date', todayEnd)  // start_date <= hoje (fim do dia)
+        .gte('end_date', todayStart)  // end_date >= hoje (início do dia)
+        .order('end_date', { ascending: true }); // Cupons que expiram primeiro aparecem primeiro
 
-      if (error) {
-        console.error('[useActiveCoupons] Erro ao buscar cupons:', error);
-        throw error;
+      // Filtrar por restaurante se especificado
+      if (restaurantId) {
+        query = query.eq('restaurant_id', restaurantId);
+      }
+
+      const { data, error: queryError } = await query;
+
+      if (queryError) {
+        console.error('[useActiveCoupons] Erro ao buscar cupons:', queryError);
+        setError(queryError.message);
+        setDebug({ error: queryError, todayStart, todayEnd, restaurantId });
+        throw queryError;
       }
       
-      console.log('[useActiveCoupons] Cupons ativos encontrados:', data?.length || 0, data);
+      console.log('[useActiveCoupons] Cupons ativos encontrados:', data?.length || 0);
+      console.log('[useActiveCoupons] Dados:', data);
       
       // Mapear restaurant corretamente
       const mappedData = data?.map((coupon: any) => ({
@@ -72,9 +93,18 @@ export function useActiveCoupons() {
         restaurant: coupon.restaurants
       })) || [];
       
+      setDebug({ 
+        count: mappedData.length, 
+        todayStart, 
+        todayEnd, 
+        restaurantId,
+        rawData: data 
+      });
+      
       setCoupons(mappedData);
-    } catch (error) {
-      console.error('[useActiveCoupons] Error fetching active coupons:', error);
+    } catch (err) {
+      console.error('[useActiveCoupons] Error fetching active coupons:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar cupons');
     } finally {
       setLoading(false);
     }
@@ -83,9 +113,9 @@ export function useActiveCoupons() {
   useEffect(() => {
     fetchActiveCoupons();
 
-    // Realtime subscription para novos cupons
+    // Realtime subscription para mudanças em cupons
     const channel = supabase
-      .channel('coupons-changes')
+      .channel('coupons-realtime')
       .on(
         'postgres_changes',
         {
@@ -94,7 +124,7 @@ export function useActiveCoupons() {
           table: 'coupons',
         },
         (payload) => {
-          console.log('Mudança em cupons:', payload);
+          console.log('[useActiveCoupons] Mudança detectada em cupons:', payload);
           fetchActiveCoupons();
         }
       )
@@ -103,11 +133,11 @@ export function useActiveCoupons() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [restaurantId]);
 
   const registerInteraction = async (couponId: string, interactionType: 'view' | 'click' | 'use') => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .schema('mesaclik')
         .from('coupon_interactions')
         .insert([{
@@ -116,15 +146,19 @@ export function useActiveCoupons() {
           user_id: (await supabase.auth.getUser()).data.user?.id || null
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useActiveCoupons] Erro ao registrar interação:', error);
+      }
     } catch (error) {
-      console.error('Error registering interaction:', error);
+      console.error('[useActiveCoupons] Error registering interaction:', error);
     }
   };
 
   return {
     coupons,
     loading,
+    error,
+    debug,
     registerInteraction,
     refetch: fetchActiveCoupons,
   };
