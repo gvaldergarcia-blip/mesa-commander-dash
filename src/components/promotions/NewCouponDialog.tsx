@@ -31,9 +31,19 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   const [couponLink, setCouponLink] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string>('');
-  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  // Data de início padrão = HOJE para garantir que cupom apareça imediatamente
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState('');
   const [durationDays, setDurationDays] = useState(0);
+  
+  // Resetar data de início para hoje quando o dialog abrir
+  useEffect(() => {
+    if (open) {
+      const currentDate = format(new Date(), 'yyyy-MM-dd');
+      setStartDate(currentDate);
+    }
+  }, [open]);
   const [price, setPrice] = useState(0);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -224,7 +234,22 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
         }
       }
 
-      // TEMPORÁRIO: Criar cupom diretamente como ativo para testar exibição no app
+      // Garantir que a data de início seja NO MÁXIMO hoje (não pode ser futuro para aparecer no app)
+      const startDateObj = new Date(startDate + 'T00:00:00');
+      const todayObj = new Date();
+      todayObj.setHours(0, 0, 0, 0);
+      
+      // Se a data de início for futura, o cupom será "agendado", não "ativo" no app
+      const isScheduled = startDateObj > todayObj;
+      
+      console.log('[NewCouponDialog] Criando cupom:', {
+        startDate,
+        endDate,
+        startDateObj: startDateObj.toISOString(),
+        todayObj: todayObj.toISOString(),
+        isScheduled
+      });
+
       const coupon = await createCoupon({
         restaurant_id: RESTAURANT_ID,
         title: couponTitle.trim(),
@@ -234,20 +259,24 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
         coupon_type: couponType,
         redeem_link: couponType === 'link' ? couponLink : undefined,
         file_url: fileUrl || undefined,
-        start_date: new Date(startDate + 'T00:00:00').toISOString(),
+        start_date: startDateObj.toISOString(),
         end_date: new Date(endDate + 'T23:59:59').toISOString(),
         duration_days: durationDays,
         price,
-        status: 'active', // ATIVO DIRETO para teste
-        payment_status: 'completed', // COMPLETO para teste
+        status: 'active',
+        payment_status: 'completed',
         payment_method: 'test',
         paid_at: new Date().toISOString(),
         tags: [],
       });
+      
+      const successMessage = isScheduled 
+        ? `Cupom agendado! Ele aparecerá no app a partir de ${format(startDateObj, 'dd/MM/yyyy')}`
+        : 'O cupom já está ativo e visível no app!';
 
       toast({
         title: 'Cupom criado com sucesso!',
-        description: 'O cupom já está ativo e visível no app',
+        description: successMessage,
       });
 
       // Fechar o modal
