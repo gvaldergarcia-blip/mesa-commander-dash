@@ -25,6 +25,8 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   
   const [showTermsDialog, setShowTermsDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [couponTitle, setCouponTitle] = useState('');
+  const [couponDescription, setCouponDescription] = useState('');
   const [couponType, setCouponType] = useState<'link' | 'upload'>('link');
   const [couponLink, setCouponLink] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -107,6 +109,15 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   };
 
   const validateForm = () => {
+    if (!couponTitle.trim()) {
+      toast({
+        title: 'Título obrigatório',
+        description: 'Digite um título para o cupom',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     if (!startDate || !endDate) {
       toast({
         title: 'Campos obrigatórios',
@@ -216,15 +227,15 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
       // TEMPORÁRIO: Criar cupom diretamente como ativo para testar exibição no app
       const coupon = await createCoupon({
         restaurant_id: RESTAURANT_ID,
-        title: `Cupom ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
-        description: 'Oferta especial do restaurante',
+        title: couponTitle.trim(),
+        description: couponDescription.trim() || 'Oferta especial do restaurante',
         discount_type: 'fixed',
         discount_value: 0,
         coupon_type: couponType,
         redeem_link: couponType === 'link' ? couponLink : undefined,
         file_url: fileUrl || undefined,
-        start_date: new Date(startDate).toISOString(),
-        end_date: new Date(endDate).toISOString(),
+        start_date: new Date(startDate + 'T00:00:00').toISOString(),
+        end_date: new Date(endDate + 'T23:59:59').toISOString(),
         duration_days: durationDays,
         price,
         status: 'active', // ATIVO DIRETO para teste
@@ -269,6 +280,8 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   };
 
   const resetForm = () => {
+    setCouponTitle('');
+    setCouponDescription('');
     setCouponType('link');
     setCouponLink('');
     setUploadedFile(null);
@@ -290,6 +303,30 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Título do Cupom */}
+            <div>
+              <Label htmlFor="title">Título do Cupom *</Label>
+              <Input
+                id="title"
+                value={couponTitle}
+                onChange={(e) => setCouponTitle(e.target.value)}
+                placeholder="Ex: 20% OFF em todos os pratos principais"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Descrição */}
+            <div>
+              <Label htmlFor="description">Descrição (opcional)</Label>
+              <Input
+                id="description"
+                value={couponDescription}
+                onChange={(e) => setCouponDescription(e.target.value)}
+                placeholder="Ex: Válido para pedidos acima de R$ 50"
+                className="mt-1"
+              />
+            </div>
+
             {/* Tipo de Cupom */}
             <div>
               <Label>Tipo de Cupom *</Label>

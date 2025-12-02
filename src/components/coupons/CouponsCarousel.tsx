@@ -2,15 +2,19 @@ import React from 'react';
 import { useActiveCoupons } from '@/hooks/useActiveCoupons';
 import { CouponCard } from './CouponCard';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Tag } from 'lucide-react';
+import { ChevronRight, Tag, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export function CouponsCarousel() {
-  const { coupons, loading, registerInteraction } = useActiveCoupons();
+interface CouponsCarouselProps {
+  restaurantId?: string;
+}
+
+export function CouponsCarousel({ restaurantId }: CouponsCarouselProps) {
+  const { coupons, loading, error, registerInteraction, refetch } = useActiveCoupons(restaurantId);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    console.log('CouponsCarousel - Cupons carregados:', coupons.length, coupons);
+    console.log('[CouponsCarousel] Cupons carregados:', coupons.length, coupons);
   }, [coupons]);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -22,21 +26,51 @@ export function CouponsCarousel() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <section className="space-y-4 py-6">
         <div className="flex items-center justify-between">
-          <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+          <div className="flex items-center gap-2">
+            <Tag className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">Ofertas e Cupons MesaClik 💸</h2>
+          </div>
         </div>
         <div className="flex gap-4 overflow-hidden">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="min-w-[280px] h-80 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
-      </div>
+      </section>
     );
   }
 
+  // Se não houver cupons, mostrar mensagem amigável
   if (coupons.length === 0) {
-    return null;
+    return (
+      <section className="space-y-4 py-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Tag className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">Ofertas e Cupons MesaClik 💸</h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={refetch}>
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Atualizar
+          </Button>
+        </div>
+        
+        <div className="bg-muted/50 rounded-lg p-8 text-center">
+          <Tag className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Nenhum cupom disponível no momento</h3>
+          <p className="text-muted-foreground">
+            Volte em breve para ver novas ofertas!
+          </p>
+          {error && (
+            <p className="text-xs text-red-500 mt-2">
+              Erro: {error}
+            </p>
+          )}
+        </div>
+      </section>
+    );
   }
 
   return (
