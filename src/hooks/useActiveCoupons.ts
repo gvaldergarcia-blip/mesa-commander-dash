@@ -40,17 +40,34 @@ export function useActiveCoupons(restaurantId?: string) {
       setLoading(true);
       setError(null);
       
-      // Usar data atual no formato correto (início do dia em UTC)
+      // Usar data atual em UTC para comparação consistente com o banco
       const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+      // Converter para início e fim do dia em UTC
+      const todayStart = now.toISOString().split('T')[0] + 'T00:00:00.000Z';
+      const todayEnd = now.toISOString().split('T')[0] + 'T23:59:59.999Z';
       
+      console.log('[useActiveCoupons] =================================');
       console.log('[useActiveCoupons] Buscando cupons ativos...');
-      console.log('[useActiveCoupons] Data atual:', now.toISOString());
-      console.log('[useActiveCoupons] Início do dia:', todayStart);
+      console.log('[useActiveCoupons] Data atual UTC:', now.toISOString());
+      console.log('[useActiveCoupons] Início do dia UTC:', todayStart);
+      console.log('[useActiveCoupons] Fim do dia UTC:', todayEnd);
       console.log('[useActiveCoupons] Restaurant ID filtro:', restaurantId || 'todos');
       
-      // Build query
+      // Query sem join primeiro para simplificar debug
+      const { data: rawData, error: rawError } = await (supabase as any)
+        .schema('mesaclik')
+        .from('coupons')
+        .select('*')
+        .eq('status', 'active')
+        .eq('payment_status', 'completed');
+      
+      console.log('[useActiveCoupons] Todos cupons active+completed:', rawData?.length || 0, rawData);
+      
+      if (rawError) {
+        console.error('[useActiveCoupons] Erro na query raw:', rawError);
+      }
+      
+      // Query completa com filtro de datas
       let query = (supabase as any)
         .schema('mesaclik')
         .from('coupons')
@@ -66,16 +83,17 @@ export function useActiveCoupons(restaurantId?: string) {
         `)
         .eq('status', 'active')
         .eq('payment_status', 'completed')
-        .lte('start_date', todayEnd)  // start_date <= hoje (fim do dia)
-        .gte('end_date', todayStart)  // end_date >= hoje (início do dia)
-        .order('end_date', { ascending: true }); // Cupons que expiram primeiro aparecem primeiro
+        .lte('start_date', todayEnd)
+        .gte('end_date', todayStart)
+        .order('end_date', { ascending: true });
 
-      // Filtrar por restaurante se especificado
       if (restaurantId) {
         query = query.eq('restaurant_id', restaurantId);
       }
 
       const { data, error: queryError } = await query;
+      
+      console.log('[useActiveCoupons] Query final resultado:', data?.length || 0);
 
       if (queryError) {
         console.error('[useActiveCoupons] Erro ao buscar cupons:', queryError);
