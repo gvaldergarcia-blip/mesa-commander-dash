@@ -215,11 +215,12 @@ export function useReservations() {
   // Função auxiliar para upsert de clientes
   const upsertCustomer = async (data: { name: string; phone: string; email?: string; source: 'queue' | 'reservation' }) => {
     try {
-      // Buscar cliente existente pelo telefone
+      // Buscar cliente existente pelo telefone e restaurante
       const { data: existingCustomer, error: searchError } = await supabase
         .from('customers')
         .select('*')
         .eq('phone', data.phone)
+        .eq('restaurant_id', restaurantId)
         .maybeSingle();
 
       if (searchError) throw searchError;
@@ -257,11 +258,12 @@ export function useReservations() {
 
         if (updateError) throw updateError;
       } else {
-        // Criar novo cliente
+        // Criar novo cliente com restaurant_id para isolamento multi-tenant
         const newCustomer: any = {
           name: data.name,
           phone: data.phone,
           email: data.email,
+          restaurant_id: restaurantId,
           queue_completed: data.source === 'queue' ? 1 : 0,
           reservations_completed: data.source === 'reservation' ? 1 : 0,
           total_visits: 1,
