@@ -42,10 +42,11 @@ export function useCustomersEnhanced(searchTerm: string = '') {
     try {
       setLoading(true);
 
-      // Buscar clientes da tabela customers (não da view)
+      // Buscar clientes da tabela customers (filtrado por restaurante)
       let query = supabase
         .from('customers')
         .select('*')
+        .eq('restaurant_id', RESTAURANT_ID)
         .order('last_visit_date', { ascending: false });
 
       // Aplicar filtro de busca se houver
