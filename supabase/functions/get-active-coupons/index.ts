@@ -52,7 +52,7 @@ serve(async (req) => {
           name,
           image_url,
           cuisine,
-          address,
+          address_line,
           city
         )
       `)
