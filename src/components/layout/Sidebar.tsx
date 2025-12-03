@@ -14,16 +14,23 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FEATURE_FLAGS } from "@/config/feature-flags";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Fila", href: "/queue", icon: Users },
-  { name: "Reservas", href: "/reservations", icon: Calendar },
-  { name: "Clientes", href: "/customers", icon: UserCheck },
-  { name: "Promoções", href: "/promotions", icon: Megaphone },
-  { name: "Relatórios", href: "/reports", icon: BarChart3 },
-  { name: "Configurações", href: "/settings", icon: Settings },
+const allNavigation = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
+  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null },
+  { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
+  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
+  { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
+  { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
+  { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },
 ];
+
+// Filtra itens de navegação com base nas feature flags
+const navigation = allNavigation.filter((item) => {
+  if (item.requiresFeature === null) return true;
+  return FEATURE_FLAGS[item.requiresFeature];
+});
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);

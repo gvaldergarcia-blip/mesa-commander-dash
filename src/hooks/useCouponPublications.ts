@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { FEATURE_FLAGS, FEATURE_DISABLED_MESSAGE } from '@/config/feature-flags';
 
 export type PublicationStatus = 'pending' | 'paid' | 'cancelled';
 
@@ -40,12 +41,25 @@ export function useCouponPublications() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Feature flag check
+  const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
+
   useEffect(() => {
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      setPublications([]);
+      return;
+    }
     fetchPublications();
     fetchPricing();
-  }, []);
+  }, [isFeatureEnabled]);
 
   const fetchPublications = async () => {
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -71,6 +85,8 @@ export function useCouponPublications() {
   };
 
   const fetchPricing = async () => {
+    if (!isFeatureEnabled) return;
+
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
@@ -91,6 +107,15 @@ export function useCouponPublications() {
   };
 
   const createPublication = async (params: CreatePublicationParams) => {
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const price = getPriceForDuration(params.duration_hours);
 
@@ -138,6 +163,15 @@ export function useCouponPublications() {
   };
 
   const updatePublicationStatus = async (id: string, status: PublicationStatus) => {
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
@@ -168,6 +202,15 @@ export function useCouponPublications() {
   };
 
   const extendPublication = async (publicationId: string, additionalHours: number) => {
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const publication = publications.find(p => p.id === publicationId);
       if (!publication) throw new Error('Publicação não encontrada');

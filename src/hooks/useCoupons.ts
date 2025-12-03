@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { FEATURE_FLAGS, FEATURE_DISABLED_MESSAGE } from '@/config/feature-flags';
 
 export type DiscountType = 'percentage' | 'fixed';
 export type CouponStatus = 'draft' | 'scheduled' | 'active' | 'expired' | 'cancelled';
@@ -50,11 +51,25 @@ export function useCoupons() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Feature flag check - desabilita todas as operações de cupons
+  const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
+
   useEffect(() => {
-    fetchCoupons();
-  }, []);
+    if (isFeatureEnabled) {
+      fetchCoupons();
+    } else {
+      setLoading(false);
+      setCoupons([]);
+    }
+  }, [isFeatureEnabled]);
 
   const fetchCoupons = async () => {
+    // Se feature desabilitada, não faz nada
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -80,6 +95,16 @@ export function useCoupons() {
   };
 
   const createCoupon = async (coupon: CreateCouponParams) => {
+    // Se feature desabilitada, bloqueia operação
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
@@ -112,6 +137,16 @@ export function useCoupons() {
   };
 
   const updateCoupon = async ({ id, ...updates }: UpdateCouponParams) => {
+    // Se feature desabilitada, bloqueia operação
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
@@ -145,6 +180,16 @@ export function useCoupons() {
   };
 
   const deleteCoupon = async (id: string) => {
+    // Se feature desabilitada, bloqueia operação
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const { error } = await supabase
         .schema('mesaclik')
@@ -172,6 +217,16 @@ export function useCoupons() {
   };
 
   const duplicateCoupon = async (id: string) => {
+    // Se feature desabilitada, bloqueia operação
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const original = coupons.find(c => c.id === id);
       if (!original) throw new Error('Cupom não encontrado');

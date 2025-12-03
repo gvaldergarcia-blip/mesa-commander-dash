@@ -9,6 +9,7 @@ import { useRestaurants } from "@/hooks/useRestaurants";
 import { useDashboardMetricsReal } from "@/hooks/useDashboardMetricsReal";
 import { useQueue } from "@/hooks/useQueue";
 import { useReservations } from "@/hooks/useReservations";
+import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { 
   Dialog,
   DialogContent,
@@ -332,14 +333,17 @@ export default function Dashboard() {
               Cadastrar Cliente
             </Button>
             
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={() => navigate('/promotions')}
-            >
-              <Megaphone className="w-4 h-4 mr-2" />
-              Enviar Promoção
-            </Button>
+            {/* Botão de Promoção - condicionado à feature flag */}
+            {FEATURE_FLAGS.CUPONS_ENABLED && (
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={() => navigate('/promotions')}
+              >
+                <Megaphone className="w-4 h-4 mr-2" />
+                Enviar Promoção
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
