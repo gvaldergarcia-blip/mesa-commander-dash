@@ -28,9 +28,9 @@ import {
 
 export default function Dashboard() {
   const { restaurants, loading: loadingRestaurants } = useRestaurants();
-  const { metrics, loading: loadingMetrics } = useDashboardMetricsReal();
-  const { queueEntries, addToQueue } = useQueue();
-  const { reservations, createReservation } = useReservations();
+  const { metrics, recentActivity, loading: loadingMetrics } = useDashboardMetricsReal();
+  const { addToQueue } = useQueue();
+  const { createReservation } = useReservations();
   const navigate = useNavigate();
   
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
@@ -91,33 +91,6 @@ export default function Dashboard() {
     setIsReservationDialogOpen(false);
   };
   
-  // Recent activity from real data
-  const recentActivity = [
-    ...queueEntries.slice(0, 5).map((entry) => ({
-      id: entry.entry_id,
-      type: "queue" as const,
-      customer: entry.customer_name,
-      action: entry.status === "waiting" ? "Adicionada à fila" :
-              entry.status === "called" ? "Chamada para mesa" : "Sentada",
-      time: new Date(entry.created_at).toLocaleTimeString("pt-BR", { 
-        hour: "2-digit", 
-        minute: "2-digit" 
-      }),
-      party: entry.people,
-    })),
-    ...reservations.slice(0, 5).map((res) => ({
-      id: res.reservation_id,
-      type: "reservation" as const,
-      customer: res.customer_name,
-      action: res.status === "confirmed" ? "Reserva confirmada" :
-              res.status === "pending" ? "Reserva pendente" : "Check-in realizado",
-      time: new Date(res.created_at).toLocaleTimeString("pt-BR", { 
-        hour: "2-digit", 
-        minute: "2-digit" 
-      }),
-      party: res.people,
-    })),
-  ].slice(0, 10).sort((a, b) => b.time.localeCompare(a.time));
   
   return (
     <div className="p-6 space-y-6">
