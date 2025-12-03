@@ -147,11 +147,27 @@ export function useQueue() {
 
       if (fetchError) throw fetchError;
 
-      // Usar RPC para atualizar status com cast correto do enum
-      const { error } = await supabase.rpc('update_queue_entry_status', {
-        p_entry_id: entryId,
-        p_status: status
-      });
+      // Preparar dados de atualização
+      const updateData: any = {
+        status: status,
+        updated_at: new Date().toISOString()
+      };
+
+      // Adicionar timestamps específicos por status
+      if (status === 'called') {
+        updateData.called_at = new Date().toISOString();
+      } else if (status === 'seated') {
+        updateData.seated_at = new Date().toISOString();
+      } else if (status === 'canceled' || status === 'no_show') {
+        updateData.canceled_at = new Date().toISOString();
+      }
+
+      // Atualizar diretamente na tabela
+      const { error } = await supabase
+        .schema('mesaclik')
+        .from('queue_entries')
+        .update(updateData)
+        .eq('id', entryId);
 
       if (error) throw error;
 
