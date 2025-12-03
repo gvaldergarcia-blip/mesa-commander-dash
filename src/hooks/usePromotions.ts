@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { FEATURE_FLAGS, FEATURE_DISABLED_MESSAGE } from '@/config/feature-flags';
 
 type Promotion = {
   id: string;
@@ -22,11 +23,25 @@ export function usePromotions() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Feature flag check - desabilita operações de promoções
+  const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
+
   useEffect(() => {
-    fetchPromotions();
-  }, []);
+    if (isFeatureEnabled) {
+      fetchPromotions();
+    } else {
+      setLoading(false);
+      setPromotions([]);
+    }
+  }, [isFeatureEnabled]);
 
   const fetchPromotions = async () => {
+    // Se feature desabilitada, não faz nada
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -52,6 +67,16 @@ export function usePromotions() {
   };
 
   const createPromotion = async (promotion: Omit<Promotion, 'id' | 'created_at' | 'updated_at'>) => {
+    // Se feature desabilitada, bloqueia operação
+    if (!isFeatureEnabled) {
+      toast({
+        title: 'Funcionalidade desativada',
+        description: FEATURE_DISABLED_MESSAGE,
+        variant: 'destructive',
+      });
+      throw new Error(FEATURE_DISABLED_MESSAGE);
+    }
+
     try {
       const { data, error } = await supabase
         .schema('mesaclik')

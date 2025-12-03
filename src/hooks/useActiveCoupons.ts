@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { FEATURE_FLAGS } from '@/config/feature-flags';
 
 export type ActiveCoupon = {
   id: string;
@@ -35,7 +36,17 @@ export function useActiveCoupons(restaurantId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<any>(null);
 
+  // Feature flag check - desabilita operações de cupons
+  const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
+
   const fetchActiveCoupons = async () => {
+    // Se feature desabilitada, não faz nada
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      setCoupons([]);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -129,6 +140,13 @@ export function useActiveCoupons(restaurantId?: string) {
   };
 
   useEffect(() => {
+    // Se feature desabilitada, não inicializa subscription
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      setCoupons([]);
+      return;
+    }
+
     fetchActiveCoupons();
 
     // Realtime subscription para mudanças em cupons
@@ -151,9 +169,12 @@ export function useActiveCoupons(restaurantId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId]);
+  }, [restaurantId, isFeatureEnabled]);
 
   const registerInteraction = async (couponId: string, interactionType: 'view' | 'click' | 'use') => {
+    // Se feature desabilitada, não registra interação
+    if (!isFeatureEnabled) return;
+
     try {
       const { error } = await (supabase as any)
         .schema('mesaclik')

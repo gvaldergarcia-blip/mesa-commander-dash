@@ -14,8 +14,26 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Coupons from "./pages/Coupons";
 import NotFound from "./pages/NotFound";
+import { FeatureDisabled } from "./components/common/FeatureDisabled";
+import { FEATURE_FLAGS } from "./config/feature-flags";
 
 const queryClient = new QueryClient();
+
+// Componente wrapper para rotas que requerem feature flags
+const FeatureGuard = ({ 
+  feature, 
+  children, 
+  featureName 
+}: { 
+  feature: keyof typeof FEATURE_FLAGS; 
+  children: React.ReactNode;
+  featureName: string;
+}) => {
+  if (!FEATURE_FLAGS[feature]) {
+    return <FeatureDisabled featureName={featureName} />;
+  }
+  return <>{children}</>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -32,8 +50,17 @@ const App = () => (
               <Route path="/reservations" element={<Reservations />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/customers/:customerId" element={<CustomerProfile />} />
-              <Route path="/promotions" element={<Promotions />} />
-              <Route path="/cupons" element={<Coupons />} />
+              {/* Rotas protegidas por feature flag - Cupons/Promoções */}
+              <Route path="/promotions" element={
+                <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
+                  <Promotions />
+                </FeatureGuard>
+              } />
+              <Route path="/cupons" element={
+                <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
+                  <Coupons />
+                </FeatureGuard>
+              } />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

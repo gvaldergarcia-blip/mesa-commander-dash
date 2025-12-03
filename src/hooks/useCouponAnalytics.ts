@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { FEATURE_FLAGS } from '@/config/feature-flags';
 
 export type CouponAnalytics = {
   id: string;
@@ -20,14 +21,25 @@ export function useCouponAnalytics(couponId?: string) {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Feature flag check
+  const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
+
   useEffect(() => {
+    if (!isFeatureEnabled) {
+      setLoading(false);
+      setAnalytics([]);
+      return;
+    }
     if (couponId) {
       fetchAnalytics();
     }
-  }, [couponId]);
+  }, [couponId, isFeatureEnabled]);
 
   const fetchAnalytics = async () => {
-    if (!couponId) return;
+    if (!couponId || !isFeatureEnabled) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
