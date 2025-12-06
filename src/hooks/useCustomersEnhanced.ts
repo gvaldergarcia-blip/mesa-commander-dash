@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 export type CustomerStatus = 'vip' | 'new' | 'inactive' | 'active';
 
@@ -42,11 +41,10 @@ export function useCustomersEnhanced(searchTerm: string = '') {
     try {
       setLoading(true);
 
-      // Buscar clientes da tabela customers (filtrado por restaurante)
+      // Buscar clientes da tabela customers
       let query = supabase
         .from('customers')
         .select('*')
-        .eq('restaurant_id', RESTAURANT_ID)
         .order('last_visit_date', { ascending: false });
 
       // Aplicar filtro de busca se houver
