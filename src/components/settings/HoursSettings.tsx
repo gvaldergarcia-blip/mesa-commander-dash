@@ -3,37 +3,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Clock, Plus, Trash2, Copy } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Clock, Copy, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 type DayHours = {
   day_of_week: number;
+  is_open: boolean;
   open_time: string;
   close_time: string;
 };
 
-type SpecialDate = {
-  id?: string;
-  date: string;
-  open_time: string;
-  close_time: string;
-  reason: string;
-};
-
-type Closure = {
-  id?: string;
-  date: string;
-  reason: string;
-};
-
-const DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+const DAYS = [
+  { index: 0, name: 'Segunda-feira' },
+  { index: 1, name: 'Terça-feira' },
+  { index: 2, name: 'Quarta-feira' },
+  { index: 3, name: 'Quinta-feira' },
+  { index: 4, name: 'Sexta-feira' },
+  { index: 5, name: 'Sábado' },
+  { index: 6, name: 'Domingo' },
+];
 
 export function HoursSettings({ restaurantId }: { restaurantId: string }) {
   const [weekHours, setWeekHours] = useState<DayHours[]>([]);
-  const [specialDates, setSpecialDates] = useState<SpecialDate[]>([]);
-  const [closures, setClosures] = useState<Closure[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,72 +37,69 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
 
   const fetchData = async () => {
     try {
-      // Fetch regular hours
-      const { data: hoursData } = await supabase
+      setLoading(true);
+      const { data: hoursData, error } = await supabase
         .from('restaurant_hours')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .order('day_of_week');
 
-      if (hoursData) {
-        setWeekHours(hoursData.map((h: any) => ({
-          day_of_week: h.day_of_week || 0,
-          open_time: h.open_time || '08:00',
-          close_time: h.close_time || '22:00',
-        })));
+      if (error) throw error;
+
+      if (hoursData && hoursData.length > 0) {
+        // Map existing data with proper typing
+        type HourRecord = { day_of_week: number; open_time: string | null; close_time: string | null };
+        const hoursMap = new Map<number, HourRecord>(
+          hoursData.map((h: HourRecord) => [h.day_of_week, h])
+        );
+        
+        setWeekHours(DAYS.map(day => {
+          const existing = hoursMap.get(day.index);
+          return {
+            day_of_week: day.index,
+            is_open: existing ? (existing.open_time !== null) : true,
+            open_time: existing?.open_time || '08:00',
+            close_time: existing?.close_time || '22:00',
+          };
+        }));
       } else {
-        // Initialize with default hours
-        setWeekHours(Array.from({ length: 7 }, (_, i) => ({
-          day_of_week: i,
+        // Initialize with default hours (all days open)
+        setWeekHours(DAYS.map(day => ({
+          day_of_week: day.index,
+          is_open: true,
           open_time: '08:00',
           close_time: '22:00',
         })));
       }
-
-      // Fetch special dates
-      const { data: specialData } = await (supabase as any)
-        .from('restaurant_special_dates')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('date');
-
-      if (specialData) {
-        setSpecialDates(specialData.map((d: any) => ({
-          id: d.id,
-          date: d.date,
-          open_time: d.open_time || '08:00',
-          close_time: d.close_time || '22:00',
-          reason: d.reason || '',
-        })));
-      }
-
-      // Fetch closures
-      const { data: closuresData } = await (supabase as any)
-        .from('restaurant_closures')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('date');
-
-      if (closuresData) {
-        setClosures(closuresData.map((c: any) => ({
-          id: c.id,
-          date: c.date,
-          reason: c.reason || '',
-        })));
-      }
     } catch (error) {
       console.error('Error fetching hours data:', error);
+      // Initialize with defaults on error
+      setWeekHours(DAYS.map(day => ({
+        day_of_week: day.index,
+        is_open: true,
+        open_time: '08:00',
+        close_time: '22:00',
+      })));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const applyToAllDays = () => {
+  const applyMondayToAll = () => {
     if (weekHours.length === 0) return;
-    const firstDay = weekHours[0];
+    const monday = weekHours[0]; // Monday is index 0
+    
     setWeekHours(weekHours.map(h => ({
       ...h,
-      open_time: firstDay.open_time,
-      close_time: firstDay.close_time,
+      // Only apply hours to days that are open
+      open_time: h.is_open ? monday.open_time : h.open_time,
+      close_time: h.is_open ? monday.close_time : h.close_time,
     })));
+
+    toast({
+      title: "Horários aplicados",
+      description: "Os horários da segunda-feira foram aplicados a todos os dias abertos.",
+    });
   };
 
   const saveAllHours = async () => {
@@ -124,8 +116,8 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
       const hoursToInsert = weekHours.map(h => ({
         restaurant_id: restaurantId,
         day_of_week: h.day_of_week,
-        open_time: h.open_time,
-        close_time: h.close_time,
+        open_time: h.is_open ? h.open_time : null,
+        close_time: h.is_open ? h.close_time : null,
       }));
 
       const { error } = await supabase
@@ -136,7 +128,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
 
       toast({
         title: "Horários salvos",
-        description: "Os horários de funcionamento foram atualizados.",
+        description: "Os horários de funcionamento foram atualizados com sucesso.",
       });
     } catch (error) {
       console.error('Error saving hours:', error);
@@ -150,294 +142,117 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
     }
   };
 
-  const addSpecialDate = async () => {
-    const newDate: SpecialDate = {
-      date: new Date().toISOString().split('T')[0],
-      open_time: '08:00',
-      close_time: '22:00',
-      reason: '',
-    };
-
-    try {
-      const { data, error } = await (supabase as any)
-        .from('restaurant_special_dates')
-        .insert({
-          restaurant_id: restaurantId,
-          date: newDate.date,
-          open_time: newDate.open_time,
-          close_time: newDate.close_time,
-          reason: newDate.reason,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setSpecialDates([...specialDates, { ...newDate, id: data.id }]);
-      }
-
-      toast({
-        title: "Data especial adicionada",
-      });
-    } catch (error) {
-      console.error('Error adding special date:', error);
-      toast({
-        title: "Erro",
-        variant: "destructive",
-      });
-    }
+  const updateDayHours = (index: number, field: keyof DayHours, value: any) => {
+    const newHours = [...weekHours];
+    newHours[index] = { ...newHours[index], [field]: value };
+    setWeekHours(newHours);
   };
 
-  const deleteSpecialDate = async (id?: string) => {
-    if (!id) return;
-    try {
-      const { error } = await (supabase as any)
-        .from('restaurant_special_dates')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setSpecialDates(specialDates.filter(d => d.id !== id));
-
-      toast({
-        title: "Data especial removida",
-      });
-    } catch (error) {
-      console.error('Error deleting special date:', error);
-    }
-  };
-
-  const addClosure = async () => {
-    const newClosure: Closure = {
-      date: new Date().toISOString().split('T')[0],
-      reason: '',
-    };
-
-    try {
-      const { data, error } = await (supabase as any)
-        .from('restaurant_closures')
-        .insert({
-          restaurant_id: restaurantId,
-          date: newClosure.date,
-          reason: newClosure.reason,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setClosures([...closures, { ...newClosure, id: data.id }]);
-      }
-
-      toast({
-        title: "Fechamento adicionado",
-      });
-    } catch (error) {
-      console.error('Error adding closure:', error);
-      toast({
-        title: "Erro",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const deleteClosure = async (id?: string) => {
-    if (!id) return;
-    try {
-      const { error } = await (supabase as any)
-        .from('restaurant_closures')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      setClosures(closures.filter(c => c.id !== id));
-
-      toast({
-        title: "Fechamento removido",
-      });
-    } catch (error) {
-      console.error('Error deleting closure:', error);
-    }
-  };
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Horários Regulares */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            Horários de Funcionamento
-          </CardTitle>
-          <CardDescription>
-            Defina os horários de abertura e fechamento para cada dia da semana
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-primary" />
+          Horários de funcionamento
+        </CardTitle>
+        <CardDescription>
+          Defina os horários de abertura e fechamento para cada dia da semana.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Apply to all button */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={applyMondayToAll}
+          className="flex items-center gap-2"
+        >
+          <Copy className="h-4 w-4" />
+          Aplicar horário de segunda a todos os dias
+        </Button>
+
+        {/* Days grid */}
+        <div className="space-y-4">
           {weekHours.map((day, index) => (
-            <div key={index} className="grid grid-cols-3 gap-4 items-center">
-              <Label className="font-medium">{DAYS[day.day_of_week]}</Label>
-              <Input
-                type="time"
-                value={day.open_time}
-                onChange={(e) => {
-                  const newHours = [...weekHours];
-                  newHours[index].open_time = e.target.value;
-                  setWeekHours(newHours);
-                }}
-              />
-              <Input
-                type="time"
-                value={day.close_time}
-                onChange={(e) => {
-                  const newHours = [...weekHours];
-                  newHours[index].close_time = e.target.value;
-                  setWeekHours(newHours);
-                }}
-              />
-            </div>
-          ))}
-          <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={applyToAllDays}
+            <div 
+              key={day.day_of_week} 
+              className={`grid grid-cols-[180px_100px_1fr_1fr] gap-4 items-center p-3 rounded-lg border ${
+                day.is_open ? 'bg-background' : 'bg-muted/50'
+              }`}
             >
-              <Copy className="h-4 w-4 mr-2" />
-              Aplicar horário da segunda a todos os dias
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={saveAllHours}
-              disabled={saving}
-            >
-              Salvar Horários
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Day name */}
+              <Label className="font-medium text-sm">
+                {DAYS[index].name}
+              </Label>
 
-      {/* Datas Especiais */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Datas Especiais</CardTitle>
-          <CardDescription>
-            Defina horários diferentes para datas específicas (feriados, eventos)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {specialDates.map((special, index) => (
-            <div key={special.id || index} className="grid grid-cols-5 gap-2 items-center">
-              <Input
-                type="date"
-                value={special.date}
-                onChange={(e) => {
-                  const newDates = [...specialDates];
-                  newDates[index].date = e.target.value;
-                  setSpecialDates(newDates);
-                }}
-              />
-              <Input
-                type="time"
-                value={special.open_time}
-                onChange={(e) => {
-                  const newDates = [...specialDates];
-                  newDates[index].open_time = e.target.value;
-                  setSpecialDates(newDates);
-                }}
-              />
-              <Input
-                type="time"
-                value={special.close_time}
-                onChange={(e) => {
-                  const newDates = [...specialDates];
-                  newDates[index].close_time = e.target.value;
-                  setSpecialDates(newDates);
-                }}
-              />
-              <Input
-                placeholder="Motivo"
-                value={special.reason}
-                onChange={(e) => {
-                  const newDates = [...specialDates];
-                  newDates[index].reason = e.target.value;
-                  setSpecialDates(newDates);
-                }}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => deleteSpecialDate(special.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {/* Open/Closed toggle */}
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={day.is_open}
+                  onCheckedChange={(checked) => updateDayHours(index, 'is_open', checked)}
+                />
+                <span className={`text-sm ${day.is_open ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                  {day.is_open ? 'Aberto' : 'Fechado'}
+                </span>
+              </div>
+
+              {/* Opening time */}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">Abre:</Label>
+                <Input
+                  type="time"
+                  value={day.open_time}
+                  onChange={(e) => updateDayHours(index, 'open_time', e.target.value)}
+                  disabled={!day.is_open}
+                  className="h-9"
+                />
+              </div>
+
+              {/* Closing time */}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">Fecha:</Label>
+                <Input
+                  type="time"
+                  value={day.close_time}
+                  onChange={(e) => updateDayHours(index, 'close_time', e.target.value)}
+                  disabled={!day.is_open}
+                  className="h-9"
+                />
+              </div>
             </div>
           ))}
+        </div>
+
+        {/* Save button */}
+        <div className="flex justify-end pt-4">
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            onClick={addSpecialDate}
+            onClick={saveAllHours}
+            disabled={saving}
+            className="bg-primary hover:bg-primary/90"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Data Especial
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              'Salvar horários'
+            )}
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* Fechamentos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Fechamentos Extraordinários</CardTitle>
-          <CardDescription>
-            Registre datas em que o restaurante estará fechado
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {closures.map((closure, index) => (
-            <div key={closure.id || index} className="grid grid-cols-3 gap-2 items-center">
-              <Input
-                type="date"
-                value={closure.date}
-                onChange={(e) => {
-                  const newClosures = [...closures];
-                  newClosures[index].date = e.target.value;
-                  setClosures(newClosures);
-                }}
-              />
-              <Input
-                placeholder="Motivo do fechamento"
-                value={closure.reason}
-                onChange={(e) => {
-                  const newClosures = [...closures];
-                  newClosures[index].reason = e.target.value;
-                  setClosures(newClosures);
-                }}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => deleteClosure(closure.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addClosure}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Fechamento
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
