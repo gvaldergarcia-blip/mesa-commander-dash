@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, Bell, Gift, Tag, CreditCard, Shield, Info } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, Gift, Tag, CreditCard, Shield, Info } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -283,7 +283,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
@@ -299,10 +299,6 @@ export default function Settings() {
           <TabsTrigger value="reservation" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Reservas</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Notificações</span>
           </TabsTrigger>
           <TabsTrigger value="loyalty" className="flex items-center gap-2">
             <Gift className="h-4 w-4" />
@@ -611,53 +607,7 @@ export default function Settings() {
           <ReservationSettings restaurantId={RESTAURANT_ID} />
         </TabsContent>
 
-        {/* Tab 5: Notificações */}
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" />
-                Notificações
-              </CardTitle>
-              <CardDescription>
-                Configure como e quando enviar notificações aos clientes
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="space-y-4 opacity-50 pointer-events-none">
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-background">
-                  <div>
-                    <p className="font-medium">Notificações por SMS</p>
-                    <p className="text-sm text-muted-foreground">Enviar SMS para confirmações e lembretes</p>
-                  </div>
-                  <Switch disabled />
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-background">
-                  <div>
-                    <p className="font-medium">Notificações por E-mail</p>
-                    <p className="text-sm text-muted-foreground">Enviar e-mails para confirmações e lembretes</p>
-                  </div>
-                  <Switch disabled />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab 6: Programa de Fidelidade */}
+        {/* Tab 5: Programa de Fidelidade */}
         <TabsContent value="loyalty">
           <Card>
             <CardHeader>
