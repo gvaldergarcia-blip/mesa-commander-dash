@@ -27,8 +27,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar a fila ativa do restaurante (usando schema public)
+    // Buscar a fila ativa do restaurante (schema mesaclik)
     const { data: queue, error: queueError } = await supabase
+      .schema('mesaclik')
       .from('queues')
       .select('id')
       .eq('restaurant_id', restaurant_id)
@@ -56,13 +57,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar todas as entradas aguardando na fila, ordenadas por created_at
+    // Buscar todas as entradas aguardando na fila, ordenadas por created_at ASC, id ASC (mesma ordem do painel)
     const { data: waitingEntries, error: entriesError } = await supabase
+      .schema('mesaclik')
       .from('queue_entries')
-      .select('id, party_size, created_at, customer_name, phone')
+      .select('id, party_size, created_at, name, phone')
       .eq('queue_id', queue.id)
       .eq('status', 'waiting')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
 
     console.log('Waiting entries:', { count: waitingEntries?.length, entriesError });
 
@@ -81,20 +84,32 @@ Deno.serve(async (req) => {
     const total_people = entries.reduce((sum, entry) => sum + (entry.party_size || 0), 0);
 
     // Se um ticket_id foi fornecido, calcular a posição
-    let position = null;
+    let position: number | null = null;
     let user_entry = null;
 
     if (ticket_id) {
-      const index = entries.findIndex(entry => entry.id === ticket_id);
-      if (index !== -1) {
-        position = index + 1; // Posição é 1-indexed
-        user_entry = {
-          id: entries[index].id,
-          party_size: entries[index].party_size,
-          customer_name: entries[index].customer_name,
-          phone: entries[index].phone,
-          created_at: entries[index].created_at
-        };
+      // Chamar a RPC oficial para obter posição (mesma lógica do painel)
+      const { data: rpcPosition, error: rpcError } = await supabase.rpc(
+        'get_queue_position_by_party_size',
+        { p_entry_id: ticket_id }
+      );
+
+      console.log('RPC position result:', { rpcPosition, rpcError });
+
+      if (!rpcError && rpcPosition !== null) {
+        position = rpcPosition;
+        
+        // Buscar dados da entrada do usuário
+        const entry = entries.find(e => e.id === ticket_id);
+        if (entry) {
+          user_entry = {
+            id: entry.id,
+            party_size: entry.party_size,
+            customer_name: entry.name,
+            phone: entry.phone,
+            created_at: entry.created_at
+          };
+        }
       }
     }
 
