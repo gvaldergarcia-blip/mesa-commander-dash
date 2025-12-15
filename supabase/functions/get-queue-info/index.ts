@@ -27,47 +27,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar a fila ativa do restaurante (schema mesaclik)
-    const { data: queue, error: queueError } = await supabase
-      .schema('mesaclik')
-      .from('queues')
-      .select('id')
-      .eq('restaurant_id', restaurant_id)
-      .maybeSingle();
+    // IMPORTANT: alinhar com o painel (Tela Comando)
+    // O painel considera apenas registros das últimas 24 horas.
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    console.log('Queue query result:', { queue, queueError });
-
-    if (queueError) {
-      console.error('Erro ao buscar fila:', queueError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao buscar fila' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!queue) {
-      return new Response(
-        JSON.stringify({ 
-          total_groups: 0, 
-          total_people: 0, 
-          position: null,
-          message: 'Nenhuma fila encontrada para este restaurante' 
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Buscar todas as entradas aguardando na fila, ordenadas por created_at ASC, id ASC (mesma ordem do painel)
+    // Buscar todas as entradas aguardando no restaurante, ordenadas por created_at ASC, id ASC
     const { data: waitingEntries, error: entriesError } = await supabase
       .schema('mesaclik')
       .from('queue_entries')
-      .select('id, party_size, created_at, name, phone')
-      .eq('queue_id', queue.id)
+      .select('id, queue_id, party_size, created_at, name, phone')
+      .eq('restaurant_id', restaurant_id)
       .eq('status', 'waiting')
+      .gte('created_at', cutoff)
       .order('created_at', { ascending: true })
       .order('id', { ascending: true });
 
-    console.log('Waiting entries:', { count: waitingEntries?.length, entriesError });
+    console.log('Waiting entries:', { cutoff, count: waitingEntries?.length, entriesError });
 
     if (entriesError) {
       console.error('Erro ao buscar entradas da fila:', entriesError);
@@ -78,38 +53,35 @@ Deno.serve(async (req) => {
     }
 
     const entries = waitingEntries || [];
-    
+
     // Calcular totais
     const total_groups = entries.length;
     const total_people = entries.reduce((sum, entry) => sum + (entry.party_size || 0), 0);
 
-    // Se um ticket_id foi fornecido, calcular a posição
+    // Posição do usuário no recorte das últimas 24h (mesma lista usada para totals)
     let position: number | null = null;
-    let user_entry = null;
+    let user_entry: {
+      id: string;
+      queue_id: string;
+      party_size: number;
+      customer_name: string;
+      phone: string;
+      created_at: string;
+    } | null = null;
 
     if (ticket_id) {
-      // Chamar a RPC oficial para obter posição (mesma lógica do painel)
-      const { data: rpcPosition, error: rpcError } = await supabase.rpc(
-        'get_queue_position_by_party_size',
-        { p_entry_id: ticket_id }
-      );
-
-      console.log('RPC position result:', { rpcPosition, rpcError });
-
-      if (!rpcError && rpcPosition !== null) {
-        position = rpcPosition;
-        
-        // Buscar dados da entrada do usuário
-        const entry = entries.find(e => e.id === ticket_id);
-        if (entry) {
-          user_entry = {
-            id: entry.id,
-            party_size: entry.party_size,
-            customer_name: entry.name,
-            phone: entry.phone,
-            created_at: entry.created_at
-          };
-        }
+      const index = entries.findIndex((entry) => entry.id === ticket_id);
+      if (index !== -1) {
+        position = index + 1; // 1-indexed
+        const entry = entries[index];
+        user_entry = {
+          id: entry.id,
+          queue_id: entry.queue_id,
+          party_size: entry.party_size,
+          customer_name: entry.name,
+          phone: entry.phone,
+          created_at: entry.created_at,
+        };
       }
     }
 
@@ -118,7 +90,8 @@ Deno.serve(async (req) => {
       total_people,
       position,
       user_entry,
-      queue_id: queue.id
+      // para debug/auditoria (não expõe dados sensíveis)
+      cutoff,
     };
 
     console.log('Queue info response:', response);
@@ -127,7 +100,6 @@ Deno.serve(async (req) => {
       JSON.stringify(response),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
     console.error('Erro na função get-queue-info:', error);
     return new Response(
