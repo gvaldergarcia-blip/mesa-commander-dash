@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
 
     const { ticket_id, restaurant_id } = await req.json();
 
+    console.log('Request received:', { ticket_id, restaurant_id });
+
     if (!restaurant_id) {
       return new Response(
         JSON.stringify({ error: 'restaurant_id é obrigatório' }),
@@ -25,13 +27,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar a fila ativa do restaurante
+    // Buscar a fila ativa do restaurante (usando schema public)
     const { data: queue, error: queueError } = await supabase
       .from('queues')
       .select('id')
       .eq('restaurant_id', restaurant_id)
-      .eq('is_active', true)
       .maybeSingle();
+
+    console.log('Queue query result:', { queue, queueError });
 
     if (queueError) {
       console.error('Erro ao buscar fila:', queueError);
@@ -47,7 +50,7 @@ Deno.serve(async (req) => {
           total_groups: 0, 
           total_people: 0, 
           position: null,
-          message: 'Nenhuma fila ativa encontrada' 
+          message: 'Nenhuma fila encontrada para este restaurante' 
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -56,10 +59,12 @@ Deno.serve(async (req) => {
     // Buscar todas as entradas aguardando na fila, ordenadas por created_at
     const { data: waitingEntries, error: entriesError } = await supabase
       .from('queue_entries')
-      .select('id, party_size, created_at, customer_name')
+      .select('id, party_size, created_at, customer_name, phone')
       .eq('queue_id', queue.id)
       .eq('status', 'waiting')
       .order('created_at', { ascending: true });
+
+    console.log('Waiting entries:', { count: waitingEntries?.length, entriesError });
 
     if (entriesError) {
       console.error('Erro ao buscar entradas da fila:', entriesError);
@@ -87,6 +92,7 @@ Deno.serve(async (req) => {
           id: entries[index].id,
           party_size: entries[index].party_size,
           customer_name: entries[index].customer_name,
+          phone: entries[index].phone,
           created_at: entries[index].created_at
         };
       }
