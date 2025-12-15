@@ -9,67 +9,72 @@
 -- 4) Ordenação determinística: created_at ASC, id ASC
 -- 5) Posição = ROW_NUMBER() na lista ordenada (1-indexed)
 --
--- PARAMS (use placeholders no seu client):
---   :restaurant_id (uuid)
---   :ticket_id (uuid) opcional
+-- =====================================================================
+-- VERSÃO PARA SQL EDITOR (substitua os UUIDs abaixo pelos seus valores)
+-- =====================================================================
 
--- =====================================================================
--- A) Snapshot para 1 ticket (totais + posição + dados do ticket)
--- =====================================================================
-WITH
-  params AS (
-    SELECT
-      :restaurant_id::uuid AS restaurant_id,
-      :ticket_id::uuid AS ticket_id,
-      (now() - interval '24 hours') AS cutoff
-  ),
-  waiting AS (
-    SELECT
-      qe.id,
-      qe.restaurant_id,
-      qe.queue_id,
-      qe.party_size,
-      qe.created_at,
-      qe.name,
-      qe.phone
-    FROM mesaclik.queue_entries qe
-    JOIN params p ON p.restaurant_id = qe.restaurant_id
-    WHERE qe.status = 'waiting'
-      AND qe.created_at >= (SELECT cutoff FROM params)
-  ),
-  ranked AS (
-    SELECT
-      w.*,
-      row_number() OVER (ORDER BY w.created_at ASC, w.id ASC) AS position
-    FROM waiting w
-  )
+-- ▼▼▼ SUBSTITUA ESTES VALORES ▼▼▼
+WITH params AS (
+  SELECT
+    'b01b96fb-bd8c-46d6-b168-b4d11ffdd208'::uuid AS restaurant_id,  -- SEU restaurant_id
+    'b59d3d0a-7f44-48f1-8594-27aef2eebda2'::uuid AS ticket_id,     -- SEU ticket_id (ou NULL)
+    (now() - interval '24 hours') AS cutoff
+),
+-- ▲▲▲ SUBSTITUA ESTES VALORES ▲▲▲
+
+waiting AS (
+  SELECT
+    qe.id,
+    qe.restaurant_id,
+    qe.queue_id,
+    qe.party_size,
+    qe.created_at,
+    qe.name,
+    qe.phone
+  FROM mesaclik.queue_entries qe
+  CROSS JOIN params p
+  WHERE qe.restaurant_id = p.restaurant_id
+    AND qe.status = 'waiting'
+    AND qe.created_at >= p.cutoff
+),
+ranked AS (
+  SELECT
+    w.*,
+    row_number() OVER (ORDER BY w.created_at ASC, w.id ASC) AS position
+  FROM waiting w
+)
 SELECT
   (SELECT COUNT(*) FROM waiting) AS total_groups,
   (SELECT COALESCE(SUM(party_size), 0) FROM waiting) AS total_people,
-  (SELECT position FROM ranked r JOIN params p ON r.id = p.ticket_id) AS position,
-  (SELECT jsonb_build_object(
+  r.position,
+  jsonb_build_object(
     'id', r.id,
     'queue_id', r.queue_id,
     'party_size', r.party_size,
     'customer_name', r.name,
     'phone', r.phone,
     'created_at', r.created_at
-  ) FROM ranked r JOIN params p ON r.id = p.ticket_id) AS user_entry,
-  (SELECT cutoff FROM params) AS cutoff;
+  ) AS user_entry,
+  p.cutoff
+FROM ranked r
+CROSS JOIN params p
+WHERE r.id = p.ticket_id;
 
 -- =====================================================================
--- B) Lista completa (para debug / conferência): id + position
+-- LISTA COMPLETA (debug): todas as posições do restaurante
 -- =====================================================================
 -- WITH params AS (
---   SELECT :restaurant_id::uuid AS restaurant_id,
---          (now() - interval '24 hours') AS cutoff
+--   SELECT
+--     'b01b96fb-bd8c-46d6-b168-b4d11ffdd208'::uuid AS restaurant_id,
+--     (now() - interval '24 hours') AS cutoff
 -- ),
 -- waiting AS (
 --   SELECT qe.*
 --   FROM mesaclik.queue_entries qe
---   JOIN params p ON p.restaurant_id = qe.restaurant_id
---   WHERE qe.status = 'waiting'
---     AND qe.created_at >= (SELECT cutoff FROM params)
+--   CROSS JOIN params p
+--   WHERE qe.restaurant_id = p.restaurant_id
+--     AND qe.status = 'waiting'
+--     AND qe.created_at >= p.cutoff
 -- )
 -- SELECT
 --   id,
