@@ -742,14 +742,6 @@ export type Database = {
       cancel_reservation:
         | {
             Args: {
-              cancel_reason_param?: string
-              canceled_by_param?: string
-              reservation_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
               p_cancel_reason?: string
               p_reservation_id: string
               p_user_id: string
@@ -760,6 +752,14 @@ export type Database = {
               id: string
               status: Database["public"]["Enums"]["reservation_status"]
             }[]
+          }
+        | {
+            Args: {
+              cancel_reason_param?: string
+              canceled_by_param?: string
+              reservation_id: string
+            }
+            Returns: Json
           }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }

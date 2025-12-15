@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.verify-otp]
 verify_jwt = false
+
+[functions.expire-coupons]
+verify_jwt = false
+
+[functions.get-queue-info]
+verify_jwt = false
