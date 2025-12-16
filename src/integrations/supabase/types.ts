@@ -566,15 +566,7 @@ export type Database = {
           open_time?: string | null
           restaurant_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_hours_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       restaurant_members: {
         Row: {
