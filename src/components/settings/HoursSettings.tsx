@@ -16,13 +16,16 @@ type DayHours = {
 };
 
 const DAYS = [
-  { index: 0, name: 'Segunda-feira' },
-  { index: 1, name: 'Terça-feira' },
-  { index: 2, name: 'Quarta-feira' },
-  { index: 3, name: 'Quinta-feira' },
-  { index: 4, name: 'Sexta-feira' },
-  { index: 5, name: 'Sábado' },
-  { index: 6, name: 'Domingo' },
+  // IMPORTANTE: day_of_week segue o padrão do Postgres EXTRACT(DOW):
+  // 0=Domingo, 1=Segunda, ..., 6=Sábado
+  // Mantemos a UI em ordem Seg→Dom, mas salvamos no banco com esses valores.
+  { label: 'Segunda-feira', db_day_of_week: 1 },
+  { label: 'Terça-feira', db_day_of_week: 2 },
+  { label: 'Quarta-feira', db_day_of_week: 3 },
+  { label: 'Quinta-feira', db_day_of_week: 4 },
+  { label: 'Sexta-feira', db_day_of_week: 5 },
+  { label: 'Sábado', db_day_of_week: 6 },
+  { label: 'Domingo', db_day_of_week: 0 },
 ];
 
 export function HoursSettings({ restaurantId }: { restaurantId: string }) {
@@ -52,34 +55,40 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
         const hoursMap = new Map<number, HourRecord>(
           hoursData.map((h: HourRecord) => [h.day_of_week, h])
         );
-        
-        setWeekHours(DAYS.map(day => {
-          const existing = hoursMap.get(day.index);
-          return {
-            day_of_week: day.index,
-            is_open: existing ? (existing.open_time !== null) : true,
-            open_time: existing?.open_time || '08:00',
-            close_time: existing?.close_time || '22:00',
-          };
-        }));
+
+        setWeekHours(
+          DAYS.map((day) => {
+            const existing = hoursMap.get(day.db_day_of_week);
+            return {
+              day_of_week: day.db_day_of_week,
+              is_open: existing ? existing.open_time !== null && existing.close_time !== null : true,
+              open_time: existing?.open_time || '08:00',
+              close_time: existing?.close_time || '22:00',
+            };
+          })
+        );
       } else {
         // Initialize with default hours (all days open)
-        setWeekHours(DAYS.map(day => ({
-          day_of_week: day.index,
-          is_open: true,
-          open_time: '08:00',
-          close_time: '22:00',
-        })));
+        setWeekHours(
+          DAYS.map((day) => ({
+            day_of_week: day.db_day_of_week,
+            is_open: true,
+            open_time: '08:00',
+            close_time: '22:00',
+          }))
+        );
       }
     } catch (error) {
       console.error('Error fetching hours data:', error);
       // Initialize with defaults on error
-      setWeekHours(DAYS.map(day => ({
-        day_of_week: day.index,
-        is_open: true,
-        open_time: '08:00',
-        close_time: '22:00',
-      })));
+       setWeekHours(
+         DAYS.map((day) => ({
+           day_of_week: day.db_day_of_week,
+           is_open: true,
+           open_time: '08:00',
+           close_time: '22:00',
+         }))
+       );
     } finally {
       setLoading(false);
     }
@@ -193,7 +202,7 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
             >
               {/* Day name */}
               <Label className="font-medium text-sm">
-                {DAYS[index].name}
+                {DAYS[index].label}
               </Label>
 
               {/* Open/Closed toggle */}
