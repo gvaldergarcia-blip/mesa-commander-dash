@@ -42,7 +42,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
     if (settings) {
       form.reset({
         max_party_size: settings.max_party_size,
-        queue_capacity: settings.max_queue_capacity,
+        queue_capacity: settings.queue_capacity,
       });
     }
   }, [settings]);
@@ -52,12 +52,12 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
     await saveSettings({
       restaurant_id: restaurantId,
       max_party_size: values.max_party_size,
-      max_queue_capacity: values.queue_capacity,
+      queue_capacity: values.queue_capacity,
       // Keep existing avg times since they're not editable anymore
-      avg_wait_time_1_2: settings?.avg_wait_time_1_2 || 30,
-      avg_wait_time_3_4: settings?.avg_wait_time_3_4 || 45,
-      avg_wait_time_5_6: settings?.avg_wait_time_5_6 || 60,
-      avg_wait_time_7_8: settings?.avg_wait_time_7_8 || 75,
+      avg_time_1_2: settings?.avg_time_1_2 || 30,
+      avg_time_3_4: settings?.avg_time_3_4 || 45,
+      avg_time_5_6: settings?.avg_time_5_6 || 60,
+      avg_time_7_8: settings?.avg_time_7_8 || 75,
     });
     setSaving(false);
   };
