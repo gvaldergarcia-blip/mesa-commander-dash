@@ -28,6 +28,7 @@ export function useQueueSettings(restaurantId: string) {
     try {
       setLoading(true);
       const { data, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('queue_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -45,6 +46,7 @@ export function useQueueSettings(restaurantId: string) {
   const saveSettings = async (values: Omit<QueueSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { error } = await (supabase as any)
+        .schema('mesaclik')
         .from('queue_settings')
         .upsert({
           ...values,

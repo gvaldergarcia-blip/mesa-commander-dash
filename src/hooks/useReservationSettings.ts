@@ -24,6 +24,7 @@ export function useReservationSettings(restaurantId: string) {
     try {
       setLoading(true);
       const { data, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('reservation_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -41,6 +42,7 @@ export function useReservationSettings(restaurantId: string) {
   const saveSettings = async (values: Omit<ReservationSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { error } = await (supabase as any)
+        .schema('mesaclik')
         .from('reservation_settings')
         .upsert({
           ...values,
