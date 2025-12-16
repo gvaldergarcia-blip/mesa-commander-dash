@@ -6,11 +6,11 @@ export type QueueSettings = {
   id?: string;
   restaurant_id: string;
   max_party_size: number;
-  queue_capacity: number;
-  avg_time_1_2: number;
-  avg_time_3_4: number;
-  avg_time_5_6: number;
-  avg_time_7_8: number;
+  max_queue_capacity: number;
+  avg_wait_time_1_2: number;
+  avg_wait_time_3_4: number;
+  avg_wait_time_5_6: number;
+  avg_wait_time_7_8: number;
   created_at?: string;
   updated_at?: string;
 };
