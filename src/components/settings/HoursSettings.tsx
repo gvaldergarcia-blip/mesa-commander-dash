@@ -41,7 +41,9 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data: hoursData, error } = await supabase
+      // Usar schema mesaclik (fonte de verdade para a Tela Comando/app)
+      const { data: hoursData, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('restaurant_hours')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -115,8 +117,10 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
     try {
       setSaving(true);
 
+      // Usar schema mesaclik (fonte de verdade para a Tela Comando/app)
       // Delete existing hours
-      await supabase
+      await (supabase as any)
+        .schema('mesaclik')
         .from('restaurant_hours')
         .delete()
         .eq('restaurant_id', restaurantId);
@@ -129,7 +133,8 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
         close_time: h.is_open ? h.close_time : null,
       }));
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
+        .schema('mesaclik')
         .from('restaurant_hours')
         .insert(hoursToInsert);
 
