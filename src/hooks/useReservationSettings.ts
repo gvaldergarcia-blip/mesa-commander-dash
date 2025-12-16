@@ -23,8 +23,8 @@ export function useReservationSettings(restaurantId: string) {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      // Use public schema - syncs to mesaclik via trigger
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('reservation_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -41,8 +41,8 @@ export function useReservationSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<ReservationSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      // Use public schema - syncs to mesaclik via trigger
-      const { error } = await supabase
+      const { error } = await (supabase as any)
+        .schema('mesaclik')
         .from('reservation_settings')
         .upsert({
           ...values,

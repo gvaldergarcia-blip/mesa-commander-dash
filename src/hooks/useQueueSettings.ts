@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-// Uses public.queue_settings column names (syncs to mesaclik via trigger)
 export type QueueSettings = {
   id?: string;
   restaurant_id: string;
   max_party_size: number;
-  queue_capacity: number;
-  avg_time_1_2: number;
-  avg_time_3_4: number;
-  avg_time_5_6: number;
-  avg_time_7_8: number;
+  max_queue_capacity: number;
+  avg_wait_time_1_2: number;
+  avg_wait_time_3_4: number;
+  avg_wait_time_5_6: number;
+  avg_wait_time_7_8: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -28,8 +27,8 @@ export function useQueueSettings(restaurantId: string) {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      // Use public schema - syncs to mesaclik via triggers
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
+        .schema('mesaclik')
         .from('queue_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -46,8 +45,8 @@ export function useQueueSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<QueueSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      // Use public schema - syncs to mesaclik via trigger
-      const { error } = await supabase
+      const { error } = await (supabase as any)
+        .schema('mesaclik')
         .from('queue_settings')
         .upsert({
           ...values,
