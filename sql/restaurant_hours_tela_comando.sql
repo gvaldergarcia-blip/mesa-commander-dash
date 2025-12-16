@@ -9,12 +9,18 @@
 --   2) mesaclik.restaurant_special_dates - Datas especiais com horário diferente
 --   3) mesaclik.restaurant_closures - Dias de fechamento extraordinário
 --
--- REGRAS DE NEGÓCIO:
+-- REGRAS DE NEGÓCIO CRÍTICAS:
 --   1) restaurant_hours: day_of_week = 0 (Domingo) a 6 (Sábado)
 --   2) Se open_time/close_time = NULL, o dia está FECHADO
 --   3) restaurant_special_dates sobrescreve restaurant_hours para a data específica
 --   4) restaurant_closures indica fechamento total (sem open/close)
 --   5) Prioridade: closures > special_dates > hours (regular)
+--
+--   ⚠️ REGRA CRUCIAL - RESTAURANTES SEM HORÁRIOS CONFIGURADOS:
+--   6) Se um restaurante NÃO TEM registros em restaurant_hours,
+--      ele deve ser considerado "SEM RESTRIÇÃO DE HORÁRIO" (sempre aberto)
+--      NÃO mostrar como "fechado"!
+--   7) Apenas restaurantes COM horários configurados são verificados
 --
 -- =====================================================================
 
@@ -27,7 +33,19 @@ WITH params AS (
 -- ▲▲▲ SUBSTITUA ESTE VALOR ▲▲▲
 
 -- =====================================================================
--- A) HORÁRIOS REGULARES DA SEMANA (todos os 7 dias)
+-- A) VERIFICAR SE RESTAURANTE TEM HORÁRIOS CONFIGURADOS
+-- =====================================================================
+-- Esta é a primeira verificação! Se não tem horários, considerar ABERTO
+has_hours_configured AS (
+  SELECT EXISTS (
+    SELECT 1 FROM mesaclik.restaurant_hours rh
+    CROSS JOIN params p
+    WHERE rh.restaurant_id = p.restaurant_id
+  ) AS has_hours
+),
+
+-- =====================================================================
+-- B) HORÁRIOS REGULARES DA SEMANA (todos os 7 dias)
 -- =====================================================================
 regular_hours AS (
   SELECT
@@ -52,113 +70,130 @@ regular_hours AS (
   WHERE rh.restaurant_id = p.restaurant_id
   ORDER BY rh.day_of_week
 )
-SELECT * FROM regular_hours;
+SELECT 
+  hc.has_hours AS restaurante_tem_horarios_configurados,
+  rh.*
+FROM has_hours_configured hc
+LEFT JOIN regular_hours rh ON true;
 
 -- =====================================================================
--- B) VERIFICAR SE ESTÁ ABERTO HOJE (com todas as regras)
+-- C) VERIFICAR SE ESTÁ ABERTO HOJE (com todas as regras)
 -- =====================================================================
--- WITH params AS (
---   SELECT
---     'b01b96fb-bd8c-46d6-b168-b4d11ffdd208'::uuid AS restaurant_id,
---     CURRENT_DATE AS target_date,
---     EXTRACT(DOW FROM CURRENT_DATE)::int AS today_dow
--- ),
--- -- Verificar se há fechamento extraordinário
--- closure_check AS (
---   SELECT EXISTS (
---     SELECT 1 FROM mesaclik.restaurant_closures rc
---     CROSS JOIN params p
---     WHERE rc.restaurant_id = p.restaurant_id
---       AND rc.date = p.target_date
---   ) AS is_closed_today
--- ),
--- -- Verificar se há data especial
--- special_date AS (
---   SELECT 
---     rsd.open_time,
---     rsd.close_time,
---     rsd.reason
---   FROM mesaclik.restaurant_special_dates rsd
---   CROSS JOIN params p
---   WHERE rsd.restaurant_id = p.restaurant_id
---     AND rsd.date = p.target_date
---   LIMIT 1
--- ),
--- -- Horário regular do dia
--- regular_today AS (
---   SELECT 
---     rh.open_time,
---     rh.close_time
---   FROM mesaclik.restaurant_hours rh
---   CROSS JOIN params p
---   WHERE rh.restaurant_id = p.restaurant_id
---     AND rh.day_of_week = p.today_dow
---   LIMIT 1
--- )
--- SELECT
---   p.target_date,
---   p.today_dow,
---   cc.is_closed_today,
---   CASE
---     WHEN cc.is_closed_today THEN 'FECHADO (fechamento extraordinário)'
---     WHEN sd.open_time IS NOT NULL THEN 
---       'ABERTO (horário especial): ' || sd.open_time::text || ' - ' || sd.close_time::text
---     WHEN rt.open_time IS NOT NULL THEN 
---       'ABERTO: ' || rt.open_time::text || ' - ' || rt.close_time::text
---     ELSE 'FECHADO (sem horário definido)'
---   END AS status_hoje,
---   COALESCE(sd.open_time, rt.open_time) AS open_time,
---   COALESCE(sd.close_time, rt.close_time) AS close_time
--- FROM params p
--- CROSS JOIN closure_check cc
--- LEFT JOIN special_date sd ON true
--- LEFT JOIN regular_today rt ON true;
+-- Descomente para usar:
+/*
+WITH params AS (
+  SELECT
+    'b01b96fb-bd8c-46d6-b168-b4d11ffdd208'::uuid AS restaurant_id,
+    CURRENT_DATE AS target_date,
+    EXTRACT(DOW FROM CURRENT_DATE)::int AS today_dow
+),
+-- Primeiro: verificar se tem horários configurados
+has_hours AS (
+  SELECT EXISTS (
+    SELECT 1 FROM mesaclik.restaurant_hours rh
+    CROSS JOIN params p
+    WHERE rh.restaurant_id = p.restaurant_id
+  ) AS configured
+),
+-- Verificar se há fechamento extraordinário
+closure_check AS (
+  SELECT EXISTS (
+    SELECT 1 FROM mesaclik.restaurant_closures rc
+    CROSS JOIN params p
+    WHERE rc.restaurant_id = p.restaurant_id
+      AND rc.date = p.target_date
+  ) AS is_closed_today
+),
+-- Verificar se há data especial
+special_date AS (
+  SELECT 
+    rsd.open_time,
+    rsd.close_time,
+    rsd.reason
+  FROM mesaclik.restaurant_special_dates rsd
+  CROSS JOIN params p
+  WHERE rsd.restaurant_id = p.restaurant_id
+    AND rsd.date = p.target_date
+  LIMIT 1
+),
+-- Horário regular do dia
+regular_today AS (
+  SELECT 
+    rh.open_time,
+    rh.close_time
+  FROM mesaclik.restaurant_hours rh
+  CROSS JOIN params p
+  WHERE rh.restaurant_id = p.restaurant_id
+    AND rh.day_of_week = p.today_dow
+  LIMIT 1
+)
+SELECT
+  p.target_date,
+  p.today_dow,
+  hh.configured AS tem_horarios_configurados,
+  cc.is_closed_today,
+  CASE
+    -- Se não tem horários configurados = SEM RESTRIÇÃO (aberto)
+    WHEN NOT hh.configured THEN 'ABERTO (sem restrição de horário)'
+    -- Se tem fechamento extraordinário = fechado
+    WHEN cc.is_closed_today THEN 'FECHADO (fechamento extraordinário)'
+    -- Se tem horário especial = usar esse
+    WHEN sd.open_time IS NOT NULL THEN 
+      'ABERTO (horário especial): ' || sd.open_time::text || ' - ' || sd.close_time::text
+    -- Se tem horário regular = usar esse
+    WHEN rt.open_time IS NOT NULL THEN 
+      'ABERTO: ' || rt.open_time::text || ' - ' || rt.close_time::text
+    -- Tem horários configurados mas o dia está sem horário = fechado
+    ELSE 'FECHADO (sem horário para hoje)'
+  END AS status_hoje,
+  COALESCE(sd.open_time, rt.open_time) AS open_time,
+  COALESCE(sd.close_time, rt.close_time) AS close_time
+FROM params p
+CROSS JOIN has_hours hh
+CROSS JOIN closure_check cc
+LEFT JOIN special_date sd ON true
+LEFT JOIN regular_today rt ON true;
+*/
 
 -- =====================================================================
--- C) LISTAR PRÓXIMOS 7 DIAS COM STATUS
+-- D) FUNÇÃO PARA O APP: is_restaurant_open(restaurant_id, check_time)
 -- =====================================================================
--- WITH params AS (
---   SELECT 'b01b96fb-bd8c-46d6-b168-b4d11ffdd208'::uuid AS restaurant_id
--- ),
--- next_7_days AS (
---   SELECT generate_series(
---     CURRENT_DATE,
---     CURRENT_DATE + interval '6 days',
---     interval '1 day'
---   )::date AS date
--- )
--- SELECT
---   d.date,
---   EXTRACT(DOW FROM d.date)::int AS day_of_week,
---   CASE EXTRACT(DOW FROM d.date)::int
---     WHEN 0 THEN 'Dom'
---     WHEN 1 THEN 'Seg'
---     WHEN 2 THEN 'Ter'
---     WHEN 3 THEN 'Qua'
---     WHEN 4 THEN 'Qui'
---     WHEN 5 THEN 'Sex'
---     WHEN 6 THEN 'Sáb'
---   END AS day_abbr,
---   -- Fechamento extraordinário?
---   EXISTS (
---     SELECT 1 FROM mesaclik.restaurant_closures rc
---     CROSS JOIN params p
---     WHERE rc.restaurant_id = p.restaurant_id AND rc.date = d.date
---   ) AS is_closure,
---   -- Horário especial?
---   (SELECT rsd.open_time FROM mesaclik.restaurant_special_dates rsd
---    CROSS JOIN params p WHERE rsd.restaurant_id = p.restaurant_id AND rsd.date = d.date) AS special_open,
---   (SELECT rsd.close_time FROM mesaclik.restaurant_special_dates rsd
---    CROSS JOIN params p WHERE rsd.restaurant_id = p.restaurant_id AND rsd.date = d.date) AS special_close,
---   -- Horário regular
---   (SELECT rh.open_time FROM mesaclik.restaurant_hours rh
---    CROSS JOIN params p WHERE rh.restaurant_id = p.restaurant_id 
---    AND rh.day_of_week = EXTRACT(DOW FROM d.date)::int) AS regular_open,
---   (SELECT rh.close_time FROM mesaclik.restaurant_hours rh
---    CROSS JOIN params p WHERE rh.restaurant_id = p.restaurant_id 
---    AND rh.day_of_week = EXTRACT(DOW FROM d.date)::int) AS regular_close
--- FROM next_7_days d
--- ORDER BY d.date;
+-- O Cursor/Flutter deve implementar esta lógica:
+--
+-- function isRestaurantOpen(restaurantId, checkTime = now()) {
+--   // 1. Verificar se tem horários configurados
+--   const hours = await getRestaurantHours(restaurantId);
+--   
+--   // ⚠️ SE NÃO TEM HORÁRIOS = ABERTO (sem restrição)
+--   if (hours.length === 0) {
+--     return { isOpen: true, reason: 'no_restrictions' };
+--   }
+--   
+--   // 2. Verificar fechamento extraordinário
+--   const closure = await getClosureForDate(restaurantId, checkTime.date);
+--   if (closure) {
+--     return { isOpen: false, reason: 'closure', detail: closure.reason };
+--   }
+--   
+--   // 3. Verificar data especial
+--   const specialDate = await getSpecialDate(restaurantId, checkTime.date);
+--   if (specialDate) {
+--     const isWithinHours = checkTime.time >= specialDate.open && checkTime.time <= specialDate.close;
+--     return { isOpen: isWithinHours, reason: 'special_date' };
+--   }
+--   
+--   // 4. Verificar horário regular
+--   const dayOfWeek = checkTime.weekday; // 0=Dom, 6=Sáb
+--   const regularHours = hours.find(h => h.day_of_week === dayOfWeek);
+--   
+--   if (!regularHours || !regularHours.open_time) {
+--     return { isOpen: false, reason: 'closed_today' };
+--   }
+--   
+--   const isWithinHours = checkTime.time >= regularHours.open_time && checkTime.time <= regularHours.close_time;
+--   return { isOpen: isWithinHours, reason: 'regular_hours' };
+-- }
+--
 
 -- =====================================================================
 -- ESTRUTURA DAS TABELAS (referência)
@@ -177,6 +212,13 @@ SELECT * FROM regular_hours;
 --   date (date)
 --   open_time (time, nullable)
 --   close_time (time, nullable)
+--   reason (text, nullable)
+--   created_at, updated_at
+--
+-- mesaclik.restaurant_closures:
+--   id (uuid, PK)
+--   restaurant_id (uuid, FK)
+--   date (date)
 --   reason (text, nullable)
 --   created_at, updated_at
 --
