@@ -124,34 +124,19 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
         close_time: h.is_open ? h.close_time : null,
       }));
 
-      // 1) Salvar no mesaclik (fonte de verdade do painel)
+      // Salvar apenas no mesaclik (trigger sincroniza automaticamente para public)
       await (supabase as any)
         .schema('mesaclik')
         .from('restaurant_hours')
         .delete()
         .eq('restaurant_id', restaurantId);
 
-      const { error: mesaclikError } = await (supabase as any)
+      const { error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurant_hours')
         .insert(hoursToInsert);
 
-      if (mesaclikError) throw mesaclikError;
-
-      // 2) Sincronizar para public (onde o Flutter app lê)
-      await supabase
-        .from('restaurant_hours')
-        .delete()
-        .eq('restaurant_id', restaurantId);
-
-      const { error: publicError } = await supabase
-        .from('restaurant_hours')
-        .insert(hoursToInsert);
-
-      if (publicError) {
-        console.warn('Erro ao sincronizar para public:', publicError);
-        // Não falha a operação, pois mesaclik foi salvo
-      }
+      if (error) throw error;
 
       toast({
         title: "Horários salvos",
