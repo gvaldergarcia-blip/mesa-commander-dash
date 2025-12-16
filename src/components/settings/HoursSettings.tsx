@@ -41,9 +41,8 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Usar schema mesaclik (fonte de verdade para a Tela Comando/app)
-      const { data: hoursData, error } = await (supabase as any)
-        .schema('mesaclik')
+      // Usar schema public (tem policies para panel + sync trigger para mesaclik)
+      const { data: hoursData, error } = await supabase
         .from('restaurant_hours')
         .select('*')
         .eq('restaurant_id', restaurantId)
@@ -124,15 +123,13 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
         close_time: h.is_open ? h.close_time : null,
       }));
 
-      // Salvar apenas no mesaclik (trigger sincroniza automaticamente para public)
-      await (supabase as any)
-        .schema('mesaclik')
+      // Usar schema public (tem policies para panel + sync trigger para mesaclik)
+      await supabase
         .from('restaurant_hours')
         .delete()
         .eq('restaurant_id', restaurantId);
 
-      const { error } = await (supabase as any)
-        .schema('mesaclik')
+      const { error } = await supabase
         .from('restaurant_hours')
         .insert(hoursToInsert);
 
