@@ -213,19 +213,40 @@ export function useReservations() {
   };
 
   // Função auxiliar para upsert de clientes
-  const upsertCustomer = async (data: { name: string; phone: string; email?: string; source: 'queue' | 'reservation' }) => {
+  const upsertCustomer = async (data: { name: string; phone?: string | null; email?: string; source: 'queue' | 'reservation' }) => {
     try {
-      // Buscar cliente existente pelo telefone e restaurante
-      const { data: existingCustomer, error: searchError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', data.phone)
-        .eq('restaurant_id', restaurantId)
-        .maybeSingle();
-
-      if (searchError) throw searchError;
+      // Se não tiver phone nem nome, não criar cliente
+      if (!data.name) {
+        console.warn('[upsertCustomer] Nome não informado, ignorando criação de cliente');
+        return;
+      }
 
       const now = new Date().toISOString();
+      let existingCustomer = null;
+
+      // Buscar cliente existente - prioriza phone, mas se não tiver, busca por nome
+      if (data.phone) {
+        const { data: customerByPhone, error: searchError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone', data.phone)
+          .maybeSingle();
+
+        if (searchError) throw searchError;
+        existingCustomer = customerByPhone;
+      }
+
+      // Se não encontrou por phone, tenta por nome (fallback)
+      if (!existingCustomer) {
+        const { data: customerByName, error: searchByNameError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('name', data.name)
+          .maybeSingle();
+
+        if (searchByNameError) throw searchByNameError;
+        existingCustomer = customerByName;
+      }
 
       if (existingCustomer) {
         // Atualizar cliente existente
@@ -251,19 +272,24 @@ export function useReservations() {
           updates.first_visit_at = now;
         }
 
+        // Atualizar phone se estava vazio e agora temos
+        if (!existingCustomer.phone && data.phone) {
+          updates.phone = data.phone;
+        }
+
         const { error: updateError } = await supabase
           .from('customers')
           .update(updates)
           .eq('id', existingCustomer.id);
 
         if (updateError) throw updateError;
+        console.log('[upsertCustomer] Cliente atualizado:', existingCustomer.id);
       } else {
-        // Criar novo cliente com restaurant_id para isolamento multi-tenant
+        // Criar novo cliente
         const newCustomer: any = {
           name: data.name,
-          phone: data.phone,
-          email: data.email,
-          restaurant_id: restaurantId,
+          phone: data.phone || null,
+          email: data.email || null,
           queue_completed: data.source === 'queue' ? 1 : 0,
           reservations_completed: data.source === 'reservation' ? 1 : 0,
           total_visits: 1,
@@ -272,14 +298,17 @@ export function useReservations() {
           last_visit_date: now
         };
 
-        const { error: insertError } = await supabase
+        const { data: insertedCustomer, error: insertError } = await supabase
           .from('customers')
-          .insert([newCustomer]);
+          .insert([newCustomer])
+          .select()
+          .single();
 
         if (insertError) throw insertError;
+        console.log('[upsertCustomer] Novo cliente criado:', insertedCustomer?.id);
       }
     } catch (error) {
-      console.error('Erro ao registrar cliente:', error);
+      console.error('[upsertCustomer] Erro ao registrar cliente:', error);
       // Não lançar erro para não bloquear a operação principal
     }
   };
