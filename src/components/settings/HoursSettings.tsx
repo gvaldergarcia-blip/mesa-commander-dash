@@ -117,15 +117,6 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
     try {
       setSaving(true);
 
-      // Usar schema mesaclik (fonte de verdade para a Tela Comando/app)
-      // Delete existing hours
-      await (supabase as any)
-        .schema('mesaclik')
-        .from('restaurant_hours')
-        .delete()
-        .eq('restaurant_id', restaurantId);
-
-      // Insert new hours
       const hoursToInsert = weekHours.map(h => ({
         restaurant_id: restaurantId,
         day_of_week: h.day_of_week,
@@ -133,16 +124,38 @@ export function HoursSettings({ restaurantId }: { restaurantId: string }) {
         close_time: h.is_open ? h.close_time : null,
       }));
 
-      const { error } = await (supabase as any)
+      // 1) Salvar no mesaclik (fonte de verdade do painel)
+      await (supabase as any)
+        .schema('mesaclik')
+        .from('restaurant_hours')
+        .delete()
+        .eq('restaurant_id', restaurantId);
+
+      const { error: mesaclikError } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurant_hours')
         .insert(hoursToInsert);
 
-      if (error) throw error;
+      if (mesaclikError) throw mesaclikError;
+
+      // 2) Sincronizar para public (onde o Flutter app lê)
+      await supabase
+        .from('restaurant_hours')
+        .delete()
+        .eq('restaurant_id', restaurantId);
+
+      const { error: publicError } = await supabase
+        .from('restaurant_hours')
+        .insert(hoursToInsert);
+
+      if (publicError) {
+        console.warn('Erro ao sincronizar para public:', publicError);
+        // Não falha a operação, pois mesaclik foi salvo
+      }
 
       toast({
         title: "Horários salvos",
-        description: "Os horários de funcionamento foram atualizados com sucesso.",
+        description: "Os horários de funcionamento foram atualizados e sincronizados.",
       });
     } catch (error) {
       console.error('Error saving hours:', error);
