@@ -27,14 +27,14 @@ export type CustomerVipStatus = {
  * @param restaurantId - ID do restaurante (opcional, usa RESTAURANT_ID por padrão)
  * @returns Status VIP com contadores detalhados
  */
-export async function getCustomerVipStatus(phone: string, restaurantId: string = RESTAURANT_ID): Promise<CustomerVipStatus> {
+export async function getCustomerVipStatus(phone: string, _restaurantId: string = RESTAURANT_ID): Promise<CustomerVipStatus> {
   try {
-    // BUSCAR DIRETO DA TABELA CUSTOMERS (fonte oficial) com filtro de restaurante
+    // BUSCAR DIRETO DA TABELA CUSTOMERS (fonte oficial)
+    // Nota: public.customers não tem restaurant_id, busca apenas por phone
     const { data: customer, error } = await supabase
       .from('customers')
       .select('vip_status, queue_completed, reservations_completed, total_visits')
       .eq('phone', phone)
-      .eq('restaurant_id', restaurantId)
       .maybeSingle();
 
     if (error) throw error;
