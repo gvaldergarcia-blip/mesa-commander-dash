@@ -336,8 +336,8 @@ export default function Reservations() {
     });
   }, [filteredReservations.length, reservations.length, statusFilter, todaysReservations.length]);
   
-  // Calcular métricas com base no período
-  const periodReservations = filterByPeriod(reservations);
+  // Calcular métricas com base no período (usando o mesmo filtro de expiradas)
+  const periodReservations = filterByPeriod(filterExpiredPendingReservations(reservations));
   const totalReservations = periodReservations.length;
   const confirmedCount = periodReservations.filter(r => r.status === "confirmed").length;
   const pendingCount = periodReservations.filter(r => r.status === "pending").length;
