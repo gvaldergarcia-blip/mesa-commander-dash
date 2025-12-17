@@ -341,7 +341,9 @@ export default function Reservations() {
   const totalReservations = periodReservations.length;
   const confirmedCount = periodReservations.filter(r => r.status === "confirmed").length;
   const pendingCount = periodReservations.filter(r => r.status === "pending").length;
-  const totalPeople = periodReservations.reduce((sum, r) => sum + r.people, 0);
+  const totalPeople = periodReservations
+    .filter(r => r.status !== 'canceled' && r.status !== 'no_show')
+    .reduce((sum, r) => sum + r.people, 0);
 
   if (loading) {
     return (
