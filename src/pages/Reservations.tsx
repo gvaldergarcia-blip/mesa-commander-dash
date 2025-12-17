@@ -249,15 +249,24 @@ export default function Reservations() {
     });
   };
 
+  // Função para extrair apenas a data no formato YYYY-MM-DD
+  const getDateOnly = (dateStr: string | Date) => {
+    const d = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const todayStr = getDateOnly(new Date());
+
   // Filtrar reservas por período
   const filterByPeriod = (resList: typeof reservations) => {
     if (periodFilter === "all") return resList;
     
     return resList.filter(reservation => {
       const resDate = new Date(reservation.starts_at);
+      const resDateStr = getDateOnly(reservation.starts_at);
       
       if (periodFilter === "today") {
-        return resDate >= today && resDate < tomorrow;
+        return resDateStr === todayStr;
       } else if (periodFilter === "week") {
         return resDate >= today && resDate <= weekEnd;
       } else if (periodFilter === "last7") {
@@ -275,14 +284,14 @@ export default function Reservations() {
     });
   };
 
-  // Filtrar reservas por aba
+  // Filtrar reservas por aba - comparando apenas a data (YYYY-MM-DD)
   const getReservationsByTab = (tab: string) => {
     let filtered = reservations;
     
     if (tab === "today") {
       filtered = reservations.filter(reservation => {
-        const resDate = new Date(reservation.starts_at);
-        return resDate >= today && resDate < tomorrow;
+        const resDateStr = getDateOnly(reservation.starts_at);
+        return resDateStr === todayStr;
       });
     } else if (tab === "week") {
       filtered = reservations.filter(reservation => {
