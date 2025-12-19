@@ -169,7 +169,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
                 />
               </div>
 
-              <FormField
+                <FormField
                 control={form.control}
                 name="tolerance_minutes"
                 render={({ field }) => (
@@ -182,7 +182,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
                       <FormControl>
                         <Input
                           type="number"
-                          {...field}
+                          value={isNaN(field.value) ? 10 : field.value}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
                       </FormControl>
