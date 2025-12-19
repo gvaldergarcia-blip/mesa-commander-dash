@@ -334,6 +334,7 @@ export type Database = {
           max_party_size: number
           queue_capacity: number
           restaurant_id: string
+          tolerance_minutes: number
           updated_at: string | null
         }
         Insert: {
@@ -346,6 +347,7 @@ export type Database = {
           max_party_size?: number
           queue_capacity?: number
           restaurant_id: string
+          tolerance_minutes?: number
           updated_at?: string | null
         }
         Update: {
@@ -358,6 +360,7 @@ export type Database = {
           max_party_size?: number
           queue_capacity?: number
           restaurant_id?: string
+          tolerance_minutes?: number
           updated_at?: string | null
         }
         Relationships: [

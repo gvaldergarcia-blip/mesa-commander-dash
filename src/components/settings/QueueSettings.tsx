@@ -21,6 +21,7 @@ import {
 const queueSettingsSchema = z.object({
   max_party_size: z.number().min(1).max(50),
   queue_capacity: z.number().min(1).max(500),
+  tolerance_minutes: z.number().min(0).max(120),
 });
 
 type QueueSettingsFormValues = z.infer<typeof queueSettingsSchema>;
@@ -35,6 +36,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
     defaultValues: {
       max_party_size: 8,
       queue_capacity: 50,
+      tolerance_minutes: 10,
     },
   });
 
@@ -43,6 +45,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
       form.reset({
         max_party_size: settings.max_party_size,
         queue_capacity: settings.max_queue_capacity,
+        tolerance_minutes: settings.tolerance_minutes ?? 10,
       });
     }
   }, [settings]);
@@ -53,6 +56,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
       restaurant_id: restaurantId,
       max_party_size: values.max_party_size,
       max_queue_capacity: values.queue_capacity,
+      tolerance_minutes: values.tolerance_minutes,
       // Keep existing avg times since they're not editable anymore
       avg_wait_time_1_2: settings?.avg_wait_time_1_2 || 30,
       avg_wait_time_3_4: settings?.avg_wait_time_3_4 || 45,
@@ -164,6 +168,33 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="tolerance_minutes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Tempo de Tolerância
+                    </FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <span className="text-sm text-muted-foreground">minutos</span>
+                    </div>
+                    <FormDescription>
+                      Tempo de tolerância após ser chamado antes de considerar "não compareceu"
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex justify-end">
                 <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90">
