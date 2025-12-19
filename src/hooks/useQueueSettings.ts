@@ -7,6 +7,7 @@ export type QueueSettings = {
   restaurant_id: string;
   max_party_size: number;
   max_queue_capacity: number;
+  tolerance_minutes: number;
   avg_wait_time_1_2: number;
   avg_wait_time_3_4: number;
   avg_wait_time_5_6: number;
@@ -40,6 +41,7 @@ export function useQueueSettings(restaurantId: string) {
           restaurant_id: data.restaurant_id,
           max_party_size: data.max_party_size,
           max_queue_capacity: data.queue_capacity,
+          tolerance_minutes: data.tolerance_minutes ?? 10,
           avg_wait_time_1_2: data.avg_time_1_2,
           avg_wait_time_3_4: data.avg_time_3_4,
           avg_wait_time_5_6: data.avg_time_5_6,
@@ -63,6 +65,7 @@ export function useQueueSettings(restaurantId: string) {
           restaurant_id: restaurantId,
           max_party_size: values.max_party_size,
           queue_capacity: values.max_queue_capacity,
+          tolerance_minutes: values.tolerance_minutes,
           avg_time_1_2: values.avg_wait_time_1_2,
           avg_time_3_4: values.avg_wait_time_3_4,
           avg_time_5_6: values.avg_wait_time_5_6,
