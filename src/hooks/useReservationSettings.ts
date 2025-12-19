@@ -40,14 +40,28 @@ export function useReservationSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<ReservationSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { error } = await supabase
-        .from('reservation_settings')
-        .upsert({
-          ...values,
-          restaurant_id: restaurantId,
-        }, {
-          onConflict: 'restaurant_id'
-        });
+      const payload = {
+        restaurant_id: restaurantId,
+        max_party_size: values.max_party_size,
+        tolerance_minutes: values.tolerance_minutes,
+      };
+
+      // Avoid upsert(onConflict) because restaurant_id may not be unique in DB
+      let existingId = settings?.id;
+      if (!existingId) {
+        const { data, error } = await supabase
+          .from('reservation_settings')
+          .select('id')
+          .eq('restaurant_id', restaurantId)
+          .maybeSingle();
+
+        if (error) throw error;
+        existingId = data?.id;
+      }
+
+      const { error } = existingId
+        ? await supabase.from('reservation_settings').update(payload).eq('id', existingId)
+        : await supabase.from('reservation_settings').insert(payload);
 
       if (error) throw error;
 
@@ -62,7 +76,7 @@ export function useReservationSettings(restaurantId: string) {
       console.error('Error saving reservation settings:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: (error as any)?.message ?? "Não foi possível salvar as configurações.",
         variant: "destructive",
       });
       return false;

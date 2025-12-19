@@ -38,6 +38,7 @@ export function useQueueSettings(restaurantId: string) {
       // Map public schema fields to internal type
       if (data) {
         setSettings({
+          id: data.id,
           restaurant_id: data.restaurant_id,
           max_party_size: data.max_party_size,
           max_queue_capacity: data.queue_capacity,
@@ -59,20 +60,33 @@ export function useQueueSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<QueueSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { error } = await supabase
-        .from('queue_settings')
-        .upsert({
-          restaurant_id: restaurantId,
-          max_party_size: values.max_party_size,
-          queue_capacity: values.max_queue_capacity,
-          tolerance_minutes: values.tolerance_minutes,
-          avg_time_1_2: values.avg_wait_time_1_2,
-          avg_time_3_4: values.avg_wait_time_3_4,
-          avg_time_5_6: values.avg_wait_time_5_6,
-          avg_time_7_8: values.avg_wait_time_7_8,
-        }, {
-          onConflict: 'restaurant_id'
-        });
+      const payload = {
+        restaurant_id: restaurantId,
+        max_party_size: values.max_party_size,
+        queue_capacity: values.max_queue_capacity,
+        tolerance_minutes: values.tolerance_minutes,
+        avg_time_1_2: values.avg_wait_time_1_2,
+        avg_time_3_4: values.avg_wait_time_3_4,
+        avg_time_5_6: values.avg_wait_time_5_6,
+        avg_time_7_8: values.avg_wait_time_7_8,
+      };
+
+      // Avoid upsert(onConflict) because restaurant_id may not be unique in DB
+      let existingId = settings?.id;
+      if (!existingId) {
+        const { data, error } = await supabase
+          .from('queue_settings')
+          .select('id')
+          .eq('restaurant_id', restaurantId)
+          .maybeSingle();
+
+        if (error) throw error;
+        existingId = data?.id;
+      }
+
+      const { error } = existingId
+        ? await supabase.from('queue_settings').update(payload).eq('id', existingId)
+        : await supabase.from('queue_settings').insert(payload);
 
       if (error) throw error;
 
@@ -87,7 +101,7 @@ export function useQueueSettings(restaurantId: string) {
       console.error('Error saving queue settings:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: (error as any)?.message ?? "Não foi possível salvar as configurações.",
         variant: "destructive",
       });
       return false;
