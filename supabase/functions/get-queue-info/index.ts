@@ -31,6 +31,15 @@ Deno.serve(async (req) => {
     // O painel considera apenas registros das últimas 24 horas.
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+    // Buscar configurações da FILA (queue_settings) - NÃO reservation_settings!
+    const { data: queueSettings, error: settingsError } = await supabase
+      .from('queue_settings')
+      .select('tolerance_minutes, max_party_size, queue_capacity')
+      .eq('restaurant_id', restaurant_id)
+      .maybeSingle();
+
+    console.log('Queue settings:', { queueSettings, settingsError });
+
     // Buscar todas as entradas aguardando no restaurante, ordenadas por created_at ASC, id ASC
     const { data: waitingEntries, error: entriesError } = await supabase
       .schema('mesaclik')
@@ -90,6 +99,10 @@ Deno.serve(async (req) => {
       total_people,
       position,
       user_entry,
+      // Configurações da FILA (queue_settings)
+      tolerance_minutes: queueSettings?.tolerance_minutes ?? 10,
+      max_party_size: queueSettings?.max_party_size ?? 8,
+      queue_capacity: queueSettings?.queue_capacity ?? 50,
       // para debug/auditoria (não expõe dados sensíveis)
       cutoff,
     };
