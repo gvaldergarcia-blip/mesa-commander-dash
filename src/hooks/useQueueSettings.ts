@@ -27,15 +27,27 @@ export function useQueueSettings(restaurantId: string) {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await (supabase as any)
-        .schema('mesaclik')
+      const { data, error } = await supabase
         .from('queue_settings')
         .select('*')
         .eq('restaurant_id', restaurantId)
         .maybeSingle();
 
       if (error) throw error;
-      setSettings(data as QueueSettings | null);
+      // Map public schema fields to internal type
+      if (data) {
+        setSettings({
+          restaurant_id: data.restaurant_id,
+          max_party_size: data.max_party_size,
+          max_queue_capacity: data.queue_capacity,
+          avg_wait_time_1_2: data.avg_time_1_2,
+          avg_wait_time_3_4: data.avg_time_3_4,
+          avg_wait_time_5_6: data.avg_time_5_6,
+          avg_wait_time_7_8: data.avg_time_7_8,
+        } as QueueSettings);
+      } else {
+        setSettings(null);
+      }
     } catch (error) {
       console.error('Error fetching queue settings:', error);
     } finally {
@@ -45,12 +57,16 @@ export function useQueueSettings(restaurantId: string) {
 
   const saveSettings = async (values: Omit<QueueSettings, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { error } = await (supabase as any)
-        .schema('mesaclik')
+      const { error } = await supabase
         .from('queue_settings')
         .upsert({
-          ...values,
           restaurant_id: restaurantId,
+          max_party_size: values.max_party_size,
+          queue_capacity: values.max_queue_capacity,
+          avg_time_1_2: values.avg_wait_time_1_2,
+          avg_time_3_4: values.avg_wait_time_3_4,
+          avg_time_5_6: values.avg_wait_time_5_6,
+          avg_time_7_8: values.avg_wait_time_7_8,
         }, {
           onConflict: 'restaurant_id'
         });
