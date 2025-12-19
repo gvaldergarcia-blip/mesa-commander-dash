@@ -363,15 +363,7 @@ export type Database = {
           tolerance_minutes?: number
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "queue_settings_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: true
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       queues: {
         Row: {
@@ -433,15 +425,7 @@ export type Database = {
           tolerance_minutes?: number
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "reservation_settings_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: true
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       reservations: {
         Row: {
