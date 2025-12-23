@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { HoursSettings } from "@/components/settings/HoursSettings";
 import { QueueSettings } from "@/components/settings/QueueSettings";
 import { ReservationSettings } from "@/components/settings/ReservationSettings";
+import { RestaurantLogo } from "@/components/common/RestaurantLogo";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -47,6 +48,7 @@ const settingsSchema = z.object({
   image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   menu_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   menu_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
+  logo_url: z.string().url("URL inválida").or(z.literal("")).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -57,6 +59,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingMenuImage, setUploadingMenuImage] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -69,6 +72,7 @@ export default function Settings() {
       image_url: "",
       menu_url: "",
       menu_image_url: "",
+      logo_url: "",
     },
   });
 
@@ -99,6 +103,7 @@ export default function Settings() {
               image_url: data.image_url || "",
               menu_url: data.menu_url || "",
               menu_image_url: data.menu_image_url || "",
+              logo_url: data.logo_url || "",
             });
           }
         }
@@ -118,7 +123,7 @@ export default function Settings() {
       const { data, error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
-        .select('name, address_line, city, cuisine, about, image_url, menu_url, menu_image_url')
+        .select('name, address_line, city, cuisine, about, image_url, menu_url, menu_image_url, logo_url')
         .eq('id', RESTAURANT_ID)
         .maybeSingle();
 
@@ -137,6 +142,7 @@ export default function Settings() {
           image_url: data.image_url || "",
           menu_url: data.menu_url || "",
           menu_image_url: data.menu_image_url || "",
+          logo_url: data.logo_url || "",
         });
       } else {
         console.warn('[Settings] No data found for restaurant ID:', RESTAURANT_ID);
@@ -225,6 +231,50 @@ export default function Settings() {
     }
   };
 
+  const handleLogoUpload = async (file: File) => {
+    try {
+      setUploadingLogo(true);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${RESTAURANT_ID}-logo-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('restaurants')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('restaurants')
+        .getPublicUrl(filePath);
+
+      form.setValue('logo_url', publicUrl);
+
+      toast({
+        title: "Logo enviada",
+        description: "A logo do restaurante foi carregada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast({
+        title: "Erro ao enviar logo",
+        description: "Não foi possível fazer upload da logo. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    form.setValue('logo_url', '');
+    toast({
+      title: "Logo removida",
+      description: "A logo será removida ao salvar.",
+    });
+  };
+
   const onSubmit = async (values: SettingsFormValues) => {
     try {
       setSaving(true);
@@ -242,6 +292,7 @@ export default function Settings() {
           image_url: values.image_url || null,
           menu_url: values.menu_url || null,
           menu_image_url: values.menu_image_url || null,
+          logo_url: values.logo_url || null,
         })
         .eq('id', RESTAURANT_ID);
 
@@ -420,6 +471,80 @@ export default function Settings() {
                         <FormDescription>
                           {field.value?.length || 0} / 400 caracteres
                         </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Separator />
+
+                  {/* Seção de Logo do Restaurante */}
+                  <FormField
+                    control={form.control}
+                    name="logo_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          Logo do Restaurante
+                        </FormLabel>
+                        <FormDescription className="mb-4">
+                          A logo aparece à esquerda do nome em listagens e detalhes. Recomendamos imagem quadrada (ex: 512x512).
+                        </FormDescription>
+                        <div className="flex items-center gap-6">
+                          {/* Preview da Logo */}
+                          <div className="flex-shrink-0">
+                            <RestaurantLogo
+                              logoUrl={field.value || null}
+                              name={form.watch('name') || 'R'}
+                              size="xl"
+                            />
+                          </div>
+                          
+                          {/* Ações */}
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={uploadingLogo}
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/png,image/jpeg,image/jpg';
+                                input.onchange = (e) => {
+                                  const file = (e.target as HTMLInputElement).files?.[0];
+                                  if (file) handleLogoUpload(file);
+                                };
+                                input.click();
+                              }}
+                            >
+                              {uploadingLogo ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Enviando...
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="mr-2 h-4 w-4" />
+                                  {field.value ? 'Substituir Logo' : 'Enviar Logo'}
+                                </>
+                              )}
+                            </Button>
+                            
+                            {field.value && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={handleRemoveLogo}
+                              >
+                                Remover Logo
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
