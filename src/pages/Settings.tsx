@@ -55,7 +55,10 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 export default function Settings() {
-  const { loading: authLoading, isAuthenticated } = useRequireAuth({ requireAdmin: true });
+  // DEV: Auth desabilitado para desenvolvimento
+  // const { loading: authLoading, isAuthenticated } = useRequireAuth({ requireAdmin: true });
+  const authLoading = false;
+  const isAuthenticated = true;
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
