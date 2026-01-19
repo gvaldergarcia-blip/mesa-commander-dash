@@ -52,7 +52,7 @@ export function CustomerMetricsCard({ newCustomers, vipCustomers }: CustomerMetr
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
                     <p className="text-sm">
-                      Clientes que visitaram seu restaurante 5 vezes ou mais no período analisado.
+                      Clientes com vip_status=true OU com 10 ou mais visitas realizadas (total_visits ≥ 10).
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -60,7 +60,7 @@ export function CustomerMetricsCard({ newCustomers, vipCustomers }: CustomerMetr
             </div>
             <div className="text-3xl font-bold text-foreground">{vipCustomers}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              5+ visitas realizadas
+              10+ visitas realizadas
             </p>
           </div>
         </div>

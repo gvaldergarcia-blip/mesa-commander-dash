@@ -300,10 +300,9 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       // ============================================
       // 6. CLIENTES NOVOS E VIP
       // Novos: clientes criados no período (created_at)
-      // VIP: 5+ visitas no total
+      // VIP: vip_status=true OU total_visits >= 10 (REGRA OFICIAL)
       // ============================================
       const { data: customers } = await supabase
-        .schema('mesaclik')
         .from('customers')
         .select('id, total_visits, vip_status, created_at');
 
@@ -314,9 +313,9 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         return createdAt >= startDate && createdAt <= endDate;
       }).length || 0;
       
-      // Clientes com 5+ visitas
+      // Clientes VIP: vip_status=true OU total_visits >= 10 (REGRA OFICIAL do sistema)
       const vipCustomers = customers?.filter(c => 
-        c.vip_status === true || (c.total_visits && c.total_visits >= 5)
+        c.vip_status === true || (c.total_visits && c.total_visits >= 10)
       ).length || 0;
 
       // ============================================
