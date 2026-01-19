@@ -377,28 +377,42 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       // 9. DISTRIBUIÇÃO DE STATUS (Pizza)
       // Status válidos - Fila: waiting, called, seated, canceled, no_show, served
       // Status válidos - Reserva: pending, confirmed, canceled, no_show, completed
+      // IMPORTANTE: Respeitar o filtro sourceType
       // ============================================
-      const queueSeated = currentQueueData?.filter(e => ['seated', 'served'].includes(e.status)).length || 0;
-      const queueCanceled = currentQueueData?.filter(e => e.status === 'canceled').length || 0;
-      const queueWaiting = currentQueueData?.filter(e => e.status === 'waiting').length || 0;
-      const queueCalled = currentQueueData?.filter(e => e.status === 'called').length || 0;
-      const queueNoShow = currentQueueData?.filter(e => e.status === 'no_show').length || 0;
+      const includeQueue = sourceType !== 'reservations';
+      const includeReservations = sourceType !== 'queue';
       
-      const resCompleted = currentReservations?.filter(r => r.status === 'completed').length || 0;
-      const resConfirmed = currentReservations?.filter(r => r.status === 'confirmed').length || 0;
-      const resPending = currentReservations?.filter(r => r.status === 'pending').length || 0;
-      const resCanceled = currentReservations?.filter(r => r.status === 'canceled').length || 0;
-      const resNoShow = currentReservations?.filter(r => r.status === 'no_show' || r.no_show_at).length || 0;
+      const queueSeated = includeQueue ? (currentQueueData?.filter(e => ['seated', 'served'].includes(e.status)).length || 0) : 0;
+      const queueCanceled = includeQueue ? (currentQueueData?.filter(e => e.status === 'canceled').length || 0) : 0;
+      const queueWaiting = includeQueue ? (currentQueueData?.filter(e => e.status === 'waiting').length || 0) : 0;
+      const queueCalled = includeQueue ? (currentQueueData?.filter(e => e.status === 'called').length || 0) : 0;
+      const queueNoShow = includeQueue ? (currentQueueData?.filter(e => e.status === 'no_show').length || 0) : 0;
       
-      const statusDistribution = [
-        { name: 'Atendidos (Fila)', value: queueSeated, color: 'hsl(var(--success))' },
-        { name: 'Concluídas (Reserva)', value: resCompleted, color: 'hsl(var(--primary))' },
-        { name: 'Confirmadas (Reserva)', value: resConfirmed, color: 'hsl(var(--accent))' },
-        { name: 'Aguardando', value: queueWaiting + queueCalled, color: 'hsl(var(--warning))' },
-        { name: 'Pendentes', value: resPending, color: 'hsl(var(--muted-foreground))' },
-        { name: 'Cancelados', value: queueCanceled + resCanceled, color: 'hsl(var(--destructive))' },
-        { name: 'Não Compareceram', value: queueNoShow + resNoShow, color: 'hsl(var(--destructive) / 0.7)' },
-      ].filter(s => s.value > 0);
+      const resCompleted = includeReservations ? (currentReservations?.filter(r => r.status === 'completed').length || 0) : 0;
+      const resConfirmed = includeReservations ? (currentReservations?.filter(r => r.status === 'confirmed').length || 0) : 0;
+      const resPending = includeReservations ? (currentReservations?.filter(r => r.status === 'pending').length || 0) : 0;
+      const resCanceled = includeReservations ? (currentReservations?.filter(r => r.status === 'canceled').length || 0) : 0;
+      const resNoShow = includeReservations ? (currentReservations?.filter(r => r.status === 'no_show' || r.no_show_at).length || 0) : 0;
+      
+      // Montar distribuição baseado no filtro ativo
+      const statusDistributionItems = [];
+      
+      if (includeQueue) {
+        if (queueSeated > 0) statusDistributionItems.push({ name: 'Atendidos (Fila)', value: queueSeated, color: 'hsl(var(--success))' });
+        if (queueWaiting + queueCalled > 0) statusDistributionItems.push({ name: 'Aguardando (Fila)', value: queueWaiting + queueCalled, color: 'hsl(var(--warning))' });
+        if (queueNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Fila)', value: queueNoShow, color: 'hsl(var(--destructive) / 0.7)' });
+        if (queueCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Fila)', value: queueCanceled, color: 'hsl(var(--destructive))' });
+      }
+      
+      if (includeReservations) {
+        if (resCompleted > 0) statusDistributionItems.push({ name: 'Concluídas (Reserva)', value: resCompleted, color: 'hsl(var(--primary))' });
+        if (resConfirmed > 0) statusDistributionItems.push({ name: 'Confirmadas (Reserva)', value: resConfirmed, color: 'hsl(var(--accent))' });
+        if (resPending > 0) statusDistributionItems.push({ name: 'Pendentes (Reserva)', value: resPending, color: 'hsl(var(--muted-foreground))' });
+        if (resNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Reserva)', value: resNoShow, color: 'hsl(var(--destructive) / 0.7)' });
+        if (resCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Reserva)', value: resCanceled, color: 'hsl(var(--destructive))' });
+      }
+      
+      const statusDistribution = statusDistributionItems;
 
       // ============================================
       // 10. DISTRIBUIÇÃO HORÁRIA
