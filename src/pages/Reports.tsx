@@ -1,23 +1,18 @@
 import { useState } from "react";
 import { 
   BarChart3, 
-  TrendingUp, 
-  Users, 
   Clock, 
-  Calendar,
-  Mail,
-  DollarSign,
+  Users, 
   Target,
   Download,
-  Link2,
   Share2,
   XCircle,
-  UserPlus
+  Mail,
+  AlertTriangle,
+  HelpCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MetricCard } from "@/components/ui/metric-card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -32,6 +27,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useReportsReal } from "@/hooks/useReportsReal";
 import { useExportData } from "@/hooks/useExportData";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,9 +40,89 @@ import { useToast } from "@/hooks/use-toast";
 import { DailyEvolutionChart } from "@/components/reports/DailyEvolutionChart";
 import { StatusDistributionChart } from "@/components/reports/StatusDistributionChart";
 import { HourlyDistributionChart } from "@/components/reports/HourlyDistributionChart";
+import { InsightsCard } from "@/components/reports/InsightsCard";
+import { CustomerMetricsCard } from "@/components/reports/CustomerMetricsCard";
+import { PeakInfoCard } from "@/components/reports/PeakInfoCard";
+import { PerformanceCards } from "@/components/reports/PerformanceCards";
 
 type PeriodType = 'today' | '7days' | '30days' | '90days';
 type SourceType = 'all' | 'queue' | 'reservations';
+
+// Componente de KPI Card Premium
+function KPICard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  trend,
+  tooltipText,
+  variant = "default"
+}: {
+  title: string;
+  value: string;
+  description: string;
+  icon: React.ElementType;
+  trend?: { value: number; isPositive: boolean };
+  tooltipText?: string;
+  variant?: "default" | "success" | "warning" | "destructive";
+}) {
+  const variantStyles = {
+    default: "border-border",
+    success: "border-success/30 bg-success/5",
+    warning: "border-warning/30 bg-warning/5",
+    destructive: "border-destructive/30 bg-destructive/5",
+  };
+
+  const iconStyles = {
+    default: "bg-primary/10 text-primary",
+    success: "bg-success/10 text-success",
+    warning: "bg-warning/10 text-warning",
+    destructive: "bg-destructive/10 text-destructive",
+  };
+
+  return (
+    <Card className={`relative overflow-hidden transition-all hover:shadow-md ${variantStyles[variant]}`}>
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium text-muted-foreground">{title}</p>
+              {tooltipText && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="text-sm">{tooltipText}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <p className="text-2xl font-bold text-foreground">{value}</p>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
+          <div className={`p-2.5 rounded-xl ${iconStyles[variant]}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+        </div>
+        {trend && (
+          <div className="flex items-center mt-3 pt-3 border-t border-border/50">
+            <span
+              className={`text-xs font-medium ${
+                trend.isPositive ? "text-success" : "text-destructive"
+              }`}
+            >
+              {trend.isPositive ? "↗" : "↘"} {Math.abs(trend.value)}%
+            </span>
+            <span className="text-xs text-muted-foreground ml-1.5">vs. período anterior</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Reports() {
   const [period, setPeriod] = useState<PeriodType>('30days');
@@ -66,6 +147,16 @@ export default function Reports() {
     }
     
     return { startDate, endDate };
+  };
+
+  const getPeriodLabel = () => {
+    switch (period) {
+      case 'today': return 'Hoje';
+      case '7days': return 'Últimos 7 dias';
+      case '30days': return 'Últimos 30 dias';
+      case '90days': return 'Últimos 90 dias';
+      default: return '';
+    }
   };
 
   const handleExport = async (type: 'queue' | 'reservations' | 'kpis') => {
@@ -117,6 +208,10 @@ export default function Reports() {
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-80" />
+          <Skeleton className="h-80" />
+        </div>
       </div>
     );
   }
@@ -124,31 +219,41 @@ export default function Reports() {
   if (!metrics) {
     return (
       <div className="p-6">
-        <p className="text-muted-foreground">Erro ao carregar relatórios.</p>
+        <Card className="border-destructive/20 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <p className="text-muted-foreground">Erro ao carregar relatórios. Tente novamente mais tarde.</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
+      {/* Header Premium */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Relatórios & Análises</h1>
-          <p className="text-muted-foreground">Insights sobre o desempenho do seu restaurante</p>
+          <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
+          <p className="text-muted-foreground mt-1">
+            Análise completa do desempenho do seu restaurante • {getPeriodLabel()}
+          </p>
         </div>
-        <div className="flex space-x-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <Select value={sourceType} onValueChange={(value) => setSourceType(value as SourceType)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-44 bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os Dados</SelectItem>
               <SelectItem value="queue">Apenas Fila</SelectItem>
               <SelectItem value="reservations">Apenas Reservas</SelectItem>
             </SelectContent>
           </Select>
           <Select value={period} onValueChange={(value) => setPeriod(value as PeriodType)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-44 bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -160,9 +265,9 @@ export default function Reports() {
           </Select>
           <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Exportar Dados
+              <Button variant="outline" className="gap-2">
+                <Download className="w-4 h-4" />
+                Exportar
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -171,7 +276,7 @@ export default function Reports() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium">Escolha o que exportar:</h4>
+                  <h4 className="font-medium text-sm text-muted-foreground">Escolha o que exportar:</h4>
                   <div className="grid gap-2">
                     <Button 
                       variant="outline" 
@@ -195,13 +300,13 @@ export default function Reports() {
                       onClick={() => handleExport('kpis')}
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      KPIs Consolidados (CSV)
+                      Indicadores Consolidados (CSV)
                     </Button>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <h4 className="font-medium">Compartilhar:</h4>
+                  <h4 className="font-medium text-sm text-muted-foreground">Compartilhar:</h4>
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant="outline"
@@ -225,44 +330,60 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards Premium */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <MetricCard
+        <KPICard
           title="Tempo Médio de Espera"
           value={`${metrics.avgWaitTime.current} min`}
-          description="Tempo na fila"
+          description="Tempo médio na fila"
           icon={Clock}
           trend={{ value: Math.abs(metrics.avgWaitTime.trend), isPositive: metrics.avgWaitTime.trend < 0 }}
+          tooltipText="Tempo médio entre a entrada na fila e o atendimento"
         />
-        <MetricCard
+        <KPICard
           title="Taxa de Conversão"
           value={`${metrics.conversionRate.current}%`}
           description="Reservas confirmadas"
           icon={Target}
           trend={{ value: Math.abs(metrics.conversionRate.trend), isPositive: metrics.conversionRate.trend > 0 }}
+          tooltipText="Percentual de reservas que foram confirmadas ou concluídas"
+          variant={metrics.conversionRate.current >= 70 ? "success" : "default"}
         />
-        <MetricCard
-          title="Taxa de No-Show"
+        <KPICard
+          title="Não Compareceram"
           value={`${metrics.noShowRate.current}%`}
           description="Faltas sem aviso"
           icon={XCircle}
           trend={{ value: Math.abs(metrics.noShowRate.trend), isPositive: metrics.noShowRate.trend < 0 }}
+          tooltipText="Percentual de clientes que não compareceram à reserva"
+          variant={metrics.noShowRate.current > 10 ? "destructive" : "default"}
         />
-        <MetricCard
+        <KPICard
           title="Taxa de Cancelamento"
           value={`${metrics.cancelRate.current}%`}
           description="Cancelamentos da fila"
-          icon={XCircle}
+          icon={AlertTriangle}
           trend={{ value: Math.abs(metrics.cancelRate.trend), isPositive: metrics.cancelRate.trend < 0 }}
+          tooltipText="Percentual de entradas na fila que foram canceladas"
+          variant={metrics.cancelRate.current > 20 ? "warning" : "default"}
         />
-        <MetricCard
+        <KPICard
           title="Média por Grupo"
           value={metrics.avgPartySize.current.toFixed(1)}
-          description="Pessoas por entrada"
+          description="Pessoas por mesa"
           icon={Users}
           trend={{ value: Math.abs(metrics.avgPartySize.trend), isPositive: metrics.avgPartySize.trend > 0 }}
+          tooltipText="Número médio de pessoas por grupo atendido"
         />
       </div>
+
+      {/* Resumo Rápido - Total Atendidos, Cancelados, Horário e Dia de Pico */}
+      <PeakInfoCard
+        peakHour={metrics.peakHour}
+        peakDay={metrics.peakDay}
+        totalServed={metrics.totalServed}
+        totalCanceled={metrics.totalCanceled}
+      />
 
       {/* Gráficos Principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -270,228 +391,31 @@ export default function Reports() {
         <StatusDistributionChart data={metrics?.statusDistribution} />
       </div>
 
+      {/* Distribuição por Horário */}
       <HourlyDistributionChart data={metrics?.hourlyDistribution} />
 
-      <Tabs defaultValue="insights" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-          <TabsTrigger value="customers">Clientes</TabsTrigger>
-          <TabsTrigger value="details">Detalhes</TabsTrigger>
-        </TabsList>
+      {/* Insights e Clientes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <InsightsCard
+          peakHour={metrics.peakHour}
+          peakDay={metrics.peakDay}
+          vipCustomers={metrics.vipCustomers}
+          totalServed={metrics.totalServed}
+          avgWaitTime={metrics.avgWaitTime.current}
+          conversionRate={metrics.conversionRate.current}
+        />
+        <CustomerMetricsCard
+          newCustomers={metrics.newCustomers}
+          vipCustomers={metrics.vipCustomers}
+        />
+      </div>
 
-        <TabsContent value="insights" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Atendidos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{metrics.totalServed}</div>
-                <p className="text-xs text-muted-foreground mt-1">No período selecionado</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Cancelados</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-destructive">{metrics.totalCanceled}</div>
-                <p className="text-xs text-muted-foreground mt-1">Fila de espera</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Horário de Pico</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{metrics.peakHour}</div>
-                <p className="text-xs text-muted-foreground mt-1">Maior movimento</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Dia de Pico</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary capitalize">{metrics.peakDay}</div>
-                <p className="text-xs text-muted-foreground mt-1">Melhor dia</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2" />
-                  Performance da Fila
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-                      <div className="text-2xl font-bold text-success">{metrics.queueEfficiency}%</div>
-                      <div className="text-sm text-muted-foreground">Eficiência</div>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-                      <div className="text-2xl font-bold text-warning">{metrics.avgQueueSize}</div>
-                      <div className="text-sm text-muted-foreground">Média diária</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Target className="w-5 h-5 mr-2" />
-                  Performance de Reservas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {metrics.reservationMetrics.map((metric, index) => (
-                    <div key={index} className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <div className="text-lg font-bold text-success">{metric.confirmed}</div>
-                        <div className="text-xs text-muted-foreground">Confirmadas</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-warning">{metric.pending}</div>
-                        <div className="text-xs text-muted-foreground">Pendentes</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-destructive">{metric.noShow}</div>
-                        <div className="text-xs text-muted-foreground">No-show</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-
-        <TabsContent value="customers" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <UserPlus className="w-5 h-5 mr-2" />
-                  Novos Clientes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center p-6 rounded-lg bg-gradient-to-br from-accent/5 to-primary/5">
-                  <div className="text-4xl font-bold text-accent mb-2">{metrics.newCustomers}</div>
-                  <div className="text-sm text-muted-foreground">No período selecionado</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Users className="w-5 h-5 mr-2" />
-                  Clientes VIP
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center p-6 rounded-lg bg-gradient-to-br from-success/5 to-accent/5">
-                  <div className="text-4xl font-bold text-success mb-2">{metrics.vipCustomers}</div>
-                  <div className="text-sm text-muted-foreground">Total de clientes VIP (10+ visitas)</div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Adicionais</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Para visualizar detalhes completos dos clientes, acesse a página "Clientes" no menu lateral.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="details" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2" />
-                  Métricas de Fila
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {metrics.queueMetrics.map((metric, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                      <div>
-                        <div className="font-medium">{metric.period}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {metric.totalServed} pessoas atendidas
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary">{metric.avgWait} min</div>
-                        <div className="text-xs text-muted-foreground">
-                          Pico: {metric.peaked}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Métricas de Reservas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {metrics.reservationMetrics.map((metric, index) => (
-                    <div key={index} className="p-3 rounded-lg bg-muted/30">
-                      <div className="font-medium mb-2">{metric.period}</div>
-                      <div className="grid grid-cols-4 gap-2 text-sm">
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-success">{metric.confirmed}</div>
-                          <div className="text-xs text-muted-foreground">Confirmadas</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-warning">{metric.pending}</div>
-                          <div className="text-xs text-muted-foreground">Pendentes</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-destructive">{metric.noShow}</div>
-                          <div className="text-xs text-muted-foreground">No-show</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-muted-foreground">{metric.canceled}</div>
-                          <div className="text-xs text-muted-foreground">Canceladas</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* Performance Cards */}
+      <PerformanceCards
+        queueEfficiency={metrics.queueEfficiency}
+        avgQueueSize={metrics.avgQueueSize}
+        reservationMetrics={metrics.reservationMetrics}
+      />
     </div>
   );
 }
