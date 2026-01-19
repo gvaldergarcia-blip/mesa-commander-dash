@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lightbulb, TrendingUp, Clock, Users, Calendar } from "lucide-react";
+import { Lightbulb, TrendingUp, TrendingDown, Clock, Users, Calendar, AlertTriangle } from "lucide-react";
 
 interface InsightsCardProps {
   peakHour: string;
@@ -8,8 +8,17 @@ interface InsightsCardProps {
   totalServed: number;
   avgWaitTime: number;
   conversionRate: number;
+  // Novos campos para insights mais precisos
+  totalCanceled?: number;
+  noShowRate?: number;
+  previousAvgWait?: number;
+  previousConversionRate?: number;
 }
 
+/**
+ * Insights determinísticos baseados APENAS em dados reais
+ * Não gera frases sobre satisfação, NPS ou métricas que não existem
+ */
 export function InsightsCard({
   peakHour,
   peakDay,
@@ -17,58 +26,118 @@ export function InsightsCard({
   totalServed,
   avgWaitTime,
   conversionRate,
+  totalCanceled = 0,
+  noShowRate = 0,
+  previousAvgWait = 0,
+  previousConversionRate = 0,
 }: InsightsCardProps) {
-  // Gerar insights dinâmicos baseados nos dados
-  const insights = [];
+  // Gerar insights DETERMINÍSTICOS baseados apenas em dados reais
+  const insights: Array<{
+    icon: typeof Lightbulb;
+    text: string;
+    type: "success" | "warning" | "info";
+  }> = [];
 
-  if (peakDay) {
+  // Insight: Dia de pico (se houver dados)
+  if (peakDay && peakDay !== '-') {
+    const dayCapitalized = peakDay.charAt(0).toUpperCase() + peakDay.slice(1);
     insights.push({
       icon: Calendar,
-      text: `${peakDay.charAt(0).toUpperCase() + peakDay.slice(1)} apresenta o maior movimento da semana`,
-      type: "info" as const,
+      text: `${dayCapitalized} apresenta o maior volume de entradas no período analisado.`,
+      type: "info",
     });
   }
 
-  if (peakHour) {
+  // Insight: Horário de pico (se houver dados)
+  if (peakHour && peakHour !== '-') {
     insights.push({
       icon: Clock,
-      text: `O horário das ${peakHour} concentra a maioria das entradas`,
-      type: "info" as const,
+      text: `O horário das ${peakHour} concentra a maioria das entradas.`,
+      type: "info",
     });
   }
 
-  if (vipCustomers > 0 && totalServed > 0) {
-    const vipPercentage = Math.round((vipCustomers / totalServed) * 100);
-    if (vipPercentage > 0) {
+  // Insight: Tempo de espera comparativo
+  if (avgWaitTime > 0 && previousAvgWait > 0) {
+    const diff = avgWaitTime - previousAvgWait;
+    if (diff < 0) {
       insights.push({
-        icon: Users,
-        text: `Clientes VIP representam ${vipPercentage}% do potencial de fidelização`,
-        type: "success" as const,
+        icon: TrendingDown,
+        text: `Tempo médio de espera reduziu ${Math.abs(diff)} minutos em relação ao período anterior.`,
+        type: "success",
       });
-    }
-  }
-
-  if (avgWaitTime > 0) {
-    if (avgWaitTime <= 15) {
+    } else if (diff > 5) {
       insights.push({
         icon: TrendingUp,
-        text: `Tempo de espera excelente, mantendo clientes satisfeitos`,
-        type: "success" as const,
+        text: `Tempo médio de espera aumentou ${diff} minutos. Considere otimizar o fluxo de atendimento.`,
+        type: "warning",
+      });
+    }
+  } else if (avgWaitTime > 0) {
+    // Sem comparativo, apenas informar o tempo atual
+    if (avgWaitTime <= 15) {
+      insights.push({
+        icon: Clock,
+        text: `Tempo médio de espera de ${avgWaitTime} minutos está dentro da média ideal.`,
+        type: "success",
       });
     } else if (avgWaitTime > 30) {
       insights.push({
-        icon: Clock,
-        text: `Considere estratégias para reduzir o tempo de espera`,
-        type: "warning" as const,
+        icon: AlertTriangle,
+        text: `Tempo médio de espera de ${avgWaitTime} minutos. Considere estratégias para reduzir.`,
+        type: "warning",
       });
     }
   }
 
-  if (conversionRate >= 80) {
+  // Insight: Taxa de conversão comparativa
+  if (conversionRate > 0 && previousConversionRate > 0) {
+    const diff = conversionRate - previousConversionRate;
+    if (diff > 5) {
+      insights.push({
+        icon: TrendingUp,
+        text: `Taxa de conversão subiu ${diff}% em relação ao período anterior.`,
+        type: "success",
+      });
+    } else if (diff < -5) {
+      insights.push({
+        icon: TrendingDown,
+        text: `Taxa de conversão caiu ${Math.abs(diff)}% em relação ao período anterior.`,
+        type: "warning",
+      });
+    }
+  }
+
+  // Insight: VIP (apenas se houver dados)
+  if (vipCustomers > 0 && totalServed > 0) {
+    const vipPercentage = Math.round((vipCustomers / totalServed) * 100);
+    if (vipPercentage >= 10) {
+      insights.push({
+        icon: Users,
+        text: `Clientes VIP (5+ visitas) representam ${vipPercentage}% da base. Considere programas de fidelização.`,
+        type: "success",
+      });
+    }
+  }
+
+  // Insight: Cancelamentos (se significativo)
+  if (totalCanceled > 0 && totalServed > 0) {
+    const cancelPercentage = Math.round((totalCanceled / (totalServed + totalCanceled)) * 100);
+    if (cancelPercentage > 20) {
+      insights.push({
+        icon: AlertTriangle,
+        text: `${cancelPercentage}% das entradas foram canceladas. Analise os motivos para reduzir esse índice.`,
+        type: "warning",
+      });
+    }
+  }
+
+  // Insight: No-show (se houver dados)
+  if (noShowRate > 10) {
     insights.push({
-      icon: TrendingUp,
-      text: `Taxa de conversão acima da média do mercado`,
-      type: "success" as const,
+      icon: AlertTriangle,
+      text: `Taxa de não comparecimento de ${noShowRate}%. Considere confirmação prévia via SMS.`,
+      type: "warning",
     });
   }
 
@@ -82,7 +151,7 @@ export function InsightsCard({
           Insights do Período
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Análises automáticas baseadas no desempenho do seu restaurante
+          Análises baseadas nos dados reais do seu restaurante
         </p>
       </CardHeader>
       <CardContent>
@@ -116,6 +185,8 @@ export function InsightsCard({
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
               Dados insuficientes para gerar insights no período selecionado.
+              <br />
+              <span className="text-xs">Adicione mais entradas na fila ou reservas para ver análises.</span>
             </p>
           )}
         </div>
