@@ -9,7 +9,8 @@ import {
   XCircle,
   Mail,
   AlertTriangle,
-  HelpCircle
+  HelpCircle,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,18 @@ import { PerformanceCards } from "@/components/reports/PerformanceCards";
 type PeriodType = 'today' | '7days' | '30days' | '90days';
 type SourceType = 'all' | 'queue' | 'reservations';
 
+/**
+ * DOCUMENTAÇÃO DOS TOOLTIPS
+ * Cada KPI tem uma explicação clara de como é calculado
+ */
+const TOOLTIP_FORMULAS = {
+  avgWaitTime: "Como calculamos: Média de (horário atendido − horário de entrada) para clientes com status 'sentado'. Fonte: mesaclik.queue_entries onde seated_at está preenchido.",
+  conversionRate: "Como calculamos: (Clientes atendidos ÷ Total de entradas na fila) × 100. Representa a porcentagem de clientes que efetivamente foram atendidos. Fonte: mesaclik.queue_entries.",
+  noShowRate: "Como calculamos: (Reservas com status 'no_show' ÷ Reservas finalizadas) × 100. Só aparece se houver marcação de não comparecimento. Fonte: mesaclik.reservations.",
+  cancelRate: "Como calculamos: (Cancelamentos ÷ Total de registros) × 100. Inclui fila e reservas. Fonte: mesaclik.queue_entries + mesaclik.reservations.",
+  avgPartySize: "Como calculamos: Média do tamanho do grupo (party_size) dos clientes atendidos. Fonte: registros com status 'seated' ou 'completed'.",
+};
+
 // Componente de KPI Card Premium
 function KPICard({
   title,
@@ -56,7 +69,8 @@ function KPICard({
   icon: Icon,
   trend,
   tooltipText,
-  variant = "default"
+  variant = "default",
+  hasData = true,
 }: {
   title: string;
   value: string;
@@ -65,6 +79,7 @@ function KPICard({
   trend?: { value: number; isPositive: boolean };
   tooltipText?: string;
   variant?: "default" | "success" | "warning" | "destructive";
+  hasData?: boolean;
 }) {
   const variantStyles = {
     default: "border-border",
@@ -93,21 +108,23 @@ function KPICard({
                     <TooltipTrigger asChild>
                       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs">
-                      <p className="text-sm">{tooltipText}</p>
+                    <TooltipContent side="top" className="max-w-sm">
+                      <p className="text-sm whitespace-pre-wrap">{tooltipText}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
             </div>
-            <p className="text-2xl font-bold text-foreground">{value}</p>
+            <p className={`text-2xl font-bold ${hasData ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {hasData ? value : '-'}
+            </p>
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
           <div className={`p-2.5 rounded-xl ${iconStyles[variant]}`}>
             <Icon className="w-5 h-5" />
           </div>
         </div>
-        {trend && (
+        {trend && hasData && trend.value !== 0 && (
           <div className="flex items-center mt-3 pt-3 border-t border-border/50">
             <span
               className={`text-xs font-medium ${
@@ -128,7 +145,7 @@ export default function Reports() {
   const [period, setPeriod] = useState<PeriodType>('30days');
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const { metrics, loading } = useReportsReal(period, sourceType);
+  const { metrics, loading, refetch } = useReportsReal(period, sourceType);
   const { exportQueueData, exportReservationsData, exportKPIsData } = useExportData();
   const { toast } = useToast();
 
@@ -231,6 +248,11 @@ export default function Reports() {
     );
   }
 
+  // Verificar se há dados suficientes
+  const hasQueueData = metrics.queueMetrics[0]?.totalServed > 0 || metrics.avgQueueSize > 0;
+  const hasReservationData = metrics.reservationMetrics[0]?.confirmed > 0 || metrics.reservationMetrics[0]?.pending > 0;
+  const hasAnyData = hasQueueData || hasReservationData;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header Premium */}
@@ -239,9 +261,17 @@ export default function Reports() {
           <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground mt-1">
             Análise completa do desempenho do seu restaurante • {getPeriodLabel()}
+            {metrics.lastUpdated && (
+              <span className="text-xs ml-2">
+                (Atualizado às {metrics.lastUpdated})
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <Button variant="ghost" size="icon" onClick={refetch} title="Atualizar dados">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           <Select value={sourceType} onValueChange={(value) => setSourceType(value as SourceType)}>
             <SelectTrigger className="w-44 bg-card">
               <SelectValue />
@@ -330,42 +360,63 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* Aviso se não houver dados */}
+      {!hasAnyData && (
+        <Card className="border-warning/30 bg-warning/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              <div>
+                <p className="font-medium text-foreground">Sem dados no período selecionado</p>
+                <p className="text-sm text-muted-foreground">
+                  Adicione entradas na fila ou reservas para visualizar as métricas.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI Cards Premium */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard
           title="Tempo Médio de Espera"
           value={`${metrics.avgWaitTime.current} min`}
-          description="Tempo médio na fila"
+          description="Fila → Atendimento"
           icon={Clock}
           trend={{ value: Math.abs(metrics.avgWaitTime.trend), isPositive: metrics.avgWaitTime.trend < 0 }}
-          tooltipText="Tempo médio entre a entrada na fila e o atendimento"
+          tooltipText={TOOLTIP_FORMULAS.avgWaitTime}
+          hasData={metrics.avgWaitTime.current > 0}
         />
         <KPICard
           title="Taxa de Conversão"
           value={`${metrics.conversionRate.current}%`}
-          description="Reservas confirmadas"
+          description="Entradas atendidas"
           icon={Target}
           trend={{ value: Math.abs(metrics.conversionRate.trend), isPositive: metrics.conversionRate.trend > 0 }}
-          tooltipText="Percentual de reservas que foram confirmadas ou concluídas"
+          tooltipText={TOOLTIP_FORMULAS.conversionRate}
           variant={metrics.conversionRate.current >= 70 ? "success" : "default"}
+          hasData={hasQueueData}
         />
         <KPICard
           title="Não Compareceram"
           value={`${metrics.noShowRate.current}%`}
-          description="Faltas sem aviso"
+          description="Reservas sem presença"
           icon={XCircle}
           trend={{ value: Math.abs(metrics.noShowRate.trend), isPositive: metrics.noShowRate.trend < 0 }}
-          tooltipText="Percentual de clientes que não compareceram à reserva"
+          tooltipText={TOOLTIP_FORMULAS.noShowRate}
           variant={metrics.noShowRate.current > 10 ? "destructive" : "default"}
+          hasData={metrics.noShowRate.current > 0 || hasReservationData}
         />
         <KPICard
           title="Taxa de Cancelamento"
           value={`${metrics.cancelRate.current}%`}
-          description="Cancelamentos da fila"
+          description="Fila + Reservas"
           icon={AlertTriangle}
           trend={{ value: Math.abs(metrics.cancelRate.trend), isPositive: metrics.cancelRate.trend < 0 }}
-          tooltipText="Percentual de entradas na fila que foram canceladas"
+          tooltipText={TOOLTIP_FORMULAS.cancelRate}
           variant={metrics.cancelRate.current > 20 ? "warning" : "default"}
+          hasData={hasAnyData}
         />
         <KPICard
           title="Média por Grupo"
@@ -373,7 +424,8 @@ export default function Reports() {
           description="Pessoas por mesa"
           icon={Users}
           trend={{ value: Math.abs(metrics.avgPartySize.trend), isPositive: metrics.avgPartySize.trend > 0 }}
-          tooltipText="Número médio de pessoas por grupo atendido"
+          tooltipText={TOOLTIP_FORMULAS.avgPartySize}
+          hasData={metrics.avgPartySize.current > 0}
         />
       </div>
 
@@ -403,6 +455,10 @@ export default function Reports() {
           totalServed={metrics.totalServed}
           avgWaitTime={metrics.avgWaitTime.current}
           conversionRate={metrics.conversionRate.current}
+          totalCanceled={metrics.totalCanceled}
+          noShowRate={metrics.noShowRate.current}
+          previousAvgWait={metrics.avgWaitTime.previous}
+          previousConversionRate={metrics.conversionRate.previous}
         />
         <CustomerMetricsCard
           newCustomers={metrics.newCustomers}
