@@ -170,11 +170,14 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
 
       // ============================================
       // 1. TEMPO MÉDIO DE ESPERA (apenas fila)
-      // Fórmula: Média de (seated_at - created_at) para status='seated'
+      // Fórmula: Média de (seated_at - created_at) para status='seated' ou 'served'
       // ============================================
       const calcAvgWait = (data: any[] | null) => {
         if (!data) return 0;
-        const seatedWithTimestamp = data.filter(e => e.status === 'seated' && e.seated_at);
+        // Considerar seated OU served com seated_at preenchido
+        const seatedWithTimestamp = data.filter(e => 
+          ['seated', 'served'].includes(e.status) && e.seated_at
+        );
         if (seatedWithTimestamp.length === 0) return 0;
         
         const total = seatedWithTimestamp.reduce((sum, e) => {
@@ -192,13 +195,14 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
 
       // ============================================
       // 2. TAXA DE CONVERSÃO (Fila)
-      // Fórmula: (seated / total_entries) × 100
+      // Fórmula: (atendidos / total_entries) × 100
+      // Atendidos = seated + served
       // Representa % de clientes que foram efetivamente atendidos
       // ============================================
       const calcQueueConversion = (data: any[] | null) => {
         if (!data || data.length === 0) return 0;
-        const seated = data.filter(e => e.status === 'seated').length;
-        return Math.round((seated / data.length) * 100);
+        const atendidos = data.filter(e => ['seated', 'served'].includes(e.status)).length;
+        return Math.round((atendidos / data.length) * 100);
       };
 
       const currentQueueConv = calcQueueConversion(currentQueueData);
@@ -206,7 +210,6 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const convTrend = previousQueueConv > 0 
         ? Math.round(((currentQueueConv - previousQueueConv) / previousQueueConv) * 100) 
         : 0;
-
       // ============================================
       // 3. TAXA DE NÃO COMPARECIMENTO (Reservas)
       // Fórmula: (no_show / finalizadas) × 100
@@ -274,11 +277,13 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         const served: any[] = [];
         
         if (source !== 'reservations' && queueData) {
-          served.push(...queueData.filter(e => e.status === 'seated'));
+          // Fila: seated ou served
+          served.push(...queueData.filter(e => ['seated', 'served'].includes(e.status)));
         }
         
         if (source !== 'queue' && resData) {
-          served.push(...resData.filter(r => ['completed', 'seated'].includes(r.status)));
+          // Reservas: completed (não tem 'seated' no enum de reservas)
+          served.push(...resData.filter(r => r.status === 'completed'));
         }
         
         if (served.length === 0) return 0;
@@ -294,19 +299,19 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
 
       // ============================================
       // 6. CLIENTES NOVOS E VIP
-      // Novos: primeira visita no período
+      // Novos: clientes criados no período (created_at)
       // VIP: 5+ visitas no total
       // ============================================
       const { data: customers } = await supabase
         .schema('mesaclik')
         .from('customers')
-        .select('id, total_visits, vip_status, first_visit_at');
+        .select('id, total_visits, vip_status, created_at');
 
-      // Clientes que tiveram primeira visita no período analisado
+      // Clientes criados no período analisado
       const newCustomers = customers?.filter(c => {
-        if (!c.first_visit_at) return false;
-        const firstVisit = new Date(c.first_visit_at);
-        return firstVisit >= startDate && firstVisit <= endDate;
+        if (!c.created_at) return false;
+        const createdAt = new Date(c.created_at);
+        return createdAt >= startDate && createdAt <= endDate;
       }).length || 0;
       
       // Clientes com 5+ visitas
@@ -370,13 +375,17 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
 
       // ============================================
       // 9. DISTRIBUIÇÃO DE STATUS (Pizza)
+      // Status válidos - Fila: waiting, called, seated, canceled, no_show, served
+      // Status válidos - Reserva: pending, confirmed, canceled, no_show, completed
       // ============================================
-      const queueSeated = currentQueueData?.filter(e => e.status === 'seated').length || 0;
+      const queueSeated = currentQueueData?.filter(e => ['seated', 'served'].includes(e.status)).length || 0;
       const queueCanceled = currentQueueData?.filter(e => e.status === 'canceled').length || 0;
       const queueWaiting = currentQueueData?.filter(e => e.status === 'waiting').length || 0;
       const queueCalled = currentQueueData?.filter(e => e.status === 'called').length || 0;
+      const queueNoShow = currentQueueData?.filter(e => e.status === 'no_show').length || 0;
       
-      const resCompleted = currentReservations?.filter(r => ['completed', 'seated'].includes(r.status)).length || 0;
+      const resCompleted = currentReservations?.filter(r => r.status === 'completed').length || 0;
+      const resConfirmed = currentReservations?.filter(r => r.status === 'confirmed').length || 0;
       const resPending = currentReservations?.filter(r => r.status === 'pending').length || 0;
       const resCanceled = currentReservations?.filter(r => r.status === 'canceled').length || 0;
       const resNoShow = currentReservations?.filter(r => r.status === 'no_show' || r.no_show_at).length || 0;
@@ -384,10 +393,11 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const statusDistribution = [
         { name: 'Atendidos (Fila)', value: queueSeated, color: 'hsl(var(--success))' },
         { name: 'Concluídas (Reserva)', value: resCompleted, color: 'hsl(var(--primary))' },
+        { name: 'Confirmadas (Reserva)', value: resConfirmed, color: 'hsl(var(--accent))' },
         { name: 'Aguardando', value: queueWaiting + queueCalled, color: 'hsl(var(--warning))' },
         { name: 'Pendentes', value: resPending, color: 'hsl(var(--muted-foreground))' },
         { name: 'Cancelados', value: queueCanceled + resCanceled, color: 'hsl(var(--destructive))' },
-        { name: 'Não Compareceram', value: resNoShow, color: 'hsl(var(--destructive) / 0.7)' },
+        { name: 'Não Compareceram', value: queueNoShow + resNoShow, color: 'hsl(var(--destructive) / 0.7)' },
       ].filter(s => s.value > 0);
 
       // ============================================
