@@ -1,6 +1,6 @@
 /**
- * Página placeholder para status da fila
- * Esta página será substituída/integrada com o app do Cursor
+ * Página de acompanhamento em tempo real da fila
+ * Mostra posição calculada por GRUPO (igual à tela comando)
  * Rota: /fila/final?restauranteId=...
  */
 
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Users, Clock, XCircle, CheckCircle2, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function FilaFinal() {
   const [searchParams] = useSearchParams();
@@ -72,12 +73,36 @@ export default function FilaFinal() {
     init();
   }, [restauranteId, getRestaurantName, checkAuth, navigate, fetchStatus]);
 
-  // Polling automático (10s)
+  // Real-time subscription para atualizações da fila
   useEffect(() => {
     if (!restauranteId || !queueStatus?.in_queue) return;
 
-    const interval = setInterval(fetchStatus, 10000);
-    return () => clearInterval(interval);
+    // Subscrever para mudanças em tempo real na tabela fila_entradas
+    const channel = supabase
+      .channel(`fila-updates-${restauranteId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fila_entradas',
+          filter: `restaurante_id=eq.${restauranteId}`,
+        },
+        (payload) => {
+          console.log('Fila atualizada em tempo real:', payload);
+          // Recalcular posição quando qualquer entrada mudar
+          fetchStatus();
+        }
+      )
+      .subscribe();
+
+    // Fallback polling a cada 15s (caso realtime falhe)
+    const interval = setInterval(fetchStatus, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [restauranteId, queueStatus?.in_queue, fetchStatus]);
 
   const handleConsentChange = async (checked: boolean) => {
@@ -173,52 +198,73 @@ export default function FilaFinal() {
   const StatusIcon = config.icon;
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-xl border-0">
+        {/* Header com gradiente laranja */}
+        <CardHeader className="text-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-lg pb-6">
+          <div className="text-3xl mb-2">🎉</div>
+          <CardTitle className="text-2xl font-bold text-white">Você está na fila!</CardTitle>
           {restaurantName && (
-            <CardDescription className="text-lg font-medium">
+            <CardDescription className="text-white/90 text-base">
               {restaurantName}
             </CardDescription>
           )}
-          
-          <div className="space-y-4">
-            <Badge variant={config.variant} className="text-lg px-4 py-2">
-              <StatusIcon className={`mr-2 h-5 w-5 ${config.color}`} />
-              {config.label}
-            </Badge>
-
-            {queueStatus?.status === 'chamado' && (
-              <div className="animate-pulse bg-primary/10 rounded-lg p-4">
-                <p className="text-primary font-bold text-xl">
-                  🎉 É a sua vez!
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Dirija-se ao balcão
-                </p>
-              </div>
-            )}
-          </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Posição na fila */}
+        <CardContent className="space-y-6 pt-6">
+          {/* Status chamado */}
+          {queueStatus?.status === 'chamado' && (
+            <div className="animate-pulse bg-orange-100 rounded-xl p-6 text-center border-2 border-orange-300">
+              <p className="text-orange-600 font-bold text-2xl">
+                🎉 É a sua vez!
+              </p>
+              <p className="text-sm text-orange-700 mt-2">
+                Dirija-se ao balcão
+              </p>
+            </div>
+          )}
+
+          {/* Posição na fila - estilo igual ao email */}
           {queueStatus?.status === 'aguardando' && (
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">Sua posição</p>
-              <p className="text-6xl font-bold text-primary">
+            <div className="bg-orange-50 rounded-xl p-6 text-center">
+              <p className="text-orange-800 text-sm font-semibold uppercase tracking-wide mb-2">
+                SUA POSIÇÃO
+              </p>
+              <p className="text-6xl font-extrabold text-orange-500">
                 {queueStatus.position || '-'}º
+              </p>
+              <p className="text-xs text-muted-foreground mt-3">
+                Posição calculada por grupo na fila
               </p>
             </div>
           )}
 
           {/* Info do grupo */}
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground bg-muted/50 rounded-lg py-3">
             <Users className="h-4 w-4" />
-            <span>{queueStatus?.party_size || 1} {(queueStatus?.party_size || 1) === 1 ? 'pessoa' : 'pessoas'}</span>
+            <span className="font-medium">{queueStatus?.party_size || 1} {(queueStatus?.party_size || 1) === 1 ? 'pessoa' : 'pessoas'}</span>
           </div>
 
-          {/* Botão atualizar */}
+          {/* Badge de status */}
+          {queueStatus?.status !== 'aguardando' && queueStatus?.status !== 'chamado' && (
+            <div className="flex justify-center">
+              <Badge variant={config.variant} className="text-sm px-4 py-2">
+                <StatusIcon className={`mr-2 h-4 w-4 ${config.color}`} />
+                {config.label}
+              </Badge>
+            </div>
+          )}
+
+          {/* Indicador de tempo real */}
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            Atualização em tempo real
+          </div>
+
+          {/* Botão atualizar manual */}
           <Button
             variant="outline"
             className="w-full"
@@ -230,7 +276,7 @@ export default function FilaFinal() {
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
-            Atualizar
+            Atualizar manualmente
           </Button>
 
           {/* Consentimento de ofertas */}
@@ -239,6 +285,7 @@ export default function FilaFinal() {
               id="ofertas"
               checked={aceitouOfertas}
               onCheckedChange={(checked) => handleConsentChange(!!checked)}
+              className="border-orange-400 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
             />
             <div className="grid gap-1.5 leading-none">
               <Label htmlFor="ofertas" className="text-sm font-medium cursor-pointer">
@@ -262,10 +309,6 @@ export default function FilaFinal() {
               Sair da fila
             </Button>
           )}
-
-          <p className="text-xs text-center text-muted-foreground">
-            Atualização automática a cada 10 segundos
-          </p>
         </CardContent>
       </Card>
     </div>
