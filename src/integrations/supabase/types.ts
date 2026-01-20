@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      clientes_restaurante: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          restaurante_id: string
+          updated_at: string
+          user_id: string
+          visitas_concluidas: number
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          restaurante_id: string
+          updated_at?: string
+          user_id: string
+          visitas_concluidas?: number
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          restaurante_id?: string
+          updated_at?: string
+          user_id?: string
+          visitas_concluidas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_restaurante_restaurante_id_fkey"
+            columns: ["restaurante_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consentimentos_cliente: {
+        Row: {
+          aceitou_ofertas_email: boolean
+          aceitou_politica_privacidade: boolean
+          aceitou_termos_uso: boolean
+          created_at: string
+          data_consentimento: string | null
+          email: string
+          id: string
+          restaurante_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aceitou_ofertas_email?: boolean
+          aceitou_politica_privacidade?: boolean
+          aceitou_termos_uso?: boolean
+          created_at?: string
+          data_consentimento?: string | null
+          email: string
+          id?: string
+          restaurante_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aceitou_ofertas_email?: boolean
+          aceitou_politica_privacidade?: boolean
+          aceitou_termos_uso?: boolean
+          created_at?: string
+          data_consentimento?: string | null
+          email?: string
+          id?: string
+          restaurante_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consentimentos_cliente_restaurante_id_fkey"
+            columns: ["restaurante_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           created_at: string
@@ -176,6 +261,56 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fila_entradas: {
+        Row: {
+          active: boolean
+          called_at: string | null
+          canceled_at: string | null
+          created_at: string
+          email: string
+          finalized_at: string | null
+          id: string
+          party_size: number
+          restaurante_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          called_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          email: string
+          finalized_at?: string | null
+          id?: string
+          party_size?: number
+          restaurante_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          called_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          email?: string
+          finalized_at?: string | null
+          id?: string
+          party_size?: number
+          restaurante_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fila_entradas_restaurante_id_fkey"
+            columns: ["restaurante_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
@@ -709,6 +844,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_my_queue_entry: {
+        Args: { p_restaurante_id: string }
+        Returns: Json
+      }
       cancel_queue_entry:
         | {
             Args: { p_reason: string; p_ticket_id: string; p_user_id: string }
@@ -740,6 +879,10 @@ export type Database = {
             }
             Returns: Json
           }
+      create_queue_entry_web: {
+        Args: { p_party_size?: number; p_restaurante_id: string }
+        Returns: Json
+      }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
         Returns: Database["public"]["Tables"]["queue_entries"]["Row"]
@@ -750,6 +893,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
       has_role: {
         Args: {
@@ -761,6 +905,15 @@ export type Database = {
       is_restaurant_member: {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
+      }
+      update_consent: {
+        Args: {
+          p_aceitou_ofertas_email?: boolean
+          p_aceitou_politica_privacidade?: boolean
+          p_aceitou_termos_uso?: boolean
+          p_restaurante_id: string
+        }
+        Returns: Json
       }
       update_queue_entry_status: {
         Args: { p_entry_id: string; p_status: string }
