@@ -106,7 +106,8 @@ export function useQueue() {
 
       if (error) throw error;
 
-      // Calcular posição na fila (apenas entradas waiting criadas hoje)
+      // Calcular posição na fila por GRUPO (número de entradas na frente + 1)
+      // Cada entrada = 1 grupo, independente do party_size
       const { count } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
@@ -115,6 +116,7 @@ export function useQueue() {
         .eq('status', 'waiting')
         .gte('created_at', new Date().toISOString().split('T')[0]);
       
+      // Posição = quantidade de grupos na fila (a nova entrada é a última)
       const position = (count || 0);
 
       // Buscar nome do restaurante
