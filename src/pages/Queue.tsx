@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Clock, Users, Mail, Edit2, PhoneCall, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { sendSms, SMS_TEMPLATES } from "@/utils/sms";
+import { Plus, Search, Filter, Clock, Users, Mail, Edit2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
@@ -44,7 +43,6 @@ export default function Queue() {
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
@@ -108,25 +106,10 @@ export default function Queue() {
   const handleCallCustomer = async (entry: typeof queueEntries[0]) => {
     try {
       await updateQueueStatus(entry.entry_id, "called");
-      
-      // Verificar se o telefone é válido antes de enviar SMS
-      const hasValidPhone = entry.phone && entry.phone !== '—' && entry.phone.length >= 10;
-      
-      if (hasValidPhone) {
-        const success = await sendSms(entry.phone, SMS_TEMPLATES.QUEUE_CALLED());
-        
-        if (success) {
-          toast({
-            title: "Cliente chamado",
-            description: `SMS enviado para ${entry.customer_name}`,
-          });
-        }
-      } else {
-        toast({
-          title: "Cliente chamado",
-          description: `${entry.customer_name} foi chamado (sem telefone válido para SMS)`,
-        });
-      }
+      toast({
+        title: "Cliente chamado",
+        description: `${entry.customer_name} foi chamado`,
+      });
     } catch (err) {
       // Erro já tratado pelo hook
     }
@@ -172,11 +155,10 @@ export default function Queue() {
       return;
     }
     
-    // Validar que pelo menos telefone OU email foi preenchido
-    if (!newCustomerPhone && !newCustomerEmail) {
+    if (!newCustomerEmail) {
       toast({
         title: "Erro",
-        description: "Preencha pelo menos o telefone ou email",
+        description: "Preencha o email do cliente",
         variant: "destructive",
       });
       return;
@@ -185,15 +167,13 @@ export default function Queue() {
     try {
       await addToQueue({
         customer_name: newCustomerName,
-        phone: newCustomerPhone || undefined,
-        email: newCustomerEmail || undefined,
+        email: newCustomerEmail,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
       });
       
       // Reset form
       setNewCustomerName("");
-      setNewCustomerPhone("");
       setNewCustomerEmail("");
       setNewPartySize("2");
       setNewNotes("");
@@ -240,15 +220,8 @@ export default function Queue() {
                 onChange={(e) => setNewCustomerName(e.target.value)}
               />
               <Input 
-                type="tel"
-                placeholder="Telefone (para SMS)"
-                value={newCustomerPhone}
-                onChange={(e) => setNewCustomerPhone(e.target.value.replace(/\D/g, ''))}
-                maxLength={11}
-              />
-              <Input 
                 type="email"
-                placeholder="Email (opcional)"
+                placeholder="Email do cliente *"
                 value={newCustomerEmail}
                 onChange={(e) => setNewCustomerEmail(e.target.value)}
               />
@@ -480,7 +453,7 @@ export default function Queue() {
                         variant="outline"
                         onClick={() => handleCallCustomer(entry)}
                       >
-                        <PhoneCall className="w-4 h-4 mr-1" />
+                        <Mail className="w-4 h-4 mr-1" />
                         Chamar
                       </Button>
                       <Button 

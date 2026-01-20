@@ -66,7 +66,7 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: { customer_name: string; phone?: string; email?: string; people: number; notes?: string }) => {
+  const addToQueue = async (entry: { customer_name: string; email: string; people: number; notes?: string }) => {
     try {
       // Buscar fila do restaurante
       const { data: activeQueue, error: queueError } = await supabase
@@ -95,8 +95,7 @@ export function useQueue() {
             queue_id: activeQueue.id,
             user_id: manualUserId,
             name: entry.customer_name,
-            phone: entry.phone || null,
-            email: entry.email || null,
+            email: entry.email,
             party_size: entry.people,
             notes: entry.notes,
             status: 'waiting',
@@ -128,38 +127,33 @@ export function useQueue() {
       const restaurantName = restaurantData?.name || 'Restaurante';
 
       // Enviar email com link da fila (via edge function)
-      if (entry.email) {
-        try {
-          const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
-          console.log('Enviando email para:', entry.email, 'com link:', queueUrl);
-          
-          const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
-            body: {
-              email: entry.email,
-              customer_name: entry.customer_name,
-              restaurant_name: restaurantName,
-              position: position,
-              type: 'entry',
-              queue_url: queueUrl,
-            },
-          });
+      try {
+        const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
+        console.log('Enviando email para:', entry.email, 'com link:', queueUrl);
+        
+        const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
+          body: {
+            email: entry.email,
+            customer_name: entry.customer_name,
+            restaurant_name: restaurantName,
+            position: position,
+            type: 'entry',
+            queue_url: queueUrl,
+          },
+        });
 
-          if (emailError) {
-            console.warn('Erro ao enviar email (não crítico):', emailError);
-          } else {
-            console.log('Email de posição na fila enviado com sucesso');
-          }
-        } catch (emailError) {
+        if (emailError) {
           console.warn('Erro ao enviar email (não crítico):', emailError);
+        } else {
+          console.log('Email de posição na fila enviado com sucesso');
         }
+      } catch (emailError) {
+        console.warn('Erro ao enviar email (não crítico):', emailError);
       }
 
-      const hasNotification = entry.email || entry.phone;
       toast({
         title: 'Sucesso',
-        description: hasNotification 
-          ? 'Cliente adicionado à fila. Notificação enviada!' 
-          : 'Cliente adicionado à fila',
+        description: 'Cliente adicionado à fila. Email enviado!',
       });
 
       await fetchQueue();
