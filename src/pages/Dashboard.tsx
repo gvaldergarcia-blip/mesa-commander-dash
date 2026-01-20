@@ -38,7 +38,7 @@ export default function Dashboard() {
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
-  const [queuePhone, setQueuePhone] = useState("");
+  const [queueEmail, setQueueEmail] = useState("");
   const [queuePeople, setQueuePeople] = useState("2");
   const [queueNotes, setQueueNotes] = useState("");
   
@@ -51,18 +51,18 @@ export default function Dashboard() {
   const [resNotes, setResNotes] = useState("");
   
   const handleAddQueue = async () => {
-    if (!queueName || !queuePhone) return;
+    if (!queueName || !queueEmail) return;
     
     await addToQueue({
       customer_name: queueName,
-      phone: queuePhone,
+      email: queueEmail,
       people: parseInt(queuePeople),
       notes: queueNotes || undefined,
     });
     
     // Reset
     setQueueName("");
-    setQueuePhone("");
+    setQueueEmail("");
     setQueuePeople("2");
     setQueueNotes("");
     setIsQueueDialogOpen(false);
@@ -207,9 +207,10 @@ export default function Dashboard() {
                     onChange={(e) => setQueueName(e.target.value)}
                   />
                   <Input 
-                    placeholder="Telefone"
-                    value={queuePhone}
-                    onChange={(e) => setQueuePhone(e.target.value)}
+                    type="email"
+                    placeholder="Email do cliente"
+                    value={queueEmail}
+                    onChange={(e) => setQueueEmail(e.target.value)}
                   />
                   <Select value={queuePeople} onValueChange={setQueuePeople}>
                     <SelectTrigger>
@@ -229,7 +230,7 @@ export default function Dashboard() {
                   <Button 
                     className="w-full"
                     onClick={handleAddQueue}
-                    disabled={!queueName || !queuePhone}
+                    disabled={!queueName || !queueEmail}
                   >
                     Adicionar
                   </Button>

@@ -66,7 +66,7 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: { customer_name: string; phone: string; people: number; notes?: string }) => {
+  const addToQueue = async (entry: { customer_name: string; email: string; people: number; notes?: string }) => {
     try {
       // Buscar fila do restaurante
       const { data: activeQueue, error: queueError } = await supabase
@@ -95,7 +95,7 @@ export function useQueue() {
             queue_id: activeQueue.id,
             user_id: manualUserId,
             name: entry.customer_name,
-            phone: entry.phone,
+            email: entry.email,
             party_size: entry.people,
             notes: entry.notes,
             status: 'waiting',
@@ -106,15 +106,13 @@ export function useQueue() {
 
       if (error) throw error;
 
-      // Enviar SMS com link da fila
+      // Enviar email com link da fila (via edge function)
       try {
-        const { sendSms } = await import('@/utils/sms');
         const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
-        const message = `Olá ${entry.customer_name}! Você entrou na fila. Acompanhe sua posição: ${queueUrl}`;
-        await sendSms(entry.phone, message);
-        console.log('SMS enviado com sucesso para fila:', data.id);
-      } catch (smsError) {
-        console.warn('Erro ao enviar SMS (não crítico):', smsError);
+        console.log('Link da fila gerado:', queueUrl);
+        // O email será enviado pelo Cursor através da edge function
+      } catch (emailError) {
+        console.warn('Erro ao preparar email (não crítico):', emailError);
       }
 
       toast({
