@@ -17,6 +17,11 @@ import NotFound from "./pages/NotFound";
 import { FeatureDisabled } from "./components/common/FeatureDisabled";
 import { FEATURE_FLAGS } from "./config/feature-flags";
 
+// Páginas da Fila Web (OTP)
+import FilaEntrar from "./pages/fila/FilaEntrar";
+import FilaVerificar from "./pages/fila/FilaVerificar";
+import FilaFinal from "./pages/fila/FilaFinal";
+
 const queryClient = new QueryClient();
 
 // Componente wrapper para rotas que requerem feature flags
@@ -41,6 +46,11 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <Routes>
+        {/* Rotas públicas da Fila Web (sem DashboardLayout) */}
+        <Route path="/fila/entrar" element={<FilaEntrar />} />
+        <Route path="/fila/verificar" element={<FilaVerificar />} />
+        <Route path="/fila/final" element={<FilaFinal />} />
+
         {/* Rotas com DashboardLayout */}
         <Route path="/*" element={
           <DashboardLayout>
