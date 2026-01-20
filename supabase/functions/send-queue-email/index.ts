@@ -72,7 +72,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                     <!-- Header -->
                     <tr>
-                      <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px 16px 0 0;">
+                      <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
                         <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">🎉 Você está na fila!</h1>
                         <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurant_name}</p>
                       </td>
@@ -85,12 +85,12 @@ const getEmailContent = (data: QueueEmailRequest) => {
                         </p>
                         
                         <!-- Position Card -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0fdf4; border-radius: 12px; margin-bottom: 24px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 24px;">
                           <tr>
                             <td style="padding: 24px; text-align: center;">
-                              <p style="margin: 0 0 8px; color: #166534; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Sua posição</p>
-                              <p style="margin: 0; color: #15803d; font-size: 56px; font-weight: 800; line-height: 1;">${position}º</p>
-                              ${estimated_wait_minutes ? `<p style="margin: 12px 0 0; color: #166534; font-size: 14px;">⏱️ Tempo estimado: ~${estimated_wait_minutes} min</p>` : ''}
+                              <p style="margin: 0 0 8px; color: #9a3412; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">SUA POSIÇÃO</p>
+                              <p style="margin: 0; color: #ea580c; font-size: 56px; font-weight: 800; line-height: 1;">${position}º</p>
+                              ${estimated_wait_minutes ? `<p style="margin: 12px 0 0; color: #9a3412; font-size: 14px;">⏱️ Tempo estimado: ~${estimated_wait_minutes} min</p>` : ''}
                             </td>
                           </tr>
                         </table>
@@ -100,7 +100,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                           <tr>
                             <td align="center" style="padding-bottom: 24px;">
-                              <a href="${queue_url}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);">
+                              <a href="${queue_url}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
                                 📱 Ver minha posição em tempo real
                               </a>
                             </td>
