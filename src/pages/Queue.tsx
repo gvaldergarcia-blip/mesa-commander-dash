@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Clock, Users, Phone, Edit2, PhoneCall, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Clock, Users, Mail, Edit2, PhoneCall, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { sendSms, SMS_TEMPLATES } from "@/utils/sms";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
@@ -44,7 +44,7 @@ export default function Queue() {
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
 
@@ -93,7 +93,7 @@ export default function Queue() {
     
     const matchesSearch = !debouncedSearchTerm || 
                          entry.customer_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                         (entry.phone && entry.phone.includes(debouncedSearchTerm));
+                         (entry.email && entry.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
     const matchesPartySize = partySizeFilter === "all" || 
       (partySizeFilter === "1-2" && entry.people >= 1 && entry.people <= 2) ||
@@ -151,7 +151,7 @@ export default function Queue() {
   };
   
   const handleAddToQueue = async () => {
-    if (!newCustomerName || !newCustomerPhone || !newPartySize) {
+    if (!newCustomerName || !newCustomerEmail || !newPartySize) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -163,14 +163,14 @@ export default function Queue() {
     try {
       await addToQueue({
         customer_name: newCustomerName,
-        phone: newCustomerPhone,
+        email: newCustomerEmail,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
       });
       
       // Reset form
       setNewCustomerName("");
-      setNewCustomerPhone("");
+      setNewCustomerEmail("");
       setNewPartySize("2");
       setNewNotes("");
       setIsAddDialogOpen(false);
@@ -216,9 +216,10 @@ export default function Queue() {
                 onChange={(e) => setNewCustomerName(e.target.value)}
               />
               <Input 
-                placeholder="Telefone"
-                value={newCustomerPhone}
-                onChange={(e) => setNewCustomerPhone(e.target.value)}
+                type="email"
+                placeholder="Email do cliente"
+                value={newCustomerEmail}
+                onChange={(e) => setNewCustomerEmail(e.target.value)}
               />
               <Select value={newPartySize} onValueChange={setNewPartySize}>
                 <SelectTrigger>
@@ -305,7 +306,7 @@ export default function Queue() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nome ou telefone..."
+                  placeholder="Buscar por nome ou email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
@@ -391,8 +392,8 @@ export default function Queue() {
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <span className="flex items-center">
-                        <Phone className="w-3 h-3 mr-1" />
-                        {entry.phone}
+                        <Mail className="w-3 h-3 mr-1" />
+                        {entry.email || entry.phone}
                       </span>
                       <span className="flex items-center">
                         <Users className="w-3 h-3 mr-1" />
