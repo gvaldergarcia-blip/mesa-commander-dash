@@ -44,6 +44,7 @@ export default function Queue() {
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
@@ -107,12 +108,23 @@ export default function Queue() {
   const handleCallCustomer = async (entry: typeof queueEntries[0]) => {
     try {
       await updateQueueStatus(entry.entry_id, "called");
-      const success = await sendSms(entry.phone, SMS_TEMPLATES.QUEUE_CALLED());
       
-      if (success) {
+      // Verificar se o telefone é válido antes de enviar SMS
+      const hasValidPhone = entry.phone && entry.phone !== '—' && entry.phone.length >= 10;
+      
+      if (hasValidPhone) {
+        const success = await sendSms(entry.phone, SMS_TEMPLATES.QUEUE_CALLED());
+        
+        if (success) {
+          toast({
+            title: "Cliente chamado",
+            description: `SMS enviado para ${entry.customer_name}`,
+          });
+        }
+      } else {
         toast({
           title: "Cliente chamado",
-          description: `SMS enviado para ${entry.customer_name}`,
+          description: `${entry.customer_name} foi chamado (sem telefone válido para SMS)`,
         });
       }
     } catch (err) {
@@ -151,10 +163,20 @@ export default function Queue() {
   };
   
   const handleAddToQueue = async () => {
-    if (!newCustomerName || !newCustomerEmail || !newPartySize) {
+    if (!newCustomerName || !newPartySize) {
       toast({
         title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
+        description: "Preencha o nome e número de pessoas",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validar que pelo menos telefone OU email foi preenchido
+    if (!newCustomerPhone && !newCustomerEmail) {
+      toast({
+        title: "Erro",
+        description: "Preencha pelo menos o telefone ou email",
         variant: "destructive",
       });
       return;
@@ -163,13 +185,15 @@ export default function Queue() {
     try {
       await addToQueue({
         customer_name: newCustomerName,
-        email: newCustomerEmail,
+        phone: newCustomerPhone || undefined,
+        email: newCustomerEmail || undefined,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
       });
       
       // Reset form
       setNewCustomerName("");
+      setNewCustomerPhone("");
       setNewCustomerEmail("");
       setNewPartySize("2");
       setNewNotes("");
@@ -211,13 +235,20 @@ export default function Queue() {
             </DialogHeader>
             <div className="space-y-4">
               <Input 
-                placeholder="Nome do cliente" 
+                placeholder="Nome do cliente *" 
                 value={newCustomerName}
                 onChange={(e) => setNewCustomerName(e.target.value)}
               />
               <Input 
+                type="tel"
+                placeholder="Telefone (para SMS)"
+                value={newCustomerPhone}
+                onChange={(e) => setNewCustomerPhone(e.target.value.replace(/\D/g, ''))}
+                maxLength={11}
+              />
+              <Input 
                 type="email"
-                placeholder="Email do cliente"
+                placeholder="Email (opcional)"
                 value={newCustomerEmail}
                 onChange={(e) => setNewCustomerEmail(e.target.value)}
               />

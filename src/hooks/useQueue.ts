@@ -66,7 +66,7 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: { customer_name: string; email: string; people: number; notes?: string }) => {
+  const addToQueue = async (entry: { customer_name: string; phone?: string; email?: string; people: number; notes?: string }) => {
     try {
       // Buscar fila do restaurante
       const { data: activeQueue, error: queueError } = await supabase
@@ -95,7 +95,8 @@ export function useQueue() {
             queue_id: activeQueue.id,
             user_id: manualUserId,
             name: entry.customer_name,
-            email: entry.email,
+            phone: entry.phone || null,
+            email: entry.email || null,
             party_size: entry.people,
             notes: entry.notes,
             status: 'waiting',
@@ -127,7 +128,7 @@ export function useQueue() {
       const restaurantName = restaurantData?.name || 'Restaurante';
 
       // Enviar email com link da fila (via edge function)
-      if (entry.email && entry.email !== '—') {
+      if (entry.email) {
         try {
           const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
           console.log('Enviando email para:', entry.email, 'com link:', queueUrl);
@@ -153,10 +154,11 @@ export function useQueue() {
         }
       }
 
+      const hasNotification = entry.email || entry.phone;
       toast({
         title: 'Sucesso',
-        description: entry.email && entry.email !== '—' 
-          ? 'Cliente adicionado à fila. Email enviado!' 
+        description: hasNotification 
+          ? 'Cliente adicionado à fila. Notificação enviada!' 
           : 'Cliente adicionado à fila',
       });
 
