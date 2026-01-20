@@ -106,18 +106,58 @@ export function useQueue() {
 
       if (error) throw error;
 
+      // Calcular posição na fila (apenas entradas waiting criadas hoje)
+      const { count } = await supabase
+        .schema('mesaclik')
+        .from('queue_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('queue_id', activeQueue.id)
+        .eq('status', 'waiting')
+        .gte('created_at', new Date().toISOString().split('T')[0]);
+      
+      const position = (count || 0);
+
+      // Buscar nome do restaurante
+      const { data: restaurantData } = await supabase
+        .from('restaurants')
+        .select('name')
+        .eq('id', restaurantId)
+        .maybeSingle();
+
+      const restaurantName = restaurantData?.name || 'Restaurante';
+
       // Enviar email com link da fila (via edge function)
-      try {
-        const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
-        console.log('Link da fila gerado:', queueUrl);
-        // O email será enviado pelo Cursor através da edge function
-      } catch (emailError) {
-        console.warn('Erro ao preparar email (não crítico):', emailError);
+      if (entry.email && entry.email !== '—') {
+        try {
+          const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
+          console.log('Enviando email para:', entry.email, 'com link:', queueUrl);
+          
+          const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
+            body: {
+              email: entry.email,
+              customer_name: entry.customer_name,
+              restaurant_name: restaurantName,
+              position: position,
+              type: 'entry',
+              queue_url: queueUrl,
+            },
+          });
+
+          if (emailError) {
+            console.warn('Erro ao enviar email (não crítico):', emailError);
+          } else {
+            console.log('Email de posição na fila enviado com sucesso');
+          }
+        } catch (emailError) {
+          console.warn('Erro ao enviar email (não crítico):', emailError);
+        }
       }
 
       toast({
         title: 'Sucesso',
-        description: 'Cliente adicionado à fila',
+        description: entry.email && entry.email !== '—' 
+          ? 'Cliente adicionado à fila. Email enviado!' 
+          : 'Cliente adicionado à fila',
       });
 
       await fetchQueue();

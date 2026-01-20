@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.get-queue-info]
 verify_jwt = false
+
+[functions.send-queue-email]
+verify_jwt = false
