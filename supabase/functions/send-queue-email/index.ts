@@ -108,28 +108,6 @@ const getEmailContent = (data: QueueEmailRequest) => {
                         </table>
                         ` : ''}
                         
-                        <!-- Real-time indicator -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                          <tr>
-                            <td style="text-align: center; padding-bottom: 16px;">
-                              <p style="margin: 0; color: #22c55e; font-size: 13px;">● Atualização em tempo real</p>
-                            </td>
-                          </tr>
-                        </table>
-                        
-                        ${queue_url ? `
-                        <!-- CTA Button -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                          <tr>
-                            <td align="center" style="padding-bottom: 20px;">
-                              <a href="${queue_url}" style="display: block; padding: 16px 32px; background-color: #f4f4f5; color: #3f3f46; text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 12px; border: 1px solid #e4e4e7;">
-                                🔄 Atualizar manualmente
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
-                        ` : ''}
-                        
                         <p style="margin: 0; color: #71717a; font-size: 14px; line-height: 1.6; text-align: center;">
                           Fique de olho! Avisaremos quando for a sua vez.
                         </p>
