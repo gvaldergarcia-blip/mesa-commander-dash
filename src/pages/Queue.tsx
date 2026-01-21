@@ -118,7 +118,9 @@ export default function Queue() {
       (partySizeFilter === "1-2" && entry.people >= 1 && entry.people <= 2) ||
       (partySizeFilter === "3-4" && entry.people >= 3 && entry.people <= 4) ||
       (partySizeFilter === "5-6" && entry.people >= 5 && entry.people <= 6) ||
-      (partySizeFilter === "7+" && entry.people >= 7);
+      (partySizeFilter === "7-8" && entry.people >= 7 && entry.people <= 8) ||
+      (partySizeFilter === "9-10" && entry.people >= 9 && entry.people <= 10) ||
+      (partySizeFilter === "10+" && entry.people > 10);
     
     return matchesSearch && matchesStatus && matchesPartySize;
   });
@@ -393,7 +395,9 @@ export default function Queue() {
                 <SelectItem value="1-2">1-2 pessoas</SelectItem>
                 <SelectItem value="3-4">3-4 pessoas</SelectItem>
                 <SelectItem value="5-6">5-6 pessoas</SelectItem>
-                <SelectItem value="7+">7+ pessoas</SelectItem>
+                <SelectItem value="7-8">7-8 pessoas</SelectItem>
+                <SelectItem value="9-10">9-10 pessoas</SelectItem>
+                <SelectItem value="10+">10+ pessoas</SelectItem>
               </SelectContent>
             </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
