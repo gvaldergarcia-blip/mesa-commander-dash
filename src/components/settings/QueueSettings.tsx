@@ -106,7 +106,9 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
     { key: '1-2', label: '1–2 pessoas' },
     { key: '3-4', label: '3–4 pessoas' },
     { key: '5-6', label: '5–6 pessoas' },
-    { key: '7+', label: '7–8 pessoas' },
+    { key: '7-8', label: '7–8 pessoas' },
+    { key: '9-10', label: '9–10 pessoas' },
+    { key: '10+', label: '10+ pessoas' },
   ];
 
   return (

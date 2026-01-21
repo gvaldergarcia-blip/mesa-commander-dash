@@ -5,10 +5,12 @@
  * - 1-2 pessoas
  * - 3-4 pessoas
  * - 5-6 pessoas
- * - 7+ pessoas
+ * - 7-8 pessoas
+ * - 9-10 pessoas
+ * - 10+ pessoas
  */
 
-export type SizeGroup = '1-2' | '3-4' | '5-6' | '7+';
+export type SizeGroup = '1-2' | '3-4' | '5-6' | '7-8' | '9-10' | '10+';
 
 /**
  * Retorna o grupo de tamanho para um party_size
@@ -17,7 +19,9 @@ export function getSizeGroup(partySize: number): SizeGroup {
   if (partySize >= 1 && partySize <= 2) return '1-2';
   if (partySize >= 3 && partySize <= 4) return '3-4';
   if (partySize >= 5 && partySize <= 6) return '5-6';
-  return '7+';
+  if (partySize >= 7 && partySize <= 8) return '7-8';
+  if (partySize >= 9 && partySize <= 10) return '9-10';
+  return '10+';
 }
 
 /**
@@ -28,7 +32,9 @@ export function matchesSizeGroup(partySize: number, group: SizeGroup): boolean {
     case '1-2': return partySize >= 1 && partySize <= 2;
     case '3-4': return partySize >= 3 && partySize <= 4;
     case '5-6': return partySize >= 5 && partySize <= 6;
-    case '7+': return partySize >= 7;
+    case '7-8': return partySize >= 7 && partySize <= 8;
+    case '9-10': return partySize >= 9 && partySize <= 10;
+    case '10+': return partySize > 10;
     default: return false;
   }
 }
@@ -41,7 +47,9 @@ export function getSizeGroupLabel(group: SizeGroup): string {
     case '1-2': return '1–2 pessoas';
     case '3-4': return '3–4 pessoas';
     case '5-6': return '5–6 pessoas';
-    case '7+': return '7+ pessoas';
+    case '7-8': return '7–8 pessoas';
+    case '9-10': return '9–10 pessoas';
+    case '10+': return '10+ pessoas';
     default: return group;
   }
 }
@@ -49,7 +57,7 @@ export function getSizeGroupLabel(group: SizeGroup): string {
 /**
  * Lista de todos os grupos de tamanho
  */
-export const ALL_SIZE_GROUPS: SizeGroup[] = ['1-2', '3-4', '5-6', '7+'];
+export const ALL_SIZE_GROUPS: SizeGroup[] = ['1-2', '3-4', '5-6', '7-8', '9-10', '10+'];
 
 /**
  * Tipo para posição calculada por grupo
@@ -69,7 +77,9 @@ export function calculateGroupPositions<T extends { entry_id: string; people: nu
     '1-2': new Map(),
     '3-4': new Map(),
     '5-6': new Map(),
-    '7+': new Map(),
+    '7-8': new Map(),
+    '9-10': new Map(),
+    '10+': new Map(),
   };
 
   // Agrupar entradas por grupo de tamanho, apenas as que estão aguardando
@@ -77,7 +87,9 @@ export function calculateGroupPositions<T extends { entry_id: string; people: nu
     '1-2': [],
     '3-4': [],
     '5-6': [],
-    '7+': [],
+    '7-8': [],
+    '9-10': [],
+    '10+': [],
   };
 
   entries
@@ -121,7 +133,9 @@ export function countWaitingByGroup<T extends { people: number; status: string }
     '1-2': 0,
     '3-4': 0,
     '5-6': 0,
-    '7+': 0,
+    '7-8': 0,
+    '9-10': 0,
+    '10+': 0,
   };
 
   entries
