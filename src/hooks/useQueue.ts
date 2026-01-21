@@ -108,16 +108,22 @@ export function useQueue() {
 
       // Calcular posição na fila por GRUPO (número de entradas na frente + 1)
       // Cada entrada = 1 grupo, independente do party_size
-      const { count } = await supabase
+      // Usar mesma janela de 24h que o dashboard
+      const last24Hours = new Date();
+      last24Hours.setHours(last24Hours.getHours() - 24);
+      
+      const { data: waitingEntries } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('*', { count: 'exact', head: true })
+        .select('id, created_at')
         .eq('queue_id', activeQueue.id)
         .eq('status', 'waiting')
-        .gte('created_at', new Date().toISOString().split('T')[0]);
+        .gte('created_at', last24Hours.toISOString())
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
       
-      // Posição = quantidade de grupos na fila (a nova entrada é a última)
-      const position = (count || 0);
+      // Posição = índice + 1 (a nova entrada é a última)
+      const position = (waitingEntries?.length || 0);
 
       // Buscar nome do restaurante
       const { data: restaurantData } = await supabase

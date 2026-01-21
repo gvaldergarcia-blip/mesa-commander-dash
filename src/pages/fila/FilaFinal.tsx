@@ -82,15 +82,20 @@ export default function FilaFinal() {
 
       // Calcular posição por GRUPO (igual Tela Comando)
       // Contar quantos grupos estão aguardando ANTES deste ticket
+      // Usar mesmo período do dashboard: últimas 24h
       let position: number | null = null;
       
       if (entryData && entryData.status === 'waiting') {
+        const last24Hours = new Date();
+        last24Hours.setHours(last24Hours.getHours() - 24);
+        
         const { data: waitingEntries } = await supabase
           .schema('mesaclik')
           .from('queue_entries')
           .select('id, created_at')
           .eq('restaurant_id', restaurantId)
           .eq('status', 'waiting')
+          .gte('created_at', last24Hours.toISOString())
           .order('created_at', { ascending: true })
           .order('id', { ascending: true });
 
