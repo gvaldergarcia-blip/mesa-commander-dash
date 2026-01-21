@@ -4,18 +4,18 @@
  * Aceita: /fila/final?ticket=ID ou /fila/final?restauranteId=ID
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getSizeGroup, getSizeGroupLabel, matchesSizeGroup } from '@/utils/queueUtils';
 
 interface QueueInfo {
   ticket_id: string;
+  queue_id: string;
   restaurant_id: string;
   restaurant_name: string;
   status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
@@ -28,7 +28,7 @@ interface QueueInfo {
 export default function FilaFinal() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const realtimeSubscribedRef = useRef(false);
   
   // Aceitar tanto ticket quanto restauranteId
   const ticketId = searchParams.get('ticket');
@@ -36,7 +36,6 @@ export default function FilaFinal() {
 
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   // Buscar informações da fila por ticket_id
@@ -47,7 +46,6 @@ export default function FilaFinal() {
       return;
     }
 
-    setRefreshing(true);
     try {
       let entryData: any = null;
       let restaurantId = restauranteIdParam;
@@ -57,7 +55,7 @@ export default function FilaFinal() {
         const { data: entry, error: entryError } = await supabase
           .schema('mesaclik')
           .from('queue_entries')
-          .select('id, restaurant_id, status, party_size, created_at, name')
+          .select('id, queue_id, restaurant_id, status, party_size, created_at, name')
           .eq('id', ticketId)
           .maybeSingle();
 
@@ -91,13 +89,19 @@ export default function FilaFinal() {
         last24Hours.setHours(last24Hours.getHours() - 24);
         
         // Buscar apenas entradas do MESMO GRUPO de tamanho
-        const { data: waitingEntries } = await supabase
+        // IMPORTANT: filtrar por queue_id para bater 100% com o dashboard (evita misturar filas do mesmo restaurante)
+        let waitingQuery = supabase
           .schema('mesaclik')
           .from('queue_entries')
           .select('id, created_at, party_size')
-          .eq('restaurant_id', restaurantId)
           .eq('status', 'waiting')
-          .gte('created_at', last24Hours.toISOString())
+          .gte('created_at', last24Hours.toISOString());
+
+        waitingQuery = entryData?.queue_id
+          ? waitingQuery.eq('queue_id', entryData.queue_id)
+          : waitingQuery.eq('restaurant_id', restaurantId);
+
+        const { data: waitingEntries } = await waitingQuery
           .order('created_at', { ascending: true })
           .order('id', { ascending: true });
 
@@ -106,7 +110,7 @@ export default function FilaFinal() {
           const sameGroupEntries = waitingEntries.filter(e => 
             matchesSizeGroup(e.party_size, sizeGroup)
           );
-          const index = sameGroupEntries.findIndex(e => e.id === ticketId);
+          const index = sameGroupEntries.findIndex(e => e.id === entryData.id);
           if (index !== -1) {
             position = index + 1; // 1-indexed dentro do grupo
           }
@@ -115,6 +119,7 @@ export default function FilaFinal() {
 
       setQueueInfo({
         ticket_id: ticketId || '',
+        queue_id: entryData?.queue_id || '',
         restaurant_id: restaurantId || '',
         restaurant_name: restaurant?.name || 'Restaurante',
         status: entryData?.status || 'waiting',
@@ -130,7 +135,6 @@ export default function FilaFinal() {
       setNotFound(true);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [ticketId, restauranteIdParam]);
 
@@ -141,20 +145,21 @@ export default function FilaFinal() {
 
   // Real-time subscription em mesaclik.queue_entries
   useEffect(() => {
-    if (!queueInfo?.restaurant_id) return;
+    if (!queueInfo?.queue_id) return;
 
-    console.log('Iniciando realtime para restaurant_id:', queueInfo.restaurant_id);
+    realtimeSubscribedRef.current = false;
+    console.log('Iniciando realtime para queue_id:', queueInfo.queue_id);
 
     // Subscrever para mudanças em tempo real na tabela CORRETA
     const channel = supabase
-      .channel(`queue-realtime-${queueInfo.restaurant_id}`)
+      .channel(`queue-realtime-${queueInfo.queue_id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'mesaclik',
           table: 'queue_entries',
-          filter: `restaurant_id=eq.${queueInfo.restaurant_id}`,
+          filter: `queue_id=eq.${queueInfo.queue_id}`,
         },
         (payload) => {
           console.log('🔄 Fila atualizada em tempo real:', payload);
@@ -164,17 +169,24 @@ export default function FilaFinal() {
       )
       .subscribe((status) => {
         console.log('Realtime subscription status:', status);
+        realtimeSubscribedRef.current = status === 'SUBSCRIBED';
       });
 
-    // Fallback polling a cada 10s (caso realtime falhe)
-    const interval = setInterval(fetchQueueInfo, 10000);
+    // Fallback polling rápido APENAS se o realtime não conectar
+    const interval = window.setInterval(() => {
+      if (!realtimeSubscribedRef.current) {
+        console.log('🔁 Realtime não conectado; fazendo polling…');
+        fetchQueueInfo();
+      }
+    }, 3000);
 
     return () => {
       console.log('Removendo canal realtime');
+      realtimeSubscribedRef.current = false;
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [queueInfo?.restaurant_id, fetchQueueInfo]);
+  }, [queueInfo?.queue_id, fetchQueueInfo]);
 
   // Loading
   if (loading) {
