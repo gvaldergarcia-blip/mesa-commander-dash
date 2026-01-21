@@ -139,6 +139,7 @@ export function useQueue() {
             customer_name: entry.customer_name,
             restaurant_name: restaurantName,
             position: position,
+            party_size: entry.people,
             type: 'entry',
             queue_url: queueUrl,
           },
