@@ -272,11 +272,17 @@ serve(async (req) => {
       );
     }
 
-    const sameGroup = (waitingEntries || []).filter((e: any) =>
-      matchesSizeGroup(Number(e.party_size || 1), group),
-    );
+    // Filtrar entries do mesmo grupo E remover o entry excluído ANTES de calcular posição
+    const sameGroup = (waitingEntries || [])
+      .filter((e: any) => matchesSizeGroup(Number(e.party_size || 1), group))
+      .filter((e: any) => !(body.exclude_entry_id && e.id === body.exclude_entry_id));
 
-    // Enviar email para todos do grupo (exceto o que saiu) com a posição recalculada
+    console.log(`[notify-queue-position-updates] Group ${groupLabel}: ${sameGroup.length} entries waiting (excluded: ${body.exclude_entry_id || 'none'})`);
+    sameGroup.forEach((e: any, i: number) => {
+      console.log(`  Position ${i + 1}: ${e.name} (${e.id})`);
+    });
+
+    // Enviar email para todos do grupo com a posição recalculada
     let attempted = 0;
     let sent = 0;
     const failures: Array<{ id: string; email?: string; error: string }> = [];
@@ -291,16 +297,17 @@ serve(async (req) => {
       from: string;
     }> = [];
 
+    // Agora idx corresponde exatamente à posição correta (1-indexed = idx + 1)
     for (let idx = 0; idx < sameGroup.length; idx++) {
       const entry = sameGroup[idx];
-      if (body.exclude_entry_id && entry.id === body.exclude_entry_id) continue;
       if (!entry.email) continue;
 
+      const position = idx + 1; // Posição correta após remoção do exclude_entry_id
       const queueUrl = `${body.base_url.replace(/\/$/, "")}/fila/final?ticket=${entry.id}`;
       const { subject, html } = buildPositionUpdateEmail({
         restaurantName,
         customerName: entry.name || undefined,
-        position: idx + 1,
+        position,
         queueUrl,
         sizeGroupLabel: groupLabel,
         partySize: Number(entry.party_size || body.party_size || 1),
