@@ -44,13 +44,14 @@ interface QueueEmailRequest {
   customer_name?: string;
   restaurant_name: string;
   position: number;
+  party_size?: number;
   estimated_wait_minutes?: number;
   type: 'entry' | 'called' | 'position_update';
   queue_url?: string;
 }
 
 const getEmailContent = (data: QueueEmailRequest) => {
-  const { customer_name, restaurant_name, position, estimated_wait_minutes, type, queue_url } = data;
+  const { customer_name, restaurant_name, position, party_size, estimated_wait_minutes, type, queue_url } = data;
   const name = customer_name || 'Cliente';
 
   switch (type) {
@@ -65,32 +66,52 @@ const getEmailContent = (data: QueueEmailRequest) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Confirmação de Entrada na Fila</title>
           </head>
-          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;">
               <tr>
                 <td align="center">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  ${queue_url ? `<a href="${queue_url}" style="text-decoration: none;">` : ''}
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
                     <!-- Header -->
                     <tr>
                       <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
-                        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">🎉 Você está na fila!</h1>
+                        <p style="margin: 0 0 8px; font-size: 32px;">🎉</p>
+                        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Você está na fila!</h1>
                         <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurant_name}</p>
                       </td>
                     </tr>
                     <!-- Body -->
                     <tr>
                       <td style="padding: 32px;">
-                        <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          Olá${customer_name ? ` <strong>${customer_name}</strong>` : ''}!
-                        </p>
+                        ${customer_name ? `<p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Olá <strong>${customer_name}</strong>!</p>` : ''}
                         
                         <!-- Position Card -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 24px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 16px;">
                           <tr>
                             <td style="padding: 24px; text-align: center;">
-                              <p style="margin: 0 0 8px; color: #9a3412; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">SUA POSIÇÃO</p>
-                              <p style="margin: 0; color: #ea580c; font-size: 56px; font-weight: 800; line-height: 1;">${position}º</p>
-                              ${estimated_wait_minutes ? `<p style="margin: 12px 0 0; color: #9a3412; font-size: 14px;">⏱️ Tempo estimado: ~${estimated_wait_minutes} min</p>` : ''}
+                              <p style="margin: 0 0 8px; color: #9a3412; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SUA POSIÇÃO</p>
+                              <p style="margin: 0; color: #ea580c; font-size: 64px; font-weight: 800; line-height: 1;">${position}º</p>
+                              <p style="margin: 12px 0 0; color: #71717a; font-size: 13px;">Posição calculada por grupo na fila</p>
+                            </td>
+                          </tr>
+                        </table>
+                        
+                        ${party_size ? `
+                        <!-- Party Size -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; border-radius: 12px; margin-bottom: 16px;">
+                          <tr>
+                            <td style="padding: 16px; text-align: center;">
+                              <p style="margin: 0; color: #52525b; font-size: 14px;">👥 ${party_size} ${party_size === 1 ? 'pessoa' : 'pessoas'}</p>
+                            </td>
+                          </tr>
+                        </table>
+                        ` : ''}
+                        
+                        <!-- Real-time indicator -->
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                          <tr>
+                            <td style="text-align: center; padding-bottom: 16px;">
+                              <p style="margin: 0; color: #22c55e; font-size: 13px;">● Atualização em tempo real</p>
                             </td>
                           </tr>
                         </table>
@@ -99,9 +120,9 @@ const getEmailContent = (data: QueueEmailRequest) => {
                         <!-- CTA Button -->
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                           <tr>
-                            <td align="center" style="padding-bottom: 24px;">
-                              <a href="${queue_url}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
-                                📱 Ver minha posição em tempo real
+                            <td align="center" style="padding-bottom: 20px;">
+                              <a href="${queue_url}" style="display: block; padding: 16px 32px; background-color: #f4f4f5; color: #3f3f46; text-decoration: none; font-size: 14px; font-weight: 500; border-radius: 12px; border: 1px solid #e4e4e7;">
+                                🔄 Atualizar manualmente
                               </a>
                             </td>
                           </tr>
@@ -122,6 +143,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                       </td>
                     </tr>
                   </table>
+                  ${queue_url ? `</a>` : ''}
                 </td>
               </tr>
             </table>
