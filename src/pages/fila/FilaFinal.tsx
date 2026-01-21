@@ -63,7 +63,6 @@ export default function FilaFinal() {
           console.error('Entrada não encontrada:', entryError);
           setNotFound(true);
           setLoading(false);
-          setRefreshing(false);
           return;
         }
 
@@ -145,21 +144,32 @@ export default function FilaFinal() {
 
   // Real-time subscription em mesaclik.queue_entries
   useEffect(() => {
-    if (!queueInfo?.queue_id) return;
+    // Preferir queue_id (evita misturar múltiplas filas do mesmo restaurante),
+    // mas cair para restaurant_id caso queue_id não exista.
+    if (!queueInfo?.queue_id && !queueInfo?.restaurant_id) return;
 
     realtimeSubscribedRef.current = false;
-    console.log('Iniciando realtime para queue_id:', queueInfo.queue_id);
+
+    const filter = queueInfo?.queue_id
+      ? `queue_id=eq.${queueInfo.queue_id}`
+      : `restaurant_id=eq.${queueInfo.restaurant_id}`;
+
+    const channelName = queueInfo?.queue_id
+      ? `queue-realtime-${queueInfo.queue_id}`
+      : `queue-realtime-restaurant-${queueInfo.restaurant_id}`;
+
+    console.log('Iniciando realtime para filtro:', filter);
 
     // Subscrever para mudanças em tempo real na tabela CORRETA
     const channel = supabase
-      .channel(`queue-realtime-${queueInfo.queue_id}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'mesaclik',
           table: 'queue_entries',
-          filter: `queue_id=eq.${queueInfo.queue_id}`,
+          filter,
         },
         (payload) => {
           console.log('🔄 Fila atualizada em tempo real:', payload);
@@ -186,7 +196,7 @@ export default function FilaFinal() {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [queueInfo?.queue_id, fetchQueueInfo]);
+  }, [queueInfo?.queue_id, queueInfo?.restaurant_id, fetchQueueInfo]);
 
   // Loading
   if (loading) {
@@ -315,15 +325,6 @@ export default function FilaFinal() {
               </Badge>
             </div>
           )}
-
-          {/* Indicador de tempo real */}
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            Atualização em tempo real
-          </div>
 
           {/* Mensagem informativa */}
           <p className="text-center text-sm text-muted-foreground">
