@@ -205,7 +205,7 @@ function buildPositionUpdateEmail(args: {
                   </tr>
                   <tr>
                     <td style="padding: 20px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                      <p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p>
+                      <p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName} via <strong>MesaClik</strong></p>
                     </td>
                   </tr>
                 </table>

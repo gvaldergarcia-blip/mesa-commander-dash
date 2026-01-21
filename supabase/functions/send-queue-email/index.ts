@@ -117,7 +117,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                     <tr>
                       <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
                         <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
-                          Este e-mail foi enviado pelo ${restaurant_name}
+                          Este e-mail foi enviado pelo ${restaurant_name} via <strong>MesaClik</strong>
                         </p>
                       </td>
                     </tr>
@@ -180,7 +180,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                     <tr>
                       <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
                         <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
-                          Este e-mail foi enviado pelo ${restaurant_name}
+                          Este e-mail foi enviado pelo ${restaurant_name} via <strong>MesaClik</strong>
                         </p>
                       </td>
                     </tr>
@@ -257,7 +257,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                     <tr>
                       <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
                         <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
-                          Este e-mail foi enviado pelo ${restaurant_name}
+                          Este e-mail foi enviado pelo ${restaurant_name} via <strong>MesaClik</strong>
                         </p>
                       </td>
                     </tr>
