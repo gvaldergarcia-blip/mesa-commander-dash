@@ -191,7 +191,7 @@ export function useQueue() {
       const { data: entryData, error: fetchError } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('name, phone, email')
+        .select('name, phone, email, queue_id, party_size')
         .eq('id', entryId)
         .single();
 
@@ -220,6 +220,39 @@ export function useQueue() {
         .eq('id', entryId);
 
       if (error) throw error;
+
+      // IMPORTANTE: e-mail NÃO “atualiza” sozinho (email é estático).
+      // Para o cliente ver em tempo real, ele deve abrir o link /fila/final.
+      // Mesmo assim, para atender o fluxo esperado (receber atualização por email),
+      // disparamos um novo email do tipo 'position_update' para o grupo afetado.
+      if (status !== 'waiting') {
+        try {
+          const baseUrl = window.location.origin;
+          const partySize = Number(entryData?.party_size || 1);
+          const queueId = (entryData as any)?.queue_id as string | undefined;
+
+          if (queueId) {
+            const { error: notifyError } = await supabase.functions.invoke(
+              'notify-queue-position-updates',
+              {
+                body: {
+                  restaurant_id: restaurantId,
+                  queue_id: queueId,
+                  party_size: partySize,
+                  base_url: baseUrl,
+                  exclude_entry_id: entryId,
+                },
+              }
+            );
+
+            if (notifyError) {
+              console.warn('Falha ao enviar emails de atualização (não crítico):', notifyError);
+            }
+          }
+        } catch (notifyErr) {
+          console.warn('Falha ao enviar emails de atualização (não crítico):', notifyErr);
+        }
+      }
 
       // Se status for 'seated', registrar/atualizar em customers
       if (status === 'seated' && entryData) {
