@@ -38,6 +38,11 @@ export default function FilaFinal() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // Atualizar título da aba do navegador
+  useEffect(() => {
+    document.title = 'MesaClik - Acompanhar Fila';
+  }, []);
+
   // Buscar informações da fila por ticket_id
   const fetchQueueInfo = useCallback(async () => {
     if (!ticketId && !restauranteIdParam) {
