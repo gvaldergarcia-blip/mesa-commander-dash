@@ -8,10 +8,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Users, Clock, XCircle, CheckCircle2, Bell } from 'lucide-react';
+import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getSizeGroup, getSizeGroupLabel, matchesSizeGroup } from '@/utils/queueUtils';
@@ -285,7 +283,7 @@ export default function FilaFinal() {
                 {queueInfo.position || '-'}º
               </p>
               <p className="text-xs text-muted-foreground mt-3">
-                Posição na fila de <strong>{queueInfo.size_group}</strong>
+                Fila de {queueInfo.size_group}
               </p>
             </div>
           )}
@@ -315,20 +313,10 @@ export default function FilaFinal() {
             Atualização em tempo real
           </div>
 
-          {/* Botão atualizar manual */}
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={fetchQueueInfo}
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            Atualizar manualmente
-          </Button>
+          {/* Mensagem informativa */}
+          <p className="text-center text-sm text-muted-foreground">
+            Fique de olho! Avisaremos quando for a sua vez.
+          </p>
         </CardContent>
       </Card>
     </div>
