@@ -45,13 +45,14 @@ interface QueueEmailRequest {
   restaurant_name: string;
   position: number;
   party_size?: number;
+  size_group?: string; // ex: "1-2 pessoas", "3-4 pessoas"
   estimated_wait_minutes?: number;
   type: 'entry' | 'called' | 'position_update';
   queue_url?: string;
 }
 
 const getEmailContent = (data: QueueEmailRequest) => {
-  const { customer_name, restaurant_name, position, party_size, estimated_wait_minutes, type, queue_url } = data;
+  const { customer_name, restaurant_name, position, party_size, size_group, estimated_wait_minutes, type, queue_url } = data;
   const name = customer_name || 'Cliente';
 
   switch (type) {
@@ -91,7 +92,7 @@ const getEmailContent = (data: QueueEmailRequest) => {
                             <td style="padding: 24px; text-align: center;">
                               <p style="margin: 0 0 8px; color: #9a3412; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">SUA POSIÇÃO</p>
                               <p style="margin: 0; color: #ea580c; font-size: 64px; font-weight: 800; line-height: 1;">${position}º</p>
-                              <p style="margin: 12px 0 0; color: #71717a; font-size: 13px;">Posição calculada por grupo na fila</p>
+                              <p style="margin: 12px 0 0; color: #71717a; font-size: 13px;">Fila de ${size_group || `${party_size || 1} pessoas`}</p>
                             </td>
                           </tr>
                         </table>

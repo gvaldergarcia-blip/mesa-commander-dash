@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, Filter, Clock, Users, Mail, Edit2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
+import { useQueueSettings } from "@/hooks/useQueueSettings";
 import { useToast } from "@/hooks/use-toast";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { Button } from "@/components/ui/button";
@@ -26,16 +27,25 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { 
+  calculateGroupPositions, 
+  getSizeGroup, 
+  getSizeGroupLabel,
+  countWaitingByGroup,
+  type SizeGroup 
+} from "@/utils/queueUtils";
 
 export default function Queue() {
   const { restaurants } = useRestaurants();
   const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue } = useQueueEnhanced();
   const { getAverageForSize, generalAverage, loading: loadingAverages } = useQueueWaitTimeAverages(RESTAURANT_ID);
+  const { settings: queueSettings, loading: loadingSettings } = useQueueSettings(RESTAURANT_ID);
   const { toast } = useToast();
 
-  // CONFIGURAÇÃO: Limite de capacidade da fila
-  // TODO: Futuramente buscar de uma tabela de configurações do restaurante
-  const QUEUE_CAPACITY_LIMIT = 10;
+  // CONFIGURAÇÃO: Usar valores das configurações do restaurante
+  const QUEUE_CAPACITY_LIMIT = queueSettings?.max_queue_capacity || 50;
+  const MAX_PARTY_SIZE = queueSettings?.max_party_size || 8;
+  const TOLERANCE_MINUTES = queueSettings?.tolerance_minutes || 10;
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -61,6 +71,16 @@ export default function Queue() {
   const totalWaiting = activeEntries.filter(entry => entry.status === "waiting").length;
   const totalPeople = activeEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
   
+  // Calcular posições por GRUPO (filas paralelas)
+  const groupPositions = useMemo(() => {
+    return calculateGroupPositions(activeEntries);
+  }, [activeEntries]);
+
+  // Contagem de espera por grupo
+  const waitingByGroup = useMemo(() => {
+    return countWaitingByGroup(activeEntries);
+  }, [activeEntries]);
+  
   // Calcular tempo médio de espera dos que estão aguardando
   const avgWaitTimeMinutes = totalWaiting > 0
     ? Math.round(
@@ -72,7 +92,7 @@ export default function Queue() {
   
   const avgWaitTime = avgWaitTimeMinutes + " min";
 
-  // LÓGICA: Fila cheia
+  // LÓGICA: Fila cheia (baseada na configuração do restaurante)
   const isQueueFull = totalWaiting >= QUEUE_CAPACITY_LIMIT;
   const isQueueCritical = totalWaiting >= QUEUE_CAPACITY_LIMIT;
 
@@ -299,6 +319,41 @@ export default function Queue() {
         </Card>
       </div>
 
+      {/* Filas por Grupo - Visão Resumida */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Filas por Tamanho de Grupo
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {(['1-2', '3-4', '5-6', '7+'] as SizeGroup[]).map((group) => {
+              const count = waitingByGroup[group];
+              const isActive = partySizeFilter === group;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setPartySizeFilter(isActive ? 'all' : group)}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    isActive 
+                      ? 'border-primary bg-primary/10 ring-1 ring-primary' 
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="text-lg font-bold">{count}</div>
+                  <div className="text-xs text-muted-foreground">{getSizeGroupLabel(group)}</div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            💡 Clique em um grupo para filtrar. Cada grupo tem sua própria sequência de posições.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -359,20 +414,22 @@ export default function Queue() {
       {/* Queue List */}
       <div className="space-y-3">
         {(() => {
-          // Calcular posições UMA VEZ para todos os "waiting" da lista completa (não filtrada)
-          // Isso garante que a posição seja sempre baseada na ordem real da fila
-          const allWaitingEntries = activeEntries.filter(e => e.status === "waiting");
-          const positionMap = new Map<string, number>();
-          allWaitingEntries.forEach((entry, idx) => {
-            positionMap.set(entry.entry_id, idx + 1);
-          });
-          
+          // Usar posições por grupo (filas paralelas)
+          // Cada grupo tem sua própria sequência de posições (1, 2, 3...)
           return filteredQueue.map((entry) => {
-            // Pegar posição do mapa (só existe para entries "waiting")
-            const position = positionMap.get(entry.entry_id) || null;
+            // Pegar posição do grupo específico deste entry
+            const sizeGroup = getSizeGroup(entry.people);
+            const position = entry.status === 'waiting' 
+              ? groupPositions[sizeGroup].get(entry.entry_id) || null
+              : null;
+            
+            // Calcular tempo aguardando e verificar tolerância (se chamado)
+            const waitTimeMinutes = calculateWaitTime(entry.created_at);
+            const calledTimeMinutes = entry.called_at ? calculateWaitTime(entry.called_at) : 0;
+            const isOverTolerance = entry.status === 'called' && calledTimeMinutes > TOLERANCE_MINUTES;
           
           return (
-            <Card key={entry.entry_id} className="hover:shadow-md transition-shadow">
+            <Card key={entry.entry_id} className={`hover:shadow-md transition-shadow ${isOverTolerance ? 'border-destructive/50 bg-destructive/5' : ''}`}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -381,7 +438,9 @@ export default function Queue() {
                         <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
                           {position}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">Posição</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {getSizeGroupLabel(sizeGroup)}
+                        </p>
                       </div>
                     )}
                   

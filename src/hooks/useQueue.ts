@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueueRealtime } from './useQueueRealtime';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { getSizeGroup, matchesSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
 
 type QueueEntry = {
   entry_id: string;
@@ -106,24 +107,29 @@ export function useQueue() {
 
       if (error) throw error;
 
-      // Calcular posição na fila por GRUPO (número de entradas na frente + 1)
-      // Cada entrada = 1 grupo, independente do party_size
-      // Usar mesma janela de 24h que o dashboard
+      // Calcular posição na fila por GRUPO (filas paralelas)
+      // Cada tamanho de grupo (1-2, 3-4, 5-6, 7+) tem sua própria sequência
       const last24Hours = new Date();
       last24Hours.setHours(last24Hours.getHours() - 24);
+      const sizeGroup = getSizeGroup(entry.people);
       
       const { data: waitingEntries } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('id, created_at')
+        .select('id, created_at, party_size')
         .eq('queue_id', activeQueue.id)
         .eq('status', 'waiting')
         .gte('created_at', last24Hours.toISOString())
         .order('created_at', { ascending: true })
         .order('id', { ascending: true });
       
-      // Posição = índice + 1 (a nova entrada é a última)
-      const position = (waitingEntries?.length || 0);
+      // Filtrar apenas entradas do MESMO grupo de tamanho
+      const sameGroupEntries = (waitingEntries || []).filter(e => 
+        matchesSizeGroup(e.party_size, sizeGroup)
+      );
+      
+      // Posição = total de entradas no grupo (a nova é a última)
+      const position = sameGroupEntries.length;
 
       // Buscar nome do restaurante
       const { data: restaurantData } = await supabase
@@ -137,7 +143,7 @@ export function useQueue() {
       // Enviar email com link da fila (via edge function)
       try {
         const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
-        console.log('Enviando email para:', entry.email, 'com link:', queueUrl);
+        console.log('Enviando email para:', entry.email, 'com link:', queueUrl, 'grupo:', getSizeGroupLabel(sizeGroup));
         
         const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
           body: {
@@ -146,6 +152,7 @@ export function useQueue() {
             restaurant_name: restaurantName,
             position: position,
             party_size: entry.people,
+            size_group: getSizeGroupLabel(sizeGroup),
             type: 'entry',
             queue_url: queueUrl,
           },

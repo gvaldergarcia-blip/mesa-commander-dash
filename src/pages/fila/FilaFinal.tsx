@@ -1,6 +1,6 @@
 /**
  * Página de acompanhamento em tempo real da fila
- * Mostra posição calculada por GRUPO (igual à tela comando)
+ * Mostra posição calculada por GRUPO (filas paralelas por tamanho)
  * Aceita: /fila/final?ticket=ID ou /fila/final?restauranteId=ID
  */
 
@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Users, Clock, XCircle, CheckCircle2, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { getSizeGroup, getSizeGroupLabel, matchesSizeGroup } from '@/utils/queueUtils';
 
 interface QueueInfo {
   ticket_id: string;
@@ -22,6 +23,7 @@ interface QueueInfo {
   status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
   position: number | null;
   party_size: number;
+  size_group: string;
   created_at: string;
 }
 
@@ -80,19 +82,21 @@ export default function FilaFinal() {
         .eq('id', restaurantId)
         .maybeSingle();
 
-      // Calcular posição por GRUPO (igual Tela Comando)
-      // Contar quantos grupos estão aguardando ANTES deste ticket
-      // Usar mesmo período do dashboard: últimas 24h
+      // Calcular posição por GRUPO (filas paralelas)
+      // Cada tamanho de grupo (1-2, 3-4, 5-6, 7+) tem sua própria fila
       let position: number | null = null;
+      const partySize = entryData?.party_size || 1;
+      const sizeGroup = getSizeGroup(partySize);
       
       if (entryData && entryData.status === 'waiting') {
         const last24Hours = new Date();
         last24Hours.setHours(last24Hours.getHours() - 24);
         
+        // Buscar apenas entradas do MESMO GRUPO de tamanho
         const { data: waitingEntries } = await supabase
           .schema('mesaclik')
           .from('queue_entries')
-          .select('id, created_at')
+          .select('id, created_at, party_size')
           .eq('restaurant_id', restaurantId)
           .eq('status', 'waiting')
           .gte('created_at', last24Hours.toISOString())
@@ -100,9 +104,13 @@ export default function FilaFinal() {
           .order('id', { ascending: true });
 
         if (waitingEntries) {
-          const index = waitingEntries.findIndex(e => e.id === ticketId);
+          // Filtrar apenas entradas do mesmo grupo de tamanho
+          const sameGroupEntries = waitingEntries.filter(e => 
+            matchesSizeGroup(e.party_size, sizeGroup)
+          );
+          const index = sameGroupEntries.findIndex(e => e.id === ticketId);
           if (index !== -1) {
-            position = index + 1; // 1-indexed
+            position = index + 1; // 1-indexed dentro do grupo
           }
         }
       }
@@ -113,7 +121,8 @@ export default function FilaFinal() {
         restaurant_name: restaurant?.name || 'Restaurante',
         status: entryData?.status || 'waiting',
         position,
-        party_size: entryData?.party_size || 1,
+        party_size: partySize,
+        size_group: getSizeGroupLabel(sizeGroup),
         created_at: entryData?.created_at || new Date().toISOString(),
       });
 
@@ -276,7 +285,7 @@ export default function FilaFinal() {
                 {queueInfo.position || '-'}º
               </p>
               <p className="text-xs text-muted-foreground mt-3">
-                Posição calculada por grupo na fila
+                Posição na fila de <strong>{queueInfo.size_group}</strong>
               </p>
             </div>
           )}
