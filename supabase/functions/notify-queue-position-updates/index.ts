@@ -91,6 +91,48 @@ async function sendEmailViaResend(params: {
   return { id: data.id };
 }
 
+async function sendBatchEmailsViaResend(
+  emails: Array<{ to: string; subject: string; html: string; from: string }>,
+): Promise<{ ids?: string[]; error?: string }> {
+  if (!RESEND_API_KEY) {
+    return { error: "Missing RESEND_API_KEY" };
+  }
+
+  if (emails.length === 0) return { ids: [] };
+
+  const response = await fetch("https://api.resend.com/emails/batch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+    },
+    body: JSON.stringify(
+      emails.map((e) => ({
+        from: e.from,
+        to: [e.to],
+        subject: e.subject,
+        html: e.html,
+      })),
+    ),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error("Resend Batch API error:", data);
+    return { error: data?.message || "Failed to send batch email" };
+  }
+
+  const ids = Array.isArray(data?.data)
+    ? data.data.map((d: any) => d?.id).filter(Boolean)
+    : [];
+
+  return { ids };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 interface NotifyQueuePositionUpdatesRequest {
   restaurant_id: string;
   queue_id: string;
@@ -241,12 +283,18 @@ serve(async (req) => {
 
     const fromAddress = `${restaurantName} <${RESEND_FROM_EMAIL}>`;
 
+    const messages: Array<{
+      entryId: string;
+      to: string;
+      subject: string;
+      html: string;
+      from: string;
+    }> = [];
+
     for (let idx = 0; idx < sameGroup.length; idx++) {
       const entry = sameGroup[idx];
       if (body.exclude_entry_id && entry.id === body.exclude_entry_id) continue;
       if (!entry.email) continue;
-
-      attempted++;
 
       const queueUrl = `${body.base_url.replace(/\/$/, "")}/fila/final?ticket=${entry.id}`;
       const { subject, html } = buildPositionUpdateEmail({
@@ -258,17 +306,53 @@ serve(async (req) => {
         partySize: Number(entry.party_size || body.party_size || 1),
       });
 
-      const res = await sendEmailViaResend({
+      messages.push({
+        entryId: entry.id,
         to: entry.email,
         subject,
         html,
         from: fromAddress,
       });
+    }
 
-      if (res.error) {
-        failures.push({ id: entry.id, email: entry.email, error: res.error });
+    attempted = messages.length;
+
+    // Envio em lote (evita rate limit 2 req/s do Resend)
+    const chunkSize = 100;
+    for (let i = 0; i < messages.length; i += chunkSize) {
+      const chunk = messages.slice(i, i + chunkSize);
+
+      const batchRes = await sendBatchEmailsViaResend(
+        chunk.map((m) => ({ to: m.to, subject: m.subject, html: m.html, from: m.from })),
+      );
+
+      if (batchRes.error) {
+        console.warn(
+          "[notify-queue-position-updates] batch failed, falling back to throttled individual sends:",
+          batchRes.error,
+        );
+
+        // Fallback: envio individual com throttle para respeitar rate limit
+        for (const m of chunk) {
+          const res = await sendEmailViaResend({
+            to: m.to,
+            subject: m.subject,
+            html: m.html,
+            from: m.from,
+          });
+
+          if (res.error) {
+            failures.push({ id: m.entryId, email: m.to, error: res.error });
+          } else {
+            sent++;
+          }
+
+          // 2 req/s => ~500ms. Usamos 650ms para margem.
+          await sleep(650);
+        }
       } else {
-        sent++;
+        // Considerar sucesso do lote (Resend retorna ids na mesma ordem do array)
+        sent += chunk.length;
       }
     }
 
