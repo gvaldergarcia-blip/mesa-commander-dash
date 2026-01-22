@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_palpites: {
+        Row: {
+          action_allowed: boolean
+          created_at: string
+          cta_payload: Json | null
+          cta_type: string | null
+          customer_id: string | null
+          id: string
+          message: string
+          priority: string
+          restaurant_id: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          action_allowed?: boolean
+          created_at?: string
+          cta_payload?: Json | null
+          cta_type?: string | null
+          customer_id?: string | null
+          id?: string
+          message: string
+          priority?: string
+          restaurant_id: string
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          action_allowed?: boolean
+          created_at?: string
+          cta_payload?: Json | null
+          cta_type?: string | null
+          customer_id?: string | null
+          id?: string
+          message?: string
+          priority?: string
+          restaurant_id?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clientes_restaurante: {
         Row: {
           created_at: string
@@ -98,6 +146,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customer_events: {
+        Row: {
+          created_at: string
+          customer_id: string
+          event_type: string
+          id: string
+          party_size: number | null
+          queue_wait_minutes: number | null
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          event_type: string
+          id?: string
+          party_size?: number | null
+          queue_wait_minutes?: number | null
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          event_type?: string
+          id?: string
+          party_size?: number | null
+          queue_wait_minutes?: number | null
+          restaurant_id?: string
+        }
+        Relationships: []
+      }
+      customer_metrics: {
+        Row: {
+          avg_wait_minutes: number | null
+          cancel_count: number
+          customer_id: string
+          id: string
+          last_queue_wait_minutes: number | null
+          last_visit_at: string | null
+          no_show_count: number
+          restaurant_id: string
+          total_visits: number
+          updated_at: string
+          visits_last_30d: number
+          visits_prev_30d: number
+        }
+        Insert: {
+          avg_wait_minutes?: number | null
+          cancel_count?: number
+          customer_id: string
+          id?: string
+          last_queue_wait_minutes?: number | null
+          last_visit_at?: string | null
+          no_show_count?: number
+          restaurant_id: string
+          total_visits?: number
+          updated_at?: string
+          visits_last_30d?: number
+          visits_prev_30d?: number
+        }
+        Update: {
+          avg_wait_minutes?: number | null
+          cancel_count?: number
+          customer_id?: string
+          id?: string
+          last_queue_wait_minutes?: number | null
+          last_visit_at?: string | null
+          no_show_count?: number
+          restaurant_id?: string
+          total_visits?: number
+          updated_at?: string
+          visits_last_30d?: number
+          visits_prev_30d?: number
+        }
+        Relationships: []
       }
       customers: {
         Row: {
@@ -1198,6 +1321,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      generate_ai_palpites: {
+        Args: { p_restaurant_id: string }
+        Returns: number
       }
       get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
