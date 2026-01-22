@@ -35,6 +35,18 @@ const typeConfig: Record<string, { icon: typeof Clock; label: string; color: str
     color: 'text-orange-500',
     bgColor: 'bg-orange-500/10',
   },
+  NO_SHOW_EDUCATE: {
+    icon: AlertTriangle,
+    label: 'No-Show Recorrente',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-500/10',
+  },
+  COOLING_CUSTOMER: {
+    icon: UserMinus,
+    label: 'Cliente Esfriando',
+    color: 'text-sky-500',
+    bgColor: 'bg-sky-500/10',
+  },
   WINBACK: {
     icon: UserMinus,
     label: 'Reconquistar',

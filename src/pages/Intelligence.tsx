@@ -64,10 +64,10 @@ export default function Intelligence() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="h-7 w-7 text-primary" />
-            MesaClik Inteligência
+            Palpites
           </h1>
           <p className="text-muted-foreground">
-            Palpites inteligentes para retenção e recuperação de clientes
+            Sugestões inteligentes para retenção e recuperação de clientes
           </p>
         </div>
 
