@@ -295,6 +295,7 @@ export type Database = {
           restaurant_id: string
           scheduled_for: string | null
           sent_at: string | null
+          source: string | null
           status: string
           subject: string
           updated_at: string | null
@@ -315,6 +316,7 @@ export type Database = {
           restaurant_id: string
           scheduled_for?: string | null
           sent_at?: string | null
+          source?: string | null
           status?: string
           subject: string
           updated_at?: string | null
@@ -335,6 +337,7 @@ export type Database = {
           restaurant_id?: string
           scheduled_for?: string | null
           sent_at?: string | null
+          source?: string | null
           status?: string
           subject?: string
           updated_at?: string | null
