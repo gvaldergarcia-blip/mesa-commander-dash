@@ -22,7 +22,7 @@ const allNavigation = [
   { name: "Fila", href: "/queue", icon: Users, requiresFeature: null },
   { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
-  { name: "Inteligência", href: "/intelligence", icon: Brain, requiresFeature: null },
+  { name: "Palpites", href: "/intelligence", icon: Brain, requiresFeature: null },
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },

@@ -3,11 +3,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
 
+export type PalpiteType = 
+  | 'LONG_WAIT_RECOVERY' 
+  | 'NO_SHOW_EDUCATE' 
+  | 'COOLING_CUSTOMER' 
+  | 'WINBACK' 
+  | 'CHURN_RISK' 
+  | 'VIP_ENGAGEMENT' 
+  | 'NEW_CUSTOMER_FOLLOWUP' 
+  | 'POST_VISIT' 
+  | 'FREQUENT_CUSTOMER' 
+  | 'ALMOST_VIP';
+
 export interface AIPalpite {
   id: string;
   restaurant_id: string;
   customer_id: string | null;
-  type: 'LONG_WAIT_RECOVERY' | 'WINBACK' | 'CHURN_RISK' | 'VIP_ENGAGEMENT' | 'NEW_CUSTOMER_FOLLOWUP' | 'POST_VISIT' | 'FREQUENT_CUSTOMER' | 'ALMOST_VIP' | string;
+  type: PalpiteType | string;
   title: string;
   message: string;
   priority: 'low' | 'med' | 'high';
@@ -37,7 +49,7 @@ export interface PalpitesStats {
 
 export type PalpiteStatusFilter = 'all' | 'new' | 'seen' | 'dismissed' | 'sent';
 export type PalpitePriorityFilter = 'all' | 'low' | 'med' | 'high';
-export type PalpiteTypeFilter = 'all' | 'LONG_WAIT_RECOVERY' | 'WINBACK' | 'CHURN_RISK' | 'VIP_ENGAGEMENT' | 'NEW_CUSTOMER_FOLLOWUP' | 'POST_VISIT' | 'FREQUENT_CUSTOMER' | 'ALMOST_VIP';
+export type PalpiteTypeFilter = 'all' | PalpiteType;
 
 export function useAIPalpites(restaurantId: string = RESTAURANT_ID) {
   const [palpites, setPalpites] = useState<AIPalpite[]>([]);
