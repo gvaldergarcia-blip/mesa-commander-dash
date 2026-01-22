@@ -20,41 +20,10 @@ Deno.serve(async (req) => {
 
     console.log('Request received:', { ticket_id, restaurant_id });
 
-    if (!ticket_id && !restaurant_id) {
+    if (!restaurant_id) {
       return new Response(
-        JSON.stringify({ error: 'ticket_id ou restaurant_id é obrigatório' }),
+        JSON.stringify({ error: 'restaurant_id é obrigatório' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Permitir chamadas públicas apenas com ticket_id (ex: link do email /fila/final?ticket=...)
-    // Nesse caso, derivamos restaurant_id a partir do ticket.
-    let effectiveRestaurantId: string | null = restaurant_id ?? null;
-    let specificEntry: any = null;
-    if (ticket_id) {
-      const { data, error: specificError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('id, queue_id, party_size, created_at, name, phone, email, status, restaurant_id')
-        .eq('id', ticket_id)
-        .maybeSingle();
-
-      if (specificError) {
-        console.error('Erro ao buscar entrada específica:', specificError);
-      }
-
-      if (data) {
-        specificEntry = data;
-        if (!effectiveRestaurantId) {
-          effectiveRestaurantId = data.restaurant_id;
-        }
-      }
-    }
-
-    if (!effectiveRestaurantId) {
-      return new Response(
-        JSON.stringify({ error: 'restaurant_id não encontrado para o ticket informado' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -66,7 +35,7 @@ Deno.serve(async (req) => {
     const { data: queueSettings, error: settingsError } = await supabase
       .from('queue_settings')
       .select('tolerance_minutes, max_party_size, queue_capacity')
-      .eq('restaurant_id', effectiveRestaurantId)
+      .eq('restaurant_id', restaurant_id)
       .maybeSingle();
 
     console.log('Queue settings:', { queueSettings, settingsError });
@@ -76,7 +45,7 @@ Deno.serve(async (req) => {
       .schema('mesaclik')
       .from('queue_entries')
       .select('id, queue_id, party_size, created_at, name, phone')
-      .eq('restaurant_id', effectiveRestaurantId)
+      .eq('restaurant_id', restaurant_id)
       .eq('status', 'waiting')
       .gte('created_at', cutoff)
       .order('created_at', { ascending: true })
@@ -112,26 +81,40 @@ Deno.serve(async (req) => {
       created_at: string;
     } | null = null;
 
-    if (ticket_id && specificEntry) {
-      // Se a entrada está waiting, calcular posição
-      if (specificEntry.status === 'waiting') {
-        const index = entries.findIndex((entry) => entry.id === ticket_id);
-        if (index !== -1) {
-          position = index + 1; // 1-indexed
-        }
+    if (ticket_id) {
+      // Primeiro buscar a entrada específica (pode não estar waiting)
+      const { data: specificEntry, error: specificError } = await supabase
+        .schema('mesaclik')
+        .from('queue_entries')
+        .select('id, queue_id, party_size, created_at, name, phone, email, status, restaurant_id')
+        .eq('id', ticket_id)
+        .maybeSingle();
+
+      if (specificError) {
+        console.error('Erro ao buscar entrada específica:', specificError);
       }
 
-      user_entry = {
-        id: specificEntry.id,
-        queue_id: specificEntry.queue_id,
-        party_size: specificEntry.party_size,
-        customer_name: specificEntry.name,
-        phone: specificEntry.phone,
-        email: specificEntry.email,
-        status: specificEntry.status,
-        restaurant_id: specificEntry.restaurant_id,
-        created_at: specificEntry.created_at,
-      };
+      if (specificEntry) {
+        // Se a entrada está waiting, calcular posição
+        if (specificEntry.status === 'waiting') {
+          const index = entries.findIndex((entry) => entry.id === ticket_id);
+          if (index !== -1) {
+            position = index + 1; // 1-indexed
+          }
+        }
+        
+        user_entry = {
+          id: specificEntry.id,
+          queue_id: specificEntry.queue_id,
+          party_size: specificEntry.party_size,
+          customer_name: specificEntry.name,
+          phone: specificEntry.phone,
+          email: specificEntry.email,
+          status: specificEntry.status,
+          restaurant_id: specificEntry.restaurant_id,
+          created_at: specificEntry.created_at,
+        };
+      }
     }
 
     const response = {
