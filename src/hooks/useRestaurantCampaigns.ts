@@ -111,14 +111,14 @@ export function useRestaurantCampaigns(restaurantId: string = RESTAURANT_ID) {
       if (createError) throw createError;
 
       toast({
-        title: 'Campanha criada',
-        description: 'A campanha foi salva como rascunho.',
+        title: 'Promoção criada',
+        description: 'A promoção foi salva com sucesso.',
       });
 
       await fetchCampaigns();
       return data;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao criar campanha';
+      const message = err instanceof Error ? err.message : 'Erro ao enviar promoção';
       toast({
         title: 'Erro',
         description: message,
@@ -203,14 +203,14 @@ export function useRestaurantCampaigns(restaurantId: string = RESTAURANT_ID) {
         .eq('id', campaignId);
 
       toast({
-        title: 'Campanha enviada!',
-        description: `E-mail enviado para ${recipients.length} destinatários.`,
+        title: 'Promoção enviada!',
+        description: `E-mail enviado para ${recipients.length} destinatário(s).`,
       });
 
       await fetchCampaigns();
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao enviar campanha';
+      const message = err instanceof Error ? err.message : 'Erro ao enviar promoção';
       toast({
         title: 'Erro no envio',
         description: message,
