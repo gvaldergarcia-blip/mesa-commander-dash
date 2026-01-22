@@ -7,7 +7,7 @@ export interface AIPalpite {
   id: string;
   restaurant_id: string;
   customer_id: string | null;
-  type: 'LONG_WAIT_RECOVERY' | 'WINBACK' | 'CHURN_RISK' | 'VIP_ENGAGEMENT' | 'NEW_CUSTOMER_FOLLOWUP' | string;
+  type: 'LONG_WAIT_RECOVERY' | 'WINBACK' | 'CHURN_RISK' | 'VIP_ENGAGEMENT' | 'NEW_CUSTOMER_FOLLOWUP' | 'POST_VISIT' | 'FREQUENT_CUSTOMER' | 'ALMOST_VIP' | string;
   title: string;
   message: string;
   priority: 'low' | 'med' | 'high';
@@ -37,7 +37,7 @@ export interface PalpitesStats {
 
 export type PalpiteStatusFilter = 'all' | 'new' | 'seen' | 'dismissed' | 'sent';
 export type PalpitePriorityFilter = 'all' | 'low' | 'med' | 'high';
-export type PalpiteTypeFilter = 'all' | 'LONG_WAIT_RECOVERY' | 'WINBACK' | 'CHURN_RISK' | 'VIP_ENGAGEMENT' | 'NEW_CUSTOMER_FOLLOWUP';
+export type PalpiteTypeFilter = 'all' | 'LONG_WAIT_RECOVERY' | 'WINBACK' | 'CHURN_RISK' | 'VIP_ENGAGEMENT' | 'NEW_CUSTOMER_FOLLOWUP' | 'POST_VISIT' | 'FREQUENT_CUSTOMER' | 'ALMOST_VIP';
 
 export function useAIPalpites(restaurantId: string = RESTAURANT_ID) {
   const [palpites, setPalpites] = useState<AIPalpite[]>([]);
