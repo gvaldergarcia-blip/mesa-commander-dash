@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Mail, Eye, Users, CheckCircle2, XCircle, Send, History, Star } from "lucide-react";
-import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter } from "@/hooks/useRestaurantCustomers";
+import { Phone, Mail, Eye, Users, CheckCircle2, XCircle, Send, History, Star, Megaphone } from "lucide-react";
+import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,9 +16,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CustomerKPIsEnhanced } from "@/components/customers/CustomerKPIsEnhanced";
 import { CustomerFiltersEnhanced } from "@/components/customers/CustomerFiltersEnhanced";
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
+import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 
 export default function CustomersPage() {
@@ -31,6 +38,8 @@ export default function CustomersPage() {
   const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit'>('lastVisit');
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
+  const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
   
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible } = useRestaurantCustomers(RESTAURANT_ID);
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(RESTAURANT_ID);
@@ -308,16 +317,63 @@ export default function CustomersPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/customers/${customer.id}`);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/customers/${customer.id}`);
+                                    }}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver detalhes</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            {customer.marketing_optin ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-primary hover:text-primary hover:bg-primary/10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCustomer(customer);
+                                        setPromotionDialogOpen(true);
+                                      }}
+                                    >
+                                      <Megaphone className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Enviar promoção</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      disabled
+                                      className="text-muted-foreground cursor-not-allowed opacity-50"
+                                    >
+                                      <Megaphone className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Cliente não aceitou marketing</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -439,6 +495,20 @@ export default function CustomersPage() {
         onSubmit={handleCreateCampaign}
         isSubmitting={isSubmittingCampaign}
       />
+
+      {/* Send Promotion Dialog (single customer) */}
+      {selectedCustomer && (
+        <SendPromotionDialog
+          open={promotionDialogOpen}
+          onOpenChange={(open) => {
+            setPromotionDialogOpen(open);
+            if (!open) setSelectedCustomer(null);
+          }}
+          customer={selectedCustomer}
+          onSubmit={handleCreateCampaign}
+          isSubmitting={isSubmittingCampaign}
+        />
+      )}
     </div>
   );
 }
