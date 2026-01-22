@@ -47,6 +47,8 @@ export default function FilaFinal() {
   const [localTermsAccepted, setLocalTermsAccepted] = useState(false);
   const [localMarketingOptin, setLocalMarketingOptin] = useState(false);
   const [consentLoading, setConsentLoading] = useState(true);
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [savingConsent, setSavingConsent] = useState(false);
   
   // Hook de consentimento
   const { 
@@ -179,6 +181,8 @@ export default function FilaFinal() {
       
       setLocalTermsAccepted(termsAccepted);
       setLocalMarketingOptin(marketingOptin);
+      // Se já aceitou termos antes, já pode ver a posição
+      setConsentConfirmed(termsAccepted);
       setConsentLoading(false);
     };
 
@@ -187,32 +191,50 @@ export default function FilaFinal() {
     }
   }, [queueInfo?.restaurant_id, queueInfo?.ticket_id, queueInfo?.customer_email, fetchConsents]);
 
-  // Handler para mudança no checkbox de termos
-  const handleTermsChange = async (accepted: boolean) => {
+  // Handler para mudança no checkbox de termos (apenas UI, não salva ainda)
+  const handleTermsChange = (accepted: boolean) => {
     setLocalTermsAccepted(accepted);
+  };
+
+  // Handler para mudança no checkbox de marketing (apenas UI, não salva ainda)
+  const handleMarketingChange = (optin: boolean) => {
+    setLocalMarketingOptin(optin);
+  };
+
+  // Handler para confirmar consentimento e ver posição
+  const handleConfirmConsent = async () => {
+    if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id || !queueInfo?.customer_email) {
+      return;
+    }
+
+    setSavingConsent(true);
     
-    if (queueInfo?.restaurant_id && queueInfo?.ticket_id && queueInfo?.customer_email) {
+    try {
+      // Salvar termos aceitos
       await saveTermsConsent(
         queueInfo.restaurant_id,
         queueInfo.ticket_id,
         queueInfo.customer_email,
         queueInfo.customer_name,
-        accepted
+        localTermsAccepted
       );
-    }
-  };
 
-  // Handler para mudança no checkbox de marketing
-  const handleMarketingChange = async (optin: boolean) => {
-    setLocalMarketingOptin(optin);
-    
-    if (queueInfo?.restaurant_id && queueInfo?.customer_email) {
-      await saveMarketingOptin(
-        queueInfo.restaurant_id,
-        queueInfo.customer_email,
-        queueInfo.customer_name,
-        optin
-      );
+      // Salvar marketing optin (se marcou)
+      if (localMarketingOptin) {
+        await saveMarketingOptin(
+          queueInfo.restaurant_id,
+          queueInfo.customer_email,
+          queueInfo.customer_name,
+          localMarketingOptin
+        );
+      }
+
+      // Liberar visualização da posição
+      setConsentConfirmed(true);
+    } catch (error) {
+      console.error('Erro ao salvar consentimento:', error);
+    } finally {
+      setSavingConsent(false);
     }
   };
 
@@ -349,8 +371,8 @@ export default function FilaFinal() {
   const config = statusConfig[queueInfo.status] || statusConfig.waiting;
   const StatusIcon = config.icon;
 
-  // Se ainda não aceitou os termos, mostrar tela de consentimento
-  if (!localTermsAccepted && !consentLoading) {
+  // Se ainda não confirmou consentimento, mostrar tela de consentimento
+  if (!consentConfirmed && !consentLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-0">
@@ -374,19 +396,24 @@ export default function FilaFinal() {
               marketingOptin={localMarketingOptin}
               onTermsChange={handleTermsChange}
               onMarketingChange={handleMarketingChange}
-              disabled={consentHookLoading}
+              disabled={savingConsent}
               restaurantName={queueInfo.restaurant_name}
             />
 
             {/* Botão desabilitado até aceitar termos */}
             <Button
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
-              disabled={!localTermsAccepted}
-              onClick={() => {
-                // O estado já é atualizado, apenas re-render com a posição
-              }}
+              disabled={!localTermsAccepted || savingConsent}
+              onClick={handleConfirmConsent}
             >
-              📱 Ver minha posição em tempo real
+              {savingConsent ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                '📱 Ver minha posição em tempo real'
+              )}
             </Button>
 
             {!localTermsAccepted && (
