@@ -7,7 +7,10 @@ import {
   Lock, 
   Eye, 
   X,
-  Sparkles
+  Sparkles,
+  Crown,
+  UserPlus,
+  HelpCircle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +25,7 @@ interface PalpiteCardProps {
   onSendPromotion: (palpite: AIPalpite) => void;
 }
 
-const typeConfig = {
+const typeConfig: Record<string, { icon: typeof Clock; label: string; color: string; bgColor: string }> = {
   LONG_WAIT_RECOVERY: {
     icon: Clock,
     label: 'Longa Espera',
@@ -41,6 +44,25 @@ const typeConfig = {
     color: 'text-red-500',
     bgColor: 'bg-red-500/10',
   },
+  VIP_ENGAGEMENT: {
+    icon: Crown,
+    label: 'Engajar VIP',
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-500/10',
+  },
+  NEW_CUSTOMER_FOLLOWUP: {
+    icon: UserPlus,
+    label: 'Cliente Novo',
+    color: 'text-green-500',
+    bgColor: 'bg-green-500/10',
+  },
+};
+
+const defaultTypeConfig = {
+  icon: HelpCircle,
+  label: 'Palpite',
+  color: 'text-gray-500',
+  bgColor: 'bg-gray-500/10',
 };
 
 const priorityConfig = {
@@ -64,9 +86,9 @@ export function PalpiteCard({
 }: PalpiteCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const typeInfo = typeConfig[palpite.type];
-  const priorityInfo = priorityConfig[palpite.priority];
-  const statusInfo = statusConfig[palpite.status];
+  const typeInfo = typeConfig[palpite.type] || defaultTypeConfig;
+  const priorityInfo = priorityConfig[palpite.priority] || priorityConfig.med;
+  const statusInfo = statusConfig[palpite.status] || statusConfig.new;
   const TypeIcon = typeInfo.icon;
 
   const handleMarkSeen = async () => {

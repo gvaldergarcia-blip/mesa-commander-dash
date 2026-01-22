@@ -70,6 +70,8 @@ export function PalpitesFilters({
           <SelectItem value="LONG_WAIT_RECOVERY">Longa Espera</SelectItem>
           <SelectItem value="WINBACK">Reconquistar</SelectItem>
           <SelectItem value="CHURN_RISK">Risco de Churn</SelectItem>
+          <SelectItem value="VIP_ENGAGEMENT">Engajar VIP</SelectItem>
+          <SelectItem value="NEW_CUSTOMER_FOLLOWUP">Cliente Novo</SelectItem>
         </SelectContent>
       </Select>
     </div>
