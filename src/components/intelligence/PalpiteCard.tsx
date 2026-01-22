@@ -10,7 +10,10 @@ import {
   Sparkles,
   Crown,
   UserPlus,
-  HelpCircle
+  HelpCircle,
+  ThumbsUp,
+  Repeat,
+  TrendingUp
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +58,24 @@ const typeConfig: Record<string, { icon: typeof Clock; label: string; color: str
     label: 'Cliente Novo',
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
+  },
+  POST_VISIT: {
+    icon: ThumbsUp,
+    label: 'Pós-Visita',
+    color: 'text-teal-500',
+    bgColor: 'bg-teal-500/10',
+  },
+  FREQUENT_CUSTOMER: {
+    icon: Repeat,
+    label: 'Frequente',
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10',
+  },
+  ALMOST_VIP: {
+    icon: TrendingUp,
+    label: 'Quase VIP',
+    color: 'text-indigo-500',
+    bgColor: 'bg-indigo-500/10',
   },
 };
 

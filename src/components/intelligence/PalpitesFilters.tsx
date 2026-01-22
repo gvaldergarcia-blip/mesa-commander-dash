@@ -67,6 +67,9 @@ export function PalpitesFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos tipos</SelectItem>
+          <SelectItem value="POST_VISIT">Pós-Visita</SelectItem>
+          <SelectItem value="FREQUENT_CUSTOMER">Frequente</SelectItem>
+          <SelectItem value="ALMOST_VIP">Quase VIP</SelectItem>
           <SelectItem value="LONG_WAIT_RECOVERY">Longa Espera</SelectItem>
           <SelectItem value="WINBACK">Reconquistar</SelectItem>
           <SelectItem value="CHURN_RISK">Risco de Churn</SelectItem>
