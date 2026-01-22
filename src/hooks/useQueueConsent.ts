@@ -92,18 +92,18 @@ export function useQueueConsent() {
   }, []);
 
   /**
-   * Salva aceite de termos (obrigatório)
+   * Salva aceite de termos (obrigatório) e faz upsert no CRM consolidado
    */
   const saveTermsConsent = useCallback(async (
     restaurantId: string,
     ticketId: string,
     customerEmail: string,
     customerName?: string,
-    accepted: boolean = true
+    accepted: boolean = true,
+    customerPhone?: string,
+    marketingOptin?: boolean
   ): Promise<boolean> => {
     try {
-      const now = new Date().toISOString();
-
       const { error } = await supabase
         .from('queue_terms_consents')
         .upsert({
@@ -112,10 +112,9 @@ export function useQueueConsent() {
           customer_email: customerEmail,
           customer_name: customerName || null,
           terms_accepted: accepted,
-          terms_accepted_at: accepted ? now : null,
+          terms_accepted_at: accepted ? new Date().toISOString() : null,
           terms_version: 'v1',
           privacy_version: 'v1',
-          updated_at: now,
         }, {
           onConflict: 'restaurant_id,ticket_id'
         });
@@ -125,11 +124,27 @@ export function useQueueConsent() {
         return false;
       }
 
+      // Upsert no CRM consolidado via RPC
+      const { error: crmError } = await supabase.rpc('upsert_restaurant_customer', {
+        p_restaurant_id: restaurantId,
+        p_email: customerEmail,
+        p_name: customerName || null,
+        p_phone: customerPhone || null,
+        p_source: 'queue',
+        p_marketing_optin: marketingOptin ?? null,
+        p_terms_accepted: accepted,
+      });
+
+      if (crmError) {
+        console.error('Erro ao salvar no CRM:', crmError);
+        // Não falhar se CRM der erro - termos já foram salvos
+      }
+
       setState(prev => ({
         ...prev,
         terms: {
           terms_accepted: accepted,
-          terms_accepted_at: accepted ? now : null,
+          terms_accepted_at: accepted ? new Date().toISOString() : null,
           terms_version: 'v1',
           privacy_version: 'v1',
         },
@@ -143,7 +158,7 @@ export function useQueueConsent() {
   }, []);
 
   /**
-   * Salva opt-in de marketing (opcional)
+   * Salva opt-in de marketing (opcional) e atualiza CRM consolidado
    */
   const saveMarketingOptin = useCallback(async (
     restaurantId: string,
@@ -152,8 +167,6 @@ export function useQueueConsent() {
     optin: boolean = true
   ): Promise<boolean> => {
     try {
-      const now = new Date().toISOString();
-
       const { error } = await supabase
         .from('restaurant_marketing_optins')
         .upsert({
@@ -161,8 +174,7 @@ export function useQueueConsent() {
           customer_email: customerEmail,
           customer_name: customerName || null,
           marketing_optin: optin,
-          marketing_optin_at: optin ? now : null,
-          updated_at: now,
+          marketing_optin_at: optin ? new Date().toISOString() : null,
         }, {
           onConflict: 'restaurant_id,customer_email'
         });
@@ -172,11 +184,21 @@ export function useQueueConsent() {
         return false;
       }
 
+      // Atualizar também no CRM consolidado
+      await supabase
+        .from('restaurant_customers')
+        .update({
+          marketing_optin: optin,
+          marketing_optin_at: optin ? new Date().toISOString() : null,
+        })
+        .eq('restaurant_id', restaurantId)
+        .eq('customer_email', customerEmail);
+
       setState(prev => ({
         ...prev,
         marketing: {
           marketing_optin: optin,
-          marketing_optin_at: optin ? now : null,
+          marketing_optin_at: optin ? new Date().toISOString() : null,
         },
       }));
 
