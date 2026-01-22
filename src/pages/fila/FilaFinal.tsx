@@ -210,16 +210,19 @@ export default function FilaFinal() {
     setSavingConsent(true);
     
     try {
-      // Salvar termos aceitos
+      // Salvar termos aceitos E fazer upsert no CRM consolidado
+      // Passando phone (se existir) e marketing optin para a função RPC
       await saveTermsConsent(
         queueInfo.restaurant_id,
         queueInfo.ticket_id,
         queueInfo.customer_email,
         queueInfo.customer_name,
-        localTermsAccepted
+        localTermsAccepted,
+        undefined, // customerPhone - não temos no fluxo atual
+        localMarketingOptin // Passa o marketing optin para o CRM
       );
 
-      // Salvar marketing optin (se marcou)
+      // Salvar marketing optin separado (tabela específica)
       if (localMarketingOptin) {
         await saveMarketingOptin(
           queueInfo.restaurant_id,
