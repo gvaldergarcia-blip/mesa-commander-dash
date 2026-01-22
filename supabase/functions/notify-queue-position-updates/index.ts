@@ -149,7 +149,7 @@ function buildPositionUpdateEmail(args: {
   sizeGroupLabel: string;
   partySize: number;
 }): { subject: string; html: string } {
-  const { restaurantName, customerName, position, queueUrl, sizeGroupLabel, partySize } = args;
+  const { restaurantName, customerName, queueUrl, sizeGroupLabel, partySize } = args;
   const subject = `📍 Atualização da fila - ${restaurantName}`;
 
   return {
@@ -166,50 +166,50 @@ function buildPositionUpdateEmail(args: {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;">
           <tr>
             <td align="center">
-              <a href="${queueUrl}" style="text-decoration: none;">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
-                  <tr>
-                    <td style="padding: 28px 32px 22px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800;">📍 Atualização da fila</h1>
-                      <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px;">${restaurantName}</p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 28px 32px;">
-                      <p style="margin: 0 0 16px; color: #3f3f46; font-size: 15px; line-height: 1.6;">
-                        ${customerName ? `Olá <strong>${customerName}</strong>!` : 'Olá!'} Sua posição foi atualizada.
-                      </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
+                <tr>
+                  <td style="padding: 28px 32px 22px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
+                    <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 800;">📍 Atualização da fila</h1>
+                    <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px;">${restaurantName}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 28px 32px;">
+                    <p style="margin: 0 0 16px; color: #3f3f46; font-size: 15px; line-height: 1.6;">
+                      ${customerName ? `Olá <strong>${customerName}</strong>!` : 'Olá!'} A fila está andando!
+                    </p>
 
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 14px;">
-                        <tr>
-                          <td style="padding: 22px; text-align: center;">
-                            <p style="margin: 0 0 8px; color: #9a3412; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">SUA POSIÇÃO</p>
-                            <p style="margin: 0; color: #ea580c; font-size: 56px; font-weight: 900; line-height: 1;">${position}º</p>
-                            <p style="margin: 10px 0 0; color: #71717a; font-size: 12px;">Fila de ${sizeGroupLabel}</p>
-                          </td>
-                        </tr>
-                      </table>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 16px;">
+                      <tr>
+                        <td style="padding: 20px; text-align: center;">
+                          <p style="margin: 0; color: #9a3412; font-size: 14px; font-weight: 600;">👥 ${partySize} ${partySize === 1 ? 'pessoa' : 'pessoas'}</p>
+                          <p style="margin: 8px 0 0; color: #71717a; font-size: 12px;">Fila de ${sizeGroupLabel}</p>
+                        </td>
+                      </tr>
+                    </table>
 
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; border-radius: 12px; margin-bottom: 16px;">
-                        <tr>
-                          <td style="padding: 14px; text-align: center;">
-                            <p style="margin: 0; color: #52525b; font-size: 13px;">👥 ${partySize} ${partySize === 1 ? 'pessoa' : 'pessoas'}</p>
-                          </td>
-                        </tr>
-                      </table>
+                    <!-- CTA Button -->
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="center" style="padding: 8px 0 24px;">
+                          <a href="${queueUrl}" style="display: inline-block; padding: 18px 36px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
+                            📱 Ver minha posição em tempo real
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
 
-                      <p style="margin: 0; color: #71717a; font-size: 13px; line-height: 1.6; text-align: center;">
-                        Toque aqui para ver a posição em tempo real.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 20px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                      <p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p>
-                    </td>
-                  </tr>
-                </table>
-              </a>
+                    <p style="margin: 0; color: #71717a; font-size: 13px; line-height: 1.6; text-align: center;">
+                      Aguarde, logo será a sua vez!
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
+                    <p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
