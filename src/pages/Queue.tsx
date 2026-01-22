@@ -330,8 +330,8 @@ export default function Queue() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {(['1-2', '3-4', '5-6', '7+'] as SizeGroup[]).map((group) => {
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            {(['1-2', '3-4', '5-6', '7-8', '9-10', '10+'] as SizeGroup[]).map((group) => {
               const count = waitingByGroup[group];
               const isActive = partySizeFilter === group;
               return (
