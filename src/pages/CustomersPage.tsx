@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Phone, Mail, Eye, Users, CheckCircle2, XCircle, Send, History, Star, Megaphone } from "lucide-react";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
+import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +44,7 @@ export default function CustomersPage() {
   
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible } = useRestaurantCustomers(RESTAURANT_ID);
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(RESTAURANT_ID);
+  const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
 
   // Filtrar e ordenar clientes
   const filteredCustomers = useMemo(() => {
@@ -496,7 +498,7 @@ export default function CustomersPage() {
         isSubmitting={isSubmittingCampaign}
       />
 
-      {/* Send Promotion Dialog (single customer) */}
+      {/* Send Promotion Dialog (single customer) - uses direct email sending */}
       {selectedCustomer && (
         <SendPromotionDialog
           open={promotionDialogOpen}
@@ -505,8 +507,23 @@ export default function CustomersPage() {
             if (!open) setSelectedCustomer(null);
           }}
           customer={selectedCustomer}
-          onSubmit={handleCreateCampaign}
-          isSubmitting={isSubmittingCampaign}
+          onSubmit={async (data) => {
+            const recipient = data.recipients[0];
+            if (!recipient) return;
+            
+            await sendPromotion({
+              to_email: recipient.email,
+              to_name: recipient.name,
+              subject: data.subject,
+              message: data.message,
+              coupon_code: data.couponCode,
+              expires_at: data.expiresAt,
+              cta_text: data.ctaText,
+              cta_url: data.ctaUrl,
+              restaurant_name: 'Mocotó', // TODO: get from context
+            });
+          }}
+          isSubmitting={sendingPromotion}
         />
       )}
     </div>
