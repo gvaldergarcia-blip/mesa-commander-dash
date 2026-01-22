@@ -142,7 +142,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Received promotion email request:', JSON.stringify({
       to_email: requestData.to_email,
       subject: requestData.subject,
-      has_coupon: !!requestData.coupon_code,
+      coupon_code: requestData.coupon_code || null,
+      expires_at: requestData.expires_at || null,
+      message_length: requestData.message?.length || 0,
     }));
 
     if (!requestData.to_email || !requestData.subject || !requestData.message) {
