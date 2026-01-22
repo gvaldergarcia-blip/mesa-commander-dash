@@ -71,7 +71,7 @@ export function SendPalpitePromotionDialog({
 
       if (sendError) throw sendError;
 
-      // Log the email
+      // Log the email with origin = palpite_ia
       await supabase.from('email_logs').insert({
         restaurant_id: RESTAURANT_ID,
         customer_id: palpite.customer_id,
@@ -82,6 +82,7 @@ export function SendPalpitePromotionDialog({
         valid_until: expiresAt.toISOString(),
         status: 'sent',
         sent_at: new Date().toISOString(),
+        source: 'palpite_ia',
       });
 
       // Update palpite status
