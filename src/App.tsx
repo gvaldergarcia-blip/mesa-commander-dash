@@ -22,6 +22,10 @@ import FilaEntrar from "./pages/fila/FilaEntrar";
 import FilaVerificar from "./pages/fila/FilaVerificar";
 import FilaFinal from "./pages/fila/FilaFinal";
 
+// Páginas Legais (LGPD)
+import TermosDeUso from "./pages/legal/TermosDeUso";
+import PoliticaPrivacidade from "./pages/legal/PoliticaPrivacidade";
+
 const queryClient = new QueryClient();
 
 // Componente wrapper para rotas que requerem feature flags
@@ -50,6 +54,10 @@ const App = () => (
         <Route path="/fila/entrar" element={<FilaEntrar />} />
         <Route path="/fila/verificar" element={<FilaVerificar />} />
         <Route path="/fila/final" element={<FilaFinal />} />
+
+        {/* Rotas públicas legais (sem DashboardLayout) */}
+        <Route path="/termos" element={<TermosDeUso />} />
+        <Route path="/privacidade" element={<PoliticaPrivacidade />} />
 
         {/* Rotas com DashboardLayout */}
         <Route path="/*" element={

@@ -1,5 +1,6 @@
 /**
  * Página de acompanhamento em tempo real da fila
+ * Com consentimento LGPD obrigatório antes de ver posição
  * Mostra posição calculada por GRUPO (filas paralelas por tamanho)
  * Aceita: /fila/final?ticket=ID ou /fila/final?restauranteId=ID
  */
@@ -9,9 +10,11 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell } from 'lucide-react';
+import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getSizeGroup, getSizeGroupLabel, matchesSizeGroup } from '@/utils/queueUtils';
+import { QueueConsentForm } from '@/components/queue/QueueConsentForm';
+import { useQueueConsent } from '@/hooks/useQueueConsent';
 
 interface QueueInfo {
   ticket_id: string;
@@ -23,6 +26,8 @@ interface QueueInfo {
   party_size: number;
   size_group: string;
   created_at: string;
+  customer_email?: string;
+  customer_name?: string;
 }
 
 export default function FilaFinal() {
@@ -37,6 +42,19 @@ export default function FilaFinal() {
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  
+  // Estado de consentimento local (para UI responsiva)
+  const [localTermsAccepted, setLocalTermsAccepted] = useState(false);
+  const [localMarketingOptin, setLocalMarketingOptin] = useState(false);
+  const [consentLoading, setConsentLoading] = useState(true);
+  
+  // Hook de consentimento
+  const { 
+    fetchConsents, 
+    saveTermsConsent, 
+    saveMarketingOptin,
+    loading: consentHookLoading 
+  } = useQueueConsent();
 
   // Atualizar título da aba do navegador
   useEffect(() => {
@@ -60,7 +78,7 @@ export default function FilaFinal() {
         const { data: entry, error: entryError } = await supabase
           .schema('mesaclik')
           .from('queue_entries')
-          .select('id, queue_id, restaurant_id, status, party_size, created_at, name')
+          .select('id, queue_id, restaurant_id, status, party_size, created_at, name, email')
           .eq('id', ticketId)
           .maybeSingle();
 
@@ -131,6 +149,8 @@ export default function FilaFinal() {
         party_size: partySize,
         size_group: getSizeGroupLabel(sizeGroup),
         created_at: entryData?.created_at || new Date().toISOString(),
+        customer_email: entryData?.email,
+        customer_name: entryData?.name,
       });
 
       setNotFound(false);
@@ -141,6 +161,60 @@ export default function FilaFinal() {
       setLoading(false);
     }
   }, [ticketId, restauranteIdParam]);
+
+  // Buscar consentimentos existentes quando tiver as infos da fila
+  useEffect(() => {
+    const loadConsents = async () => {
+      if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id || !queueInfo?.customer_email) {
+        setConsentLoading(false);
+        return;
+      }
+
+      setConsentLoading(true);
+      const { termsAccepted, marketingOptin } = await fetchConsents(
+        queueInfo.restaurant_id,
+        queueInfo.ticket_id,
+        queueInfo.customer_email
+      );
+      
+      setLocalTermsAccepted(termsAccepted);
+      setLocalMarketingOptin(marketingOptin);
+      setConsentLoading(false);
+    };
+
+    if (queueInfo) {
+      loadConsents();
+    }
+  }, [queueInfo?.restaurant_id, queueInfo?.ticket_id, queueInfo?.customer_email, fetchConsents]);
+
+  // Handler para mudança no checkbox de termos
+  const handleTermsChange = async (accepted: boolean) => {
+    setLocalTermsAccepted(accepted);
+    
+    if (queueInfo?.restaurant_id && queueInfo?.ticket_id && queueInfo?.customer_email) {
+      await saveTermsConsent(
+        queueInfo.restaurant_id,
+        queueInfo.ticket_id,
+        queueInfo.customer_email,
+        queueInfo.customer_name,
+        accepted
+      );
+    }
+  };
+
+  // Handler para mudança no checkbox de marketing
+  const handleMarketingChange = async (optin: boolean) => {
+    setLocalMarketingOptin(optin);
+    
+    if (queueInfo?.restaurant_id && queueInfo?.customer_email) {
+      await saveMarketingOptin(
+        queueInfo.restaurant_id,
+        queueInfo.customer_email,
+        queueInfo.customer_name,
+        optin
+      );
+    }
+  };
 
   // Inicialização
   useEffect(() => {
@@ -275,6 +349,58 @@ export default function FilaFinal() {
   const config = statusConfig[queueInfo.status] || statusConfig.waiting;
   const StatusIcon = config.icon;
 
+  // Se ainda não aceitou os termos, mostrar tela de consentimento
+  if (!localTermsAccepted && !consentLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-xl border-0">
+          {/* Header com gradiente laranja */}
+          <CardHeader className="text-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-lg pb-6">
+            <ShieldCheck className="h-12 w-12 mx-auto mb-2" />
+            <CardTitle className="text-2xl font-bold text-white">Quase lá!</CardTitle>
+            <CardDescription className="text-white/90 text-base">
+              {queueInfo.restaurant_name}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6 pt-6">
+            <p className="text-center text-muted-foreground">
+              Para acompanhar sua posição na fila em tempo real, por favor aceite nossos termos.
+            </p>
+
+            {/* Formulário de consentimento */}
+            <QueueConsentForm
+              termsAccepted={localTermsAccepted}
+              marketingOptin={localMarketingOptin}
+              onTermsChange={handleTermsChange}
+              onMarketingChange={handleMarketingChange}
+              disabled={consentHookLoading}
+              restaurantName={queueInfo.restaurant_name}
+            />
+
+            {/* Botão desabilitado até aceitar termos */}
+            <Button
+              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
+              disabled={!localTermsAccepted}
+              onClick={() => {
+                // O estado já é atualizado, apenas re-render com a posição
+              }}
+            >
+              📱 Ver minha posição em tempo real
+            </Button>
+
+            {!localTermsAccepted && (
+              <p className="text-center text-xs text-muted-foreground">
+                Marque a caixa acima para continuar
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Tela principal com posição (termos aceitos)
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-xl border-0">
@@ -330,6 +456,12 @@ export default function FilaFinal() {
               </Badge>
             </div>
           )}
+
+          {/* Badge de termos aceitos */}
+          <div className="flex items-center justify-center gap-2 text-green-600 text-xs">
+            <ShieldCheck className="h-3 w-3" />
+            <span>Termos aceitos</span>
+          </div>
 
           {/* Mensagem informativa */}
           <p className="text-center text-sm text-muted-foreground">
