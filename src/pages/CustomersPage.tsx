@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Mail, Eye, Users, CheckCircle2, XCircle, Send, History, Star, Megaphone } from "lucide-react";
+import { Phone, Mail, Eye, Users, Send, History, Star, Megaphone, Lightbulb } from "lucide-react";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
+import { useCustomerInsights, generateInsightsForCustomer } from "@/hooks/useCustomerInsights";
+import { CustomerInsightInline } from "@/components/customers/CustomerInsightBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -45,6 +47,19 @@ export default function CustomersPage() {
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible } = useRestaurantCustomers(RESTAURANT_ID);
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(RESTAURANT_ID);
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
+  useCustomerInsights(RESTAURANT_ID); // Inicializa hook para uso futuro
+
+  // Gera insights em tempo real para cada cliente (sem salvar no banco)
+  const customerInsightsMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof generateInsightsForCustomer>>();
+    customers.forEach(customer => {
+      const insights = generateInsightsForCustomer(customer);
+      if (insights.length > 0) {
+        map.set(customer.id, insights);
+      }
+    });
+    return map;
+  }, [customers]);
 
   // Filtrar e ordenar clientes
   const filteredCustomers = useMemo(() => {
@@ -240,7 +255,12 @@ export default function CustomersPage() {
                       <TableHead>Cliente</TableHead>
                       <TableHead>Contato</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Marketing</TableHead>
+                      <TableHead>
+                        <div className="flex items-center gap-1">
+                          <Lightbulb className="w-4 h-4" />
+                          Insight
+                        </div>
+                      </TableHead>
                       <TableHead>Visitas</TableHead>
                       <TableHead>Última Visita</TableHead>
                       <TableHead>Ações</TableHead>
@@ -293,17 +313,29 @@ export default function CustomersPage() {
                           {getStatusBadge(getCustomerStatus(customer))}
                         </TableCell>
                         <TableCell>
-                          {customer.marketing_optin ? (
-                            <div className="flex items-center gap-1.5 text-sm text-success">
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>Aceita</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <XCircle className="w-4 h-4" />
-                              <span>Não aceita</span>
-                            </div>
-                          )}
+                          {(() => {
+                            const insights = customerInsightsMap.get(customer.id);
+                            if (!insights || insights.length === 0) {
+                              return (
+                                <span className="text-xs text-muted-foreground">
+                                  Sem insights
+                                </span>
+                              );
+                            }
+                            // Mostra o primeiro insight (mais relevante)
+                            const insight = insights[0];
+                            return (
+                              <CustomerInsightInline
+                                insightType={insight.insight_type}
+                                message={insight.message}
+                                actionAllowed={insight.action_allowed}
+                                onSendPromotion={() => {
+                                  setSelectedCustomer(customer);
+                                  setPromotionDialogOpen(true);
+                                }}
+                              />
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="font-medium text-lg">{customer.total_visits}</div>
