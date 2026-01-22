@@ -1085,6 +1085,45 @@ export type Database = {
         }
         Relationships: []
       }
+      system_insights: {
+        Row: {
+          action_allowed: boolean
+          created_at: string
+          customer_id: string
+          dismissed: boolean
+          dismissed_at: string | null
+          id: string
+          insight_type: string
+          message: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          action_allowed?: boolean
+          created_at?: string
+          customer_id: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          id?: string
+          insight_type: string
+          message: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          action_allowed?: boolean
+          created_at?: string
+          customer_id?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          id?: string
+          insight_type?: string
+          message?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
