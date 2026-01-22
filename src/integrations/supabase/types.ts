@@ -1342,6 +1342,7 @@ export type Database = {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
       }
+      rotate_customer_visits_monthly: { Args: never; Returns: undefined }
       update_consent: {
         Args: {
           p_aceitou_ofertas_email?: boolean
