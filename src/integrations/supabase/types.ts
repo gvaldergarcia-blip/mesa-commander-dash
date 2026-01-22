@@ -898,15 +898,7 @@ export type Database = {
           updated_at?: string
           vip?: boolean
         }
-        Relationships: [
-          {
-            foreignKeyName: "restaurant_customers_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       restaurant_hours: {
         Row: {
