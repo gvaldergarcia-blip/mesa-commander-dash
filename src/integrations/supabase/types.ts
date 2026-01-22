@@ -500,6 +500,48 @@ export type Database = {
         }
         Relationships: []
       }
+      queue_terms_consents: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          id: string
+          privacy_version: string
+          restaurant_id: string
+          terms_accepted: boolean
+          terms_accepted_at: string | null
+          terms_version: string
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          privacy_version?: string
+          restaurant_id: string
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          terms_version?: string
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          privacy_version?: string
+          restaurant_id?: string
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          terms_version?: string
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       queues: {
         Row: {
           created_at: string
@@ -687,6 +729,39 @@ export type Database = {
           id?: number
           open_time?: string | null
           restaurant_id?: string | null
+        }
+        Relationships: []
+      }
+      restaurant_marketing_optins: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          id: string
+          marketing_optin: boolean
+          marketing_optin_at: string | null
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          marketing_optin?: boolean
+          marketing_optin_at?: string | null
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          marketing_optin?: boolean
+          marketing_optin_at?: string | null
+          restaurant_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
