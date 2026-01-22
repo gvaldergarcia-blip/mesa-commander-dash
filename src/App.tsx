@@ -7,7 +7,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Queue from "./pages/Queue";
 import Reservations from "./pages/Reservations";
-import Customers from "./pages/Customers";
+import CustomersPage from "./pages/CustomersPage";
 import CustomerProfile from "./pages/CustomerProfile";
 import Promotions from "./pages/Promotions";
 import Reports from "./pages/Reports";
@@ -66,7 +66,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/queue" element={<Queue />} />
               <Route path="/reservations" element={<Reservations />} />
-              <Route path="/customers" element={<Customers />} />
+              <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:customerId" element={<CustomerProfile />} />
               {/* Rotas protegidas por feature flag - Cupons/Promoções */}
               <Route path="/promotions" element={
