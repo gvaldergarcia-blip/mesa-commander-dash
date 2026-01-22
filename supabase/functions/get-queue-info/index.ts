@@ -75,44 +75,21 @@ Deno.serve(async (req) => {
       party_size: number;
       customer_name: string;
       phone: string;
-      email?: string;
-      status?: string;
-      restaurant_id?: string;
       created_at: string;
     } | null = null;
 
     if (ticket_id) {
-      // Primeiro buscar a entrada específica (pode não estar waiting)
-      const { data: specificEntry, error: specificError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('id, queue_id, party_size, created_at, name, phone, email, status, restaurant_id')
-        .eq('id', ticket_id)
-        .maybeSingle();
-
-      if (specificError) {
-        console.error('Erro ao buscar entrada específica:', specificError);
-      }
-
-      if (specificEntry) {
-        // Se a entrada está waiting, calcular posição
-        if (specificEntry.status === 'waiting') {
-          const index = entries.findIndex((entry) => entry.id === ticket_id);
-          if (index !== -1) {
-            position = index + 1; // 1-indexed
-          }
-        }
-        
+      const index = entries.findIndex((entry) => entry.id === ticket_id);
+      if (index !== -1) {
+        position = index + 1; // 1-indexed
+        const entry = entries[index];
         user_entry = {
-          id: specificEntry.id,
-          queue_id: specificEntry.queue_id,
-          party_size: specificEntry.party_size,
-          customer_name: specificEntry.name,
-          phone: specificEntry.phone,
-          email: specificEntry.email,
-          status: specificEntry.status,
-          restaurant_id: specificEntry.restaurant_id,
-          created_at: specificEntry.created_at,
+          id: entry.id,
+          queue_id: entry.queue_id,
+          party_size: entry.party_size,
+          customer_name: entry.name,
+          phone: entry.phone,
+          created_at: entry.created_at,
         };
       }
     }
