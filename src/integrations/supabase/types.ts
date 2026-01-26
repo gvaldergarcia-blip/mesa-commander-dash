@@ -1573,6 +1573,10 @@ export type Database = {
         Args: { p_entry_id: string; p_status: string }
         Returns: undefined
       }
+      upsert_customer_from_queue: {
+        Args: { p_email?: string; p_name: string; p_phone: string }
+        Returns: string
+      }
       upsert_restaurant_customer: {
         Args: {
           p_email: string
