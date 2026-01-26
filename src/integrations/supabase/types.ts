@@ -1547,6 +1547,42 @@ export type Database = {
       }
       get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
+      get_reports_queue_data: {
+        Args: {
+          p_end_date: string
+          p_restaurant_id: string
+          p_start_date: string
+        }
+        Returns: {
+          called_at: string
+          canceled_at: string
+          created_at: string
+          id: string
+          party_size: number
+          phone: string
+          seated_at: string
+          status: string
+        }[]
+      }
+      get_reports_reservation_data: {
+        Args: {
+          p_end_date: string
+          p_restaurant_id: string
+          p_start_date: string
+        }
+        Returns: {
+          canceled_at: string
+          completed_at: string
+          confirmed_at: string
+          created_at: string
+          id: string
+          no_show_at: string
+          party_size: number
+          phone: string
+          reserved_for: string
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
