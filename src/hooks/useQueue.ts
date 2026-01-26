@@ -35,16 +35,13 @@ export function useQueue() {
     try {
       setLoading(true);
       
-      // Buscar todas as entradas da fila (incluindo sentados e cancelados) das últimas 24h
-      const last24Hours = new Date();
-      last24Hours.setHours(last24Hours.getHours() - 24);
-      
+      // Usar RPC para buscar entradas (bypassa RLS com SECURITY DEFINER)
       const { data, error } = await supabase
         .schema('mesaclik')
-        .from('v_queue_current')
-        .select('*')
-        .gte('created_at', last24Hours.toISOString())
-        .order('created_at', { ascending: true });
+        .rpc('get_queue_entries', {
+          p_restaurant_id: restaurantId,
+          p_hours_back: 24
+        });
 
       if (error) throw error;
       setQueueEntries(data || []);
@@ -59,7 +56,7 @@ export function useQueue() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [restaurantId, toast]);
 
   useEffect(() => {
     fetchQueue();
