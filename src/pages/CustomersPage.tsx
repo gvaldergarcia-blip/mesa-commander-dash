@@ -1,32 +1,17 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Mail, Eye, Users, Send, History, Star, Megaphone, Lightbulb } from "lucide-react";
+import { Send, Users, History, Megaphone } from "lucide-react";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { useCustomerInsights, generateInsightsForCustomer } from "@/hooks/useCustomerInsights";
-import { CustomerInsightInline } from "@/components/customers/CustomerInsightBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { CustomerKPIsEnhanced } from "@/components/customers/CustomerKPIsEnhanced";
-import { CustomerFiltersEnhanced } from "@/components/customers/CustomerFiltersEnhanced";
+import { CustomerStrategicKPIs } from "@/components/customers/CustomerStrategicKPIs";
+import { CustomerListPremium } from "@/components/customers/CustomerListPremium";
+import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
@@ -47,9 +32,9 @@ export default function CustomersPage() {
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible } = useRestaurantCustomers(RESTAURANT_ID);
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(RESTAURANT_ID);
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
-  useCustomerInsights(RESTAURANT_ID); // Inicializa hook para uso futuro
+  useCustomerInsights(RESTAURANT_ID);
 
-  // Gera insights em tempo real para cada cliente (sem salvar no banco)
+  // Gera insights em tempo real para cada cliente
   const customerInsightsMap = useMemo(() => {
     const map = new Map<string, ReturnType<typeof generateInsightsForCustomer>>();
     customers.forEach(customer => {
@@ -60,6 +45,27 @@ export default function CustomersPage() {
     });
     return map;
   }, [customers]);
+
+  // Função para obter mensagem de insight
+  const getInsightMessage = (customer: RestaurantCustomer): string | null => {
+    const insights = customerInsightsMap.get(customer.id);
+    if (!insights || insights.length === 0) return null;
+    
+    // Gerar mensagens curtas e acionáveis
+    const insight = insights[0];
+    switch (insight.insight_type) {
+      case 'vip_missing':
+        return 'VIP sem visita recente. Hora de uma oferta especial!';
+      case 'inactive':
+        return 'Uma promoção pode trazê-lo de volta';
+      case 'recurrent':
+        return 'Cliente frequente. Candidato a VIP!';
+      case 'new_customer':
+        return 'Cliente novo! Boas-vindas podem fidelizar';
+      default:
+        return null;
+    }
+  };
 
   // Filtrar e ordenar clientes
   const filteredCustomers = useMemo(() => {
@@ -82,44 +88,35 @@ export default function CustomersPage() {
   const campaignStats = getStats();
   const eligibleCustomers = getMarketingEligible();
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
-  };
-
-  const getDaysAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const days = Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
-    return days === 0 ? 'Hoje' : days === 1 ? 'Ontem' : `${days} dias atrás`;
-  };
-
-  const getInitials = (name: string | null) => {
-    if (!name) return '?';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const getCustomerStatus = (customer: typeof customers[0]) => {
-    if (customer.vip) return 'vip';
-    const lastSeen = new Date(customer.last_seen_at);
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const createdAt = new Date(customer.created_at);
+  // Calcular KPIs estratégicos
+  const strategicKPIs = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     
-    if (createdAt >= sevenDaysAgo) return 'new';
-    if (lastSeen < thirtyDaysAgo) return 'inactive';
-    return 'active';
-  };
+    return {
+      activeCustomers: customers.filter(c => new Date(c.last_seen_at) >= thirtyDaysAgo).length,
+      frequentCustomers: customers.filter(c => c.total_visits >= 3 && !c.vip).length,
+      highValueCustomers: customers.filter(c => c.vip || c.total_visits >= 10).length,
+      marketingOptIn: customers.filter(c => c.marketing_optin).length,
+      atRiskCustomers: customers.filter(c => new Date(c.last_seen_at) < thirtyDaysAgo).length,
+    };
+  }, [customers]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const handleFilterClick = (filter: string) => {
+    switch (filter) {
+      case 'active':
+        setStatusFilter('active');
+        break;
       case 'vip':
-        return <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">⭐ VIP</Badge>;
-      case 'new':
-        return <Badge className="bg-primary/20 text-primary border-primary/30">🆕 Novo</Badge>;
+      case 'frequent':
+        setStatusFilter('vip');
+        break;
       case 'inactive':
-        return <Badge variant="secondary" className="text-muted-foreground">Inativo</Badge>;
-      default:
-        return <Badge className="bg-success/20 text-success border-success/30">Ativo</Badge>;
+        setStatusFilter('inactive');
+        break;
+      case 'marketing':
+        setMarketingFilter('opt-in');
+        break;
     }
   };
 
@@ -158,8 +155,17 @@ export default function CustomersPage() {
       <div className="p-6 space-y-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/4"></div>
-          <div className="h-32 bg-muted rounded"></div>
-          <div className="h-64 bg-muted rounded"></div>
+          <div className="grid grid-cols-5 gap-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-28 bg-muted rounded-lg"></div>
+            ))}
+          </div>
+          <div className="h-12 bg-muted rounded"></div>
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-20 bg-muted rounded-lg"></div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -168,51 +174,54 @@ export default function CustomersPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
-          <p className="text-muted-foreground">CRM completo do seu restaurante</p>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+          <p className="text-muted-foreground mt-1">
+            CRM completo • {customers.length} clientes cadastrados
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-muted-foreground">
-            {filteredCustomers.length} de {customers.length} clientes
-          </div>
-          <Button onClick={() => setCampaignDialogOpen(true)} className="gap-2">
-            <Send className="w-4 h-4" />
-            Nova Campanha
-          </Button>
-        </div>
+        <Button onClick={() => setCampaignDialogOpen(true)} className="gap-2 shadow-sm">
+          <Send className="w-4 h-4" />
+          Nova Campanha
+        </Button>
       </div>
 
-      {/* KPIs */}
-      <CustomerKPIsEnhanced
-        total={kpis.total}
-        active={kpis.active}
-        vip={kpis.vip}
-        newCustomers={kpis.newCustomers}
-        inactive={kpis.inactive}
-        marketingOptIn={kpis.marketingOptIn}
+      {/* Strategic KPIs */}
+      <CustomerStrategicKPIs
+        activeCustomers={strategicKPIs.activeCustomers}
+        frequentCustomers={strategicKPIs.frequentCustomers}
+        highValueCustomers={strategicKPIs.highValueCustomers}
+        marketingOptIn={strategicKPIs.marketingOptIn}
+        atRiskCustomers={strategicKPIs.atRiskCustomers}
+        onFilterClick={handleFilterClick}
       />
 
       {/* Tabs */}
       <Tabs defaultValue="customers" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="customers" className="gap-2">
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value="customers" className="gap-2 data-[state=active]:bg-background">
             <Users className="w-4 h-4" />
-            Clientes ({customers.length})
+            Clientes
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+              {filteredCustomers.length}
+            </Badge>
           </TabsTrigger>
-          <TabsTrigger value="campaigns" className="gap-2">
+          <TabsTrigger value="campaigns" className="gap-2 data-[state=active]:bg-background">
             <History className="w-4 h-4" />
-            Campanhas ({campaignStats.totalCampaigns})
+            Campanhas
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+              {campaignStats.totalCampaigns}
+            </Badge>
           </TabsTrigger>
         </TabsList>
 
         {/* Tab: Clientes */}
-        <TabsContent value="customers" className="space-y-4">
+        <TabsContent value="customers" className="space-y-4 mt-4">
           {/* Filters */}
-          <Card>
+          <Card className="border-dashed">
             <CardContent className="p-4">
-              <CustomerFiltersEnhanced
+              <CustomerFiltersClean
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 statusFilter={statusFilter}
@@ -229,299 +238,71 @@ export default function CustomersPage() {
             </CardContent>
           </Card>
 
-          {/* Customers Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Lista de Clientes</CardTitle>
-              <CardDescription>
-                Clientes que entraram na fila ou fizeram reserva
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredCustomers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-2">Nenhum cliente encontrado</h3>
-                  <p className="text-muted-foreground">
-                    {searchTerm || statusFilter !== 'all' || sourceFilter !== 'all'
-                      ? "Tente ajustar os filtros de busca."
-                      : "Os clientes aparecerão automaticamente ao usar a fila ou reservas."}
-                  </p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Contato</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>
-                        <div className="flex items-center gap-1">
-                          <Lightbulb className="w-4 h-4" />
-                          Insight
-                        </div>
-                      </TableHead>
-                      <TableHead>Visitas</TableHead>
-                      <TableHead>Última Visita</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCustomers.map((customer) => (
-                      <TableRow
-                        key={customer.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/customers/${customer.id}`)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <Avatar>
-                              <AvatarFallback className="bg-primary text-primary-foreground">
-                                {getInitials(customer.customer_name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-medium flex items-center gap-2">
-                                {customer.customer_name || 'Sem nome'}
-                                {customer.vip && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
-                              </div>
-                              {customer.tags?.length > 0 && (
-                                <div className="flex gap-1 mt-1">
-                                  {customer.tags.slice(0, 2).map(tag => (
-                                    <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm space-y-1">
-                            <div className="flex items-center text-muted-foreground">
-                              <Mail className="w-3 h-3 mr-1" />
-                              {customer.customer_email}
-                            </div>
-                            {customer.customer_phone && (
-                              <div className="flex items-center text-muted-foreground">
-                                <Phone className="w-3 h-3 mr-1" />
-                                {customer.customer_phone}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(getCustomerStatus(customer))}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            const insights = customerInsightsMap.get(customer.id);
-                            if (!insights || insights.length === 0) {
-                              return (
-                                <span className="text-xs text-muted-foreground">
-                                  Sem insights
-                                </span>
-                              );
-                            }
-                            // Mostra o primeiro insight (mais relevante)
-                            const insight = insights[0];
-                            return (
-                              <CustomerInsightInline
-                                insightType={insight.insight_type}
-                                message={insight.message}
-                                actionAllowed={insight.action_allowed}
-                                onSendPromotion={() => {
-                                  setSelectedCustomer(customer);
-                                  setPromotionDialogOpen(true);
-                                }}
-                              />
-                            );
-                          })()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-lg">{customer.total_visits}</div>
-                          <div className="text-xs text-muted-foreground space-y-0.5">
-                            <div>🎫 Fila: {customer.total_queue_visits}</div>
-                            <div>📅 Reserva: {customer.total_reservation_visits}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">{formatDate(customer.last_seen_at)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {getDaysAgo(customer.last_seen_at)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/customers/${customer.id}`);
-                                    }}
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Ver detalhes</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-
-                            {customer.marketing_optin ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="text-primary hover:text-primary hover:bg-primary/10"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCustomer(customer);
-                                        setPromotionDialogOpen(true);
-                                      }}
-                                    >
-                                      <Megaphone className="w-4 h-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Enviar promoção</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled
-                                      className="text-muted-foreground cursor-not-allowed opacity-50"
-                                    >
-                                      <Megaphone className="w-4 h-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Cliente não aceitou marketing</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          {/* Customer List Premium */}
+          <CustomerListPremium
+            customers={filteredCustomers}
+            onViewProfile={(customerId) => navigate(`/customers/${customerId}`)}
+            onSendPromotion={(customer) => {
+              setSelectedCustomer(customer);
+              setPromotionDialogOpen(true);
+            }}
+            getInsightMessage={getInsightMessage}
+          />
         </TabsContent>
 
         {/* Tab: Campanhas */}
-        <TabsContent value="campaigns" className="space-y-4">
-          {/* Campaign Stats */}
-          <div className="grid grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold">{campaignStats.totalCampaigns}</div>
-                <div className="text-sm text-muted-foreground">Total de campanhas</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-success">{campaignStats.sentCampaigns}</div>
-                <div className="text-sm text-muted-foreground">Enviadas</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-muted-foreground">{campaignStats.draftCampaigns}</div>
-                <div className="text-sm text-muted-foreground">Rascunhos</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold text-primary">{campaignStats.totalRecipients}</div>
-                <div className="text-sm text-muted-foreground">Destinatários total</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Campaigns Table */}
+        <TabsContent value="campaigns" className="space-y-4 mt-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Histórico de Campanhas</CardTitle>
-                <CardDescription>
-                  Campanhas de e-mail enviadas para seus clientes
-                </CardDescription>
-              </div>
-              <Button onClick={() => setCampaignDialogOpen(true)} className="gap-2">
-                <Send className="w-4 h-4" />
-                Nova Campanha
-              </Button>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5" />
+                Campanhas de Marketing
+              </CardTitle>
+              <CardDescription>
+                Histórico de campanhas enviadas para seus clientes
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {campaigns.length === 0 ? (
                 <div className="text-center py-12">
-                  <Send className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-2">Nenhuma campanha criada</h3>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                    <Megaphone className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Nenhuma campanha enviada</h3>
                   <p className="text-muted-foreground mb-4">
-                    Crie sua primeira campanha de e-mail marketing
+                    Crie sua primeira campanha para engajar seus clientes.
                   </p>
-                  <Button onClick={() => setCampaignDialogOpen(true)}>
-                    Criar campanha
+                  <Button onClick={() => setCampaignDialogOpen(true)} variant="outline">
+                    <Send className="w-4 h-4 mr-2" />
+                    Criar primeira campanha
                   </Button>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Campanha</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Destinatários</TableHead>
-                      <TableHead>Criada em</TableHead>
-                      <TableHead>Enviada em</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {campaigns.map((campaign) => (
-                      <TableRow key={campaign.id}>
-                        <TableCell>
-                          <div className="font-medium">{campaign.title}</div>
-                          <div className="text-sm text-muted-foreground">{campaign.subject}</div>
-                        </TableCell>
-                        <TableCell>
-                          {campaign.status === 'sent' && (
-                            <Badge className="bg-success/20 text-success">Enviada</Badge>
-                          )}
-                          {campaign.status === 'draft' && (
-                            <Badge variant="secondary">Rascunho</Badge>
-                          )}
-                          {campaign.status === 'sending' && (
-                            <Badge className="bg-primary/20 text-primary">Enviando...</Badge>
-                          )}
-                          {campaign.status === 'failed' && (
-                            <Badge variant="destructive">Falhou</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{campaign.total_recipients || '-'}</TableCell>
-                        <TableCell>{formatDate(campaign.created_at)}</TableCell>
-                        <TableCell>
-                          {campaign.sent_at ? formatDate(campaign.sent_at) : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="space-y-4">
+                  {campaigns.map((campaign) => (
+                    <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{campaign.title}</p>
+                        <p className="text-sm text-muted-foreground">{campaign.subject}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>
+                          {campaign.status === 'sent' ? 'Enviada' : campaign.status}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Create Campaign Dialog */}
+      {/* Dialogs */}
       <CreateCampaignDialog
         open={campaignDialogOpen}
         onOpenChange={setCampaignDialogOpen}
@@ -530,29 +311,21 @@ export default function CustomersPage() {
         isSubmitting={isSubmittingCampaign}
       />
 
-      {/* Send Promotion Dialog (single customer) - uses direct email sending */}
       {selectedCustomer && (
         <SendPromotionDialog
           open={promotionDialogOpen}
-          onOpenChange={(open) => {
-            setPromotionDialogOpen(open);
-            if (!open) setSelectedCustomer(null);
-          }}
+          onOpenChange={setPromotionDialogOpen}
           customer={selectedCustomer}
           onSubmit={async (data) => {
-            const recipient = data.recipients[0];
-            if (!recipient) return;
-            
             await sendPromotion({
-              to_email: recipient.email,
-              to_name: recipient.name,
+              to_email: data.recipients[0]?.email || selectedCustomer.customer_email,
+              to_name: data.recipients[0]?.name || selectedCustomer.customer_name || undefined,
               subject: data.subject,
               message: data.message,
               coupon_code: data.couponCode,
               expires_at: data.expiresAt,
               cta_text: data.ctaText,
               cta_url: data.ctaUrl,
-              restaurant_name: 'Mocotó', // TODO: get from context
             });
           }}
           isSubmitting={sendingPromotion}
