@@ -46,10 +46,7 @@
     --input: 28 26% 88%;
     --ring: 24 95% 53%;
 
-    /* Sidebar Colors */
-    --sidebar-bg: 20 14.3% 4.1%;
-    --sidebar-fg: 0 0% 100%;
-    --sidebar-accent: 24 95% 53%;
+    /* Legacy Sidebar Colors - keeping for compatibility */
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(24 95% 53%), hsl(27 96% 61%));
