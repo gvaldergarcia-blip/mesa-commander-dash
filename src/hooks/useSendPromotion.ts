@@ -17,6 +17,7 @@ interface PromotionData {
 interface SendPromotionResult {
   success: boolean;
   messageId?: string;
+  lastEvent?: string | null;
   error?: string;
 }
 
@@ -40,12 +41,18 @@ export function useSendPromotion() {
         throw new Error(response?.error || 'Erro ao enviar promoção');
       }
 
+      const messageId = response.messageId as string | undefined;
+      const lastEvent = (response.last_event ?? null) as string | null;
+
       toast({
         title: '✉️ Promoção enviada!',
-        description: `E-mail enviado para ${data.to_name || data.to_email}`,
+        description:
+          `E-mail enviado para ${data.to_name || data.to_email}` +
+          (messageId ? ` • ID: ${messageId}` : '') +
+          `\nDica: no Gmail, pode aparecer na aba “Promoções” ou “Spam”.`,
       });
 
-      return { success: true, messageId: response.messageId };
+      return { success: true, messageId, lastEvent };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar promoção';
       
