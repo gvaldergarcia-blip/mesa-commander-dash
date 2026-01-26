@@ -62,6 +62,51 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          new_data: Json | null
+          old_data: Json | null
+          restaurant_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          restaurant_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          restaurant_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       clientes_restaurante: {
         Row: {
           created_at: string
@@ -440,6 +485,120 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      founder_leads: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          bairro: string
+          capacity_range: string
+          cep: string
+          cidade: string
+          cnpj: string
+          complemento: string | null
+          created_at: string
+          cuisine_type: string
+          current_system: string | null
+          current_system_name: string | null
+          id: string
+          ip_address: string | null
+          is_multi_unit: boolean
+          marketing_consent: boolean
+          marketing_consent_at: string | null
+          modules_selected: string
+          numero: string
+          operational_contact_consent: boolean
+          operational_contact_consent_at: string | null
+          owner_email: string
+          owner_name: string
+          owner_whatsapp: string
+          razao_social: string
+          restaurant_name: string
+          rua: string
+          status: string
+          suggested_plan: string | null
+          terms_accepted: boolean
+          terms_accepted_at: string | null
+          uf: string
+          unit_count: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          bairro: string
+          capacity_range: string
+          cep: string
+          cidade: string
+          cnpj: string
+          complemento?: string | null
+          created_at?: string
+          cuisine_type: string
+          current_system?: string | null
+          current_system_name?: string | null
+          id?: string
+          ip_address?: string | null
+          is_multi_unit?: boolean
+          marketing_consent?: boolean
+          marketing_consent_at?: string | null
+          modules_selected: string
+          numero: string
+          operational_contact_consent?: boolean
+          operational_contact_consent_at?: string | null
+          owner_email: string
+          owner_name: string
+          owner_whatsapp: string
+          razao_social: string
+          restaurant_name: string
+          rua: string
+          status?: string
+          suggested_plan?: string | null
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          uf: string
+          unit_count?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          bairro?: string
+          capacity_range?: string
+          cep?: string
+          cidade?: string
+          cnpj?: string
+          complemento?: string | null
+          created_at?: string
+          cuisine_type?: string
+          current_system?: string | null
+          current_system_name?: string | null
+          id?: string
+          ip_address?: string | null
+          is_multi_unit?: boolean
+          marketing_consent?: boolean
+          marketing_consent_at?: string | null
+          modules_selected?: string
+          numero?: string
+          operational_contact_consent?: boolean
+          operational_contact_consent_at?: string | null
+          owner_email?: string
+          owner_name?: string
+          owner_whatsapp?: string
+          razao_social?: string
+          restaurant_name?: string
+          rua?: string
+          status?: string
+          suggested_plan?: string | null
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          uf?: string
+          unit_count?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1207,6 +1366,63 @@ export type Database = {
           menu_url?: string | null
           name?: string
           owner_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cancel_at: string | null
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string
+          external_customer_id: string | null
+          external_provider: string | null
+          external_subscription_id: string | null
+          id: string
+          metadata: Json | null
+          plan_type: string
+          restaurant_id: string
+          started_at: string
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          external_customer_id?: string | null
+          external_provider?: string | null
+          external_subscription_id?: string | null
+          id?: string
+          metadata?: Json | null
+          plan_type?: string
+          restaurant_id: string
+          started_at?: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          external_customer_id?: string | null
+          external_provider?: string | null
+          external_subscription_id?: string | null
+          id?: string
+          metadata?: Json | null
+          plan_type?: string
+          restaurant_id?: string
+          started_at?: string
+          status?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
