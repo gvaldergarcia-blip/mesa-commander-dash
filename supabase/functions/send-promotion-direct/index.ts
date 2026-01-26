@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Use o mesmo domínio verificado que a fila usa (mesaclik.com.br)
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "noreply@mesaclik.com.br";
+const FUNCTION_VERSION = "2026-01-26_v3_status_debug";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,8 +14,17 @@ async function sendEmailViaResend(
   to: string,
   subject: string,
   html: string,
-  from: string
-): Promise<{ id?: string; error?: string }> {
+  from: string,
+  text?: string,
+  headers?: Record<string, string>
+): Promise<{ id?: string; error?: string; last_event?: string }> {
+  if (!RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY secret");
+    return { error: "Missing RESEND_API_KEY" };
+  }
+
+  console.log("send-promotion-direct version:", FUNCTION_VERSION);
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -26,6 +36,8 @@ async function sendEmailViaResend(
       to: [to],
       subject,
       html,
+      ...(text ? { text } : {}),
+      ...(headers ? { headers } : {}),
     }),
   });
 
@@ -35,8 +47,39 @@ async function sendEmailViaResend(
     console.error("Resend API error:", data);
     return { error: data.message || "Failed to send email" };
   }
-  
-  return { id: data.id };
+
+  const id = data?.id as string | undefined;
+  let lastEvent: string | undefined;
+
+  // Best-effort: busca o status logo após o envio para ajudar na depuração.
+  // (Pode retornar "queued" mesmo quando a entrega ainda está em processamento.)
+  if (id) {
+    try {
+      const statusResponse = await fetch(`https://api.resend.com/emails/${id}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+        },
+      });
+      const statusJson = await statusResponse.json();
+      lastEvent =
+        statusJson?.data?.last_event ??
+        statusJson?.data?.status ??
+        statusJson?.last_event;
+
+      console.log(
+        "Resend status lookup:",
+        JSON.stringify({
+          status: statusResponse.status,
+          last_event: lastEvent ?? null,
+        })
+      );
+    } catch (e) {
+      console.warn("Failed to fetch Resend email status:", e);
+    }
+  }
+
+  return { id, last_event: lastEvent };
 }
 
 interface PromotionEmailRequest {
@@ -53,6 +96,7 @@ interface PromotionEmailRequest {
 
 const buildPromotionHtml = (data: PromotionEmailRequest): string => {
   const { to_name, message, coupon_code, expires_at, cta_text, cta_url, restaurant_name } = data;
+  const unsubscribeMailto = "mailto:suporte@mesaclik.com.br?subject=Cancelar%20recebimento";
   
   const expiresText = expires_at 
     ? `<p style="font-size: 12px; color: #888; margin-top: 8px;">Válido até ${new Date(expires_at).toLocaleDateString('pt-BR')}</p>`
@@ -119,7 +163,7 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
                     Você está recebendo este e-mail porque aceitou receber ofertas.
                   </p>
                   <p style="margin: 0; color: #a1a1aa; font-size: 11px;">
-                    ${restaurant_name ? `© ${new Date().getFullYear()} ${restaurant_name}` : '© MesaClik'} • <a href="#" style="color: #f97316; text-decoration: none;">Cancelar recebimento</a>
+                     ${restaurant_name ? `© ${new Date().getFullYear()} ${restaurant_name}` : '© MesaClik'} • <a href="${unsubscribeMailto}" style="color: #f97316; text-decoration: none;">Cancelar recebimento</a>
                   </p>
                 </td>
               </tr>
@@ -157,14 +201,33 @@ const handler = async (req: Request): Promise<Response> => {
 
     const html = buildPromotionHtml(requestData);
     const fromAddress = `${requestData.restaurant_name || 'MesaClik'} <${RESEND_FROM_EMAIL}>`;
+    const textBody = [
+      requestData.to_name ? `Olá, ${requestData.to_name}!` : undefined,
+      requestData.message,
+      requestData.coupon_code ? `\nCupom: ${requestData.coupon_code}` : undefined,
+      requestData.expires_at ? `Validade: ${new Date(requestData.expires_at).toLocaleDateString('pt-BR')}` : undefined,
+      requestData.cta_text && requestData.cta_url ? `\n${requestData.cta_text}: ${requestData.cta_url}` : undefined,
+      "\nCancelar recebimento: suporte@mesaclik.com.br",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const headers = {
+      // Ajuda alguns provedores (ex: Gmail) a tratar como e-mail de marketing com descadastro válido.
+      "List-Unsubscribe": "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>",
+    };
     
     console.log('Sending promotion email to:', requestData.to_email);
+    console.log('Sending from:', fromAddress);
+    console.log('Sending subject:', requestData.subject);
     
     const emailResponse = await sendEmailViaResend(
       requestData.to_email,
       requestData.subject,
       html,
-      fromAddress
+      fromAddress,
+      textBody,
+      headers
     );
 
     if (emailResponse.error) {
@@ -178,7 +241,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Promotion email sent successfully:', emailResponse.id);
 
     return new Response(
-      JSON.stringify({ success: true, messageId: emailResponse.id }),
+      JSON.stringify({
+        success: true,
+        messageId: emailResponse.id,
+        last_event: emailResponse.last_event ?? null,
+      }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: unknown) {
