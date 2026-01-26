@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueue, QueueEntry } from './useQueue';
 import { getCustomerVipStatus, CustomerVipStatus } from '@/utils/customerUtils';
 
@@ -15,35 +15,84 @@ export function useQueueEnhanced() {
   const [enhancedEntries, setEnhancedEntries] = useState<QueueEntryEnhanced[]>([]);
   const [loadingVip, setLoadingVip] = useState(false);
 
+  // Cache para não refazer a mesma consulta de VIP a cada atualização de realtime
+  const vipCacheRef = useRef<Map<string, CustomerVipStatus>>(new Map());
+  // Evita race-condition: se a fila atualizar durante o Promise.all, ignoramos o resultado antigo
+  const requestIdRef = useRef(0);
+
+  const isValidPhone = (phone: unknown) => {
+    if (typeof phone !== 'string') return false;
+    const p = phone.trim();
+    if (!p) return false;
+    // placeholder usado em alguns registros de teste
+    if (p === '—' || p === '-') return false;
+    return true;
+  };
+
   useEffect(() => {
-    if (queueData.queueEntries.length === 0) {
-      setEnhancedEntries([]);
+    const entries = queueData.queueEntries;
+
+    // 1) Atualiza a lista IMEDIATAMENTE (posição/status não dependem de VIP)
+    setEnhancedEntries(
+      entries.map((entry) => ({
+        ...entry,
+        vipStatus: isValidPhone(entry.phone) ? vipCacheRef.current.get(entry.phone) : undefined,
+      }))
+    );
+
+    if (entries.length === 0) {
+      setLoadingVip(false);
       return;
     }
 
-    const enhanceEntries = async () => {
-      setLoadingVip(true);
-      try {
-        const enhanced = await Promise.all(
-          queueData.queueEntries.map(async (entry) => {
-            const vipStatus = await getCustomerVipStatus(entry.phone);
-            return {
-              ...entry,
-              vipStatus,
-            };
-          })
-        );
-        setEnhancedEntries(enhanced);
-      } catch (error) {
-        console.error('Erro ao calcular status VIP:', error);
-        // Fallback: retornar sem dados VIP
-        setEnhancedEntries(queueData.queueEntries.map(e => ({ ...e, vipStatus: undefined })));
-      } finally {
-        setLoadingVip(false);
-      }
-    };
+    // 2) Buscar VIP apenas do que faltar (em background)
+    const phonesToFetch = Array.from(
+      new Set(
+        entries
+          .map((e) => e.phone)
+          .filter((p): p is string => isValidPhone(p) && !vipCacheRef.current.has(p))
+      )
+    );
 
-    enhanceEntries();
+    if (phonesToFetch.length === 0) {
+      setLoadingVip(false);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+    setLoadingVip(true);
+
+    (async () => {
+      const results = await Promise.all(
+        phonesToFetch.map(async (phone) => {
+          const vipStatus = await getCustomerVipStatus(phone);
+          return [phone, vipStatus] as const;
+        })
+      );
+
+      // Se a fila mudou enquanto estávamos buscando VIP, ignorar resultado antigo
+      if (requestIdRef.current !== requestId) return;
+
+      for (const [phone, status] of results) {
+        vipCacheRef.current.set(phone, status);
+      }
+
+      // Reaplica VIP em cima da lista mais recente
+      setEnhancedEntries(
+        queueData.queueEntries.map((entry) => ({
+          ...entry,
+          vipStatus: isValidPhone(entry.phone) ? vipCacheRef.current.get(entry.phone) : undefined,
+        }))
+      );
+    })()
+      .catch((error) => {
+        console.error('Erro ao calcular status VIP:', error);
+      })
+      .finally(() => {
+        if (requestIdRef.current === requestId) {
+          setLoadingVip(false);
+        }
+      });
   }, [queueData.queueEntries]);
 
   return {
