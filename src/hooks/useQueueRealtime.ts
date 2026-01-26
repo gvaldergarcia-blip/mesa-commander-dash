@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 export function useQueueRealtime(onUpdate: () => void) {
-  const [queueId, setQueueId] = useState<string | null>(null);
+  const queueIdRef = useRef<string | null>(null);
 
-  // Buscar queue_id do restaurante uma vez
   useEffect(() => {
-    const fetchQueueId = async () => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setup = async () => {
+      // Buscar queue_id do restaurante
       const { data } = await supabase
         .schema('mesaclik')
         .from('queues')
@@ -16,39 +18,37 @@ export function useQueueRealtime(onUpdate: () => void) {
         .limit(1)
         .maybeSingle();
       
-      if (data?.id) {
-        setQueueId(data.id);
-      }
+      if (!data?.id) return;
+      
+      queueIdRef.current = data.id;
+
+      // Subscrever no canal com o queue_id correto
+      channel = supabase
+        .channel(`queue-realtime-${data.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'mesaclik',
+            table: 'queue_entries',
+            filter: `queue_id=eq.${data.id}`
+          },
+          (payload) => {
+            console.log('Realtime: mudança na fila detectada', payload.eventType);
+            onUpdate();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Realtime subscription status:', status);
+        });
     };
-    
-    fetchQueueId();
-  }, []);
 
-  // Subscrever no canal quando tiver o queue_id
-  useEffect(() => {
-    if (!queueId) return;
-
-    const channel = supabase
-      .channel(`queue-realtime-${queueId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'mesaclik',
-          table: 'queue_entries',
-          filter: `queue_id=eq.${queueId}`
-        },
-        (payload) => {
-          console.log('Realtime: mudança na fila detectada', payload.eventType);
-          onUpdate();
-        }
-      )
-      .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
-      });
+    setup();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [queueId, onUpdate]);
+  }, [onUpdate]);
 }
