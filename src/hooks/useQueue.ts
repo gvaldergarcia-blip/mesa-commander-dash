@@ -182,39 +182,31 @@ export function useQueue() {
 
   const updateQueueStatus = async (entryId: string, status: QueueEntry['status']) => {
     try {
-      // Buscar dados do cliente antes de atualizar
-      const { data: entryData, error: fetchError } = await supabase
+      // Usar RPC que bypassa RLS e retorna dados necessários para notificações
+      const { data: rpcResult, error: rpcError } = await supabase
         .schema('mesaclik')
-        .from('queue_entries')
-        .select('name, phone, email, queue_id, party_size')
-        .eq('id', entryId)
-        .single();
+        .rpc('update_queue_entry_status_v2', {
+          p_entry_id: entryId,
+          p_status: status
+        });
 
-      if (fetchError) throw fetchError;
+      if (rpcError) throw rpcError;
 
-      // Preparar dados de atualização
-      const updateData: any = {
-        status: status,
-        updated_at: new Date().toISOString()
-      };
-
-      // Adicionar timestamps específicos por status
-      if (status === 'called') {
-        updateData.called_at = new Date().toISOString();
-      } else if (status === 'seated') {
-        updateData.seated_at = new Date().toISOString();
-      } else if (status === 'canceled' || status === 'no_show') {
-        updateData.canceled_at = new Date().toISOString();
+      // Verificar se a atualização foi bem-sucedida
+      const result = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+      
+      if (!result || !result.success) {
+        throw new Error('Entrada da fila não encontrada');
       }
 
-      // Atualizar diretamente na tabela
-      const { error } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .update(updateData)
-        .eq('id', entryId);
-
-      if (error) throw error;
+      // Extrair dados do resultado
+      const entryData = {
+        name: result.customer_name,
+        phone: result.phone,
+        email: result.email,
+        queue_id: result.queue_id,
+        party_size: result.party_size
+      };
 
       // IMPORTANTE: e-mail NÃO “atualiza” sozinho (email é estático).
       // Para o cliente ver em tempo real, ele deve abrir o link /fila/final.
@@ -224,7 +216,7 @@ export function useQueue() {
         try {
           const baseUrl = window.location.origin;
           const partySize = Number(entryData?.party_size || 1);
-          const queueId = (entryData as any)?.queue_id as string | undefined;
+          const queueId = entryData?.queue_id as string | undefined;
 
           if (queueId) {
             const { error: notifyError } = await supabase.functions.invoke(
