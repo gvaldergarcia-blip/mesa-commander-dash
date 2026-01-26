@@ -96,7 +96,6 @@ interface PromotionEmailRequest {
 
 const buildPromotionHtml = (data: PromotionEmailRequest): string => {
   const { to_name, message, coupon_code, expires_at, cta_text, cta_url, restaurant_name } = data;
-  const unsubscribeMailto = "mailto:suporte@mesaclik.com.br?subject=Cancelar%20recebimento";
   
   const expiresText = expires_at 
     ? `<p style="font-size: 12px; color: #888; margin-top: 8px;">Válido até ${new Date(expires_at).toLocaleDateString('pt-BR')}</p>`
@@ -159,12 +158,9 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
               <!-- Footer -->
               <tr>
                 <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                  <p style="margin: 0 0 8px; color: #71717a; font-size: 12px;">
-                    Você está recebendo este e-mail porque aceitou receber ofertas.
-                  </p>
-                  <p style="margin: 0; color: #a1a1aa; font-size: 11px;">
-                     ${restaurant_name ? `© ${new Date().getFullYear()} ${restaurant_name}` : '© MesaClik'} • <a href="${unsubscribeMailto}" style="color: #f97316; text-decoration: none;">Cancelar recebimento</a>
-                  </p>
+                   <p style="margin: 0; color: #71717a; font-size: 12px;">
+                     ${restaurant_name ? `© ${new Date().getFullYear()} ${restaurant_name}` : '© MesaClik'} • suporte@mesaclik.com.br
+                   </p>
                 </td>
               </tr>
             </table>
@@ -213,8 +209,10 @@ const handler = async (req: Request): Promise<Response> => {
       .join("\n");
 
     const headers = {
-      // Ajuda alguns provedores (ex: Gmail) a tratar como e-mail de marketing com descadastro válido.
+      // Gmail pode penalizar marketing sem headers de descadastro; mantemos via header (sem link "#" no HTML).
       "List-Unsubscribe": "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      "Reply-To": "suporte@mesaclik.com.br",
     };
     
     console.log('Sending promotion email to:', requestData.to_email);
