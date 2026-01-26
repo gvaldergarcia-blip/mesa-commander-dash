@@ -125,29 +125,55 @@ export default function CustomerProfile() {
     try {
       setLoading(true);
 
-      // Buscar dados do cliente na tabela public.customers
-      // O customerId pode ser um phone ou um UUID
+      // Buscar dados do cliente
+      // O customerId pode vir de restaurant_customers (CRM) ou customers (global)
       let customerData = null;
       
-      // Tentar primeiro por ID (UUID)
-      const { data: byId, error: idError } = await supabase
-        .from('customers')
+      // 1. Tentar primeiro na tabela restaurant_customers (fonte principal da lista)
+      const { data: restaurantCustomer } = await supabase
+        .from('restaurant_customers')
         .select('*')
         .eq('id', id)
         .maybeSingle();
       
-      if (byId) {
-        customerData = byId;
+      if (restaurantCustomer) {
+        // Mapear dados de restaurant_customers para o formato esperado
+        customerData = {
+          id: restaurantCustomer.id,
+          name: restaurantCustomer.customer_name || 'Sem nome',
+          phone: restaurantCustomer.customer_phone,
+          email: restaurantCustomer.customer_email,
+          total_visits: restaurantCustomer.total_visits || 0,
+          queue_completed: restaurantCustomer.total_queue_visits || 0,
+          reservations_completed: restaurantCustomer.total_reservation_visits || 0,
+          last_visit_date: restaurantCustomer.last_seen_at,
+          first_visit_at: restaurantCustomer.created_at,
+          created_at: restaurantCustomer.created_at,
+          vip_status: restaurantCustomer.vip || false,
+          marketing_opt_in: restaurantCustomer.marketing_optin || false,
+          notes: null,
+        };
       } else {
-        // Tentar por telefone
-        const { data: byPhone, error: phoneError } = await supabase
+        // 2. Tentar na tabela customers (global) por ID
+        const { data: byId } = await supabase
           .from('customers')
           .select('*')
-          .eq('phone', id)
+          .eq('id', id)
           .maybeSingle();
         
-        if (byPhone) {
-          customerData = byPhone;
+        if (byId) {
+          customerData = byId;
+        } else {
+          // 3. Tentar por telefone
+          const { data: byPhone } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('phone', id)
+            .maybeSingle();
+          
+          if (byPhone) {
+            customerData = byPhone;
+          }
         }
       }
 
