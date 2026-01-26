@@ -228,34 +228,9 @@ export function useQueue() {
         }
       }
 
-      // Enviar emails de atualização para o grupo afetado
-      if (status !== 'waiting') {
-        try {
-          const baseUrl = window.location.origin;
-          const partySize = Number(entryData?.party_size || 1);
-
-          if (queueId) {
-            const { error: notifyError } = await supabase.functions.invoke(
-              'notify-queue-position-updates',
-              {
-                body: {
-                  restaurant_id: restaurantId,
-                  queue_id: queueId,
-                  party_size: partySize,
-                  base_url: baseUrl,
-                  exclude_entry_id: entryId,
-                },
-              }
-            );
-
-            if (notifyError) {
-              console.warn('Falha ao enviar emails de atualização (não crítico):', notifyError);
-            }
-          }
-        } catch (notifyErr) {
-          console.warn('Falha ao enviar emails de atualização (não crítico):', notifyErr);
-        }
-      }
+      // NOTA: Removido o envio de emails de atualização (notify-queue-position-updates)
+      // Agora a atualização de posição é feita via Realtime Broadcast na tela /fila/final
+      // Isso evita spam de emails toda vez que alguém é atendido/cancelado
 
       // Se status for 'seated', registrar/atualizar em customers
       if (status === 'seated' && entryData) {
