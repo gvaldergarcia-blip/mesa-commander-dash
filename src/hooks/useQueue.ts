@@ -103,7 +103,6 @@ export function useQueue() {
       const data = { id: result.entry_id };
 
       // Calcular posição na fila por GRUPO (filas paralelas)
-      // Cada tamanho de grupo (1-2, 3-4, 5-6, 7+) tem sua própria sequência
       const last24Hours = new Date();
       last24Hours.setHours(last24Hours.getHours() - 24);
       const sizeGroup = getSizeGroup(entry.people);
@@ -208,15 +207,32 @@ export function useQueue() {
         party_size: result.party_size
       };
 
-      // IMPORTANTE: e-mail NÃO “atualiza” sozinho (email é estático).
-      // Para o cliente ver em tempo real, ele deve abrir o link /fila/final.
-      // Mesmo assim, para atender o fluxo esperado (receber atualização por email),
-      // disparamos um novo email do tipo 'position_update' para o grupo afetado.
+      const queueId = entryData?.queue_id as string | undefined;
+
+      // BROADCAST para clientes atualizarem posição em tempo real (sem polling!)
+      if (queueId) {
+        try {
+          const channelName = `queue-broadcast-${queueId}`;
+          console.log('📢 Disparando broadcast para:', channelName);
+          
+          const channel = supabase.channel(channelName);
+          await channel.send({
+            type: 'broadcast',
+            event: 'queue_updated',
+            payload: { status, entry_id: entryId, party_size: entryData.party_size }
+          });
+          // Remover canal após enviar
+          supabase.removeChannel(channel);
+        } catch (broadcastErr) {
+          console.warn('Broadcast não enviado (não crítico):', broadcastErr);
+        }
+      }
+
+      // Enviar emails de atualização para o grupo afetado
       if (status !== 'waiting') {
         try {
           const baseUrl = window.location.origin;
           const partySize = Number(entryData?.party_size || 1);
-          const queueId = entryData?.queue_id as string | undefined;
 
           if (queueId) {
             const { error: notifyError } = await supabase.functions.invoke(
@@ -279,12 +295,11 @@ export function useQueue() {
   // Função auxiliar para upsert de clientes
   const upsertCustomer = async (data: { name: string; phone: string; email?: string; source: 'queue' | 'reservation' }) => {
     try {
-      // Buscar cliente existente pelo telefone e restaurante
+      // Buscar cliente existente pelo telefone
       const { data: existingCustomer, error: searchError } = await supabase
         .from('customers')
         .select('*')
         .eq('phone', data.phone)
-        .eq('restaurant_id', restaurantId)
         .maybeSingle();
 
       if (searchError) throw searchError;
@@ -293,7 +308,7 @@ export function useQueue() {
 
       if (existingCustomer) {
         // Atualizar cliente existente
-        const updates: any = {
+        const updates: Record<string, unknown> = {
           last_visit_date: now,
           updated_at: now
         };
@@ -305,8 +320,8 @@ export function useQueue() {
         }
 
         // Calcular total de visitas e status VIP
-        const totalVisits = (updates.queue_completed || existingCustomer.queue_completed || 0) + 
-                           (updates.reservations_completed || existingCustomer.reservations_completed || 0);
+        const totalVisits = (updates.queue_completed as number || existingCustomer.queue_completed || 0) + 
+                           (updates.reservations_completed as number || existingCustomer.reservations_completed || 0);
         updates.total_visits = totalVisits;
         updates.vip_status = totalVisits >= 10;
 
@@ -322,12 +337,11 @@ export function useQueue() {
 
         if (updateError) throw updateError;
       } else {
-        // Criar novo cliente com restaurant_id para isolamento multi-tenant
-        const newCustomer: any = {
+        // Criar novo cliente
+        const newCustomer = {
           name: data.name,
           phone: data.phone,
           email: data.email,
-          restaurant_id: restaurantId,
           queue_completed: data.source === 'queue' ? 1 : 0,
           reservations_completed: data.source === 'reservation' ? 1 : 0,
           total_visits: 1,
