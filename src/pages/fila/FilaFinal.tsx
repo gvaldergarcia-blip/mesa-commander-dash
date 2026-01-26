@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { getSizeGroup, getSizeGroupLabel, matchesSizeGroup } from '@/utils/queueUtils';
+import { getSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
 import { QueueConsentForm } from '@/components/queue/QueueConsentForm';
 import { useQueueConsent } from '@/hooks/useQueueConsent';
 
@@ -72,87 +72,46 @@ export default function FilaFinal() {
     }
 
     try {
-      let entryData: any = null;
-      let restaurantId = restauranteIdParam;
+      // Importante: esta página é pública (link por e-mail), então não pode depender de SELECT direto
+      // em mesaclik.queue_entries, pois o RLS pode bloquear e gerar "Entrada não encontrada".
+      // A edge function usa SERVICE ROLE e retorna apenas o necessário para este ticket.
+      const { data, error } = await supabase.functions.invoke('get-queue-info', {
+        body: {
+          ticket_id: ticketId,
+          restaurant_id: restauranteIdParam,
+        },
+      });
 
-      if (ticketId) {
-        // Buscar entrada pelo ticket ID
-        const { data: entry, error: entryError } = await supabase
-          .schema('mesaclik')
-          .from('queue_entries')
-          .select('id, queue_id, restaurant_id, status, party_size, created_at, name, email')
-          .eq('id', ticketId)
-          .maybeSingle();
-
-        if (entryError || !entry) {
-          console.error('Entrada não encontrada:', entryError);
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
-
-        entryData = entry;
-        restaurantId = entry.restaurant_id;
+      if (error) {
+        console.error('Erro ao buscar info da fila (edge):', error);
+        setNotFound(true);
+        setLoading(false);
+        return;
       }
 
-      // Buscar nome do restaurante
-      const { data: restaurant } = await supabase
-        .from('restaurants')
-        .select('name')
-        .eq('id', restaurantId)
-        .maybeSingle();
+      if (!data || data.found === false) {
+        console.error('Entrada não encontrada (edge):', data);
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
 
-      // Calcular posição por GRUPO (filas paralelas)
-      // Cada tamanho de grupo (1-2, 3-4, 5-6, 7+) tem sua própria fila
-      let position: number | null = null;
-      const partySize = entryData?.party_size || 1;
+      const partySize = Number(data.party_size || 1);
       const sizeGroup = getSizeGroup(partySize);
-      
-      if (entryData && entryData.status === 'waiting') {
-        const last24Hours = new Date();
-        last24Hours.setHours(last24Hours.getHours() - 24);
-        
-        // Buscar apenas entradas do MESMO GRUPO de tamanho
-        // IMPORTANT: filtrar por queue_id para bater 100% com o dashboard (evita misturar filas do mesmo restaurante)
-        let waitingQuery = supabase
-          .schema('mesaclik')
-          .from('queue_entries')
-          .select('id, created_at, party_size')
-          .eq('status', 'waiting')
-          .gte('created_at', last24Hours.toISOString());
-
-        waitingQuery = entryData?.queue_id
-          ? waitingQuery.eq('queue_id', entryData.queue_id)
-          : waitingQuery.eq('restaurant_id', restaurantId);
-
-        const { data: waitingEntries } = await waitingQuery
-          .order('created_at', { ascending: true })
-          .order('id', { ascending: true });
-
-        if (waitingEntries) {
-          // Filtrar apenas entradas do mesmo grupo de tamanho
-          const sameGroupEntries = waitingEntries.filter(e => 
-            matchesSizeGroup(e.party_size, sizeGroup)
-          );
-          const index = sameGroupEntries.findIndex(e => e.id === entryData.id);
-          if (index !== -1) {
-            position = index + 1; // 1-indexed dentro do grupo
-          }
-        }
-      }
+      const position: number | null = typeof data.position === 'number' ? data.position : null;
 
       setQueueInfo({
-        ticket_id: ticketId || '',
-        queue_id: entryData?.queue_id || '',
-        restaurant_id: restaurantId || '',
-        restaurant_name: restaurant?.name || 'Restaurante',
-        status: entryData?.status || 'waiting',
+        ticket_id: data.ticket_id || ticketId || '',
+        queue_id: data.queue_id || '',
+        restaurant_id: data.restaurant_id || restauranteIdParam || '',
+        restaurant_name: data.restaurant_name || 'Restaurante',
+        status: data.status || 'waiting',
         position,
         party_size: partySize,
         size_group: getSizeGroupLabel(sizeGroup),
-        created_at: entryData?.created_at || new Date().toISOString(),
-        customer_email: entryData?.email,
-        customer_name: entryData?.name,
+        created_at: data.created_at || new Date().toISOString(),
+        customer_email: data.customer_email,
+        customer_name: data.customer_name,
       });
 
       setNotFound(false);
