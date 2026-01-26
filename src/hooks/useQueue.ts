@@ -83,29 +83,27 @@ export function useQueue() {
         throw new Error('Nenhuma fila encontrada para este restaurante');
       }
 
-      // Inserir direto na tabela
-      // Usar UUID zerado para clientes adicionados manualmente pelo restaurante
-      const manualUserId = '00000000-0000-0000-0000-000000000000';
-      
-      const { data, error } = await supabase
+      // Usar RPC para adicionar à fila (bypassa RLS com SECURITY DEFINER)
+      const { data: rpcResult, error: rpcError } = await supabase
         .schema('mesaclik')
-        .from('queue_entries')
-        .insert([
-          {
-            restaurant_id: restaurantId,
-            queue_id: activeQueue.id,
-            user_id: manualUserId,
-            name: entry.customer_name,
-            email: entry.email,
-            party_size: entry.people,
-            notes: entry.notes,
-            status: 'waiting',
-          },
-        ])
-        .select()
-        .single();
+        .rpc('add_customer_to_queue', {
+          p_restaurant_id: restaurantId,
+          p_queue_id: activeQueue.id,
+          p_customer_name: entry.customer_name,
+          p_customer_email: entry.email || null,
+          p_party_size: entry.people,
+          p_notes: entry.notes || null,
+        });
 
-      if (error) throw error;
+      if (rpcError) throw rpcError;
+      
+      const result = rpcResult as { success: boolean; entry_id?: string; error?: string };
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao adicionar à fila');
+      }
+
+      const data = { id: result.entry_id };
 
       // Calcular posição na fila por GRUPO (filas paralelas)
       // Cada tamanho de grupo (1-2, 3-4, 5-6, 7+) tem sua própria sequência
