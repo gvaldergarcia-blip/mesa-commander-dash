@@ -94,35 +94,36 @@ interface PromotionEmailRequest {
   restaurant_name?: string;
 }
 
+// Template baseado no layout de e-mail de fila (que funciona no Gmail)
 const buildPromotionHtml = (data: PromotionEmailRequest): string => {
   const { to_name, message, coupon_code, expires_at, cta_text, cta_url, restaurant_name } = data;
-  
-  const expiresText = expires_at 
-    ? `<p style="font-size: 12px; color: #888; margin-top: 8px;">Válido até ${new Date(expires_at).toLocaleDateString('pt-BR')}</p>`
-    : '';
-  
-  const couponHtml = coupon_code
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin: 20px 0;">
+  const name = to_name || 'Cliente';
+
+  const couponBlock = coupon_code
+    ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 16px;">
         <tr>
           <td style="padding: 20px; text-align: center;">
-            <p style="margin: 0; font-size: 12px; color: #9a3412;">Use o código:</p>
-            <p style="margin: 8px 0; font-size: 28px; font-weight: bold; color: #f97316; letter-spacing: 3px;">${coupon_code}</p>
-            ${expiresText}
+            <p style="margin: 0; color: #9a3412; font-size: 14px; font-weight: 600;">Cupom: ${coupon_code}</p>
+            ${expires_at ? `<p style="margin: 8px 0 0; color: #71717a; font-size: 12px;">Válido até ${new Date(expires_at).toLocaleDateString('pt-BR')}</p>` : ''}
           </td>
         </tr>
-      </table>`
+      </table>
+    `
     : '';
-  
-  const ctaHtml = cta_text && cta_url
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+
+  const ctaBlock = cta_text && cta_url
+    ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
         <tr>
-          <td align="center" style="padding: 24px 0;">
-            <a href="${cta_url}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 10px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
+          <td align="center" style="padding: 8px 0 24px;">
+            <a href="${cta_url}" style="display: inline-block; padding: 18px 36px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
               ${cta_text}
             </a>
           </td>
         </tr>
-      </table>`
+      </table>
+    `
     : '';
 
   return `
@@ -131,36 +132,38 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Promoção Especial</title>
+      <title>Oferta Especial</title>
     </head>
     <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;">
         <tr>
           <td align="center">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
               <!-- Header -->
               <tr>
                 <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
-                  <p style="margin: 0 0 8px; font-size: 36px;">🎉</p>
-                  <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Promoção Especial</h1>
-                  ${to_name ? `<p style="margin: 10px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">Olá, ${to_name}!</p>` : ''}
+                  <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Oferta Especial</h1>
+                  <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurant_name || 'MesaClik'}</p>
                 </td>
               </tr>
               <!-- Body -->
               <tr>
                 <td style="padding: 32px;">
-                  <div style="white-space: pre-wrap; font-size: 16px; line-height: 1.7; color: #3f3f46;">${message}</div>
-                  
-                  ${couponHtml}
-                  ${ctaHtml}
+                  <p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Olá <strong>${name}</strong>!</p>
+                  <p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+                  ${couponBlock}
+                  ${ctaBlock}
+                  <p style="margin: 0; color: #71717a; font-size: 14px; line-height: 1.6; text-align: center;">
+                    Esperamos você!
+                  </p>
                 </td>
               </tr>
               <!-- Footer -->
               <tr>
                 <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                   <p style="margin: 0; color: #71717a; font-size: 12px;">
-                     ${restaurant_name ? `© ${new Date().getFullYear()} ${restaurant_name}` : '© MesaClik'} • suporte@mesaclik.com.br
-                   </p>
+                  <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
+                    Este e-mail foi enviado pelo ${restaurant_name || 'MesaClik'}
+                  </p>
                 </td>
               </tr>
             </table>
