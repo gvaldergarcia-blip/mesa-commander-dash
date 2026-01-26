@@ -176,7 +176,7 @@ export default function Customers() {
                   <TableRow
                     key={customer.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/customers/${customer.phone}`)}
+                    onClick={() => navigate(`/customers/${customer.id}`)}
                   >
                     <TableCell>
                       <div className="flex items-center space-x-3">
@@ -245,7 +245,7 @@ export default function Customers() {
                         variant="ghost"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/customers/${customer.phone}`);
+                          navigate(`/customers/${customer.id}`);
                         }}
                       >
                         <Eye className="w-4 h-4" />

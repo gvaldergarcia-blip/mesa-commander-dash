@@ -130,13 +130,19 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
 
       // ============================================
       // PERÍODO ATUAL - Dados de fila
+      // Filtrar por restaurant_id para garantir dados corretos
       // ============================================
-      const { data: currentQueueData } = await supabase
+      const { data: currentQueueData, error: queueError } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('id, created_at, called_at, seated_at, canceled_at, status, party_size, phone')
+        .select('id, created_at, called_at, seated_at, canceled_at, status, party_size, phone, restaurant_id')
+        .eq('restaurant_id', RESTAURANT_ID)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
+
+      if (queueError) {
+        console.error('Erro ao buscar dados de fila:', queueError);
+      }
 
       // ============================================
       // PERÍODO ANTERIOR - Dados de fila
@@ -145,18 +151,24 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         .schema('mesaclik')
         .from('queue_entries')
         .select('id, created_at, called_at, seated_at, canceled_at, status, party_size')
+        .eq('restaurant_id', RESTAURANT_ID)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
       // ============================================
       // PERÍODO ATUAL - Dados de reservas
       // ============================================
-      const { data: currentReservations } = await supabase
+      const { data: currentReservations, error: resError } = await supabase
         .schema('mesaclik')
         .from('reservations')
         .select('id, created_at, reserved_for, confirmed_at, completed_at, canceled_at, no_show_at, status, party_size, phone')
+        .eq('restaurant_id', RESTAURANT_ID)
         .gte('reserved_for', startDate.toISOString())
         .lte('reserved_for', endDate.toISOString());
+
+      if (resError) {
+        console.error('Erro ao buscar reservas:', resError);
+      }
 
       // ============================================
       // PERÍODO ANTERIOR - Dados de reservas
@@ -165,6 +177,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         .schema('mesaclik')
         .from('reservations')
         .select('id, created_at, reserved_for, confirmed_at, completed_at, canceled_at, no_show_at, status, party_size')
+        .eq('restaurant_id', RESTAURANT_ID)
         .gte('reserved_for', previousStartDate.toISOString())
         .lt('reserved_for', previousEndDate.toISOString());
 

@@ -15,7 +15,8 @@ import {
   Edit,
   MessageSquare,
   BarChart3,
-  History
+  History,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +28,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase/client";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { useSendPromotion } from "@/hooks/useSendPromotion";
+import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
 
 type CustomerStatus = 'vip' | 'frequent' | 'new' | 'at_risk' | 'active';
 
@@ -99,12 +103,17 @@ const statusConfig: Record<CustomerStatus, { label: string; className: string; i
 export default function CustomerProfile() {
   const { customerId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
+  
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [history, setHistory] = useState<VisitHistory[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [togglingVip, setTogglingVip] = useState(false);
+  const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
 
   useEffect(() => {
     if (customerId) {
@@ -116,14 +125,31 @@ export default function CustomerProfile() {
     try {
       setLoading(true);
 
-      // Buscar dados do cliente na tabela restaurant_customers
-      const { data: customerData, error: customerError } = await supabase
-        .from('restaurant_customers')
+      // Buscar dados do cliente na tabela public.customers
+      // O customerId pode ser um phone ou um UUID
+      let customerData = null;
+      
+      // Tentar primeiro por ID (UUID)
+      const { data: byId, error: idError } = await supabase
+        .from('customers')
         .select('*')
         .eq('id', id)
-        .single();
-
-      if (customerError) throw customerError;
+        .maybeSingle();
+      
+      if (byId) {
+        customerData = byId;
+      } else {
+        // Tentar por telefone
+        const { data: byPhone, error: phoneError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone', id)
+          .maybeSingle();
+        
+        if (byPhone) {
+          customerData = byPhone;
+        }
+      }
 
       if (!customerData) {
         setCustomer(null);
@@ -131,17 +157,19 @@ export default function CustomerProfile() {
       }
 
       // Calcular status
-      const lastSeen = new Date(customerData.last_seen_at);
+      const lastVisit = customerData.last_visit_date ? new Date(customerData.last_visit_date) : null;
       const createdAt = new Date(customerData.created_at);
       const now = new Date();
-      const daysSinceLastVisit = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60 * 60 * 24));
+      const daysSinceLastVisit = lastVisit 
+        ? Math.floor((now.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
       const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
       const totalVisits = customerData.total_visits || 0;
 
       let status: CustomerStatus = 'active';
-      if (customerData.vip || totalVisits >= 10) {
+      if (customerData.vip_status || totalVisits >= 10) {
         status = 'vip';
-      } else if (daysSinceLastVisit > 30) {
+      } else if (daysSinceLastVisit && daysSinceLastVisit > 30) {
         status = 'at_risk';
       } else if (totalVisits >= 3) {
         status = 'frequent';
@@ -151,23 +179,26 @@ export default function CustomerProfile() {
 
       setCustomer({
         id: customerData.id,
-        name: customerData.customer_name || 'Sem nome',
-        phone: customerData.customer_phone || '',
-        email: customerData.customer_email,
+        name: customerData.name || 'Sem nome',
+        phone: customerData.phone || '',
+        email: customerData.email,
         total_visits: totalVisits,
-        queue_completed: customerData.total_queue_visits || 0,
-        reservations_completed: customerData.total_reservation_visits || 0,
-        last_visit_at: customerData.last_seen_at,
-        first_visit_at: customerData.created_at,
+        queue_completed: customerData.queue_completed || 0,
+        reservations_completed: customerData.reservations_completed || 0,
+        last_visit_at: customerData.last_visit_date,
+        first_visit_at: customerData.first_visit_at || customerData.created_at,
         created_at: customerData.created_at,
-        vip_status: customerData.vip || totalVisits >= 10,
-        marketing_opt_in: customerData.marketing_optin || false,
+        vip_status: customerData.vip_status || totalVisits >= 10,
+        marketing_opt_in: customerData.marketing_opt_in || false,
         status,
-        days_since_last_visit: daysSinceLastVisit,
+        days_since_last_visit: daysSinceLastVisit ?? undefined,
+        notes: customerData.notes,
       });
 
-      // Buscar histórico de visitas (simulado por enquanto)
-      await fetchVisitHistory(customerData.customer_phone);
+      setNotes(customerData.notes || '');
+
+      // Buscar histórico de visitas
+      await fetchVisitHistory(customerData.phone);
       
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
@@ -605,7 +636,8 @@ export default function CustomerProfile() {
                 <Button 
                   className="w-full justify-start gap-2" 
                   variant="outline"
-                  disabled={!customer.marketing_opt_in}
+                  disabled={!customer.marketing_opt_in || !customer.email}
+                  onClick={() => setPromotionDialogOpen(true)}
                 >
                   <Send className="w-4 h-4" />
                   Enviar promoção
@@ -614,9 +646,23 @@ export default function CustomerProfile() {
                       Sem opt-in
                     </Badge>
                   )}
+                  {customer.marketing_opt_in && !customer.email && (
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      Sem email
+                    </Badge>
+                  )}
                 </Button>
-                <Button className="w-full justify-start gap-2" variant="outline">
-                  <Star className="w-4 h-4" />
+                <Button 
+                  className="w-full justify-start gap-2" 
+                  variant="outline"
+                  disabled={togglingVip}
+                  onClick={handleToggleVip}
+                >
+                  {togglingVip ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Star className={cn("w-4 h-4", customer.vip_status && "fill-amber-500 text-amber-500")} />
+                  )}
                   {customer.vip_status ? 'Remover status VIP' : 'Marcar como VIP'}
                 </Button>
               </CardContent>
@@ -640,7 +686,11 @@ export default function CustomerProfile() {
                   className="mt-3" 
                   size="sm"
                   disabled={savingNotes}
+                  onClick={handleSaveNotes}
                 >
+                  {savingNotes ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
                   Salvar observações
                 </Button>
               </CardContent>
@@ -648,6 +698,101 @@ export default function CustomerProfile() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Promotion Dialog */}
+      {customer && customer.email && (
+        <SendPromotionDialog
+          open={promotionDialogOpen}
+          onOpenChange={setPromotionDialogOpen}
+          customer={{
+            id: customer.id,
+            customer_email: customer.email,
+            customer_name: customer.name,
+            customer_phone: customer.phone,
+            marketing_optin: customer.marketing_opt_in,
+            total_visits: customer.total_visits,
+            vip: customer.vip_status,
+          } as any}
+          onSubmit={async (data) => {
+            await sendPromotion({
+              to_email: customer.email!,
+              to_name: customer.name,
+              subject: data.subject,
+              message: data.message,
+              coupon_code: data.couponCode,
+              expires_at: data.expiresAt,
+              cta_text: data.ctaText,
+              cta_url: data.ctaUrl,
+            });
+            setPromotionDialogOpen(false);
+          }}
+          isSubmitting={sendingPromotion}
+        />
+      )}
     </div>
   );
+
+  // Handler para toggle VIP
+  async function handleToggleVip() {
+    if (!customer) return;
+    
+    setTogglingVip(true);
+    try {
+      const newVipStatus = !customer.vip_status;
+      
+      const { error } = await supabase
+        .from('customers')
+        .update({ vip_status: newVipStatus })
+        .eq('id', customer.id);
+
+      if (error) throw error;
+
+      setCustomer(prev => prev ? { ...prev, vip_status: newVipStatus, status: newVipStatus ? 'vip' : prev.status } : null);
+      
+      toast({
+        title: newVipStatus ? '⭐ Cliente marcado como VIP' : 'Status VIP removido',
+        description: newVipStatus 
+          ? `${customer.name} agora é um cliente VIP` 
+          : `${customer.name} não é mais VIP`,
+      });
+    } catch (error) {
+      console.error('Erro ao alterar status VIP:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível alterar o status VIP',
+        variant: 'destructive',
+      });
+    } finally {
+      setTogglingVip(false);
+    }
+  }
+
+  // Handler para salvar notas
+  async function handleSaveNotes() {
+    if (!customer) return;
+    
+    setSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ notes })
+        .eq('id', customer.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✓ Observações salvas',
+        description: 'As notas foram atualizadas com sucesso',
+      });
+    } catch (error) {
+      console.error('Erro ao salvar notas:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar as observações',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingNotes(false);
+    }
+  }
 }
