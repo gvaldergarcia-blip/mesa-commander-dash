@@ -206,24 +206,41 @@ export default function FilaFinal() {
   }, [fetchQueueInfo]);
 
   // Real-time subscription em mesaclik.queue_entries
+  // Usamos refs para não recriar o canal a cada mudança de queueInfo
+  const queueIdRef = useRef<string | null>(null);
+  const restaurantIdRef = useRef<string | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const pollingRef = useRef<number | null>(null);
+
+  // Atualizar refs quando queueInfo mudar
   useEffect(() => {
-    // Preferir queue_id (evita misturar múltiplas filas do mesmo restaurante),
-    // mas cair para restaurant_id caso queue_id não exista.
-    if (!queueInfo?.queue_id && !queueInfo?.restaurant_id) return;
+    if (queueInfo?.queue_id) queueIdRef.current = queueInfo.queue_id;
+    if (queueInfo?.restaurant_id) restaurantIdRef.current = queueInfo.restaurant_id;
+  }, [queueInfo?.queue_id, queueInfo?.restaurant_id]);
+
+  useEffect(() => {
+    // Precisamos de pelo menos queue_id para subscrever
+    const queueId = queueInfo?.queue_id;
+    if (!queueId) return;
+
+    // Limpar canal anterior se existir
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
 
     realtimeSubscribedRef.current = false;
 
-    const filter = queueInfo?.queue_id
-      ? `queue_id=eq.${queueInfo.queue_id}`
-      : `restaurant_id=eq.${queueInfo.restaurant_id}`;
+    const channelName = `fila-cliente-${queueId}`;
+    const filter = `queue_id=eq.${queueId}`;
 
-    const channelName = queueInfo?.queue_id
-      ? `queue-realtime-${queueInfo.queue_id}`
-      : `queue-realtime-restaurant-${queueInfo.restaurant_id}`;
+    console.log('📡 Iniciando Realtime para cliente, filtro:', filter);
 
-    console.log('Iniciando realtime para filtro:', filter);
-
-    // Subscrever para mudanças em tempo real na tabela CORRETA
+    // Subscrever para mudanças em tempo real
     const channel = supabase
       .channel(channelName)
       .on(
@@ -235,31 +252,37 @@ export default function FilaFinal() {
           filter,
         },
         (payload) => {
-          console.log('🔄 Fila atualizada em tempo real:', payload);
+          console.log('🔄 Fila atualizada em tempo real (cliente):', payload.eventType);
           // Recalcular posição quando qualquer entrada mudar
           fetchQueueInfo();
         }
       )
       .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
+        console.log('Realtime status (cliente):', status);
         realtimeSubscribedRef.current = status === 'SUBSCRIBED';
       });
 
-    // Fallback polling rápido APENAS se o realtime não conectar
-    const interval = window.setInterval(() => {
-      if (!realtimeSubscribedRef.current) {
-        console.log('🔁 Realtime não conectado; fazendo polling…');
-        fetchQueueInfo();
-      }
-    }, 3000);
+    channelRef.current = channel;
+
+    // Polling de fallback - SEMPRE ativo a cada 5 segundos como segurança extra
+    pollingRef.current = window.setInterval(() => {
+      console.log('🔁 Polling de segurança (cliente)…');
+      fetchQueueInfo();
+    }, 5000);
 
     return () => {
-      console.log('Removendo canal realtime');
+      console.log('🔌 Removendo canal realtime (cliente)');
       realtimeSubscribedRef.current = false;
-      supabase.removeChannel(channel);
-      clearInterval(interval);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     };
-  }, [queueInfo?.queue_id, queueInfo?.restaurant_id, fetchQueueInfo]);
+  }, [queueInfo?.queue_id, fetchQueueInfo]);
 
   // Loading
   if (loading) {
