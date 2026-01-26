@@ -34,6 +34,7 @@ export default function FilaFinal() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const realtimeSubscribedRef = useRef(false);
+  const queueIdRef = useRef<string | null>(null);
   
   // Aceitar tanto ticket quanto restauranteId
   const ticketId = searchParams.get('ticket');
@@ -210,7 +211,13 @@ export default function FilaFinal() {
   useEffect(() => {
     const queueId = queueInfo?.queue_id;
     if (!queueId) return;
-
+    
+    // Evitar re-inscrição se já está inscrito no mesmo canal
+    if (queueIdRef.current === queueId && realtimeSubscribedRef.current) {
+      return;
+    }
+    
+    queueIdRef.current = queueId;
     realtimeSubscribedRef.current = false;
 
     // Canal de broadcast para esta fila específica
@@ -221,7 +228,26 @@ export default function FilaFinal() {
       .channel(channelName)
       .on('broadcast', { event: 'queue_updated' }, (payload) => {
         console.log('🔄 Broadcast recebido - atualizando posição:', payload);
-        fetchQueueInfo();
+        // Buscar posição atualizada via edge function
+        supabase.functions.invoke('get-queue-info', {
+          body: {
+            ticket_id: ticketId,
+            restaurant_id: restauranteIdParam,
+          },
+        }).then(({ data, error }) => {
+          if (!error && data && data.found !== false) {
+            const partySize = Number(data.party_size || 1);
+            const sizeGroup = getSizeGroup(partySize);
+            const position: number | null = typeof data.position === 'number' ? data.position : null;
+
+            setQueueInfo(prev => prev ? {
+              ...prev,
+              status: data.status || prev.status,
+              position,
+              size_group: getSizeGroupLabel(sizeGroup),
+            } : prev);
+          }
+        });
       })
       .subscribe((status) => {
         console.log('Broadcast status:', status);
@@ -231,9 +257,10 @@ export default function FilaFinal() {
     return () => {
       console.log('🔌 Removendo canal broadcast');
       realtimeSubscribedRef.current = false;
+      queueIdRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [queueInfo?.queue_id, fetchQueueInfo]);
+  }, [queueInfo?.queue_id, ticketId, restauranteIdParam]);
 
   // Loading
   if (loading) {
