@@ -64,9 +64,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Fetch queue history from mesaclik.queue_entries
-    // Need to join with mesaclik.queues to filter by restaurant_id
-    const { data: queueHistory, error: queueError } = await supabase
+    // 2. Fetch queue history using the new RPC
+    const { data: queueRaw, error: queueError } = await supabase
       .rpc('get_customer_queue_history', {
         p_restaurant_id: restaurant_id,
         p_email: customerEmail || '',
@@ -74,89 +73,73 @@ Deno.serve(async (req) => {
       });
 
     if (queueError) {
-      console.log('[get-customer-history] Queue RPC not found, using direct query');
+      console.error('[get-customer-history] Queue RPC error:', queueError);
     }
 
-    // Direct SQL query as fallback using mesaclik schema
-    let queueData: any[] = [];
-    let reservationData: any[] = [];
-
-    // Query mesaclik.queue_entries via raw SQL through RPC or view
-    // Since we can't directly query mesaclik from Edge Functions easily,
-    // we'll query the public tables that might have synced data
-    // OR use a dedicated RPC function
-
-    // Try querying through the existing RPC that already works
-    const { data: queueRaw } = await supabase
-      .rpc('get_reports_queue_data', {
-        p_restaurant_id: restaurant_id,
-        p_start_date: '2020-01-01',
-        p_end_date: '2030-12-31'
-      });
-
-    if (queueRaw) {
-      // Filter by email or phone
-      queueData = queueRaw.filter((q: any) => {
-        if (customerEmail && q.email === customerEmail) return true;
-        if (customerPhone && customerPhone !== '—' && q.phone === customerPhone) return true;
-        return false;
-      }).map((q: any) => ({
-        id: q.id,
-        type: 'queue',
-        name: q.name || 'Cliente',
-        date: q.seated_at || q.created_at,
-        party_size: q.party_size,
-        status: q.status,
-        wait_time: q.wait_time_min,
-        created_at: q.created_at,
-        seated_at: q.seated_at,
-        canceled_at: q.canceled_at
-      }));
-    }
+    const queueData = (queueRaw || []).map((q: any) => ({
+      id: q.id,
+      type: 'queue',
+      name: q.name || 'Cliente',
+      email: q.email,
+      phone: q.phone,
+      date: q.seated_at || q.created_at,
+      party_size: q.party_size,
+      status: q.status,
+      wait_time: q.wait_time_min,
+      created_at: q.created_at,
+      called_at: q.called_at,
+      seated_at: q.seated_at,
+      canceled_at: q.canceled_at
+    }));
 
     console.log('[get-customer-history] Queue data found:', queueData.length);
 
-    // 3. Fetch reservation history
-    const { data: reservationRaw } = await supabase
-      .rpc('get_reports_reservation_data', {
+    // 3. Fetch reservation history using the new RPC
+    const { data: reservationRaw, error: reservationError } = await supabase
+      .rpc('get_customer_reservation_history', {
         p_restaurant_id: restaurant_id,
-        p_start_date: '2020-01-01',
-        p_end_date: '2030-12-31'
+        p_email: customerEmail || '',
+        p_phone: customerPhone || ''
       });
 
-    if (reservationRaw) {
-      reservationData = reservationRaw.filter((r: any) => {
-        if (customerEmail && r.customer_email === customerEmail) return true;
-        if (customerPhone && customerPhone !== '—' && r.phone === customerPhone) return true;
-        return false;
-      }).map((r: any) => ({
-        id: r.id,
-        type: 'reservation',
-        name: r.name || 'Cliente',
-        date: r.reserved_for,
-        party_size: r.party_size,
-        status: r.status,
-        created_at: r.created_at,
-        confirmed_at: r.confirmed_at,
-        completed_at: r.completed_at,
-        canceled_at: r.canceled_at
-      }));
+    if (reservationError) {
+      console.error('[get-customer-history] Reservation RPC error:', reservationError);
     }
+
+    const reservationData = (reservationRaw || []).map((r: any) => ({
+      id: r.id,
+      type: 'reservation',
+      name: r.name || 'Cliente',
+      email: r.customer_email,
+      phone: r.phone,
+      date: r.reserved_for,
+      party_size: r.party_size,
+      status: r.status,
+      created_at: r.created_at,
+      reserved_for: r.reserved_for,
+      confirmed_at: r.confirmed_at,
+      completed_at: r.completed_at,
+      canceled_at: r.canceled_at,
+      no_show_at: r.no_show_at
+    }));
 
     console.log('[get-customer-history] Reservation data found:', reservationData.length);
 
     // 4. Fetch promotion history (email_logs)
     let promotionHistory: any[] = [];
     
-    // Build email query - email_logs uses 'email' column
     if (customerEmail) {
-      const { data: emailLogs } = await supabase
+      const { data: emailLogs, error: emailError } = await supabase
         .from('email_logs')
         .select('id, email, subject, source, status, created_at, coupon_code, sent_at')
         .eq('restaurant_id', restaurant_id)
         .eq('email', customerEmail)
         .order('created_at', { ascending: false })
         .limit(50);
+
+      if (emailError) {
+        console.error('[get-customer-history] Email logs error:', emailError);
+      }
 
       if (emailLogs) {
         promotionHistory = emailLogs.map((e: any) => ({
@@ -168,7 +151,8 @@ Deno.serve(async (req) => {
           status: e.status,
           coupon_code: e.coupon_code,
           sent_at: e.sent_at,
-          created_at: e.created_at
+          created_at: e.created_at,
+          date: e.created_at
         }));
       }
     }
@@ -210,9 +194,9 @@ Deno.serve(async (req) => {
       : 100;
 
     // Preferred channel
-    const queueCount = queueData.filter(q => q.status === 'seated').length;
-    const reservationCount = reservationData.filter(r => r.status === 'completed').length;
-    const preferredChannel = queueCount >= reservationCount ? 'queue' : 'reservation';
+    const queueCompleted = queueData.filter((q: any) => q.status === 'seated').length;
+    const reservationCompleted = reservationData.filter((r: any) => r.status === 'completed').length;
+    const preferredChannel = queueCompleted >= reservationCompleted ? 'queue' : 'reservation';
 
     // Monthly evolution (last 12 months)
     const monthlyEvolution: { month: string; queue: number; reservation: number }[] = [];
@@ -222,14 +206,16 @@ Deno.serve(async (req) => {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = monthDate.toISOString().slice(0, 7); // YYYY-MM
       
-      const queueInMonth = queueData.filter(q => {
+      const queueInMonth = queueData.filter((q: any) => {
         if (!q.date) return false;
-        return q.date.startsWith(monthKey) && q.status === 'seated';
+        const dateStr = typeof q.date === 'string' ? q.date : q.date.toISOString();
+        return dateStr.startsWith(monthKey) && q.status === 'seated';
       }).length;
       
-      const reservationInMonth = reservationData.filter(r => {
+      const reservationInMonth = reservationData.filter((r: any) => {
         if (!r.date) return false;
-        return r.date.startsWith(monthKey) && r.status === 'completed';
+        const dateStr = typeof r.date === 'string' ? r.date : r.date.toISOString();
+        return dateStr.startsWith(monthKey) && r.status === 'completed';
       }).length;
       
       monthlyEvolution.push({
@@ -241,8 +227,8 @@ Deno.serve(async (req) => {
 
     const metrics = {
       total_visits: completedVisits.length,
-      queue_completed: queueData.filter(q => q.status === 'seated').length,
-      reservations_completed: reservationData.filter(r => r.status === 'completed').length,
+      queue_completed: queueCompleted,
+      reservations_completed: reservationCompleted,
       canceled_count: canceledVisits.length,
       no_show_count: noShowVisits.length,
       promotions_sent: promotionHistory.length,
@@ -259,11 +245,7 @@ Deno.serve(async (req) => {
     const allHistory = [
       ...queueData,
       ...reservationData,
-      ...promotionHistory.map(p => ({
-        ...p,
-        date: p.created_at,
-        type: 'promotion' as const
-      }))
+      ...promotionHistory
     ].sort((a, b) => {
       const dateA = new Date(a.date || a.created_at || 0).getTime();
       const dateB = new Date(b.date || b.created_at || 0).getTime();

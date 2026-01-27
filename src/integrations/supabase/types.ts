@@ -1607,6 +1607,39 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: number
       }
+      get_customer_queue_history: {
+        Args: { p_email?: string; p_phone?: string; p_restaurant_id: string }
+        Returns: {
+          called_at: string
+          canceled_at: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          party_size: number
+          phone: string
+          seated_at: string
+          status: string
+          wait_time_min: number
+        }[]
+      }
+      get_customer_reservation_history: {
+        Args: { p_email?: string; p_phone?: string; p_restaurant_id: string }
+        Returns: {
+          canceled_at: string
+          completed_at: string
+          confirmed_at: string
+          created_at: string
+          customer_email: string
+          id: string
+          name: string
+          no_show_at: string
+          party_size: number
+          phone: string
+          reserved_for: string
+          status: string
+        }[]
+      }
       get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
       get_reports_queue_data: {
