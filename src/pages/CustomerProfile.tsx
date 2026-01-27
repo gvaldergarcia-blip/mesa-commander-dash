@@ -16,7 +16,8 @@ import {
   MessageSquare,
   BarChart3,
   History,
-  Loader2
+  Loader2,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
+import { CustomerAIAnalysis } from "@/components/customers/CustomerAIAnalysis";
 
 type CustomerStatus = 'vip' | 'frequent' | 'new' | 'at_risk' | 'active';
 
@@ -532,6 +534,34 @@ export default function CustomerProfile() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Analysis Section */}
+      <CustomerAIAnalysis
+        customerId={customer.id}
+        customerData={{
+          name: customer.name,
+          vip_status: customer.vip_status,
+          marketing_opt_in: customer.marketing_opt_in,
+          created_at: customer.created_at,
+          days_since_last_visit: customer.days_since_last_visit,
+        }}
+        metrics={{
+          total_visits: customer.total_visits,
+          queue_completed: customer.queue_completed,
+          reservations_completed: customer.reservations_completed,
+          canceled_count: history.filter(h => h.status === 'canceled').length,
+          no_show_count: history.filter(h => h.status === 'no_show').length,
+          show_rate: behaviorStats?.showRate,
+          avg_party_size: behaviorStats?.avgPartySize,
+          preferred_time: behaviorStats?.preferredTime,
+          preferred_channel: behaviorStats?.preferredChannel,
+          promotions_sent: timeline.filter(t => t.type === 'promotion_sent').length,
+        }}
+        historyData={{
+          queue_count: history.filter(h => h.type === 'queue').length,
+          reservation_count: history.filter(h => h.type === 'reservation').length,
+        }}
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="timeline" className="space-y-4">

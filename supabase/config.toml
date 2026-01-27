@@ -32,3 +32,21 @@ verify_jwt = false
 
 [functions.get-reservation-info]
 verify_jwt = false
+
+[functions.get-reservation-settings]
+verify_jwt = false
+
+[functions.get-customer-history]
+verify_jwt = false
+
+[functions.send-promotion-direct]
+verify_jwt = false
+
+[functions.send-campaign-emails]
+verify_jwt = false
+
+[functions.notify-queue-position-updates]
+verify_jwt = false
+
+[functions.analyze-customer]
+verify_jwt = false
