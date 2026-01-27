@@ -92,15 +92,15 @@ export function useDashboardMetricsReal() {
 
       if (seatedQueueError) throw seatedQueueError;
 
-      // 4. RESERVAS HOJE - reservation_at = HOJE e status in ('pending', 'confirmed')
+      // 4. RESERVAS HOJE - reserved_for = HOJE e status in ('pending', 'confirmed')
       const { count: reservationsCount, error: reservationsError } = await supabase
         .schema('mesaclik')
         .from('reservations')
         .select('*', { count: 'exact', head: true })
         .eq('restaurant_id', RESTAURANT_ID)
         .in('status', ['pending', 'confirmed'])
-        .gte('reservation_at', todayStartISO)
-        .lt('reservation_at', todayEndISO);
+        .gte('reserved_for', todayStartISO)
+        .lt('reserved_for', todayEndISO);
 
       if (reservationsError) throw reservationsError;
 
@@ -202,7 +202,7 @@ export function useDashboardMetricsReal() {
         supabase
           .schema('mesaclik')
           .from('reservations')
-          .select('id, name, party_size, status, created_at, updated_at, confirmed_at, completed_at, canceled_at, reservation_at')
+          .select('id, name, party_size, status, created_at, updated_at, confirmed_at, completed_at, canceled_at, reserved_for')
           .eq('restaurant_id', RESTAURANT_ID)
           .or(`created_at.gte.${todayStartISO},updated_at.gte.${todayStartISO}`)
           .order('updated_at', { ascending: false })
