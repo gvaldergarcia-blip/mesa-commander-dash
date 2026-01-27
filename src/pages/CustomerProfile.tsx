@@ -825,71 +825,27 @@ export default function CustomerProfile() {
     
     setSavingNotes(true);
     try {
-      const emailRaw = customer.email?.trim();
-      const emailLookup = emailRaw ? emailRaw.toLowerCase() : undefined;
+      const email = customer.email?.trim().toLowerCase();
       const phone = customer.phone?.trim();
 
-      if (!emailLookup && !phone) {
+      let query = supabase
+        .from('customers')
+        .update({ notes });
+
+      if (email) {
+        query = query.eq('email', email);
+      } else if (phone) {
+        query = query.eq('phone', phone);
+      } else {
         throw new Error('Cliente sem email/telefone para salvar observações');
       }
 
-      // 1) Tenta localizar o customer "global" (tabela customers) por e-mail/telefone
-      //    (muitos clientes existem em restaurant_customers mas ainda não têm registro em customers).
-      let globalCustomerId: string | null = null;
+      const { data: updatedRows, error } = await query.select('id');
 
-      if (emailLookup) {
-        const { data: found, error: findError } = await supabase
-          .from('customers')
-          .select('id')
-          .ilike('email', emailLookup)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      if (error) throw error;
 
-        if (findError) throw findError;
-        globalCustomerId = found?.id ?? null;
-      } else if (phone) {
-        const { data: found, error: findError } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('phone', phone)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (findError) throw findError;
-        globalCustomerId = found?.id ?? null;
-      }
-
-      // 2) Se existe, atualiza; se não existe, cria e salva as notas
-      if (globalCustomerId) {
-        const { error: updateError } = await supabase
-          .from('customers')
-          .update({ notes })
-          .eq('id', globalCustomerId);
-
-        if (updateError) throw updateError;
-      } else {
-        const insertPayload: Record<string, any> = {
-          name: customer.name || 'Cliente',
-          notes,
-          marketing_opt_in: !!customer.marketing_opt_in,
-          vip_status: !!customer.vip_status,
-          total_visits: customer.total_visits || 0,
-          queue_completed: customer.queue_completed || 0,
-          reservations_completed: customer.reservations_completed || 0,
-          last_visit_date: customer.last_visit_at ?? null,
-          first_visit_at: customer.first_visit_at ?? null,
-        };
-
-        if (emailRaw) insertPayload.email = emailRaw;
-        if (phone) insertPayload.phone = phone;
-
-        const { error: insertError } = await supabase
-          .from('customers')
-          .insert(insertPayload);
-
-        if (insertError) throw insertError;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('Cliente não encontrado para salvar observações');
       }
 
       setCustomer((prev) => (prev ? { ...prev, notes } : prev));

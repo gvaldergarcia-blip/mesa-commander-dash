@@ -25,27 +25,6 @@ export function useSendPromotion() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
-  const formatInvokeError = (err: unknown): string => {
-    if (!err || typeof err !== 'object') return 'Erro ao enviar promoção';
-
-    const anyErr = err as any;
-    const base = typeof anyErr.message === 'string' && anyErr.message.trim()
-      ? anyErr.message
-      : 'Erro ao enviar promoção';
-
-    // supabase-js costuma anexar detalhes em `context.body` quando a edge function retorna != 2xx
-    const body = anyErr.context?.body;
-    if (!body) return base;
-
-    try {
-      const parsed = typeof body === 'string' ? JSON.parse(body) : body;
-      const detail = parsed?.error || parsed?.message || parsed?.details;
-      return detail ? `${base}: ${detail}` : base;
-    } catch {
-      return typeof body === 'string' ? `${base}: ${body}` : base;
-    }
-  };
-
   const sendPromotion = useCallback(async (data: PromotionData): Promise<SendPromotionResult> => {
     setSending(true);
     
@@ -55,8 +34,7 @@ export function useSendPromotion() {
       });
 
       if (error) {
-        console.error('send-promotion-direct invoke error:', error);
-        throw new Error(formatInvokeError(error));
+        throw new Error(error.message || 'Erro ao enviar promoção');
       }
 
       if (!response?.success) {
@@ -76,7 +54,7 @@ export function useSendPromotion() {
 
       return { success: true, messageId, lastEvent };
     } catch (err) {
-      const message = err instanceof Error ? err.message : formatInvokeError(err);
+      const message = err instanceof Error ? err.message : 'Erro ao enviar promoção';
       
       toast({
         title: 'Erro ao enviar promoção',
