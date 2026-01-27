@@ -157,16 +157,15 @@ export function useReservations() {
   const updateReservationStatus = async (reservationId: string, status: Reservation['status'], cancelReason?: string) => {
     try {
       console.log('[useReservations] Atualizando status:', { reservationId, status, cancelReason });
-      
-      // Buscar dados da reserva antes de atualizar
-      const { data: reservationData, error: fetchError } = await supabase
-        .schema('mesaclik')
-        .from('reservations')
-        .select('name, phone')
-        .eq('id', reservationId)
-        .single();
 
-      if (fetchError) throw fetchError;
+      // IMPORTANTE: Evitar SELECT direto em mesaclik.reservations aqui.
+      // Em alguns ambientes/roles (ex: anon no painel), o SELECT pode retornar 0 linhas por RLS,
+      // causando PGRST116 ao usar `.single()`. Como a tela já carrega via view `mesaclik.v_reservations`,
+      // reaproveitamos os dados já em memória.
+      const reservationFromState = reservations.find((r) => r.reservation_id === reservationId);
+      const reservationData = reservationFromState
+        ? { name: reservationFromState.customer_name, phone: reservationFromState.phone }
+        : null;
 
       const updateData: any = { status };
       
@@ -209,6 +208,8 @@ export function useReservations() {
           phone: reservationData.phone,
           source: 'reservation'
         });
+      } else if (status === 'completed' && !reservationData) {
+        console.warn('[useReservations] Não encontrei dados da reserva no estado para registrar cliente:', reservationId);
       }
 
       toast({
