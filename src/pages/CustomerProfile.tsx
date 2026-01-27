@@ -237,8 +237,11 @@ export default function CustomerProfile() {
 
       setNotes(customerData.notes || '');
 
-      // Buscar histórico via Edge Function (usa service_role)
-      await fetchHistoryViaEdgeFunction(customerData.id, RESTAURANT_ID);
+      // Buscar histórico de visitas e promoções
+      await Promise.all([
+        fetchVisitHistory(customerData.phone, customerData.email),
+        fetchPromotionHistory(customerData.email, customerData.id)
+      ]);
       
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
@@ -247,71 +250,157 @@ export default function CustomerProfile() {
     }
   };
 
-  /**
-   * Fetches customer history via Edge Function (uses service_role for full access)
-   */
-  const fetchHistoryViaEdgeFunction = async (customerId: string, restaurantId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('get-customer-history', {
-        body: { customer_id: customerId, restaurant_id: restaurantId },
-      });
+  const fetchVisitHistory = async (phone: string | null, email: string | null) => {
+    const historyItems: VisitHistory[] = [];
+    const timelineEvents: TimelineEvent[] = [];
 
-      if (error) {
-        console.error('[CustomerProfile] Edge function error:', error);
-        return;
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+    const rawPhone = phone?.trim() || null;
+    const validPhone = rawPhone && rawPhone !== '—' ? rawPhone : null;
+
+    // ===== Filas (mesaclik.queue_entries) =====
+    if (normalizedEmail || validPhone) {
+      try {
+        const baseQueueQuery = () =>
+          supabase
+            .schema('mesaclik')
+            .from('queue_entries')
+            .select('id, seated_at, party_size, status, created_at, email, phone')
+            .eq('restaurant_id', RESTAURANT_ID)
+            .in('status', ['seated', 'canceled', 'no_show', 'waiting', 'called'])
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        // IMPORTANTE: evitar `.or()` aqui (problemas intermitentes com emails/encoding).
+        let queueData: any[] = [];
+
+        if (normalizedEmail && validPhone) {
+          const [byEmail, byPhone] = await Promise.all([
+            baseQueueQuery().eq('email', normalizedEmail),
+            baseQueueQuery().eq('phone', validPhone),
+          ]);
+
+          if (byEmail.error) throw byEmail.error;
+          if (byPhone.error) throw byPhone.error;
+
+          const seen = new Set<string>();
+          for (const row of [...(byEmail.data || []), ...(byPhone.data || [])]) {
+            if (!seen.has(row.id)) {
+              seen.add(row.id);
+              queueData.push(row);
+            }
+          }
+        } else if (normalizedEmail) {
+          const res = await baseQueueQuery().eq('email', normalizedEmail);
+          if (res.error) throw res.error;
+          queueData = res.data || [];
+        } else if (validPhone) {
+          const res = await baseQueueQuery().eq('phone', validPhone);
+          if (res.error) throw res.error;
+          queueData = res.data || [];
+        }
+
+        queueData.forEach((q) => {
+          historyItems.push({
+            id: q.id,
+            type: 'queue',
+            date: q.seated_at || q.created_at,
+            party_size: q.party_size,
+            status: q.status,
+          });
+        });
+      } catch (error) {
+        console.error('[CustomerProfile] Erro ao carregar histórico de fila:', error);
       }
-
-      console.log('[CustomerProfile] History data:', data);
-
-      // Parse visit history
-      const historyItems: VisitHistory[] = (data.history || []).map((item: any) => ({
-        id: item.id,
-        type: item.type as 'queue' | 'reservation',
-        date: item.date,
-        party_size: item.party_size,
-        status: item.status,
-      }));
-      setHistory(historyItems);
-
-      // Parse promotions
-      const promoItems: PromotionHistory[] = (data.promotions || []).map((p: any) => ({
-        id: p.id,
-        date: p.date,
-        subject: p.subject,
-        status: p.status,
-      }));
-      setPromotions(promoItems);
-
-      // Build timeline from history
-      const timelineEvents: TimelineEvent[] = historyItems.slice(0, 15).map((item) => {
-        const isCompleted =
-          item.status === 'seated' || item.status === 'completed' || item.status === 'confirmed';
-
-        return {
-          id: item.id,
-          type:
-            item.type === 'queue'
-              ? item.status === 'seated'
-                ? 'queue_completed'
-                : 'queue_canceled'
-              : isCompleted
-                ? 'reservation_completed'
-                : 'reservation_canceled',
-          date: item.date,
-          description:
-            item.type === 'queue'
-              ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`
-              : `Reserva ${isCompleted ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
-          icon: isCompleted ? CheckCircle2 : XCircle,
-          color: isCompleted ? 'text-success' : 'text-destructive',
-        };
-      });
-      setTimeline(timelineEvents);
-
-    } catch (err) {
-      console.error('[CustomerProfile] fetchHistoryViaEdgeFunction error:', err);
     }
+
+    // ===== Reservas (mesaclik.reservations) =====
+    // Observação: mesaclik.reservations não possui coluna "email".
+    if (validPhone) {
+      try {
+        const { data: reservationData, error: reservationError } = await supabase
+          .schema('mesaclik')
+          .from('reservations')
+          .select('id, reservation_at, party_size, status, created_at, phone')
+          .eq('restaurant_id', RESTAURANT_ID)
+          .eq('phone', validPhone)
+          .order('reservation_at', { ascending: false })
+          .limit(500);
+
+        if (reservationError) throw reservationError;
+
+        (reservationData || []).forEach((r) => {
+          historyItems.push({
+            id: r.id,
+            type: 'reservation',
+            date: r.reservation_at,
+            party_size: r.party_size,
+            status: r.status,
+          });
+        });
+      } catch (error) {
+        console.error('[CustomerProfile] Erro ao carregar histórico de reservas:', error);
+      }
+    }
+
+    // Ordenar por data
+    historyItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setHistory(historyItems);
+
+    // Criar timeline de eventos
+    historyItems.slice(0, 15).forEach((item) => {
+      const isCompleted =
+        item.status === 'seated' || item.status === 'completed' || item.status === 'confirmed';
+
+      timelineEvents.push({
+        id: item.id,
+        type:
+          item.type === 'queue'
+            ? item.status === 'seated'
+              ? 'queue_completed'
+              : 'queue_canceled'
+            : isCompleted
+              ? 'reservation_completed'
+              : 'reservation_canceled',
+        date: item.date,
+        description:
+          item.type === 'queue'
+            ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`
+            : `Reserva ${isCompleted ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
+        icon: isCompleted ? CheckCircle2 : XCircle,
+        color: isCompleted ? 'text-success' : 'text-destructive',
+      });
+    });
+
+    setTimeline(timelineEvents);
   };
+
+  const fetchPromotionHistory = async (email: string | null, customerId: string) => {
+    if (!email) {
+      setPromotions([]);
+      return;
+    }
+
+    try {
+      const { data } = await supabase
+        .from('email_logs')
+        .select('id, created_at, subject, status')
+        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (data) {
+        setPromotions(data.map(p => ({
+          id: p.id,
+          date: p.created_at || '',
+          subject: p.subject,
+          status: p.status,
+        })));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar histórico de promoções:', error);
+    }
   };
 
   const formatDate = (dateString: string) => {
