@@ -112,13 +112,14 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
     `
     : '';
 
-  const ctaBlock = cta_text && cta_url
+  // Sempre usa "Ver oferta" como texto do botão - o restaurante não decide isso
+  const ctaBlock = cta_url
     ? `
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
         <tr>
           <td align="center" style="padding: 8px 0 24px;">
             <a href="${cta_url}" style="display: inline-block; padding: 18px 36px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
-              ${cta_text}
+              Ver oferta
             </a>
           </td>
         </tr>
@@ -205,7 +206,7 @@ const handler = async (req: Request): Promise<Response> => {
       requestData.message,
       requestData.coupon_code ? `\nCupom: ${requestData.coupon_code}` : undefined,
       requestData.expires_at ? `Validade: ${new Date(requestData.expires_at).toLocaleDateString('pt-BR')}` : undefined,
-      requestData.cta_text && requestData.cta_url ? `\n${requestData.cta_text}: ${requestData.cta_url}` : undefined,
+      requestData.cta_url ? `\nVer oferta: ${requestData.cta_url}` : undefined,
       "\nCancelar recebimento: suporte@mesaclik.com.br",
     ]
       .filter(Boolean)

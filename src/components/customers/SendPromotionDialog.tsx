@@ -52,7 +52,6 @@ export function SendPromotionDialog({
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [ctaText, setCtaText] = useState('');
   const [ctaUrl, setCtaUrl] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -62,7 +61,6 @@ export function SendPromotionDialog({
     setTitle('');
     setSubject('');
     setMessage('');
-    setCtaText('');
     setCtaUrl('');
     setCouponCode('');
     setExpiresAt('');
@@ -73,7 +71,7 @@ export function SendPromotionDialog({
       title: title || `Promoção para ${customer.customer_name || customer.customer_email}`,
       subject,
       message,
-      ctaText: ctaText || undefined,
+      ctaText: ctaUrl ? 'Ver oferta' : undefined, // Sempre "Ver oferta"
       ctaUrl: ctaUrl || undefined,
       couponCode: promotionType === 'coupon' ? couponCode : undefined,
       expiresAt: expiresAt || undefined,
@@ -200,25 +198,19 @@ export function SendPromotionDialog({
           )}
 
           {(promotionType === 'banner' || promotionType === 'coupon') && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ctaText">Texto do botão (opcional)</Label>
-                <Input
-                  id="ctaText"
-                  placeholder="Ex: Ver oferta"
-                  value={ctaText}
-                  onChange={(e) => setCtaText(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ctaUrl">Link do botão (opcional)</Label>
-                <Input
-                  id="ctaUrl"
-                  placeholder="https://..."
-                  value={ctaUrl}
-                  onChange={(e) => setCtaUrl(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="ctaUrl">Link do botão "Ver oferta" (opcional)</Label>
+              <Input
+                id="ctaUrl"
+                placeholder="https://..."
+                value={ctaUrl}
+                onChange={(e) => setCtaUrl(e.target.value)}
+              />
+              {ctaUrl && (
+                <p className="text-xs text-muted-foreground">
+                  O botão "Ver oferta" será exibido no e-mail
+                </p>
+              )}
             </div>
           )}
         </div>
