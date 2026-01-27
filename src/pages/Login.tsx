@@ -68,9 +68,17 @@ export default function Login() {
     } catch (err) {
       const error = err as Error;
       console.error("Erro ao enviar OTP:", error);
+      
+      // Verificar se é erro de rate limit
+      const isRateLimit = error.message.toLowerCase().includes("rate limit") || 
+                          error.message.includes("429") ||
+                          error.message.includes("security purposes");
+      
       toast({
-        title: "Erro ao enviar código",
-        description: error.message,
+        title: isRateLimit ? "Aguarde um momento" : "Erro ao enviar código",
+        description: isRateLimit 
+          ? "Muitas tentativas. Aguarde 60 segundos antes de solicitar um novo código."
+          : error.message,
         variant: "destructive",
       });
     } finally {
