@@ -671,6 +671,44 @@ export type Database = {
           },
         ]
       }
+      queue_admin_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entries_affected: number | null
+          id: string
+          metadata: Json | null
+          performed_by: string
+          restaurant_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entries_affected?: number | null
+          id?: string
+          metadata?: Json | null
+          performed_by: string
+          restaurant_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entries_affected?: number | null
+          id?: string
+          metadata?: Json | null
+          performed_by?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_admin_logs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       queue_entries: {
         Row: {
           called_at: string | null
@@ -1530,6 +1568,7 @@ export type Database = {
             }
             Returns: Json
           }
+      clear_queue: { Args: { p_restaurant_id: string }; Returns: Json }
       create_queue_entry_web: {
         Args: { p_party_size?: number; p_restaurante_id: string }
         Returns: Json

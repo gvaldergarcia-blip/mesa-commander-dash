@@ -99,5 +99,6 @@ export function useQueueEnhanced() {
     ...queueData,
     queueEntries: enhancedEntries,
     loadingVip,
+    clearQueue: queueData.clearQueue,
   };
 }
