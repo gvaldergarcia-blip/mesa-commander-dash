@@ -4,6 +4,36 @@ import { RESTAURANT_ID } from '@/config/current-restaurant';
 import { useQueueRealtime } from './useQueueRealtime';
 import { useReservationsRealtime } from './useReservationsRealtime';
 
+type RpcQueueEntry = {
+  entry_id: string;
+  queue_id: string;
+  customer_name: string;
+  phone: string;
+  email?: string;
+  people: number;
+  status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
+  notes?: string | null;
+  position?: number | null;
+  called_at?: string | null;
+  seated_at?: string | null;
+  canceled_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type RpcReservationRow = {
+  id: string;
+  status: string;
+  party_size: number;
+  phone: string;
+  created_at: string;
+  reserved_for: string;
+  confirmed_at: string | null;
+  canceled_at: string | null;
+  completed_at: string | null;
+  no_show_at: string | null;
+};
+
 type DashboardMetrics = {
   peopleInQueue: number;
   groupsInQueue: number;
@@ -53,107 +83,68 @@ export function useDashboardMetricsReal() {
       const todayStartISO = todayStart.toISOString();
       const todayEndISO = todayEnd.toISOString();
 
-      // 1. GRUPOS NA FILA - status = 'waiting' criados HOJE
-      const { data: waitingQueue, error: waitingError } = await supabase
+      const isBetween = (iso: string | null | undefined) => {
+        if (!iso) return false;
+        const t = new Date(iso).getTime();
+        return t >= todayStart.getTime() && t < todayEnd.getTime();
+      };
+
+      // Buscar fila via RPC (bypassa RLS e já traz dados reais)
+      const { data: queueEntries, error: queueRpcError } = await supabase
         .schema('mesaclik')
-        .from('queue_entries')
-        .select('id, party_size')
-        .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'waiting')
-        .gte('created_at', todayStartISO)
-        .lt('created_at', todayEndISO);
+        .rpc('get_queue_entries', {
+          p_restaurant_id: RESTAURANT_ID,
+          // 48h para não perder entradas que foram criadas ontem mas tiveram atualização hoje
+          p_hours_back: 48,
+        });
 
-      if (waitingError) throw waitingError;
+      if (queueRpcError) throw queueRpcError;
 
-      const groupsInQueue = waitingQueue?.length || 0;
-      const peopleInQueue = waitingQueue?.reduce((sum, entry) => sum + (entry.party_size || 0), 0) || 0;
+      const queueData = (queueEntries || []) as RpcQueueEntry[];
 
-      // 2. CHAMADOS HOJE - status = 'called' HOJE
-      const { count: calledCount, error: calledError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'called')
-        .gte('created_at', todayStartISO)
-        .lt('created_at', todayEndISO);
+      // KPIs de fila (estado atual)
+      const waitingNow = queueData.filter((e) => e.status === 'waiting');
+      const groupsInQueue = waitingNow.length;
+      const peopleInQueue = waitingNow.reduce((sum, e) => sum + (e.people || 0), 0);
 
-      if (calledError) throw calledError;
+      // Eventos do dia (baseados nos timestamps corretos)
+      const calledToday = queueData.filter((e) => e.status === 'called' && isBetween(e.called_at)).length;
+      const seatedQueueToday = queueData.filter((e) => e.status === 'seated' && isBetween(e.seated_at)).length;
+      const canceledQueueToday = queueData.filter(
+        (e) => (e.status === 'canceled' || e.status === 'no_show') && isBetween(e.canceled_at)
+      ).length;
 
-      // 3. ATENDIDOS HOJE (sentados na fila) - status = 'seated' HOJE
-      const { count: seatedQueueCount, error: seatedQueueError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'seated')
-        .gte('seated_at', todayStartISO)
-        .lt('seated_at', todayEndISO);
-
-      if (seatedQueueError) throw seatedQueueError;
-
-      // 4. RESERVAS HOJE - reserved_for = HOJE e status in ('pending', 'confirmed')
-      const { count: reservationsCount, error: reservationsError } = await supabase
-        .schema('mesaclik')
-        .from('reservations')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
-        .in('status', ['pending', 'confirmed'])
-        .gte('reserved_for', todayStartISO)
-        .lt('reserved_for', todayEndISO);
-
-      if (reservationsError) throw reservationsError;
-
-      // 5. RESERVAS CONCLUÍDAS HOJE - status = 'completed' HOJE
-      const { count: completedReservationsCount, error: completedError } = await supabase
-        .schema('mesaclik')
-        .from('reservations')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'completed')
-        .gte('completed_at', todayStartISO)
-        .lt('completed_at', todayEndISO);
-
-      if (completedError) throw completedError;
-
-      // 6. CANCELADOS HOJE (fila)
-      const { count: canceledQueueCount, error: canceledQueueError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
-        .in('status', ['canceled', 'no_show'])
-        .gte('created_at', todayStartISO)
-        .lt('created_at', todayEndISO);
-
-      if (canceledQueueError) throw canceledQueueError;
-
-      // Total atendidos = sentados na fila + reservas concluídas
-      const servedToday = (seatedQueueCount || 0) + (completedReservationsCount || 0);
-
-      // 7. Calcular tempo médio de espera REAL (seated hoje)
-      const { data: seatedTodayData, error: seatedDataError } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('created_at, seated_at')
-        .eq('restaurant_id', RESTAURANT_ID)
-        .eq('status', 'seated')
-        .gte('seated_at', todayStartISO)
-        .lt('seated_at', todayEndISO)
-        .not('seated_at', 'is', null);
-
-      if (seatedDataError) throw seatedDataError;
-
+      // Tempo médio de espera (somente seated HOJE)
       let avgWaitTimeMinutes: number | null = null;
-      if (seatedTodayData && seatedTodayData.length > 0) {
-        const totalMinutes = seatedTodayData.reduce((sum, entry) => {
-          const created = new Date(entry.created_at).getTime();
-          const seated = new Date(entry.seated_at!).getTime();
+      const seatedToday = queueData.filter((e) => e.status === 'seated' && isBetween(e.seated_at));
+      if (seatedToday.length > 0) {
+        const totalMinutes = seatedToday.reduce((sum, e) => {
+          const created = new Date(e.created_at).getTime();
+          const seated = new Date(e.seated_at as string).getTime();
           const diffMinutes = (seated - created) / 60000;
           return sum + diffMinutes;
         }, 0);
-        avgWaitTimeMinutes = Math.round(totalMinutes / seatedTodayData.length);
+        avgWaitTimeMinutes = Math.round(totalMinutes / seatedToday.length);
       }
+
+      // Reservas do dia via RPC (public schema)
+      const { data: reservationsRpc, error: reservationsRpcError } = await supabase
+        .schema('public')
+        .rpc('get_reports_reservation_data', {
+          p_restaurant_id: RESTAURANT_ID,
+          p_start_date: todayStartISO,
+          p_end_date: todayEndISO,
+        });
+
+      if (reservationsRpcError) throw reservationsRpcError;
+
+      const reservationsData = (reservationsRpc || []) as RpcReservationRow[];
+
+      const reservationsToday = reservationsData.filter((r) => r.status === 'pending' || r.status === 'confirmed').length;
+      const completedReservationsToday = reservationsData.filter((r) => r.status === 'completed' && isBetween(r.completed_at)).length;
+
+      // Total atendidos = sentados na fila + reservas concluídas
+      const servedToday = seatedQueueToday + completedReservationsToday;
 
       // 8. Crescimento semanal (reservas)
       const startOfThisWeek = new Date(today);
@@ -187,14 +178,15 @@ export function useDashboardMetricsReal() {
 
       // 9. ATIVIDADE RECENTE - Somente eventos de HOJE
       const [queueActivity, reservationActivity] = await Promise.all([
-        // Eventos da fila hoje
+        // Eventos da fila hoje (qualquer mudança/timestamp do dia)
         supabase
           .schema('mesaclik')
           .from('queue_entries')
           .select('id, name, party_size, status, created_at, updated_at, called_at, seated_at, canceled_at')
           .eq('restaurant_id', RESTAURANT_ID)
-          .gte('created_at', todayStartISO)
-          .lt('created_at', todayEndISO)
+          .or(
+            `created_at.gte.${todayStartISO},updated_at.gte.${todayStartISO},called_at.gte.${todayStartISO},seated_at.gte.${todayStartISO},canceled_at.gte.${todayStartISO}`
+          )
           .order('updated_at', { ascending: false })
           .limit(15),
         
@@ -204,7 +196,9 @@ export function useDashboardMetricsReal() {
           .from('reservations')
           .select('id, name, party_size, status, created_at, updated_at, confirmed_at, completed_at, canceled_at, reserved_for')
           .eq('restaurant_id', RESTAURANT_ID)
-          .or(`created_at.gte.${todayStartISO},updated_at.gte.${todayStartISO}`)
+          .or(
+            `created_at.gte.${todayStartISO},updated_at.gte.${todayStartISO},confirmed_at.gte.${todayStartISO},completed_at.gte.${todayStartISO},canceled_at.gte.${todayStartISO}`
+          )
           .order('updated_at', { ascending: false })
           .limit(15)
       ]);
@@ -291,10 +285,10 @@ export function useDashboardMetricsReal() {
       setMetrics({
         peopleInQueue,
         groupsInQueue,
-        reservationsToday: reservationsCount || 0,
+        reservationsToday,
         servedToday,
-        calledToday: calledCount || 0,
-        canceledToday: canceledQueueCount || 0,
+        calledToday,
+        canceledToday: canceledQueueToday,
         avgWaitTimeMinutes,
         weeklyGrowth,
       });
@@ -307,6 +301,14 @@ export function useDashboardMetricsReal() {
 
   useEffect(() => {
     fetchMetrics();
+  }, [fetchMetrics]);
+
+  // Fallback de "tempo real" caso o Realtime esteja instável (CHANNEL_ERROR)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      fetchMetrics();
+    }, 15000);
+    return () => window.clearInterval(id);
   }, [fetchMetrics]);
 
   // Realtime
