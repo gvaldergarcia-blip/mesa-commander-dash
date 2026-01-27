@@ -151,8 +151,34 @@ export default function CustomerProfile() {
           created_at: restaurantCustomer.created_at,
           vip_status: restaurantCustomer.vip || false,
           marketing_opt_in: restaurantCustomer.marketing_optin || false,
+          // Notas são armazenadas no customer global (public.customers).
+          // Se carregarmos só do CRM, elas sempre aparecem vazias.
           notes: null,
         };
+
+        // Buscar notas no customer global por email/telefone para exibir e permitir salvar corretamente.
+        try {
+          const email = restaurantCustomer.customer_email?.trim().toLowerCase();
+          const phone = restaurantCustomer.customer_phone?.trim();
+
+          if (email) {
+            const { data: globalByEmail } = await supabase
+              .from('customers')
+              .select('notes')
+              .eq('email', email)
+              .maybeSingle();
+            customerData.notes = globalByEmail?.notes ?? null;
+          } else if (phone) {
+            const { data: globalByPhone } = await supabase
+              .from('customers')
+              .select('notes')
+              .eq('phone', phone)
+              .maybeSingle();
+            customerData.notes = globalByPhone?.notes ?? null;
+          }
+        } catch (e) {
+          console.warn('Falha ao buscar notas globais do cliente:', e);
+        }
       } else {
         // 2. Tentar na tabela customers (global) por ID
         const { data: byId } = await supabase
@@ -799,12 +825,30 @@ export default function CustomerProfile() {
     
     setSavingNotes(true);
     try {
-      const { error } = await supabase
+      const email = customer.email?.trim().toLowerCase();
+      const phone = customer.phone?.trim();
+
+      let query = supabase
         .from('customers')
-        .update({ notes })
-        .eq('id', customer.id);
+        .update({ notes });
+
+      if (email) {
+        query = query.eq('email', email);
+      } else if (phone) {
+        query = query.eq('phone', phone);
+      } else {
+        throw new Error('Cliente sem email/telefone para salvar observações');
+      }
+
+      const { data: updatedRows, error } = await query.select('id');
 
       if (error) throw error;
+
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('Cliente não encontrado para salvar observações');
+      }
+
+      setCustomer((prev) => (prev ? { ...prev, notes } : prev));
 
       toast({
         title: '✓ Observações salvas',
