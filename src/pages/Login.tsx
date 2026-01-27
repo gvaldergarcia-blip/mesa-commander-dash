@@ -11,6 +11,12 @@ import { Loader2, ShieldCheck } from "lucide-react";
 
 type Step = "email" | "verify";
 
+// Preview bypass: no preview/localhost, o founder não precisa passar por login.
+const isPreview = typeof window !== 'undefined' &&
+  (window.location.hostname.includes('lovable.app') ||
+   window.location.hostname.includes('lovableproject.com') ||
+   window.location.hostname === 'localhost');
+
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -23,6 +29,11 @@ export default function Login() {
   const normalizedEmail = useMemo(() => email.trim().toLowerCase(), [email]);
 
   useEffect(() => {
+    if (isPreview) {
+      navigate("/", { replace: true });
+      return;
+    }
+
     const init = async () => {
       const {
         data: { session },
