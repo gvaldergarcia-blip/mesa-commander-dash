@@ -250,14 +250,23 @@ export default function CustomerProfile() {
       const historyItems: VisitHistory[] = [];
       const timelineEvents: TimelineEvent[] = [];
 
+      // Validar se o phone é utilizável (não pode ser null, vazio ou "—")
+      const validPhone = phone && phone.trim() !== '' && phone !== '—' ? phone : null;
+
       // Buscar entradas de fila via mesaclik
-      if (phone || email) {
+      if (validPhone || email) {
+        // Construir filtro dinâmico - prioriza email quando phone é inválido
+        const filterParts: string[] = [];
+        if (email) filterParts.push(`email.eq.${email}`);
+        if (validPhone) filterParts.push(`phone.eq.${validPhone}`);
+        const filterString = filterParts.join(',');
+
         const { data: queueData } = await supabase
           .schema('mesaclik')
           .from('queue_entries')
           .select('id, seated_at, party_size, status, created_at, email, phone')
           .eq('restaurant_id', RESTAURANT_ID)
-          .or(phone ? `phone.eq.${phone}` : `email.eq.${email}`)
+          .or(filterString)
           .in('status', ['seated', 'canceled', 'no_show', 'waiting', 'called'])
           .order('created_at', { ascending: false })
           .limit(50);
@@ -278,9 +287,9 @@ export default function CustomerProfile() {
         const { data: reservationData } = await supabase
           .schema('mesaclik')
           .from('reservations')
-          .select('id, reservation_at, party_size, status, created_at, phone')
+          .select('id, reservation_at, party_size, status, created_at, phone, email')
           .eq('restaurant_id', RESTAURANT_ID)
-          .or(phone ? `phone.eq.${phone}` : `email.ilike.%${email}%`)
+          .or(filterString)
           .order('reservation_at', { ascending: false })
           .limit(50);
 
