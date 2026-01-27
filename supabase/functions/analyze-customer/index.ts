@@ -44,7 +44,7 @@ MÉTRICAS:
 - Filas concluídas: ${metrics.queue_completed || 0}
 - Reservas concluídas: ${metrics.reservations_completed || 0}
 - Cancelamentos: ${metrics.canceled_count || 0}
-- No-shows: ${metrics.no_show_count || 0}
+- Não comparecimentos: ${metrics.no_show_count || 0}
 - Taxa de comparecimento: ${metrics.show_rate || 100}%
 - Tamanho médio de grupo: ${metrics.avg_party_size || 0} pessoas
 - Horário preferido: ${metrics.preferred_time || 'N/A'}
@@ -62,16 +62,30 @@ HISTÓRICO:
 REGRAS OBRIGATÓRIAS:
 - Use APENAS os dados fornecidos, nunca invente ou simule
 - Se dados forem insuficientes, indique claramente
-- Mantenha tom profissional, direto e executivo
+- Mantenha tom profissional, direto e executivo (estilo SaaS enterprise)
 - Textos curtos e objetivos, sem enrolação
-- Foque em ajudar o restaurante a tomar decisões
+- Foque em ajudar o restaurante a tomar decisões melhores
+- IDIOMA: 100% em Português do Brasil
+
+REGRA CRÍTICA — SUGESTÃO DE PROMOÇÃO:
+A IA NÃO DEVE sugerir promoção por padrão.
+Só sugira promoção quando:
+- Risco de perda for MÉDIO ou ALTO
+- Houve queda de frequência recente
+- Cancelamentos ou não comparecimentos recorrentes
+- Longo período sem visita (>21 dias para clientes frequentes)
+
+Se o cliente for saudável (visitas regulares, bom comparecimento, engajamento consistente):
+- NÃO sugira promoção
+- Defina tipo_acao como "nao_agir" ou "acompanhar"
+- Explique que nenhuma ação promocional é necessária
 
 Com base nos dados do cliente, gere uma análise estruturada em JSON com os seguintes campos:
 
 {
-  "resumo": "1-2 frases executivas sobre o perfil geral do cliente",
-  "perfil_comportamento": "Descrição do padrão de visitas, preferências e hábitos",
-  "risco_churn": {
+  "resumo": "1-2 frases executivas sobre o perfil geral do cliente (interpretativo, não apenas repetir dados)",
+  "perfil_comportamento": "Descrição do padrão de visitas, preferências, horários, tipo de grupo e hábitos identificados",
+  "risco_perda": {
     "nivel": "baixo|medio|alto",
     "justificativa": "Explicação breve do porquê"
   },
@@ -79,34 +93,42 @@ Com base nos dados do cliente, gere uma análise estruturada em JSON com os segu
     "nivel": "baixa|media|alta",
     "justificativa": "Explicação breve"
   },
-  "probabilidade_retorno": {
+  "retencao_30d": {
     "nivel": "baixa|media|alta",
-    "dias": 30,
     "justificativa": "Explicação breve"
   },
   "sugestao_acao": {
     "tipo": "enviar_promocao|fidelizar|recuperar|nao_agir|acompanhar",
-    "descricao": "Ação específica recomendada",
-    "momento_ideal": "Dia/horário sugerido se aplicável"
+    "descricao": "Ação específica recomendada OU mensagem explícita de que nenhuma ação é necessária",
+    "momento_ideal": "Dia/horário sugerido se aplicável, ou null"
   }
 }
 
 CRITÉRIOS DE CLASSIFICAÇÃO:
 
-RISCO DE CHURN:
-- Baixo: Visita regular (últimos 15 dias), taxa comparecimento >80%
-- Médio: 16-45 dias sem visita OU queda de frequência
-- Alto: >45 dias sem visita OU muitos cancelamentos/no-shows
+RISCO DE PERDA:
+- Baixo: Visita regular (últimos 15 dias), taxa comparecimento >80%, padrão consistente
+- Médio: 16-30 dias sem visita OU queda de frequência OU alguns cancelamentos
+- Alto: >30 dias sem visita OU muitos cancelamentos/não comparecimentos
 
 SENSIBILIDADE A PROMOÇÕES:
-- Alta: Histórico de retorno após promoções, responde bem
-- Média: Responde ocasionalmente
-- Baixa: Não demonstra influência por promoções
+- Alta: Histórico de retorno após promoções, responde bem a incentivos
+- Média: Responde ocasionalmente, comportamento misto
+- Baixa: Não demonstra influência por promoções, prefere experiência
 
-PROBABILIDADE DE RETORNO:
-- Alta: Padrão consistente, última visita recente
-- Média: Padrão irregular mas ainda engajado
-- Baixa: Longo período sem visita, histórico negativo
+RETENÇÃO (30 DIAS):
+- Alta: Padrão consistente, última visita recente (<10 dias), engajamento contínuo
+- Média: Padrão irregular mas ainda engajado, 10-21 dias sem visita
+- Baixa: Longo período sem visita (>21 dias), histórico negativo
+
+EXEMPLOS DE SAÍDA PARA CLIENTES SAUDÁVEIS:
+{
+  "sugestao_acao": {
+    "tipo": "nao_agir",
+    "descricao": "Nenhuma ação promocional recomendada no momento. Cliente apresenta padrão consistente de recorrência e bom engajamento orgânico.",
+    "momento_ideal": null
+  }
+}
 
 Responda APENAS com o JSON, sem explicações adicionais.`;
 
