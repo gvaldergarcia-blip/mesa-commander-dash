@@ -1,14 +1,12 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Users, History, Megaphone } from "lucide-react";
+import { Send, Users } from "lucide-react";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { useCustomerInsights, generateInsightsForCustomer } from "@/hooks/useCustomerInsights";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { CustomerStrategicKPIs } from "@/components/customers/CustomerStrategicKPIs";
 import { CustomerListPremium } from "@/components/customers/CustomerListPremium";
 import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
@@ -197,110 +195,36 @@ export default function CustomersPage() {
         onFilterClick={handleFilterClick}
       />
 
-      {/* Tabs */}
-      <Tabs defaultValue="customers" className="space-y-4">
-        <TabsList className="bg-muted/50">
-          <TabsTrigger value="customers" className="gap-2 data-[state=active]:bg-background">
-            <Users className="w-4 h-4" />
-            Clientes
-            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-              {filteredCustomers.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="campaigns" className="gap-2 data-[state=active]:bg-background">
-            <History className="w-4 h-4" />
-            Campanhas
-            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-              {campaignStats.totalCampaigns}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Tab: Clientes */}
-        <TabsContent value="customers" className="space-y-4 mt-4">
-          {/* Filters */}
-          <Card className="border-dashed">
-            <CardContent className="p-4">
-              <CustomerFiltersClean
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
-                sourceFilter={sourceFilter}
-                onSourceFilterChange={setSourceFilter}
-                marketingFilter={marketingFilter}
-                onMarketingFilterChange={setMarketingFilter}
-                periodFilter={periodFilter}
-                onPeriodFilterChange={setPeriodFilter}
-                sortBy={sortBy}
-                onSortByChange={setSortBy}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Customer List Premium */}
-          <CustomerListPremium
-            customers={filteredCustomers}
-            onViewProfile={(customerId) => navigate(`/customers/${customerId}`)}
-            onSendPromotion={(customer) => {
-              setSelectedCustomer(customer);
-              setPromotionDialogOpen(true);
-            }}
-            getInsightMessage={getInsightMessage}
+      {/* Filters */}
+      <Card className="border-dashed">
+        <CardContent className="p-4">
+          <CustomerFiltersClean
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            sourceFilter={sourceFilter}
+            onSourceFilterChange={setSourceFilter}
+            marketingFilter={marketingFilter}
+            onMarketingFilterChange={setMarketingFilter}
+            periodFilter={periodFilter}
+            onPeriodFilterChange={setPeriodFilter}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
           />
-        </TabsContent>
+        </CardContent>
+      </Card>
 
-        {/* Tab: Campanhas */}
-        <TabsContent value="campaigns" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Megaphone className="w-5 h-5" />
-                Campanhas de Marketing
-              </CardTitle>
-              <CardDescription>
-                Histórico de campanhas enviadas para seus clientes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {campaigns.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                    <Megaphone className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Nenhuma campanha enviada</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Crie sua primeira campanha para engajar seus clientes.
-                  </p>
-                  <Button onClick={() => setCampaignDialogOpen(true)} variant="outline">
-                    <Send className="w-4 h-4 mr-2" />
-                    Criar primeira campanha
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {campaigns.map((campaign) => (
-                    <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{campaign.title}</p>
-                        <p className="text-sm text-muted-foreground">{campaign.subject}</p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>
-                          {campaign.status === 'sent' ? 'Enviada' : campaign.status}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Customer List Premium */}
+      <CustomerListPremium
+        customers={filteredCustomers}
+        onViewProfile={(customerId) => navigate(`/customers/${customerId}`)}
+        onSendPromotion={(customer) => {
+          setSelectedCustomer(customer);
+          setPromotionDialogOpen(true);
+        }}
+        getInsightMessage={getInsightMessage}
+      />
 
       {/* Dialogs */}
       <CreateCampaignDialog

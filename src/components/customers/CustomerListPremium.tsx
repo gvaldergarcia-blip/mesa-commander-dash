@@ -1,4 +1,4 @@
-import { Eye, Send, Star, TrendingUp, Zap, AlertTriangle, Mail } from "lucide-react";
+import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -219,25 +219,6 @@ function CustomerRow({
 
           {/* Actions */}
           <div className="flex items-center gap-1 ml-auto">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-9 w-9 p-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewProfile(customer.id);
-                    }}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Ver perfil</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
