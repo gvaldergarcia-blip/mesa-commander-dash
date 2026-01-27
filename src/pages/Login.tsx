@@ -83,18 +83,24 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email: normalizedEmail,
         token: code,
         type: "email",
       });
       if (error) throw error;
 
-      toast({
-        title: "Login realizado",
-        description: "Você já pode acessar o painel do restaurante.",
-      });
-      navigate("/");
+      // Aguardar a sessão ser estabelecida antes de redirecionar
+      if (data.session) {
+        toast({
+          title: "Login realizado",
+          description: "Você já pode acessar o painel do restaurante.",
+        });
+        // Pequeno delay para garantir que a sessão seja persistida
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 100);
+      }
     } catch (err) {
       const error = err as Error;
       console.error("Erro ao verificar OTP:", error);
@@ -103,7 +109,6 @@ export default function Login() {
         description: error.message,
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
