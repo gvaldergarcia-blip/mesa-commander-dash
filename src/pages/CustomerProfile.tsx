@@ -223,8 +223,8 @@ export default function CustomerProfile() {
 
       setNotes(customerData.notes || '');
 
-      // Buscar histórico de visitas
-      await fetchVisitHistory(customerData.phone);
+      // Buscar histórico de visitas via Edge Function
+      await fetchVisitHistory(customerData.id, customerData.email, customerData.phone);
       
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
@@ -233,39 +233,45 @@ export default function CustomerProfile() {
     }
   };
 
-  const fetchVisitHistory = async (phone: string | null) => {
-    if (!phone) return;
-
+  const fetchVisitHistory = async (customerId: string, email?: string, phone?: string | null) => {
     try {
-      // Buscar entradas de fila concluídas
-      const { data: queueData } = await supabase
-        .from('queue_entries')
-        .select('id, seated_at, party_size, status, created_at')
-        .eq('phone', phone)
-        .in('status', ['seated', 'canceled', 'no_show'])
-        .order('created_at', { ascending: false })
-        .limit(20);
+      console.log('[CustomerProfile] Fetching history via Edge Function:', { customerId, email, phone });
+      
+      // Chamar Edge Function que busca dados do schema mesaclik
+      const { data, error } = await supabase.functions.invoke('get-customer-history', {
+        body: {
+          customer_id: customerId,
+          restaurant_id: RESTAURANT_ID,
+          email: email || '',
+          phone: phone && phone !== '—' ? phone : ''
+        }
+      });
 
-      // Buscar reservas
-      const { data: reservationData } = await supabase
-        .from('reservations')
-        .select('id, reservation_datetime, party_size, status, created_at')
-        .eq('phone', phone)
-        .order('reservation_datetime', { ascending: false })
-        .limit(20);
+      if (error) {
+        console.error('[CustomerProfile] Edge function error:', error);
+        return;
+      }
 
+      console.log('[CustomerProfile] History data received:', {
+        queue: data?.queue_history?.length || 0,
+        reservation: data?.reservation_history?.length || 0,
+        promotion: data?.promotion_history?.length || 0
+      });
+
+      // Mapear dados para o formato esperado
       const historyItems: VisitHistory[] = [
-        ...(queueData || []).map(q => ({
+        ...(data?.queue_history || []).map((q: any) => ({
           id: q.id,
           type: 'queue' as const,
           date: q.seated_at || q.created_at,
           party_size: q.party_size,
           status: q.status,
+          wait_time: q.wait_time,
         })),
-        ...(reservationData || []).map(r => ({
+        ...(data?.reservation_history || []).map((r: any) => ({
           id: r.id,
           type: 'reservation' as const,
-          date: r.reservation_datetime,
+          date: r.reserved_for || r.created_at,
           party_size: r.party_size,
           status: r.status,
         })),
@@ -273,24 +279,34 @@ export default function CustomerProfile() {
 
       setHistory(historyItems);
 
-      // Criar timeline de eventos
-      const timelineEvents: TimelineEvent[] = historyItems.slice(0, 10).map(item => ({
-        id: item.id,
-        type: item.type === 'queue' 
-          ? (item.status === 'seated' ? 'queue_completed' : 'queue_canceled')
-          : (item.status === 'completed' ? 'reservation_completed' : 'reservation_canceled'),
-        date: item.date,
-        description: item.type === 'queue'
-          ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : 'não compareceu'} • ${item.party_size} pessoa(s)`
-          : `Reserva ${item.status === 'completed' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
-        icon: item.status === 'seated' || item.status === 'completed' ? CheckCircle2 : XCircle,
-        color: item.status === 'seated' || item.status === 'completed' ? 'text-success' : 'text-destructive',
-      }));
+      // Criar timeline de eventos (incluindo promoções)
+      const allEvents = [
+        ...historyItems.slice(0, 15).map(item => ({
+          id: item.id,
+          type: item.type === 'queue' 
+            ? (item.status === 'seated' ? 'queue_completed' : 'queue_canceled')
+            : (item.status === 'completed' ? 'reservation_completed' : 'reservation_canceled') as TimelineEvent['type'],
+          date: item.date,
+          description: item.type === 'queue'
+            ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : 'não compareceu'} • ${item.party_size} pessoa(s)`
+            : `Reserva ${item.status === 'completed' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
+          icon: item.status === 'seated' || item.status === 'completed' ? CheckCircle2 : XCircle,
+          color: item.status === 'seated' || item.status === 'completed' ? 'text-success' : 'text-destructive',
+        })),
+        ...(data?.promotion_history || []).slice(0, 5).map((p: any) => ({
+          id: p.id,
+          type: 'promotion_sent' as TimelineEvent['type'],
+          date: p.created_at,
+          description: `Promoção enviada: ${p.subject}`,
+          icon: Send,
+          color: 'text-primary',
+        })),
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      setTimeline(timelineEvents);
+      setTimeline(allEvents.slice(0, 15));
 
     } catch (error) {
-      console.error('Erro ao carregar histórico:', error);
+      console.error('[CustomerProfile] Erro ao carregar histórico:', error);
     }
   };
 
