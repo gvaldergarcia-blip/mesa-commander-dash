@@ -284,25 +284,29 @@ export default function CustomerProfile() {
         }
 
         // Buscar reservas via mesaclik
-        const { data: reservationData } = await supabase
-          .schema('mesaclik')
-          .from('reservations')
-          .select('id, reservation_at, party_size, status, created_at, phone, email')
-          .eq('restaurant_id', RESTAURANT_ID)
-          .or(filterString)
-          .order('reservation_at', { ascending: false })
-          .limit(50);
+        // Observação: a tabela mesaclik.reservations não possui coluna "email".
+        // Então só conseguimos correlacionar reservas por telefone.
+        if (validPhone) {
+          const { data: reservationData } = await supabase
+            .schema('mesaclik')
+            .from('reservations')
+            .select('id, reservation_at, party_size, status, created_at, phone')
+            .eq('restaurant_id', RESTAURANT_ID)
+            .eq('phone', validPhone)
+            .order('reservation_at', { ascending: false })
+            .limit(50);
 
-        if (reservationData) {
-          reservationData.forEach(r => {
-            historyItems.push({
-              id: r.id,
-              type: 'reservation',
-              date: r.reservation_at,
-              party_size: r.party_size,
-              status: r.status,
+          if (reservationData) {
+            reservationData.forEach(r => {
+              historyItems.push({
+                id: r.id,
+                type: 'reservation',
+                date: r.reservation_at,
+                party_size: r.party_size,
+                status: r.status,
+              });
             });
-          });
+          }
         }
       }
 
