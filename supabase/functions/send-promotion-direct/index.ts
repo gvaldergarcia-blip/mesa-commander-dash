@@ -91,13 +91,35 @@ interface PromotionEmailRequest {
   expires_at?: string;
   cta_text?: string;
   cta_url?: string;
+  image_url?: string;
   restaurant_name?: string;
 }
 
 // Template baseado no layout de e-mail de fila (que funciona no Gmail)
 const buildPromotionHtml = (data: PromotionEmailRequest): string => {
-  const { to_name, message, coupon_code, expires_at, cta_text, cta_url, restaurant_name } = data;
+  const { to_name, message, coupon_code, expires_at, cta_url, image_url, restaurant_name } = data;
   const name = to_name || 'Cliente';
+
+  // Formatar data de expiração
+  const formattedExpiry = expires_at 
+    ? new Date(expires_at).toLocaleDateString('pt-BR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      })
+    : null;
+
+  const imageBlock = image_url
+    ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
+        <tr>
+          <td align="center">
+            <img src="${image_url}" alt="Imagem da promoção" style="max-width: 100%; height: auto; border-radius: 12px; display: block;" />
+          </td>
+        </tr>
+      </table>
+    `
+    : '';
 
   const couponBlock = coupon_code
     ? `
@@ -105,7 +127,7 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
         <tr>
           <td style="padding: 20px; text-align: center;">
             <p style="margin: 0; color: #9a3412; font-size: 14px; font-weight: 600;">Cupom: ${coupon_code}</p>
-            ${expires_at ? `<p style="margin: 8px 0 0; color: #71717a; font-size: 12px;">Válido até ${new Date(expires_at).toLocaleDateString('pt-BR')}</p>` : ''}
+            ${formattedExpiry ? `<p style="margin: 8px 0 0; color: #71717a; font-size: 12px;">Válido até ${formattedExpiry}</p>` : ''}
           </td>
         </tr>
       </table>
@@ -152,6 +174,7 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
                 <td style="padding: 32px;">
                   <p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Olá <strong>${name}</strong>!</p>
                   <p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+                  ${imageBlock}
                   ${couponBlock}
                   ${ctaBlock}
                   <p style="margin: 0; color: #71717a; font-size: 14px; line-height: 1.6; text-align: center;">
