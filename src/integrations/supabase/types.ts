@@ -1671,6 +1671,14 @@ export type Database = {
         Args: { p_entry_id: string; p_status: string }
         Returns: undefined
       }
+      update_reservation_status_panel: {
+        Args: {
+          p_cancel_reason?: string
+          p_reservation_id: string
+          p_status: Database["public"]["Enums"]["reservation_status"]
+        }
+        Returns: Json
+      }
       upsert_customer_from_queue: {
         Args: { p_email?: string; p_name: string; p_phone: string }
         Returns: string
