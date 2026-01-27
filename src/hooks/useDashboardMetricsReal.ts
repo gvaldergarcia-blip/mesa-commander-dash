@@ -176,106 +176,86 @@ export function useDashboardMetricsReal() {
         weeklyGrowth = 100;
       }
 
-      // 9. ATIVIDADE RECENTE - Somente eventos de HOJE
-      const [queueActivity, reservationActivity] = await Promise.all([
-        // Eventos da fila hoje (qualquer mudança/timestamp do dia)
-        supabase
-          .schema('mesaclik')
-          .from('queue_entries')
-          .select('id, name, party_size, status, created_at, updated_at, called_at, seated_at, canceled_at')
-          .eq('restaurant_id', RESTAURANT_ID)
-          .or(
-            `created_at.gte.${todayStartISO},updated_at.gte.${todayStartISO},called_at.gte.${todayStartISO},seated_at.gte.${todayStartISO},canceled_at.gte.${todayStartISO}`
-          )
-          .order('updated_at', { ascending: false })
-          .limit(15),
-        
-        // Eventos de reservas hoje
-        supabase
-          .schema('mesaclik')
-          .from('reservations')
-          .select('id, name, party_size, status, created_at, updated_at, confirmed_at, completed_at, canceled_at, reserved_for')
-          .eq('restaurant_id', RESTAURANT_ID)
-          .or(
-            `created_at.gte.${todayStartISO},updated_at.gte.${todayStartISO},confirmed_at.gte.${todayStartISO},completed_at.gte.${todayStartISO},canceled_at.gte.${todayStartISO}`
-          )
-          .order('updated_at', { ascending: false })
-          .limit(15)
-      ]);
+      // 9. ATIVIDADE RECENTE - Usar dados da RPC já carregada (queueData) + reservationsData
+      // Filtrar entradas da fila com atividade hoje
+      const queueActivityToday = queueData.filter((e) => {
+        return isBetween(e.created_at) || isBetween(e.called_at) || isBetween(e.seated_at) || isBetween(e.canceled_at);
+      }).slice(0, 15);
+
+      // Filtrar reservas com atividade hoje
+      const reservationActivityToday = reservationsData.filter((r) => {
+        return isBetween(r.created_at) || isBetween(r.confirmed_at) || isBetween(r.completed_at) || isBetween(r.canceled_at);
+      }).slice(0, 15);
 
       // Montar feed de atividade
       const activityItems: RecentActivityItem[] = [];
 
       // Adicionar eventos da fila
-      if (queueActivity.data) {
-        for (const entry of queueActivity.data) {
-          const statusMap: Record<string, string> = {
-            'waiting': 'Adicionado à fila',
-            'called': 'Chamado para mesa',
-            'seated': 'Sentado',
-            'canceled': 'Cancelado',
-            'no_show': 'Não compareceu'
-          };
+      for (const entry of queueActivityToday) {
+        const statusMap: Record<string, string> = {
+          'waiting': 'Adicionado à fila',
+          'called': 'Chamado para mesa',
+          'seated': 'Sentado',
+          'canceled': 'Cancelado',
+          'no_show': 'Não compareceu'
+        };
 
-          // Determinar timestamp baseado no status
-          let timestamp: Date;
-          if (entry.status === 'seated' && entry.seated_at) {
-            timestamp = new Date(entry.seated_at);
-          } else if (entry.status === 'called' && entry.called_at) {
-            timestamp = new Date(entry.called_at);
-          } else if (entry.status === 'canceled' && entry.canceled_at) {
-            timestamp = new Date(entry.canceled_at);
-          } else {
-            timestamp = new Date(entry.updated_at || entry.created_at);
-          }
-
-          activityItems.push({
-            id: `queue-${entry.id}`,
-            type: 'queue',
-            customer: entry.name || 'Cliente',
-            action: statusMap[entry.status] || entry.status,
-            time: timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            timestamp,
-            party: entry.party_size || 0,
-            status: entry.status
-          });
+        // Determinar timestamp baseado no status
+        let timestamp: Date;
+        if (entry.status === 'seated' && entry.seated_at) {
+          timestamp = new Date(entry.seated_at);
+        } else if (entry.status === 'called' && entry.called_at) {
+          timestamp = new Date(entry.called_at);
+        } else if (entry.status === 'canceled' && entry.canceled_at) {
+          timestamp = new Date(entry.canceled_at);
+        } else {
+          timestamp = new Date(entry.updated_at || entry.created_at);
         }
+
+        activityItems.push({
+          id: `queue-${entry.entry_id}`,
+          type: 'queue',
+          customer: entry.customer_name || 'Cliente',
+          action: statusMap[entry.status] || entry.status,
+          time: timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          timestamp,
+          party: entry.people || 0,
+          status: entry.status
+        });
       }
 
       // Adicionar eventos de reservas
-      if (reservationActivity.data) {
-        for (const res of reservationActivity.data) {
-          const statusMap: Record<string, string> = {
-            'pending': 'Reserva pendente',
-            'confirmed': 'Reserva confirmada',
-            'completed': 'Reserva concluída',
-            'canceled': 'Reserva cancelada',
-            'no_show': 'Não compareceu'
-          };
+      for (const res of reservationActivityToday) {
+        const statusMap: Record<string, string> = {
+          'pending': 'Reserva pendente',
+          'confirmed': 'Reserva confirmada',
+          'completed': 'Reserva concluída',
+          'canceled': 'Reserva cancelada',
+          'no_show': 'Não compareceu'
+        };
 
-          // Determinar timestamp baseado no status
-          let timestamp: Date;
-          if (res.status === 'confirmed' && res.confirmed_at) {
-            timestamp = new Date(res.confirmed_at);
-          } else if (res.status === 'completed' && res.completed_at) {
-            timestamp = new Date(res.completed_at);
-          } else if (res.status === 'canceled' && res.canceled_at) {
-            timestamp = new Date(res.canceled_at);
-          } else {
-            timestamp = new Date(res.updated_at || res.created_at);
-          }
-
-          activityItems.push({
-            id: `res-${res.id}`,
-            type: 'reservation',
-            customer: res.name || 'Cliente',
-            action: statusMap[res.status] || res.status,
-            time: timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            timestamp,
-            party: res.party_size || 0,
-            status: res.status
-          });
+        // Determinar timestamp baseado no status
+        let timestamp: Date;
+        if (res.status === 'confirmed' && res.confirmed_at) {
+          timestamp = new Date(res.confirmed_at);
+        } else if (res.status === 'completed' && res.completed_at) {
+          timestamp = new Date(res.completed_at);
+        } else if (res.status === 'canceled' && res.canceled_at) {
+          timestamp = new Date(res.canceled_at);
+        } else {
+          timestamp = new Date(res.created_at);
         }
+
+        activityItems.push({
+          id: `res-${res.id}`,
+          type: 'reservation',
+          customer: 'Cliente',
+          action: statusMap[res.status] || res.status,
+          time: timestamp.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          timestamp,
+          party: res.party_size || 0,
+          status: res.status
+        });
       }
 
       // Ordenar por timestamp decrescente e limitar
