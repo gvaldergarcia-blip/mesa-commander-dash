@@ -11,6 +11,7 @@ interface PromotionData {
   expires_at?: string;
   cta_text?: string;
   cta_url?: string;
+  image_url?: string;
   restaurant_name?: string;
 }
 

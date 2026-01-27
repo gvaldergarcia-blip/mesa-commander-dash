@@ -749,6 +749,7 @@ export default function CustomerProfile() {
               expires_at: data.expiresAt,
               cta_text: data.ctaText,
               cta_url: data.ctaUrl,
+              image_url: data.imageUrl,
             });
             setPromotionDialogOpen(false);
           }}
