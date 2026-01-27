@@ -341,11 +341,15 @@ export function SendPromotionDialog({
                 <p className="text-xs text-muted-foreground">
                   JPG, PNG até 5MB
                 </p>
+
+                <div className="flex items-center justify-center my-2">
+                  <span className="text-sm text-muted-foreground font-medium">ou</span>
+                </div>
               </div>
 
               {/* Link do botão */}
               <div className="space-y-2">
-                <Label htmlFor="ctaUrl">Link do botão "Ver oferta" (opcional)</Label>
+                <Label htmlFor="ctaUrl">Link do botão (opcional)</Label>
                 <Input
                   id="ctaUrl"
                   placeholder="https://..."
