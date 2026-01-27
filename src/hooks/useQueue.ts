@@ -34,29 +34,36 @@ export function useQueue() {
   const fetchQueue = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Usar RPC para buscar entradas (bypassa RLS com SECURITY DEFINER)
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .schema('mesaclik')
         .rpc('get_queue_entries', {
           p_restaurant_id: restaurantId,
           p_hours_back: 24
         });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setQueueEntries(data || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar fila';
       setError(message);
-      toast({
-        title: 'Erro',
-        description: message,
-        variant: 'destructive',
-      });
     } finally {
       setLoading(false);
     }
-  }, [restaurantId, toast]);
+  }, [restaurantId]);
+
+  // Show error toast via useEffect to avoid unstable callback references
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: error,
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
   useEffect(() => {
     fetchQueue();
