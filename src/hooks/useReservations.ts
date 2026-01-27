@@ -158,47 +158,25 @@ export function useReservations() {
     try {
       console.log('[useReservations] Atualizando status:', { reservationId, status, cancelReason });
 
-      // IMPORTANTE: Evitar SELECT direto em mesaclik.reservations aqui.
-      // Em alguns ambientes/roles (ex: anon no painel), o SELECT pode retornar 0 linhas por RLS,
-      // causando PGRST116 ao usar `.single()`. Como a tela já carrega via view `mesaclik.v_reservations`,
-      // reaproveitamos os dados já em memória.
+      // Usar dados já carregados da view (evita SELECT com RLS)
       const reservationFromState = reservations.find((r) => r.reservation_id === reservationId);
       const reservationData = reservationFromState
         ? { name: reservationFromState.customer_name, phone: reservationFromState.phone }
         : null;
 
-      const updateData: any = { status };
-      
-      // Add timestamp fields based on status
-      if (status === 'confirmed') {
-        updateData.confirmed_at = new Date().toISOString();
-      } else if (status === 'canceled') {
-        updateData.canceled_at = new Date().toISOString();
-        updateData.canceled_by = 'admin';
-        if (cancelReason) {
-          updateData.cancel_reason = cancelReason;
-        }
-      } else if (status === 'no_show') {
-        updateData.no_show_at = new Date().toISOString();
-      } else if (status === 'completed') {
-        updateData.completed_at = new Date().toISOString();
-      }
-
-      console.log('[useReservations] Update data:', updateData);
-      console.log('[useReservations] Reservation ID:', reservationId);
-
-      const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('reservations')
-        .update(updateData)
-        .eq('id', reservationId)
-        .select();
+      // IMPORTANTE: update via RPC (SECURITY DEFINER) para evitar bloqueio por RLS,
+      // seguindo o mesmo padrão usado na criação de reservas e na Fila.
+      const { data, error } = await supabase.rpc('update_reservation_status_panel', {
+        p_reservation_id: reservationId,
+        p_status: status,
+        p_cancel_reason: cancelReason ?? null,
+      });
 
       if (error) {
         console.error('[useReservations] Erro no update:', error);
         throw error;
       }
-      
+
       console.log('[useReservations] Status atualizado com sucesso:', data);
 
       // Se status for 'completed', registrar/atualizar em customers
