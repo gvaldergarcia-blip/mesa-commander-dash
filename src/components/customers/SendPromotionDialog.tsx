@@ -349,7 +349,7 @@ export function SendPromotionDialog({
 
               {/* Link do botão */}
               <div className="space-y-2">
-                <Label htmlFor="ctaUrl">Link do botão (opcional)</Label>
+                <Label htmlFor="ctaUrl">Link da imagem (opcional)</Label>
                 <Input
                   id="ctaUrl"
                   placeholder="https://..."
