@@ -44,7 +44,7 @@ export default function Dashboard() {
   
   // Reservation dialog state
   const [resName, setResName] = useState("");
-  const [resPhone, setResPhone] = useState("");
+  const [resEmail, setResEmail] = useState("");
   const [resDate, setResDate] = useState("");
   const [resTime, setResTime] = useState("");
   const [resPeople, setResPeople] = useState("2");
@@ -69,13 +69,13 @@ export default function Dashboard() {
   };
   
   const handleAddReservation = async () => {
-    if (!resName || !resPhone || !resDate || !resTime) return;
+    if (!resName || !resEmail || !resDate || !resTime) return;
     
     const dateTime = `${resDate}T${resTime}:00`;
     
     await createReservation({
       customer_name: resName,
-      phone: resPhone,
+      customer_email: resEmail,
       starts_at: dateTime,
       people: parseInt(resPeople),
       notes: resNotes || undefined,
@@ -83,7 +83,7 @@ export default function Dashboard() {
     
     // Reset
     setResName("");
-    setResPhone("");
+    setResEmail("");
     setResDate("");
     setResTime("");
     setResPeople("2");
@@ -256,9 +256,10 @@ export default function Dashboard() {
                     onChange={(e) => setResName(e.target.value)}
                   />
                   <Input 
-                    placeholder="Telefone"
-                    value={resPhone}
-                    onChange={(e) => setResPhone(e.target.value)}
+                    type="email"
+                    placeholder="E-mail do cliente"
+                    value={resEmail}
+                    onChange={(e) => setResEmail(e.target.value)}
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Input 
@@ -290,7 +291,7 @@ export default function Dashboard() {
                   <Button 
                     className="w-full"
                     onClick={handleAddReservation}
-                    disabled={!resName || !resPhone || !resDate || !resTime}
+                    disabled={!resName || !resEmail || !resDate || !resTime}
                   >
                     Criar Reserva
                   </Button>

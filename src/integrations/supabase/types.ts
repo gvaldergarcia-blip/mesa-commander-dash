@@ -933,12 +933,13 @@ export type Database = {
           canceled_at: string | null
           canceled_by: string | null
           created_at: string
+          customer_email: string | null
           customer_id: string | null
           customer_name: string
           id: string
           notes: string | null
           party_size: number
-          phone: string
+          phone: string | null
           reservation_datetime: string
           restaurant_id: string
           status: Database["public"]["Enums"]["reservation_status"]
@@ -950,12 +951,13 @@ export type Database = {
           canceled_at?: string | null
           canceled_by?: string | null
           created_at?: string
+          customer_email?: string | null
           customer_id?: string | null
           customer_name: string
           id?: string
           notes?: string | null
           party_size: number
-          phone: string
+          phone?: string | null
           reservation_datetime: string
           restaurant_id: string
           status?: Database["public"]["Enums"]["reservation_status"]
@@ -967,12 +969,13 @@ export type Database = {
           canceled_at?: string | null
           canceled_by?: string | null
           created_at?: string
+          customer_email?: string | null
           customer_id?: string | null
           customer_name?: string
           id?: string
           notes?: string | null
           party_size?: number
-          phone?: string
+          phone?: string | null
           reservation_datetime?: string
           restaurant_id?: string
           status?: Database["public"]["Enums"]["reservation_status"]

@@ -89,7 +89,7 @@ export default function Reservations() {
 
   // Form state
   const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [newPeople, setNewPeople] = useState("2");
@@ -105,7 +105,7 @@ export default function Reservations() {
       // Validar com Zod
       const validationResult = reservationSchema.safeParse({
         customer_name: newName,
-        phone: newPhone,
+        customer_email: newEmail,
         date: newDate,
         time: newTime,
         party_size: parseInt(newPeople),
@@ -156,7 +156,7 @@ export default function Reservations() {
 
       // Reset form
       setNewName("");
-      setNewPhone("");
+      setNewEmail("");
       setNewDate("");
       setNewTime("");
       setNewPeople("2");
@@ -391,15 +391,16 @@ export default function Reservations() {
 
               <div>
                 <Input 
-                  placeholder="Telefone (ex: +5511999999999)"
-                  value={newPhone}
+                  type="email"
+                  placeholder="E-mail do cliente"
+                  value={newEmail}
                   onChange={(e) => {
-                    setNewPhone(e.target.value);
-                    if (formErrors.phone) setFormErrors({...formErrors, phone: ''});
+                    setNewEmail(e.target.value);
+                    if (formErrors.customer_email) setFormErrors({...formErrors, customer_email: ''});
                   }}
                 />
-                {formErrors.phone && (
-                  <p className="text-sm text-destructive mt-1">{formErrors.phone}</p>
+                {formErrors.customer_email && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.customer_email}</p>
                 )}
               </div>
 
@@ -452,7 +453,7 @@ export default function Reservations() {
               <Button 
                 className="w-full"
                 onClick={handleCreateReservation}
-                disabled={isSubmitting || !newName || !newPhone || !newDate || !newTime}
+                disabled={isSubmitting || !newName || !newEmail || !newDate || !newTime}
               >
                 {isSubmitting ? "Criando..." : "Criar Reserva"}
               </Button>

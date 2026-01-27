@@ -77,7 +77,7 @@ export function useReservations() {
 
   useReservationsRealtime(fetchReservations);
 
-  const createReservation = async (reservation: { customer_name: string; phone: string; people: number; starts_at: string; notes?: string }) => {
+  const createReservation = async (reservation: { customer_name: string; customer_email: string; people: number; starts_at: string; notes?: string }) => {
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
@@ -85,7 +85,8 @@ export function useReservations() {
         .insert([
           {
             name: reservation.customer_name,
-            phone: reservation.phone,
+            customer_email: reservation.customer_email,
+            phone: null, // Telefone agora é opcional
             party_size: reservation.people,
             reserved_for: reservation.starts_at,
             notes: reservation.notes,
@@ -99,23 +100,46 @@ export function useReservations() {
 
       if (error) throw error;
 
-      // Enviar SMS com link da reserva
+      // Buscar informações do restaurante para o email
+      const { data: restaurantData } = await supabase
+        .from('restaurants')
+        .select('name, address, cuisine')
+        .eq('id', restaurantId)
+        .single();
+
+      // Enviar e-mail de confirmação via Resend
       try {
-        const { sendSms, SMS_TEMPLATES } = await import('@/utils/sms');
-        const reservationUrl = `${window.location.origin}/reserva/final?code=${data.id}`;
-        const dateTime = new Date(reservation.starts_at).toLocaleString('pt-BR', {
+        const reservationUrl = `${window.location.origin}/reserva/final?id=${data.id}`;
+        const dateTime = new Date(reservation.starts_at);
+        const formattedDate = dateTime.toLocaleDateString('pt-BR', {
+          weekday: 'long',
           day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const formattedTime = dateTime.toLocaleTimeString('pt-BR', {
           hour: '2-digit',
           minute: '2-digit'
         });
-        
-        const message = `Olá ${reservation.customer_name}! Sua reserva para ${dateTime} foi criada. Acompanhe: ${reservationUrl}`;
-        await sendSms(reservation.phone, message);
-        console.log('SMS enviado com sucesso para reserva:', data.id);
-      } catch (smsError) {
-        console.warn('Erro ao enviar SMS (não crítico):', smsError);
+
+        await supabase.functions.invoke('send-reservation-email', {
+          body: {
+            email: reservation.customer_email,
+            customer_name: reservation.customer_name,
+            restaurant_name: restaurantData?.name || 'Restaurante',
+            restaurant_address: restaurantData?.address || null,
+            restaurant_cuisine: restaurantData?.cuisine || null,
+            reservation_date: formattedDate,
+            reservation_time: formattedTime,
+            party_size: reservation.people,
+            notes: reservation.notes || null,
+            reservation_url: reservationUrl,
+            type: 'confirmation'
+          }
+        });
+        console.log('E-mail de confirmação enviado para reserva:', data.id);
+      } catch (emailError) {
+        console.warn('Erro ao enviar e-mail (não crítico):', emailError);
       }
 
       toast({
