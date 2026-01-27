@@ -11,11 +11,13 @@ import {
   ChefHat,
   Menu,
   X,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
-import { ThemeToggle } from "./ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 
 const allNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
@@ -35,97 +37,114 @@ const navigation = allNavigation.filter((item) => {
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className={cn(
-      "bg-sidebar-background text-sidebar-foreground flex flex-col transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto",
+      "bg-sidebar-background text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
       isCollapsed ? "w-16" : "w-64"
     )}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-        <div className={cn(
-          "flex items-center space-x-3 transition-opacity",
-          isCollapsed && "opacity-0 w-0 overflow-hidden"
-        )}>
-          <div className="bg-primary p-2 rounded-lg">
-            <ChefHat className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold">MesaClik</h1>
-            <p className="text-xs text-sidebar-foreground/70">Painel de Controle</p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-sidebar-foreground hover:bg-sidebar-accent"
-        >
-          {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </Button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1">
-        {navigation.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.href}
-            end={item.href === "/"}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group relative",
-                isActive
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                  : "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-              )
-            }
-          >
-            <item.icon className="h-5 w-5 shrink-0" />
-            <span className={cn(
-              "ml-3 transition-opacity duration-200",
-              isCollapsed && "opacity-0 w-0 overflow-hidden"
-            )}>
-              {item.name}
-            </span>
-            
-            {/* Tooltip for collapsed state */}
-            {isCollapsed && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-md border">
-                {item.name}
-              </div>
-            )}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* Footer with Theme Toggle */}
-      <div className="p-4 border-t border-sidebar-border space-y-3">
-        {/* Theme Toggle */}
-        <div className={cn(
-          "flex items-center",
-          isCollapsed ? "justify-center" : "justify-between"
-        )}>
-          {!isCollapsed && (
-            <span className="text-xs text-sidebar-foreground/70">Tema</span>
-          )}
-          <ThemeToggle />
-        </div>
-        
-        {/* User Info */}
-        <div className={cn(
-          "flex items-center space-x-3",
-          isCollapsed && "justify-center"
-        )}>
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-medium text-primary-foreground">R</span>
-          </div>
+      {/* Top Section: Header + Navigation */}
+      <div>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-sidebar-border/50">
           <div className={cn(
-            "transition-opacity duration-200 min-w-0",
+            "flex items-center space-x-3 transition-all duration-200",
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
-            <p className="text-sm font-medium truncate">Restaurante Demo</p>
-            <p className="text-xs text-sidebar-foreground/70">Administrador</p>
+            <div className="bg-primary p-2 rounded-lg shadow-sm">
+              <ChefHat className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold tracking-tight">MesaClik</h1>
+              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Painel</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+          >
+            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="px-3 py-4">
+          <div className="space-y-1">
+            {navigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                end={item.href === "/"}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
+                  )
+                }
+              >
+                <item.icon className="h-[18px] w-[18px] shrink-0" />
+                <span className={cn(
+                  "ml-3 transition-all duration-200",
+                  isCollapsed && "opacity-0 w-0 overflow-hidden ml-0"
+                )}>
+                  {item.name}
+                </span>
+                
+                {/* Tooltip for collapsed state */}
+                {isCollapsed && (
+                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-popover text-popover-foreground text-xs font-medium rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50 shadow-lg border">
+                    {item.name}
+                  </div>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      </div>
+
+      {/* Footer Section */}
+      <div className="border-t border-sidebar-border/50 p-3 space-y-3 bg-sidebar-accent/20">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150",
+            "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          {theme === "dark" ? (
+            <Moon className="h-4 w-4 shrink-0" />
+          ) : (
+            <Sun className="h-4 w-4 shrink-0" />
+          )}
+          <span className={cn(
+            "transition-all duration-200",
+            isCollapsed && "opacity-0 w-0 overflow-hidden"
+          )}>
+            {theme === "dark" ? "Modo Escuro" : "Modo Claro"}
+          </span>
+        </button>
+        
+        {/* Restaurant Info */}
+        <div className={cn(
+          "flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30",
+          isCollapsed && "justify-center px-2"
+        )}>
+          <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-semibold text-primary">R</span>
+          </div>
+          <div className={cn(
+            "min-w-0 transition-all duration-200",
+            isCollapsed && "opacity-0 w-0 overflow-hidden"
+          )}>
+            <p className="text-sm font-medium truncate text-sidebar-foreground">Restaurante Demo</p>
+            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Administrador</p>
           </div>
         </div>
       </div>
