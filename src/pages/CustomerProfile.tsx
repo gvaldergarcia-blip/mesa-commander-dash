@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
-  Phone, 
   Mail, 
   Calendar, 
   TrendingUp, 
@@ -22,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase/client";
@@ -31,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
+import { CustomerEvolutionChart } from "@/components/customers/CustomerEvolutionChart";
+import { CustomerBehaviorInsights } from "@/components/customers/CustomerBehaviorInsights";
 
 type CustomerStatus = 'vip' | 'frequent' | 'new' | 'at_risk' | 'active';
 
@@ -50,8 +50,7 @@ type CustomerData = {
   status: CustomerStatus;
   days_since_last_visit?: number;
   notes?: string;
-  avg_party_size?: number;
-  preferred_time?: string;
+  source: 'restaurant_customers' | 'customers';
 };
 
 type VisitHistory = {
@@ -70,6 +69,13 @@ type TimelineEvent = {
   description: string;
   icon: typeof Star;
   color: string;
+};
+
+type PromotionHistory = {
+  id: string;
+  date: string;
+  subject: string;
+  status: string;
 };
 
 const statusConfig: Record<CustomerStatus, { label: string; className: string; icon: typeof Star }> = {
@@ -109,6 +115,7 @@ export default function CustomerProfile() {
   const [customer, setCustomer] = useState<CustomerData | null>(null);
   const [history, setHistory] = useState<VisitHistory[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [promotions, setPromotions] = useState<PromotionHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
@@ -125,11 +132,10 @@ export default function CustomerProfile() {
     try {
       setLoading(true);
 
-      // Buscar dados do cliente
-      // O customerId pode vir de restaurant_customers (CRM) ou customers (global)
       let customerData = null;
+      let source: 'restaurant_customers' | 'customers' = 'restaurant_customers';
       
-      // 1. Tentar primeiro na tabela restaurant_customers (fonte principal da lista)
+      // 1. Tentar primeiro na tabela restaurant_customers (CRM por restaurante)
       const { data: restaurantCustomer } = await supabase
         .from('restaurant_customers')
         .select('*')
@@ -137,13 +143,12 @@ export default function CustomerProfile() {
         .maybeSingle();
       
       if (restaurantCustomer) {
-        // Mapear dados de restaurant_customers para o formato esperado
         customerData = {
           id: restaurantCustomer.id,
           name: restaurantCustomer.customer_name || 'Sem nome',
-          phone: restaurantCustomer.customer_phone,
+          phone: restaurantCustomer.customer_phone || '',
           email: restaurantCustomer.customer_email,
-          total_visits: restaurantCustomer.total_visits || 0,
+          total_visits: restaurantCustomer.total_visits || (restaurantCustomer.total_queue_visits + restaurantCustomer.total_reservation_visits) || 0,
           queue_completed: restaurantCustomer.total_queue_visits || 0,
           reservations_completed: restaurantCustomer.total_reservation_visits || 0,
           last_visit_date: restaurantCustomer.last_seen_at,
@@ -151,8 +156,9 @@ export default function CustomerProfile() {
           created_at: restaurantCustomer.created_at,
           vip_status: restaurantCustomer.vip || false,
           marketing_opt_in: restaurantCustomer.marketing_optin || false,
-          notes: null,
+          notes: restaurantCustomer.internal_notes,
         };
+        source = 'restaurant_customers';
       } else {
         // 2. Tentar na tabela customers (global) por ID
         const { data: byId } = await supabase
@@ -163,6 +169,7 @@ export default function CustomerProfile() {
         
         if (byId) {
           customerData = byId;
+          source = 'customers';
         } else {
           // 3. Tentar por telefone
           const { data: byPhone } = await supabase
@@ -173,6 +180,7 @@ export default function CustomerProfile() {
           
           if (byPhone) {
             customerData = byPhone;
+            source = 'customers';
           }
         }
       }
@@ -219,12 +227,16 @@ export default function CustomerProfile() {
         status,
         days_since_last_visit: daysSinceLastVisit ?? undefined,
         notes: customerData.notes,
+        source,
       });
 
       setNotes(customerData.notes || '');
 
-      // Buscar histórico de visitas
-      await fetchVisitHistory(customerData.phone);
+      // Buscar histórico de visitas e promoções
+      await Promise.all([
+        fetchVisitHistory(customerData.phone, customerData.email),
+        fetchPromotionHistory(customerData.email, customerData.id)
+      ]);
       
     } catch (error) {
       console.error('Erro ao carregar dados do cliente:', error);
@@ -233,64 +245,110 @@ export default function CustomerProfile() {
     }
   };
 
-  const fetchVisitHistory = async (phone: string | null) => {
-    if (!phone) return;
-
+  const fetchVisitHistory = async (phone: string | null, email: string | null) => {
     try {
-      // Buscar entradas de fila concluídas
-      const { data: queueData } = await supabase
-        .from('queue_entries')
-        .select('id, seated_at, party_size, status, created_at')
-        .eq('phone', phone)
-        .in('status', ['seated', 'canceled', 'no_show'])
-        .order('created_at', { ascending: false })
-        .limit(20);
+      const historyItems: VisitHistory[] = [];
+      const timelineEvents: TimelineEvent[] = [];
 
-      // Buscar reservas
-      const { data: reservationData } = await supabase
-        .from('reservations')
-        .select('id, reservation_datetime, party_size, status, created_at')
-        .eq('phone', phone)
-        .order('reservation_datetime', { ascending: false })
-        .limit(20);
+      // Buscar entradas de fila via mesaclik
+      if (phone || email) {
+        const { data: queueData } = await supabase
+          .schema('mesaclik')
+          .from('queue_entries')
+          .select('id, seated_at, party_size, status, created_at, email, phone')
+          .eq('restaurant_id', RESTAURANT_ID)
+          .or(phone ? `phone.eq.${phone}` : `email.eq.${email}`)
+          .in('status', ['seated', 'canceled', 'no_show', 'waiting', 'called'])
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-      const historyItems: VisitHistory[] = [
-        ...(queueData || []).map(q => ({
-          id: q.id,
-          type: 'queue' as const,
-          date: q.seated_at || q.created_at,
-          party_size: q.party_size,
-          status: q.status,
-        })),
-        ...(reservationData || []).map(r => ({
-          id: r.id,
-          type: 'reservation' as const,
-          date: r.reservation_datetime,
-          party_size: r.party_size,
-          status: r.status,
-        })),
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        if (queueData) {
+          queueData.forEach(q => {
+            historyItems.push({
+              id: q.id,
+              type: 'queue',
+              date: q.seated_at || q.created_at,
+              party_size: q.party_size,
+              status: q.status,
+            });
+          });
+        }
 
+        // Buscar reservas via mesaclik
+        const { data: reservationData } = await supabase
+          .schema('mesaclik')
+          .from('reservations')
+          .select('id, reservation_at, party_size, status, created_at, phone')
+          .eq('restaurant_id', RESTAURANT_ID)
+          .or(phone ? `phone.eq.${phone}` : `email.ilike.%${email}%`)
+          .order('reservation_at', { ascending: false })
+          .limit(50);
+
+        if (reservationData) {
+          reservationData.forEach(r => {
+            historyItems.push({
+              id: r.id,
+              type: 'reservation',
+              date: r.reservation_at,
+              party_size: r.party_size,
+              status: r.status,
+            });
+          });
+        }
+      }
+
+      // Ordenar por data
+      historyItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setHistory(historyItems);
 
       // Criar timeline de eventos
-      const timelineEvents: TimelineEvent[] = historyItems.slice(0, 10).map(item => ({
-        id: item.id,
-        type: item.type === 'queue' 
-          ? (item.status === 'seated' ? 'queue_completed' : 'queue_canceled')
-          : (item.status === 'completed' ? 'reservation_completed' : 'reservation_canceled'),
-        date: item.date,
-        description: item.type === 'queue'
-          ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : 'não compareceu'} • ${item.party_size} pessoa(s)`
-          : `Reserva ${item.status === 'completed' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
-        icon: item.status === 'seated' || item.status === 'completed' ? CheckCircle2 : XCircle,
-        color: item.status === 'seated' || item.status === 'completed' ? 'text-success' : 'text-destructive',
-      }));
+      historyItems.slice(0, 15).forEach(item => {
+        timelineEvents.push({
+          id: item.id,
+          type: item.type === 'queue' 
+            ? (item.status === 'seated' ? 'queue_completed' : 'queue_canceled')
+            : (item.status === 'completed' ? 'reservation_completed' : 'reservation_canceled'),
+          date: item.date,
+          description: item.type === 'queue'
+            ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`
+            : `Reserva ${item.status === 'completed' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
+          icon: item.status === 'seated' || item.status === 'completed' ? CheckCircle2 : XCircle,
+          color: item.status === 'seated' || item.status === 'completed' ? 'text-success' : 'text-destructive',
+        });
+      });
 
       setTimeline(timelineEvents);
 
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
+    }
+  };
+
+  const fetchPromotionHistory = async (email: string | null, customerId: string) => {
+    if (!email) {
+      setPromotions([]);
+      return;
+    }
+
+    try {
+      const { data } = await supabase
+        .from('email_logs')
+        .select('id, created_at, subject, status')
+        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (data) {
+        setPromotions(data.map(p => ({
+          id: p.id,
+          date: p.created_at || '',
+          subject: p.subject,
+          status: p.status,
+        })));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar histórico de promoções:', error);
     }
   };
 
@@ -318,41 +376,83 @@ export default function CustomerProfile() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Calcular comportamento
-  const behaviorStats = useMemo(() => {
-    if (history.length === 0) return null;
+  // Handler para toggle VIP
+  const handleToggleVip = async () => {
+    if (!customer) return;
+    
+    setTogglingVip(true);
+    try {
+      const newVipStatus = !customer.vip_status;
+      
+      if (customer.source === 'restaurant_customers') {
+        const { error } = await supabase
+          .from('restaurant_customers')
+          .update({ vip: newVipStatus })
+          .eq('id', customer.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('customers')
+          .update({ vip_status: newVipStatus })
+          .eq('id', customer.id);
+        if (error) throw error;
+      }
 
-    const completedVisits = history.filter(h => h.status === 'seated' || h.status === 'completed');
-    const avgPartySize = completedVisits.length > 0
-      ? Math.round(completedVisits.reduce((acc, h) => acc + h.party_size, 0) / completedVisits.length)
-      : 0;
+      setCustomer(prev => prev ? { ...prev, vip_status: newVipStatus, status: newVipStatus ? 'vip' : prev.status } : null);
+      
+      toast({
+        title: newVipStatus ? '⭐ Cliente marcado como VIP' : 'Status VIP removido',
+        description: newVipStatus 
+          ? `${customer.name} agora é um cliente VIP` 
+          : `${customer.name} não é mais VIP`,
+      });
+    } catch (error) {
+      console.error('Erro ao alterar status VIP:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível alterar o status VIP',
+        variant: 'destructive',
+      });
+    } finally {
+      setTogglingVip(false);
+    }
+  };
 
-    // Horários mais frequentes
-    const hours = completedVisits.map(h => new Date(h.date).getHours());
-    const hourCounts: Record<number, number> = {};
-    hours.forEach(h => { hourCounts[h] = (hourCounts[h] || 0) + 1; });
-    const mostFrequentHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
-    const preferredTime = mostFrequentHour 
-      ? `${mostFrequentHour[0]}:00 - ${parseInt(mostFrequentHour[0]) + 1}:00`
-      : 'N/A';
+  // Handler para salvar notas
+  const handleSaveNotes = async () => {
+    if (!customer) return;
+    
+    setSavingNotes(true);
+    try {
+      if (customer.source === 'restaurant_customers') {
+        const { error } = await supabase
+          .from('restaurant_customers')
+          .update({ internal_notes: notes })
+          .eq('id', customer.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('customers')
+          .update({ notes })
+          .eq('id', customer.id);
+        if (error) throw error;
+      }
 
-    // Canal mais usado
-    const queueCount = history.filter(h => h.type === 'queue').length;
-    const reservationCount = history.filter(h => h.type === 'reservation').length;
-    const preferredChannel = queueCount >= reservationCount ? 'Fila' : 'Reserva';
-
-    // Taxa de comparecimento
-    const showRate = history.length > 0
-      ? Math.round((completedVisits.length / history.length) * 100)
-      : 100;
-
-    return {
-      avgPartySize,
-      preferredTime,
-      preferredChannel,
-      showRate,
-    };
-  }, [history]);
+      toast({
+        title: '✓ Observações salvas',
+        description: 'As notas foram atualizadas com sucesso',
+      });
+    } catch (error) {
+      console.error('Erro ao salvar notas:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar as observações',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -395,14 +495,10 @@ export default function CustomerProfile() {
           Voltar para Clientes
         </Button>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Edit className="w-4 h-4" />
-            Editar
-          </Button>
-          {customer.marketing_opt_in && (
-            <Button size="sm" className="gap-2">
+          {customer.marketing_opt_in && customer.email && (
+            <Button size="sm" className="gap-2" onClick={() => setPromotionDialogOpen(true)}>
               <Send className="w-4 h-4" />
-              Criar promoção
+              Enviar promoção
             </Button>
           )}
         </div>
@@ -432,12 +528,6 @@ export default function CustomerProfile() {
                 )}
               </div>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                {customer.phone && (
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="w-4 h-4" />
-                    <span>{customer.phone}</span>
-                  </div>
-                )}
                 {customer.email && (
                   <div className="flex items-center gap-1.5">
                     <Mail className="w-4 h-4" />
@@ -446,7 +536,7 @@ export default function CustomerProfile() {
                 )}
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4" />
-                  <span>Cliente desde {formatDate(customer.created_at)}</span>
+                  <span>Cliente desde {formatDate(customer.first_visit_at || customer.created_at)}</span>
                 </div>
               </div>
             </div>
@@ -508,7 +598,9 @@ export default function CustomerProfile() {
                 <p className="text-2xl font-bold">
                   {customer.days_since_last_visit === 0 
                     ? 'Hoje' 
-                    : `${customer.days_since_last_visit}d`}
+                    : customer.days_since_last_visit 
+                      ? `${customer.days_since_last_visit}d`
+                      : 'N/A'}
                 </p>
                 <p className="text-xs text-muted-foreground">Última visita</p>
               </div>
@@ -517,22 +609,74 @@ export default function CustomerProfile() {
         </Card>
       </div>
 
+      {/* Evolution Chart */}
+      <CustomerEvolutionChart 
+        visits={history} 
+        promotions={promotions.map(p => ({ id: p.id, date: p.date }))} 
+      />
+
       {/* Tabs */}
-      <Tabs defaultValue="timeline" className="space-y-4">
+      <Tabs defaultValue="behavior" className="space-y-4">
         <TabsList className="bg-muted/50">
-          <TabsTrigger value="timeline" className="gap-2 data-[state=active]:bg-background">
-            <History className="w-4 h-4" />
-            Linha do tempo
-          </TabsTrigger>
           <TabsTrigger value="behavior" className="gap-2 data-[state=active]:bg-background">
             <BarChart3 className="w-4 h-4" />
             Comportamento
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-2 data-[state=active]:bg-background">
+            <History className="w-4 h-4" />
+            Linha do tempo
           </TabsTrigger>
           <TabsTrigger value="actions" className="gap-2 data-[state=active]:bg-background">
             <MessageSquare className="w-4 h-4" />
             Ações
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab: Behavior */}
+        <TabsContent value="behavior" className="space-y-4">
+          <CustomerBehaviorInsights 
+            visits={history}
+            totalVisits={customer.total_visits}
+            isVip={customer.vip_status}
+            daysInactive={customer.days_since_last_visit}
+          />
+          
+          {/* Marketing Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Preferências de Marketing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 p-4 rounded-lg border">
+                {customer.marketing_opt_in ? (
+                  <>
+                    <div className="p-3 bg-success/10 rounded-lg">
+                      <CheckCircle2 className="w-6 h-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Aceita receber promoções</p>
+                      <p className="text-sm text-muted-foreground">
+                        Cliente autorizou comunicações de marketing
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <XCircle className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Não aceita promoções</p>
+                      <p className="text-sm text-muted-foreground">
+                        Cliente não autorizou comunicações
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab: Timeline */}
         <TabsContent value="timeline" className="space-y-4">
@@ -572,83 +716,28 @@ export default function CustomerProfile() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Tab: Behavior */}
-        <TabsContent value="behavior" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Promotions history */}
+          {promotions.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Padrões de Comportamento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {behaviorStats ? (
-                  <>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Tamanho médio de grupo</span>
-                      <span className="font-semibold">{behaviorStats.avgPartySize} pessoas</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Horário preferido</span>
-                      <span className="font-semibold">{behaviorStats.preferredTime}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Canal mais usado</span>
-                      <Badge variant="secondary">{behaviorStats.preferredChannel}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                      <span className="text-sm text-muted-foreground">Taxa de comparecimento</span>
-                      <span className={cn(
-                        "font-semibold",
-                        behaviorStats.showRate >= 80 ? "text-success" : "text-warning"
-                      )}>
-                        {behaviorStats.showRate}%
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-muted-foreground text-center py-4">
-                    Dados insuficientes para análise
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferências de Marketing</CardTitle>
+                <CardTitle>Promoções Enviadas</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-3 p-4 rounded-lg border">
-                  {customer.marketing_opt_in ? (
-                    <>
-                      <div className="p-3 bg-success/10 rounded-lg">
-                        <CheckCircle2 className="w-6 h-6 text-success" />
-                      </div>
+                <div className="space-y-3">
+                  {promotions.map((promo) => (
+                    <div key={promo.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
-                        <p className="font-semibold">Aceita receber promoções</p>
-                        <p className="text-sm text-muted-foreground">
-                          Cliente autorizou comunicações de marketing
-                        </p>
+                        <p className="font-medium">{promo.subject}</p>
+                        <p className="text-sm text-muted-foreground">{formatDateTime(promo.date)}</p>
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="p-3 bg-muted rounded-lg">
-                        <XCircle className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="font-semibold">Não aceita promoções</p>
-                        <p className="text-sm text-muted-foreground">
-                          Cliente não autorizou comunicações
-                        </p>
-                      </div>
-                    </>
-                  )}
+                      <Badge variant="secondary">{promo.status}</Badge>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          </div>
+          )}
         </TabsContent>
 
         {/* Tab: Actions */}
@@ -751,74 +840,12 @@ export default function CustomerProfile() {
               cta_url: data.ctaUrl,
             });
             setPromotionDialogOpen(false);
+            // Refresh promotions list
+            fetchPromotionHistory(customer.email!, customer.id);
           }}
           isSubmitting={sendingPromotion}
         />
       )}
     </div>
   );
-
-  // Handler para toggle VIP
-  async function handleToggleVip() {
-    if (!customer) return;
-    
-    setTogglingVip(true);
-    try {
-      const newVipStatus = !customer.vip_status;
-      
-      const { error } = await supabase
-        .from('customers')
-        .update({ vip_status: newVipStatus })
-        .eq('id', customer.id);
-
-      if (error) throw error;
-
-      setCustomer(prev => prev ? { ...prev, vip_status: newVipStatus, status: newVipStatus ? 'vip' : prev.status } : null);
-      
-      toast({
-        title: newVipStatus ? '⭐ Cliente marcado como VIP' : 'Status VIP removido',
-        description: newVipStatus 
-          ? `${customer.name} agora é um cliente VIP` 
-          : `${customer.name} não é mais VIP`,
-      });
-    } catch (error) {
-      console.error('Erro ao alterar status VIP:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível alterar o status VIP',
-        variant: 'destructive',
-      });
-    } finally {
-      setTogglingVip(false);
-    }
-  }
-
-  // Handler para salvar notas
-  async function handleSaveNotes() {
-    if (!customer) return;
-    
-    setSavingNotes(true);
-    try {
-      const { error } = await supabase
-        .from('customers')
-        .update({ notes })
-        .eq('id', customer.id);
-
-      if (error) throw error;
-
-      toast({
-        title: '✓ Observações salvas',
-        description: 'As notas foram atualizadas com sucesso',
-      });
-    } catch (error) {
-      console.error('Erro ao salvar notas:', error);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar as observações',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingNotes(false);
-    }
-  }
 }
