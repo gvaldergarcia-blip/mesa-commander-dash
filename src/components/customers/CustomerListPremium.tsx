@@ -146,7 +146,10 @@ function CustomerRow({
       : 'Fila';
 
   return (
-    <Card className="group hover:shadow-md transition-all duration-200 hover:border-primary/30">
+    <Card 
+      className="group hover:shadow-md transition-all duration-200 hover:border-primary/30 cursor-pointer"
+      onClick={() => onViewProfile(customer.id)}
+    >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
           {/* Avatar + Name */}
