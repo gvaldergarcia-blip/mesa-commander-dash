@@ -19,8 +19,8 @@ import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { ThemeToggle } from "./ThemeToggle";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
-  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null },
+  { name: "Tela Comando", href: "/", icon: Users, requiresFeature: null },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, requiresFeature: null },
   { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
   { name: "Palpites", href: "/intelligence", icon: Brain, requiresFeature: null },

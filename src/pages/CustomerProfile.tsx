@@ -143,10 +143,15 @@ export default function CustomerProfile() {
         .maybeSingle();
       
       if (restaurantCustomer) {
+        const phoneClean =
+          restaurantCustomer.customer_phone && restaurantCustomer.customer_phone !== '—'
+            ? restaurantCustomer.customer_phone
+            : '';
+
         customerData = {
           id: restaurantCustomer.id,
           name: restaurantCustomer.customer_name || 'Sem nome',
-          phone: restaurantCustomer.customer_phone || '',
+          phone: phoneClean,
           email: restaurantCustomer.customer_email,
           total_visits: restaurantCustomer.total_visits || (restaurantCustomer.total_queue_visits + restaurantCustomer.total_reservation_visits) || 0,
           queue_completed: restaurantCustomer.total_queue_visits || 0,
@@ -246,95 +251,128 @@ export default function CustomerProfile() {
   };
 
   const fetchVisitHistory = async (phone: string | null, email: string | null) => {
-    try {
-      const historyItems: VisitHistory[] = [];
-      const timelineEvents: TimelineEvent[] = [];
+    const historyItems: VisitHistory[] = [];
+    const timelineEvents: TimelineEvent[] = [];
 
-      // Validar se o phone é utilizável (não pode ser null, vazio ou "—")
-      const validPhone = phone && phone.trim() !== '' && phone !== '—' ? phone : null;
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+    const rawPhone = phone?.trim() || null;
+    const validPhone = rawPhone && rawPhone !== '—' ? rawPhone : null;
 
-      // Buscar entradas de fila via mesaclik
-      if (validPhone || email) {
-        // Construir filtro dinâmico - prioriza email quando phone é inválido
-        const filterParts: string[] = [];
-        if (email) filterParts.push(`email.eq.${email}`);
-        if (validPhone) filterParts.push(`phone.eq.${validPhone}`);
-        const filterString = filterParts.join(',');
-
-        const { data: queueData } = await supabase
-          .schema('mesaclik')
-          .from('queue_entries')
-          .select('id, seated_at, party_size, status, created_at, email, phone')
-          .eq('restaurant_id', RESTAURANT_ID)
-          .or(filterString)
-          .in('status', ['seated', 'canceled', 'no_show', 'waiting', 'called'])
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (queueData) {
-          queueData.forEach(q => {
-            historyItems.push({
-              id: q.id,
-              type: 'queue',
-              date: q.seated_at || q.created_at,
-              party_size: q.party_size,
-              status: q.status,
-            });
-          });
-        }
-
-        // Buscar reservas via mesaclik
-        // Observação: a tabela mesaclik.reservations não possui coluna "email".
-        // Então só conseguimos correlacionar reservas por telefone.
-        if (validPhone) {
-          const { data: reservationData } = await supabase
+    // ===== Filas (mesaclik.queue_entries) =====
+    if (normalizedEmail || validPhone) {
+      try {
+        const baseQueueQuery = () =>
+          supabase
             .schema('mesaclik')
-            .from('reservations')
-            .select('id, reservation_at, party_size, status, created_at, phone')
+            .from('queue_entries')
+            .select('id, seated_at, party_size, status, created_at, email, phone')
             .eq('restaurant_id', RESTAURANT_ID)
-            .eq('phone', validPhone)
-            .order('reservation_at', { ascending: false })
-            .limit(50);
+            .in('status', ['seated', 'canceled', 'no_show', 'waiting', 'called'])
+            .order('created_at', { ascending: false })
+            .limit(500);
 
-          if (reservationData) {
-            reservationData.forEach(r => {
-              historyItems.push({
-                id: r.id,
-                type: 'reservation',
-                date: r.reservation_at,
-                party_size: r.party_size,
-                status: r.status,
-              });
-            });
+        // IMPORTANTE: evitar `.or()` aqui (problemas intermitentes com emails/encoding).
+        let queueData: any[] = [];
+
+        if (normalizedEmail && validPhone) {
+          const [byEmail, byPhone] = await Promise.all([
+            baseQueueQuery().eq('email', normalizedEmail),
+            baseQueueQuery().eq('phone', validPhone),
+          ]);
+
+          if (byEmail.error) throw byEmail.error;
+          if (byPhone.error) throw byPhone.error;
+
+          const seen = new Set<string>();
+          for (const row of [...(byEmail.data || []), ...(byPhone.data || [])]) {
+            if (!seen.has(row.id)) {
+              seen.add(row.id);
+              queueData.push(row);
+            }
           }
+        } else if (normalizedEmail) {
+          const res = await baseQueueQuery().eq('email', normalizedEmail);
+          if (res.error) throw res.error;
+          queueData = res.data || [];
+        } else if (validPhone) {
+          const res = await baseQueueQuery().eq('phone', validPhone);
+          if (res.error) throw res.error;
+          queueData = res.data || [];
         }
-      }
 
-      // Ordenar por data
-      historyItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setHistory(historyItems);
-
-      // Criar timeline de eventos
-      historyItems.slice(0, 15).forEach(item => {
-        timelineEvents.push({
-          id: item.id,
-          type: item.type === 'queue' 
-            ? (item.status === 'seated' ? 'queue_completed' : 'queue_canceled')
-            : (item.status === 'completed' ? 'reservation_completed' : 'reservation_canceled'),
-          date: item.date,
-          description: item.type === 'queue'
-            ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`
-            : `Reserva ${item.status === 'completed' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
-          icon: item.status === 'seated' || item.status === 'completed' ? CheckCircle2 : XCircle,
-          color: item.status === 'seated' || item.status === 'completed' ? 'text-success' : 'text-destructive',
+        queueData.forEach((q) => {
+          historyItems.push({
+            id: q.id,
+            type: 'queue',
+            date: q.seated_at || q.created_at,
+            party_size: q.party_size,
+            status: q.status,
+          });
         });
-      });
-
-      setTimeline(timelineEvents);
-
-    } catch (error) {
-      console.error('Erro ao carregar histórico:', error);
+      } catch (error) {
+        console.error('[CustomerProfile] Erro ao carregar histórico de fila:', error);
+      }
     }
+
+    // ===== Reservas (mesaclik.reservations) =====
+    // Observação: mesaclik.reservations não possui coluna "email".
+    if (validPhone) {
+      try {
+        const { data: reservationData, error: reservationError } = await supabase
+          .schema('mesaclik')
+          .from('reservations')
+          .select('id, reservation_at, party_size, status, created_at, phone')
+          .eq('restaurant_id', RESTAURANT_ID)
+          .eq('phone', validPhone)
+          .order('reservation_at', { ascending: false })
+          .limit(500);
+
+        if (reservationError) throw reservationError;
+
+        (reservationData || []).forEach((r) => {
+          historyItems.push({
+            id: r.id,
+            type: 'reservation',
+            date: r.reservation_at,
+            party_size: r.party_size,
+            status: r.status,
+          });
+        });
+      } catch (error) {
+        console.error('[CustomerProfile] Erro ao carregar histórico de reservas:', error);
+      }
+    }
+
+    // Ordenar por data
+    historyItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setHistory(historyItems);
+
+    // Criar timeline de eventos
+    historyItems.slice(0, 15).forEach((item) => {
+      const isCompleted =
+        item.status === 'seated' || item.status === 'completed' || item.status === 'confirmed';
+
+      timelineEvents.push({
+        id: item.id,
+        type:
+          item.type === 'queue'
+            ? item.status === 'seated'
+              ? 'queue_completed'
+              : 'queue_canceled'
+            : isCompleted
+              ? 'reservation_completed'
+              : 'reservation_canceled',
+        date: item.date,
+        description:
+          item.type === 'queue'
+            ? `Fila ${item.status === 'seated' ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`
+            : `Reserva ${isCompleted ? 'concluída' : item.status === 'canceled' ? 'cancelada' : item.status} • ${item.party_size} pessoa(s)`,
+        icon: isCompleted ? CheckCircle2 : XCircle,
+        color: isCompleted ? 'text-success' : 'text-destructive',
+      });
+    });
+
+    setTimeline(timelineEvents);
   };
 
   const fetchPromotionHistory = async (email: string | null, customerId: string) => {

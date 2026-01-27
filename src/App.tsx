@@ -65,7 +65,9 @@ const DashboardRoutes = () => {
   return (
     <DashboardLayout>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        {/* Preview/Founder: Tela Comando (Fila) como página inicial */}
+        <Route path="/" element={<Queue />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/queue" element={<Queue />} />
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/customers" element={<CustomersPage />} />
@@ -103,6 +105,7 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <Routes>
+        {/* No Preview, a página /login redireciona automaticamente via Login.tsx */}
         <Route path="/login" element={<Login />} />
         {/* Rotas públicas da Fila Web (sem DashboardLayout) */}
         <Route path="/fila/entrar" element={<FilaEntrar />} />
