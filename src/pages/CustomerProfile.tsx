@@ -153,7 +153,7 @@ export default function CustomerProfile() {
           created_at: restaurantCustomer.created_at,
           vip_status: restaurantCustomer.vip || false,
           marketing_opt_in: restaurantCustomer.marketing_optin || false,
-          notes: null,
+          notes: restaurantCustomer.internal_notes || null,
         };
       } else {
         // 2. Tentar na tabela customers (global) por ID
@@ -840,18 +840,27 @@ export default function CustomerProfile() {
     }
   }
 
-  // Handler para salvar notas
+  // Handler para salvar notas - salva em restaurant_customers (fonte principal)
   async function handleSaveNotes() {
     if (!customer) return;
     
     setSavingNotes(true);
     try {
-      const { error } = await supabase
-        .from('customers')
-        .update({ notes })
+      // Primeiro, tentar salvar em restaurant_customers
+      const { error: rcError } = await supabase
+        .from('restaurant_customers')
+        .update({ internal_notes: notes })
         .eq('id', customer.id);
 
-      if (error) throw error;
+      if (rcError) {
+        // Fallback: tentar em customers (tabela global)
+        const { error: custError } = await supabase
+          .from('customers')
+          .update({ notes })
+          .eq('id', customer.id);
+
+        if (custError) throw custError;
+      }
 
       toast({
         title: '✓ Observações salvas',

@@ -13,7 +13,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Minus
+  Minus,
+  ShieldCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +30,7 @@ type SensibilityLevel = 'baixa' | 'media' | 'alta';
 type CustomerAnalysis = {
   resumo: string;
   perfil_comportamento: string;
-  risco_churn: {
+  risco_perda: {
     nivel: RiskLevel;
     justificativa: string;
   };
@@ -37,15 +38,24 @@ type CustomerAnalysis = {
     nivel: SensibilityLevel;
     justificativa: string;
   };
-  probabilidade_retorno: {
+  retencao_30d: {
     nivel: SensibilityLevel;
-    dias: number;
     justificativa: string;
   };
   sugestao_acao: {
     tipo: string;
     descricao: string;
-    momento_ideal?: string;
+    momento_ideal?: string | null;
+  };
+  // Backward compatibility with old field names
+  risco_churn?: {
+    nivel: RiskLevel;
+    justificativa: string;
+  };
+  probabilidade_retorno?: {
+    nivel: SensibilityLevel;
+    dias?: number;
+    justificativa: string;
   };
 };
 
@@ -92,7 +102,7 @@ const actionTypeConfig: Record<string, { label: string; color: string; icon: typ
   enviar_promocao: { label: 'Enviar Promoção', color: 'text-primary', icon: BadgePercent },
   fidelizar: { label: 'Fidelizar', color: 'text-amber-500', icon: Sparkles },
   recuperar: { label: 'Recuperar', color: 'text-warning', icon: RefreshCw },
-  nao_agir: { label: 'Não Agir', color: 'text-muted-foreground', icon: Minus },
+  nao_agir: { label: 'Nenhuma Ação', color: 'text-success', icon: ShieldCheck },
   acompanhar: { label: 'Acompanhar', color: 'text-blue-500', icon: Target },
 };
 
@@ -206,8 +216,17 @@ export function CustomerAIAnalysis({
 
   if (!analysis) return null;
 
-  const RiskIcon = riskConfig[analysis.risco_churn.nivel]?.icon || Minus;
+  // Handle backward compatibility with old field names
+  const riscoPerda = analysis.risco_perda || analysis.risco_churn;
+  const retencao30d = analysis.retencao_30d || analysis.probabilidade_retorno;
+
+  if (!riscoPerda || !retencao30d) return null;
+
+  const RiskIcon = riskConfig[riscoPerda.nivel]?.icon || Minus;
   const ActionIcon = actionTypeConfig[analysis.sugestao_acao.tipo]?.icon || Target;
+  
+  // Check if action is "no action needed"
+  const isNoAction = analysis.sugestao_acao.tipo === 'nao_agir' || analysis.sugestao_acao.tipo === 'acompanhar';
 
   return (
     <Card className="overflow-hidden">
@@ -220,7 +239,7 @@ export function CustomerAIAnalysis({
             </div>
             <div>
               <CardTitle className="text-lg">Análise de IA</CardTitle>
-              <CardDescription className="text-xs">Powered by MesaClik AI</CardDescription>
+              <CardDescription className="text-xs">Análise gerada pela MesaClik IA</CardDescription>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={fetchAnalysis} disabled={loading}>
@@ -258,21 +277,21 @@ export function CustomerAIAnalysis({
 
         {/* Cards de Métricas IA */}
         <div className="grid grid-cols-3 gap-3">
-          {/* Risco de Churn */}
+          {/* Risco de Perda */}
           <div className={cn(
             "p-3 rounded-lg text-center",
-            riskConfig[analysis.risco_churn.nivel]?.bg || 'bg-muted'
+            riskConfig[riscoPerda.nivel]?.bg || 'bg-muted'
           )}>
             <RiskIcon className={cn(
               "w-5 h-5 mx-auto mb-1",
-              riskConfig[analysis.risco_churn.nivel]?.color
+              riskConfig[riscoPerda.nivel]?.color
             )} />
-            <p className="text-xs text-muted-foreground">Risco de Churn</p>
+            <p className="text-xs text-muted-foreground">Risco de Perda</p>
             <p className={cn(
               "text-sm font-semibold",
-              riskConfig[analysis.risco_churn.nivel]?.color
+              riskConfig[riscoPerda.nivel]?.color
             )}>
-              {riskConfig[analysis.risco_churn.nivel]?.label || analysis.risco_churn.nivel}
+              {riskConfig[riscoPerda.nivel]?.label || riscoPerda.nivel}
             </p>
           </div>
 
@@ -294,40 +313,44 @@ export function CustomerAIAnalysis({
             </p>
           </div>
 
-          {/* Probabilidade de Retorno */}
+          {/* Retenção 30 dias */}
           <div className={cn(
             "p-3 rounded-lg text-center",
-            sensibilityConfig[analysis.probabilidade_retorno.nivel]?.bg || 'bg-muted'
+            sensibilityConfig[retencao30d.nivel]?.bg || 'bg-muted'
           )}>
             <Calendar className={cn(
               "w-5 h-5 mx-auto mb-1",
-              sensibilityConfig[analysis.probabilidade_retorno.nivel]?.color
+              sensibilityConfig[retencao30d.nivel]?.color
             )} />
-            <p className="text-xs text-muted-foreground">Retorno 30d</p>
+            <p className="text-xs text-muted-foreground">Retenção (30d)</p>
             <p className={cn(
               "text-sm font-semibold",
-              sensibilityConfig[analysis.probabilidade_retorno.nivel]?.color
+              sensibilityConfig[retencao30d.nivel]?.color
             )}>
-              {sensibilityConfig[analysis.probabilidade_retorno.nivel]?.label || analysis.probabilidade_retorno.nivel}
+              {sensibilityConfig[retencao30d.nivel]?.label || retencao30d.nivel}
             </p>
           </div>
         </div>
 
         {/* Justificativas */}
         <div className="space-y-2 text-xs text-muted-foreground">
-          <p><strong>Churn:</strong> {analysis.risco_churn.justificativa}</p>
+          <p><strong>Risco de Perda:</strong> {riscoPerda.justificativa}</p>
           <p><strong>Promoções:</strong> {analysis.sensibilidade_promocao.justificativa}</p>
-          <p><strong>Retorno:</strong> {analysis.probabilidade_retorno.justificativa}</p>
+          <p><strong>Retenção:</strong> {retencao30d.justificativa}</p>
         </div>
 
         <Separator />
 
         {/* Sugestão de Ação */}
-        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+        <div className={cn(
+          "p-4 rounded-lg border",
+          isNoAction 
+            ? "bg-success/5 border-success/20" 
+            : "bg-primary/5 border-primary/20"
+        )}>
           <div className="flex items-start gap-3">
             <div className={cn(
-              "p-2 rounded-lg",
-              actionTypeConfig[analysis.sugestao_acao.tipo]?.color ? 'bg-background' : 'bg-muted'
+              "p-2 rounded-lg bg-background"
             )}>
               <ActionIcon className={cn(
                 "w-5 h-5",
@@ -337,7 +360,13 @@ export function CustomerAIAnalysis({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-sm font-semibold">Sugestão Inteligente</p>
-                <Badge variant="secondary" className="text-xs">
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "text-xs",
+                    isNoAction && "bg-success/10 text-success border-success/30"
+                  )}
+                >
                   {actionTypeConfig[analysis.sugestao_acao.tipo]?.label || analysis.sugestao_acao.tipo}
                 </Badge>
               </div>
