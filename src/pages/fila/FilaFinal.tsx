@@ -28,6 +28,7 @@ interface QueueInfo {
   created_at: string;
   customer_email?: string;
   customer_name?: string;
+  tolerance_minutes?: number;
 }
 
 export default function FilaFinal() {
@@ -113,6 +114,7 @@ export default function FilaFinal() {
         created_at: data.created_at || new Date().toISOString(),
         customer_email: data.customer_email,
         customer_name: data.customer_name,
+        tolerance_minutes: data.tolerance_minutes ?? 10,
       });
 
       setNotFound(false);
@@ -245,6 +247,7 @@ export default function FilaFinal() {
               status: data.status || prev.status,
               position,
               size_group: getSizeGroupLabel(sizeGroup),
+              tolerance_minutes: data.tolerance_minutes ?? prev.tolerance_minutes,
             } : prev);
           }
         });
@@ -410,9 +413,18 @@ export default function FilaFinal() {
               <p className="text-orange-600 font-bold text-2xl">
                 🎉 É a sua vez!
               </p>
-              <p className="text-sm text-orange-700 mt-2">
-                Dirija-se ao balcão
+              <p className="text-orange-700 font-medium mt-2">
+                Dirija-se ao balcão.
               </p>
+              <div className="mt-4 pt-4 border-t border-orange-200">
+                <p className="text-sm text-orange-600 flex items-center justify-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    <strong>Tolerância:</strong> o restaurante aguardará{' '}
+                    <strong>{queueInfo.tolerance_minutes ?? 10} minutos</strong> antes de liberar a mesa.
+                  </span>
+                </p>
+              </div>
             </div>
           )}
 
