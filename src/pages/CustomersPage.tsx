@@ -172,17 +172,11 @@ export default function CustomersPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-          <p className="text-muted-foreground mt-1">
-            CRM completo • {customers.length} clientes cadastrados
-          </p>
-        </div>
-        <Button onClick={() => setCampaignDialogOpen(true)} className="gap-2 shadow-sm">
-          <Send className="w-4 h-4" />
-          Nova Campanha
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+        <p className="text-muted-foreground mt-1">
+          CRM completo • {customers.length} clientes cadastrados
+        </p>
       </div>
 
       {/* Strategic KPIs */}
