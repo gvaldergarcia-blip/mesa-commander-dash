@@ -37,8 +37,8 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className={cn(
-      "bg-sidebar-background text-sidebar-foreground flex flex-col transition-all duration-300 border-r border-sidebar-border",
+    <aside className={cn(
+      "bg-sidebar-background text-sidebar-foreground flex flex-col transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto",
       isCollapsed ? "w-16" : "w-64"
     )}>
       {/* Header */}
@@ -129,6 +129,6 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
