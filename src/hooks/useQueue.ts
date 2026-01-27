@@ -12,7 +12,7 @@ type QueueEntry = {
   phone: string;
   email?: string;
   people: number;
-  status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
+  status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show' | 'cleared';
   notes?: string;
   position?: number;
   called_at?: string;
@@ -249,6 +249,7 @@ export function useQueue() {
         'seated': 'Cliente sentado',
         'canceled': 'Cliente cancelado',
         'no_show': 'Marcado como ausente',
+        'cleared': 'Fila limpa',
       };
 
       toast({
@@ -270,6 +271,38 @@ export function useQueue() {
   // NOTA: A função upsertCustomer foi removida - agora é tratada pelo trigger
   // 'upsert_customer_on_queue_seated' no banco de dados com SECURITY DEFINER
 
+  const clearQueue = async (): Promise<{ success: boolean; entries_affected: number }> => {
+    try {
+      const { data, error: rpcError } = await supabase
+        .rpc('clear_queue', { p_restaurant_id: restaurantId });
+
+      if (rpcError) throw rpcError;
+
+      const result = data as { success: boolean; error?: string; entries_affected?: number; message?: string };
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao limpar fila');
+      }
+
+      toast({
+        title: 'Fila limpa',
+        description: `${result.entries_affected || 0} entradas foram removidas da fila.`,
+      });
+
+      await fetchQueue();
+
+      return { success: true, entries_affected: result.entries_affected || 0 };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao limpar fila';
+      toast({
+        title: 'Erro',
+        description: message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  };
+
   return {
     queueEntries,
     loading,
@@ -277,5 +310,6 @@ export function useQueue() {
     refetch: fetchQueue,
     addToQueue,
     updateQueueStatus,
+    clearQueue,
   };
 }

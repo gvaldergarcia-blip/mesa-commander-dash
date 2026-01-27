@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type Status = "waiting" | "called" | "seated" | "canceled" | "confirmed" | "pending" | "completed" | "no_show";
+type Status = "waiting" | "called" | "seated" | "canceled" | "confirmed" | "pending" | "completed" | "no_show" | "cleared";
 
 const statusConfig = {
   waiting: {
@@ -35,6 +35,10 @@ const statusConfig = {
   no_show: {
     label: "Não Compareceu",
     className: "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
+  },
+  cleared: {
+    label: "Limpo",
+    className: "bg-muted/50 text-muted-foreground border-muted/30 hover:bg-muted/60"
   }
 };
 

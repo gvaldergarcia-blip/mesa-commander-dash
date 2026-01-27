@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { VipBadge } from "@/components/queue/VipBadge";
 import { QueueAlert } from "@/components/queue/QueueAlert";
+import { ClearQueueDialog } from "@/components/queue/ClearQueueDialog";
 import { 
   Dialog,
   DialogContent,
@@ -37,7 +38,7 @@ import {
 
 export default function Queue() {
   const { restaurants } = useRestaurants();
-  const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue } = useQueueEnhanced();
+  const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue, clearQueue } = useQueueEnhanced();
   const { getAverageForSize, generalAverage, loading: loadingAverages } = useQueueWaitTimeAverages(RESTAURANT_ID);
   const { settings: queueSettings, loading: loadingSettings } = useQueueSettings(RESTAURANT_ID);
   const { toast } = useToast();
@@ -224,53 +225,60 @@ export default function Queue() {
           <h1 className="text-3xl font-bold text-foreground">Fila de Espera</h1>
           <p className="text-muted-foreground">Gerencie a fila em tempo real</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Cliente
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input 
-                placeholder="Nome do cliente *" 
-                value={newCustomerName}
-                onChange={(e) => setNewCustomerName(e.target.value)}
-              />
-              <Input 
-                type="email"
-                placeholder="Email do cliente *"
-                value={newCustomerEmail}
-                onChange={(e) => setNewCustomerEmail(e.target.value)}
-              />
-              <Select value={newPartySize} onValueChange={setNewPartySize}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Número de pessoas" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1,2,3,4,5,6,7,8].map(n => (
-                    <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input 
-                placeholder="Observações (opcional)"
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-              />
-              <Button 
-                className="w-full"
-                onClick={handleAddToQueue}
-              >
-                Adicionar à Fila
+        <div className="flex items-center gap-2">
+          <ClearQueueDialog 
+            onConfirm={clearQueue}
+            isLoading={loading}
+            totalWaiting={totalWaiting}
+          />
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Cliente
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input 
+                  placeholder="Nome do cliente *" 
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                />
+                <Input 
+                  type="email"
+                  placeholder="Email do cliente *"
+                  value={newCustomerEmail}
+                  onChange={(e) => setNewCustomerEmail(e.target.value)}
+                />
+                <Select value={newPartySize} onValueChange={setNewPartySize}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Número de pessoas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6,7,8].map(n => (
+                      <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input 
+                  placeholder="Observações (opcional)"
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.target.value)}
+                />
+                <Button 
+                  className="w-full"
+                  onClick={handleAddToQueue}
+                >
+                  Adicionar à Fila
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
