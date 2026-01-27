@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
   Users,
   Calendar,
-  UserCheck,
   Megaphone,
   BarChart3,
   Settings,
   ChefHat,
   Menu,
-  X,
-  Brain
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,11 +16,9 @@ import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { ThemeToggle } from "./ThemeToggle";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
-  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null },
+  { name: "Fila", href: "/", icon: Users, requiresFeature: null },
   { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
-  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
-  { name: "Palpites", href: "/intelligence", icon: Brain, requiresFeature: null },
+  { name: "Clientes", href: "/customers", icon: Users, requiresFeature: null },
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },
