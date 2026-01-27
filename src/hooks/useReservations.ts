@@ -79,29 +79,23 @@ export function useReservations() {
 
   const createReservation = async (reservation: { customer_name: string; customer_email: string; people: number; starts_at: string; notes?: string }) => {
     try {
-      const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('reservations')
-        .insert([
-          {
-            name: reservation.customer_name,
-            customer_email: reservation.customer_email,
-            phone: null, // Telefone agora é opcional
-            party_size: reservation.people,
-            reserved_for: reservation.starts_at,
-            notes: reservation.notes,
-            restaurant_id: restaurantId,
-            user_id: restaurantId, // Using restaurant ID as user_id for admin panel
-            status: 'pending',
-          },
-        ])
-        .select()
-        .single();
+      // IMPORTANTE: criação via RPC (SECURITY DEFINER) para evitar bloqueio por RLS,
+      // seguindo o mesmo padrão usado na Fila.
+      const { data, error } = await supabase.rpc('create_reservation_panel', {
+        p_restaurant_id: restaurantId,
+        p_name: reservation.customer_name,
+        p_customer_email: reservation.customer_email,
+        p_reserved_for: reservation.starts_at,
+        p_party_size: reservation.people,
+        p_notes: reservation.notes ?? null,
+      });
 
       if (error) throw error;
+      if (!data) throw new Error('Reserva não retornou dados');
 
       // Buscar informações do restaurante para o email
       const { data: restaurantData } = await supabase
+        .schema('mesaclik')
         .from('restaurants')
         .select('name, address, cuisine')
         .eq('id', restaurantId)
@@ -109,7 +103,7 @@ export function useReservations() {
 
       // Enviar e-mail de confirmação via Resend
       try {
-        const reservationUrl = `${window.location.origin}/reserva/final?id=${data.id}`;
+        const reservationUrl = `${window.location.origin}/reserva/final?id=${(data as any).id}`;
         const dateTime = new Date(reservation.starts_at);
         const formattedDate = dateTime.toLocaleDateString('pt-BR', {
           weekday: 'long',
@@ -137,7 +131,7 @@ export function useReservations() {
             type: 'confirmation'
           }
         });
-        console.log('E-mail de confirmação enviado para reserva:', data.id);
+        console.log('E-mail de confirmação enviado para reserva:', (data as any).id);
       } catch (emailError) {
         console.warn('Erro ao enviar e-mail (não crítico):', emailError);
       }
