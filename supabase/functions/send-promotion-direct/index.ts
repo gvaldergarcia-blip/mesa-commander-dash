@@ -5,20 +5,9 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "noreply@mesaclik.com.br";
 const FUNCTION_VERSION = "2026-01-26_v3_status_debug";
 
-// CORS
-// Nota: o supabase client (@supabase/ssr) pode usar `credentials: 'include'`.
-// Para evitar "Failed to fetch" no browser, ecoamos a origin quando existir.
-const corsHeaders = (req: Request) => {
-  const origin = req.headers.get("origin") ?? "*";
-  const isWildcard = origin === "*";
-
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    // Mantemos explícito para preflight mais consistente.
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    ...(isWildcard ? {} : { "Access-Control-Allow-Credentials": "true" }),
-  };
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 async function sendEmailViaResend(
@@ -188,7 +177,7 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders(req) });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -205,7 +194,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!requestData.to_email || !requestData.subject || !requestData.message) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: to_email, subject, message' }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders(req) } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -246,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error('Failed to send email:', emailResponse.error);
       return new Response(
         JSON.stringify({ success: false, error: emailResponse.error }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(req) } }
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -258,13 +247,13 @@ const handler = async (req: Request): Promise<Response> => {
         messageId: emailResponse.id,
         last_event: emailResponse.last_event ?? null,
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req) } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: unknown) {
     console.error('Error sending promotion email:', error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to send email' }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(req) } }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

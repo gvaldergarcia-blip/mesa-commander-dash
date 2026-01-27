@@ -1129,7 +1129,6 @@ export type Database = {
           customer_name: string | null
           customer_phone: string | null
           id: string
-          internal_notes: string | null
           last_seen_at: string
           marketing_optin: boolean
           marketing_optin_at: string | null
@@ -1150,7 +1149,6 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string | null
           id?: string
-          internal_notes?: string | null
           last_seen_at?: string
           marketing_optin?: boolean
           marketing_optin_at?: string | null
@@ -1171,7 +1169,6 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string | null
           id?: string
-          internal_notes?: string | null
           last_seen_at?: string
           marketing_optin?: boolean
           marketing_optin_at?: string | null
