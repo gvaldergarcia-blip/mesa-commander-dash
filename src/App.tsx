@@ -23,6 +23,9 @@ import FilaEntrar from "./pages/fila/FilaEntrar";
 import FilaVerificar from "./pages/fila/FilaVerificar";
 import FilaFinal from "./pages/fila/FilaFinal";
 
+// Página de Reserva (pública)
+import ReservaFinal from "./pages/reserva/ReservaFinal";
+
 // Páginas Legais (LGPD)
 import TermosDeUso from "./pages/legal/TermosDeUso";
 import PoliticaPrivacidade from "./pages/legal/PoliticaPrivacidade";
@@ -56,6 +59,8 @@ const App = () => (
         <Route path="/fila/verificar" element={<FilaVerificar />} />
         <Route path="/fila/final" element={<FilaFinal />} />
 
+        {/* Rota pública de Reserva */}
+        <Route path="/reserva/final" element={<ReservaFinal />} />
         {/* Rotas públicas legais (sem DashboardLayout) */}
         <Route path="/termos" element={<TermosDeUso />} />
         <Route path="/privacidade" element={<PoliticaPrivacidade />} />

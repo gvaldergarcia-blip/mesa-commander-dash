@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.send-queue-email]
 verify_jwt = false
+
+[functions.send-reservation-email]
+verify_jwt = false
+
+[functions.get-reservation-info]
+verify_jwt = false
