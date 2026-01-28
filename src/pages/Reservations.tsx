@@ -33,6 +33,15 @@ export default function Reservations() {
   const { restaurants } = useRestaurants();
   const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
   
+  // Track if we have loaded data at least once to prevent flicker on refetch
+  const [hasInitialData, setHasInitialData] = useState(false);
+  
+  useEffect(() => {
+    if (!loading && reservations.length >= 0) {
+      setHasInitialData(true);
+    }
+  }, [loading, reservations.length]);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("week");
@@ -347,7 +356,8 @@ export default function Reservations() {
     .filter(r => r.status !== 'canceled' && r.status !== 'no_show')
     .reduce((sum, r) => sum + r.people, 0);
 
-  if (loading) {
+  // Only show loading on initial load, not on refetch (prevents flicker)
+  if (loading && !hasInitialData) {
     return (
       <div className="p-6">
         <p>Carregando...</p>
