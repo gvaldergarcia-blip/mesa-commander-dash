@@ -238,6 +238,9 @@ export default function ReservaFinal() {
   const isCanceled = reservationInfo.status === 'canceled' || reservationInfo.status === 'no_show';
   const canCancel = ['pending', 'confirmed'].includes(reservationInfo.status);
 
+  // Estado adicional para opt-in de ofertas
+  const [offersOptIn, setOffersOptIn] = useState(false);
+
   // Tela de consentimento
   if (!consentConfirmed) {
     return (
@@ -256,7 +259,7 @@ export default function ReservaFinal() {
               Para visualizar os detalhes da sua reserva, por favor aceite nossos termos.
             </p>
 
-            {/* Checkbox de termos */}
+            {/* Checkbox de termos (obrigatório) */}
             <div className="flex items-start space-x-3 p-4 bg-muted/50 rounded-lg border">
               <Checkbox
                 id="terms-consent"
@@ -290,8 +293,30 @@ export default function ReservaFinal() {
                   </Link>{' '}
                   do MesaClik.
                 </Label>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-destructive font-medium">
                   * Obrigatório para continuar
+                </p>
+              </div>
+            </div>
+
+            {/* Checkbox de ofertas (opcional) */}
+            <div className="flex items-start space-x-3 p-4 bg-green-50/50 rounded-lg border border-green-200/50">
+              <Checkbox
+                id="offers-consent"
+                checked={offersOptIn}
+                onCheckedChange={(checked) => setOffersOptIn(checked === true)}
+                disabled={savingConsent}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label
+                  htmlFor="offers-consent"
+                  className="text-sm font-medium leading-tight cursor-pointer"
+                >
+                  Aceito receber ofertas e promoções por e-mail
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Opcional - Você pode cancelar a qualquer momento
                 </p>
               </div>
             </div>
@@ -313,7 +338,7 @@ export default function ReservaFinal() {
 
             {!termsAccepted && (
               <p className="text-center text-xs text-muted-foreground">
-                Marque a caixa acima para continuar
+                Marque a caixa de termos acima para continuar
               </p>
             )}
           </CardContent>
@@ -403,6 +428,19 @@ export default function ReservaFinal() {
               <div>
                 <p className="font-semibold">
                   {reservationInfo.party_size} {reservationInfo.party_size === 1 ? 'pessoa' : 'pessoas'}
+                </p>
+              </div>
+            </div>
+
+            {/* Tolerância */}
+            <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200/50">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="text-sm font-medium text-amber-700">
+                  Tolerância: {reservationInfo.tolerance_minutes} minutos
+                </p>
+                <p className="text-xs text-amber-600/80">
+                  Após este tempo, a reserva pode ser cancelada automaticamente
                 </p>
               </div>
             </div>

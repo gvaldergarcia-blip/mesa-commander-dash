@@ -188,18 +188,14 @@ function CustomerRow({
             </Badge>
           </div>
 
-          {/* Insight */}
-          <div className="hidden lg:block flex-1 min-w-[200px] max-w-[280px]">
-            {insightMessage ? (
+          {/* Insight - only show if has message */}
+          {insightMessage && (
+            <div className="hidden lg:block flex-1 min-w-[200px] max-w-[280px]">
               <p className="text-sm text-muted-foreground italic line-clamp-2">
                 "{insightMessage}"
               </p>
-            ) : (
-              <p className="text-sm text-muted-foreground/50">
-                Sem insights
-              </p>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Last Visit */}
           <div className="hidden md:block min-w-[100px] text-right">

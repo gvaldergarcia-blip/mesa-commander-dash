@@ -24,6 +24,7 @@ export type RestaurantCustomer = {
   terms_accepted: boolean;
   terms_accepted_at: string | null;
   tags: string[];
+  internal_notes: string | null;
 };
 
 export type CustomerFilter = 'all' | 'active' | 'inactive' | 'vip' | 'new';
