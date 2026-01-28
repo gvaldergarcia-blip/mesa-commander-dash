@@ -116,6 +116,64 @@ export default function ReservaFinal() {
     fetchReservationInfo();
   }, [fetchReservationInfo]);
 
+  // Supabase Realtime: escutar mudanças na reserva em tempo real
+  useEffect(() => {
+    if (!reservationId) return;
+
+    console.log('[ReservaFinal] Configurando Realtime para reserva:', reservationId);
+
+    const channel = supabase
+      .channel(`reservation-${reservationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'mesaclik',
+          table: 'reservations',
+          filter: `id=eq.${reservationId}`
+        },
+        (payload) => {
+          console.log('[ReservaFinal] Realtime UPDATE recebido:', payload);
+          
+          // Atualizar o status localmente sem precisar buscar de novo
+          const newData = payload.new as any;
+          
+          setReservationInfo(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              status: newData.status,
+              canceled_at: newData.canceled_at,
+              cancel_reason: newData.cancel_reason,
+            };
+          });
+
+          // Mostrar toast informando a mudança
+          const statusMessages: Record<string, string> = {
+            confirmed: '✅ Sua reserva foi confirmada pelo restaurante!',
+            canceled: '❌ Sua reserva foi cancelada.',
+            completed: '🎉 Reserva concluída! Obrigado pela visita.',
+            no_show: '⚠️ Sua reserva foi marcada como não comparecimento.',
+            pending: '⏳ Sua reserva está pendente de confirmação.',
+            seated: '🍽️ Você foi acomodado! Bom apetite!'
+          };
+
+          toast({
+            title: 'Status atualizado',
+            description: statusMessages[newData.status] || `Status: ${newData.status}`,
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('[ReservaFinal] Realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('[ReservaFinal] Removendo canal Realtime');
+      supabase.removeChannel(channel);
+    };
+  }, [reservationId, toast]);
+
   // Handler para confirmar consentimento
   const handleConfirmConsent = async () => {
     if (!reservationInfo) return;
