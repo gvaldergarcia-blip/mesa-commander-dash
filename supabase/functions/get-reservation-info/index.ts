@@ -31,20 +31,23 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
-      { auth: { persistSession: false } }
+      { 
+        auth: { persistSession: false },
+        db: { schema: 'mesaclik' }  // Use mesaclik schema
+      }
     );
 
-    // Fetch reservation with restaurant info
+    // Fetch reservation from mesaclik.reservations
     const { data: reservation, error: reservationError } = await supabaseAdmin
       .from("reservations")
       .select(`
         id,
         restaurant_id,
-        customer_name,
+        name,
         customer_email,
         phone,
         party_size,
-        reservation_datetime,
+        reserved_for,
         status,
         notes,
         cancel_reason,
@@ -63,10 +66,12 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fetch restaurant info
+    console.log("Found reservation:", reservation.id, "for restaurant:", reservation.restaurant_id);
+
+    // Fetch restaurant info from mesaclik schema (same as reservations)
     const { data: restaurant, error: restaurantError } = await supabaseAdmin
       .from("restaurants")
-      .select("id, name, address, address_line, city, cuisine")
+      .select("id, name, address_line, city, cuisine")
       .eq("id", reservation.restaurant_id)
       .single();
 
@@ -74,19 +79,29 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Restaurant fetch error:", restaurantError);
     }
 
-    // Fetch reservation settings for tolerance
-    const { data: settings } = await supabaseAdmin
+    // Create a new client for public schema to get reservation settings
+    const supabasePublic = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+      { 
+        auth: { persistSession: false },
+        db: { schema: 'public' }
+      }
+    );
+
+    // Fetch reservation settings for tolerance from public schema
+    const { data: settings } = await supabasePublic
       .from("reservation_settings")
       .select("tolerance_minutes, max_party_size")
       .eq("restaurant_id", reservation.restaurant_id)
-      .single();
+      .maybeSingle();
+
 
     // Build full address from address_line and city
     let fullAddress = null;
-    if (restaurant?.address_line || restaurant?.address) {
+    if (restaurant?.address_line) {
       const addressParts = [];
-      if (restaurant.address_line) addressParts.push(restaurant.address_line);
-      else if (restaurant.address) addressParts.push(restaurant.address);
+      addressParts.push(restaurant.address_line);
       if (restaurant.city) addressParts.push(restaurant.city);
       fullAddress = addressParts.join(', ');
     }
@@ -98,11 +113,11 @@ const handler = async (req: Request): Promise<Response> => {
       restaurant_name: restaurant?.name || "Restaurante",
       restaurant_address: fullAddress,
       restaurant_cuisine: restaurant?.cuisine || null,
-      customer_name: reservation.customer_name,
+      customer_name: reservation.name, // mesaclik uses 'name' instead of 'customer_name'
       customer_email: reservation.customer_email,
       phone: reservation.phone,
       party_size: reservation.party_size,
-      reservation_datetime: reservation.reservation_datetime,
+      reservation_datetime: reservation.reserved_for, // mesaclik uses 'reserved_for' instead of 'reservation_datetime'
       status: reservation.status,
       notes: reservation.notes,
       cancel_reason: reservation.cancel_reason,
