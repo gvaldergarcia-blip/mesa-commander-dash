@@ -71,6 +71,7 @@ export default function ReservaFinal() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
+  const [offersOptIn, setOffersOptIn] = useState(false);
   
   // Estado de cancelamento
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -117,11 +118,80 @@ export default function ReservaFinal() {
 
   // Handler para confirmar consentimento
   const handleConfirmConsent = async () => {
+    if (!reservationInfo) return;
+    
     setSavingConsent(true);
-    // Simular salvamento (pode ser expandido para salvar em tabela específica)
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setConsentConfirmed(true);
-    setSavingConsent(false);
+    try {
+      // Salvar preferência de marketing se optou por receber ofertas
+      if (offersOptIn && reservationInfo.customer_email) {
+        // Upsert em restaurant_marketing_optins
+        const { error: optinError } = await supabase
+          .from('restaurant_marketing_optins')
+          .upsert({
+            restaurant_id: reservationInfo.restaurant_id,
+            customer_email: reservationInfo.customer_email,
+            customer_name: reservationInfo.customer_name,
+            marketing_optin: true,
+            marketing_optin_at: new Date().toISOString(),
+          }, {
+            onConflict: 'restaurant_id,customer_email'
+          });
+
+        if (optinError) {
+          console.error('Erro ao salvar opt-in de marketing:', optinError);
+        }
+
+        // Atualizar restaurant_customers também
+        const { error: customerError } = await supabase
+          .from('restaurant_customers')
+          .upsert({
+            restaurant_id: reservationInfo.restaurant_id,
+            customer_email: reservationInfo.customer_email,
+            customer_name: reservationInfo.customer_name,
+            marketing_optin: true,
+            marketing_optin_at: new Date().toISOString(),
+            terms_accepted: true,
+            terms_accepted_at: new Date().toISOString(),
+            last_seen_at: new Date().toISOString(),
+          }, {
+            onConflict: 'restaurant_id,customer_email'
+          });
+
+        if (customerError) {
+          console.error('Erro ao atualizar customer:', customerError);
+        }
+      } else if (reservationInfo.customer_email) {
+        // Apenas salvar aceite de termos sem marketing
+        const { error: customerError } = await supabase
+          .from('restaurant_customers')
+          .upsert({
+            restaurant_id: reservationInfo.restaurant_id,
+            customer_email: reservationInfo.customer_email,
+            customer_name: reservationInfo.customer_name,
+            marketing_optin: false,
+            terms_accepted: true,
+            terms_accepted_at: new Date().toISOString(),
+            last_seen_at: new Date().toISOString(),
+          }, {
+            onConflict: 'restaurant_id,customer_email'
+          });
+
+        if (customerError) {
+          console.error('Erro ao atualizar customer:', customerError);
+        }
+      }
+
+      setConsentConfirmed(true);
+    } catch (err) {
+      console.error('Erro ao salvar consentimento:', err);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar suas preferências. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingConsent(false);
+    }
   };
 
   // Handler para cancelar reserva
@@ -237,9 +307,6 @@ export default function ReservaFinal() {
   const StatusIcon = config.icon;
   const isCanceled = reservationInfo.status === 'canceled' || reservationInfo.status === 'no_show';
   const canCancel = ['pending', 'confirmed'].includes(reservationInfo.status);
-
-  // Estado adicional para opt-in de ofertas
-  const [offersOptIn, setOffersOptIn] = useState(false);
 
   // Tela de consentimento
   if (!consentConfirmed) {

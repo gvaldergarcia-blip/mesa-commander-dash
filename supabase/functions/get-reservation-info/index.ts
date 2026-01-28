@@ -66,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch restaurant info
     const { data: restaurant, error: restaurantError } = await supabaseAdmin
       .from("restaurants")
-      .select("id, name, address, cuisine")
+      .select("id, name, address, address_line, city, cuisine")
       .eq("id", reservation.restaurant_id)
       .single();
 
@@ -81,12 +81,22 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("restaurant_id", reservation.restaurant_id)
       .single();
 
+    // Build full address from address_line and city
+    let fullAddress = null;
+    if (restaurant?.address_line || restaurant?.address) {
+      const addressParts = [];
+      if (restaurant.address_line) addressParts.push(restaurant.address_line);
+      else if (restaurant.address) addressParts.push(restaurant.address);
+      if (restaurant.city) addressParts.push(restaurant.city);
+      fullAddress = addressParts.join(', ');
+    }
+
     const response = {
       found: true,
       reservation_id: reservation.id,
       restaurant_id: reservation.restaurant_id,
       restaurant_name: restaurant?.name || "Restaurante",
-      restaurant_address: restaurant?.address || null,
+      restaurant_address: fullAddress,
       restaurant_cuisine: restaurant?.cuisine || null,
       customer_name: reservation.customer_name,
       customer_email: reservation.customer_email,
