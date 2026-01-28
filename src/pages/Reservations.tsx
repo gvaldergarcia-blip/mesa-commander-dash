@@ -592,6 +592,7 @@ export default function Reservations() {
                     <SelectItem value="confirmed">Confirmadas</SelectItem>
                     <SelectItem value="completed">Concluídas</SelectItem>
                     <SelectItem value="canceled">Canceladas</SelectItem>
+                    <SelectItem value="no_show">Não compareceu</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
@@ -717,9 +718,7 @@ export default function Reservations() {
                               size="sm" 
                               variant="destructive"
                               onClick={async () => {
-                                await updateReservationStatus(reservation.reservation_id, "canceled", "no_show");
-                                setActiveTab("all");
-                                setStatusFilter("canceled");
+                                await handleUpdateStatus(reservation.reservation_id, "no_show", reservation.starts_at);
                               }}
                             >
                               Não compareceu
@@ -783,6 +782,7 @@ export default function Reservations() {
                     <SelectItem value="seated">Sentadas</SelectItem>
                     <SelectItem value="completed">Concluídas</SelectItem>
                     <SelectItem value="canceled">Canceladas</SelectItem>
+                    <SelectItem value="no_show">Não compareceu</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
@@ -966,6 +966,7 @@ export default function Reservations() {
                     <SelectItem value="seated">Sentadas</SelectItem>
                     <SelectItem value="completed">Concluídas</SelectItem>
                     <SelectItem value="canceled">Canceladas</SelectItem>
+                    <SelectItem value="no_show">Não compareceu</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
