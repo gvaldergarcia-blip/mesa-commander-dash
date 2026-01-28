@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase/client';
 import { RestaurantCustomer } from '@/hooks/useRestaurantCustomers';
 import { cn } from '@/lib/utils';
+import { CustomerAIAnalysis } from './CustomerAIAnalysis';
 
 type CustomerDrawerProps = {
   open: boolean;
@@ -348,6 +349,37 @@ export function CustomerDrawer({
                 </p>
               )}
             </div>
+
+            <Separator />
+
+            {/* AI Analysis Section */}
+            <CustomerAIAnalysis
+              customerId={customer.id}
+              customerData={{
+                name: customer.customer_name || 'Sem nome',
+                vip_status: customer.vip,
+                marketing_opt_in: customer.marketing_optin,
+                created_at: customer.created_at,
+                days_since_last_visit: Math.floor(
+                  (Date.now() - new Date(customer.last_seen_at).getTime()) / (24 * 60 * 60 * 1000)
+                ),
+              }}
+              metrics={{
+                total_visits: customer.total_visits,
+                queue_completed: customer.total_queue_visits,
+                reservations_completed: customer.total_reservation_visits,
+                canceled_count: 0,
+                no_show_count: 0,
+                show_rate: 100,
+                avg_party_size: 4,
+                preferred_time: '20:00',
+                preferred_channel: customer.total_queue_visits > customer.total_reservation_visits ? 'queue' : 'reservation',
+              }}
+              historyData={{
+                queue_count: history.filter(h => h.type === 'queue').length,
+                reservation_count: history.filter(h => h.type === 'reservation').length,
+              }}
+            />
 
             <Separator />
 
