@@ -311,9 +311,9 @@ export default function ReservaFinal() {
   // Tela de consentimento
   if (!consentConfirmed) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-0">
-          <CardHeader className="text-center space-y-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg pb-6">
+          <CardHeader className="text-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-lg pb-6">
             <ShieldCheck className="h-12 w-12 mx-auto mb-2" />
             <CardTitle className="text-2xl font-bold text-white">Sua Reserva</CardTitle>
             <CardDescription className="text-white/90 text-base">
@@ -344,7 +344,7 @@ export default function ReservaFinal() {
                   <Link
                     to="/termos"
                     target="_blank"
-                    className="text-green-600 hover:text-green-700 underline"
+                    className="text-orange-600 hover:text-orange-700 underline"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Termos de Uso
@@ -353,7 +353,7 @@ export default function ReservaFinal() {
                   <Link
                     to="/privacidade"
                     target="_blank"
-                    className="text-green-600 hover:text-green-700 underline"
+                    className="text-orange-600 hover:text-orange-700 underline"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Política de Privacidade
@@ -367,7 +367,7 @@ export default function ReservaFinal() {
             </div>
 
             {/* Checkbox de ofertas (opcional) */}
-            <div className="flex items-start space-x-3 p-4 bg-green-50/50 rounded-lg border border-green-200/50">
+            <div className="flex items-start space-x-3 p-4 bg-orange-50/50 rounded-lg border border-orange-200/50">
               <Checkbox
                 id="offers-consent"
                 checked={offersOptIn}
@@ -389,7 +389,7 @@ export default function ReservaFinal() {
             </div>
 
             <Button
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-6"
+              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
               disabled={!termsAccepted || savingConsent}
               onClick={handleConfirmConsent}
             >
@@ -416,11 +416,11 @@ export default function ReservaFinal() {
 
   // Tela principal da reserva
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background p-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background p-4 py-8">
       <div className="max-w-md mx-auto space-y-4">
         {/* Header com status */}
         <Card className="shadow-xl border-0 overflow-hidden">
-          <CardHeader className={`text-center space-y-2 ${isCanceled ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-green-500 to-green-600'} text-white pb-6`}>
+          <CardHeader className={`text-center space-y-2 ${isCanceled ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-500 to-orange-600'} text-white pb-6`}>
             <div className="text-4xl mb-2">{isCanceled ? '❌' : '✅'}</div>
             <CardTitle className="text-2xl font-bold text-white">
               {isCanceled ? 'Reserva Cancelada' : 'Reserva Confirmada!'}
@@ -436,7 +436,7 @@ export default function ReservaFinal() {
         <Card className="shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-green-600" />
+              <MapPin className="h-5 w-5 text-orange-600" />
               Restaurante
             </CardTitle>
           </CardHeader>
@@ -461,37 +461,37 @@ export default function ReservaFinal() {
         <Card className="shadow-lg">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5 text-green-600" />
+              <FileText className="h-5 w-5 text-orange-600" />
               Detalhes da Reserva
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Status */}
             <div className="flex items-center gap-2">
-              <StatusIcon className={`h-5 w-5 ${isCanceled ? 'text-red-500' : 'text-green-500'}`} />
+              <StatusIcon className={`h-5 w-5 ${isCanceled ? 'text-red-500' : 'text-orange-500'}`} />
               <span className="font-medium">Status:</span>
               <Badge className={config.color}>{config.label}</Badge>
             </div>
 
             {/* Data */}
-            <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-              <Calendar className="h-5 w-5 text-green-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
+              <Calendar className="h-5 w-5 text-orange-600 mt-0.5" />
               <div>
                 <p className="font-semibold capitalize">{date}</p>
               </div>
             </div>
 
             {/* Horário */}
-            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-              <Clock className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+              <Clock className="h-5 w-5 text-orange-600" />
               <div>
                 <p className="font-semibold">{time}</p>
               </div>
             </div>
 
             {/* Pessoas */}
-            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-              <Users className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+              <Users className="h-5 w-5 text-orange-600" />
               <div>
                 <p className="font-semibold">
                   {reservationInfo.party_size} {reservationInfo.party_size === 1 ? 'pessoa' : 'pessoas'}
@@ -553,7 +553,7 @@ export default function ReservaFinal() {
 
         {/* Rodapé */}
         <div className="text-center py-4">
-          <p className="text-sm text-green-600 flex items-center justify-center gap-2">
+          <p className="text-sm text-orange-600 flex items-center justify-center gap-2">
             <ShieldCheck className="h-4 w-4" />
             Reserva realizada com segurança via MesaClik
           </p>
