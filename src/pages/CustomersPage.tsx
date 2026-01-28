@@ -12,6 +12,7 @@ import { CustomerListPremium } from "@/components/customers/CustomerListPremium"
 import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
+import { CustomerDrawer } from "@/components/customers/CustomerDrawer";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 
 export default function CustomersPage() {
@@ -26,8 +27,10 @@ export default function CustomersPage() {
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerCustomer, setDrawerCustomer] = useState<RestaurantCustomer | null>(null);
   
-  const { customers, loading, getKPIs, filterCustomers, getMarketingEligible } = useRestaurantCustomers(RESTAURANT_ID);
+  const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers(RESTAURANT_ID);
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(RESTAURANT_ID);
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
   useCustomerInsights(RESTAURANT_ID);
@@ -212,7 +215,13 @@ export default function CustomersPage() {
       {/* Customer List Premium */}
       <CustomerListPremium
         customers={filteredCustomers}
-        onViewProfile={(customerId) => navigate(`/customers/${customerId}`)}
+        onViewProfile={(customerId) => {
+          const customer = customers.find(c => c.id === customerId);
+          if (customer) {
+            setDrawerCustomer(customer);
+            setDrawerOpen(true);
+          }
+        }}
         onSendPromotion={(customer) => {
           setSelectedCustomer(customer);
           setPromotionDialogOpen(true);
@@ -250,6 +259,19 @@ export default function CustomersPage() {
           isSubmitting={sendingPromotion}
         />
       )}
+
+      {/* Customer Drawer */}
+      <CustomerDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        customer={drawerCustomer}
+        onSendPromotion={(customer) => {
+          setDrawerOpen(false);
+          setSelectedCustomer(customer);
+          setPromotionDialogOpen(true);
+        }}
+        onCustomerUpdate={refetch}
+      />
     </div>
   );
 }
