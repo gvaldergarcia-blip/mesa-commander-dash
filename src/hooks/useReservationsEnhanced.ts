@@ -1,93 +1,154 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useReservations, Reservation } from './useReservations';
-import { getCustomerVipStatus, CustomerVipStatus } from '@/utils/customerUtils';
+import { supabase } from '@/lib/supabase/client';
 
 /**
  * Hook aprimorado que adiciona informações VIP aos clientes das reservas
- * Utiliza padrão Ref-first para estabilidade de hooks
+ * Otimizado para evitar flicker e requisições excessivas
  */
+
+export type CustomerVipStatus = {
+  isVip: boolean;
+  queueCompleted: number;
+  reservationsCompleted: number;
+  totalVisitsCompleted: number;
+};
 
 export type ReservationEnhanced = Reservation & {
   vipStatus?: CustomerVipStatus;
 };
 
+// Cache de VIP status para evitar requisições repetidas
+const vipCache = new Map<string, CustomerVipStatus>();
+
 export function useReservationsEnhanced() {
-  // Hook calls sempre na mesma ordem, sem condicionais
-  const [enhancedReservations, setEnhancedReservations] = useState<ReservationEnhanced[]>([]);
+  const reservationData = useReservations();
+  const [vipMap, setVipMap] = useState<Map<string, CustomerVipStatus>>(new Map());
   const [loadingVip, setLoadingVip] = useState(false);
   
-  // Chamar useReservations depois dos useState locais para consistência
-  const reservationData = useReservations();
-  
-  // Ref para evitar race conditions e garantir estabilidade
-  const isMountedRef = useRef(true);
-  const processingRef = useRef(false);
+  // Refs para controle de race conditions
+  const fetchIdRef = useRef(0);
+  const lastPhonesRef = useRef<string>('');
 
-  // Callback estabilizado para processar reservas
-  const enhanceReservations = useCallback(async (reservations: Reservation[]) => {
-    if (processingRef.current || reservations.length === 0) {
-      if (reservations.length === 0) {
-        setEnhancedReservations([]);
+  // Extrair phones únicos das reservas
+  const uniquePhones = useMemo(() => {
+    const phones = new Set<string>();
+    reservationData.reservations.forEach(r => {
+      if (r.phone && r.phone !== '—') {
+        phones.add(r.phone);
       }
+    });
+    return Array.from(phones);
+  }, [reservationData.reservations]);
+
+  // Buscar VIP status em batch apenas quando phones mudam
+  useEffect(() => {
+    const phonesKey = uniquePhones.sort().join(',');
+    
+    // Se phones não mudaram, não refazer a busca
+    if (phonesKey === lastPhonesRef.current || uniquePhones.length === 0) {
+      return;
+    }
+    
+    lastPhonesRef.current = phonesKey;
+    const currentFetchId = ++fetchIdRef.current;
+
+    // Verificar quais phones não estão no cache
+    const uncachedPhones = uniquePhones.filter(phone => !vipCache.has(phone));
+    
+    // Se todos estão em cache, usar cache
+    if (uncachedPhones.length === 0) {
+      const cachedMap = new Map<string, CustomerVipStatus>();
+      uniquePhones.forEach(phone => {
+        const cached = vipCache.get(phone);
+        if (cached) cachedMap.set(phone, cached);
+      });
+      setVipMap(cachedMap);
       return;
     }
 
-    processingRef.current = true;
-    setLoadingVip(true);
+    const fetchVipStatus = async () => {
+      setLoadingVip(true);
+      
+      try {
+        // Buscar em batch todos os phones não cacheados
+        const { data: customers, error } = await supabase
+          .from('customers')
+          .select('phone, vip_status, queue_completed, reservations_completed, total_visits')
+          .in('phone', uncachedPhones);
 
-    try {
-      const enhanced = await Promise.all(
-        reservations.map(async (reservation) => {
-          try {
-            const vipStatus = await getCustomerVipStatus(reservation.phone);
-            return {
-              ...reservation,
-              vipStatus,
-            };
-          } catch {
-            return { ...reservation, vipStatus: undefined };
+        if (error) throw error;
+        
+        // Verificar se ainda é a requisição mais recente
+        if (currentFetchId !== fetchIdRef.current) return;
+
+        // Processar resultados e atualizar cache
+        const newVipMap = new Map<string, CustomerVipStatus>();
+        
+        // Primeiro, adicionar phones sem dados (não VIP)
+        uncachedPhones.forEach(phone => {
+          const defaultStatus: CustomerVipStatus = {
+            isVip: false,
+            queueCompleted: 0,
+            reservationsCompleted: 0,
+            totalVisitsCompleted: 0,
+          };
+          vipCache.set(phone, defaultStatus);
+          newVipMap.set(phone, defaultStatus);
+        });
+
+        // Depois, sobrescrever com dados reais
+        customers?.forEach(customer => {
+          if (!customer.phone) return;
+          
+          const queueCompleted = customer.queue_completed || 0;
+          const reservationsCompleted = customer.reservations_completed || 0;
+          const totalVisitsCompleted = customer.total_visits || 0;
+          const isVip = customer.vip_status || totalVisitsCompleted >= 10;
+
+          const status: CustomerVipStatus = {
+            isVip,
+            queueCompleted,
+            reservationsCompleted,
+            totalVisitsCompleted,
+          };
+          
+          vipCache.set(customer.phone, status);
+          newVipMap.set(customer.phone, status);
+        });
+
+        // Adicionar phones já cacheados
+        uniquePhones.forEach(phone => {
+          if (!newVipMap.has(phone)) {
+            const cached = vipCache.get(phone);
+            if (cached) newVipMap.set(phone, cached);
           }
-        })
-      );
+        });
 
-      if (isMountedRef.current) {
-        setEnhancedReservations(enhanced);
+        setVipMap(newVipMap);
+      } catch (error) {
+        console.error('Erro ao buscar status VIP:', error);
+      } finally {
+        if (currentFetchId === fetchIdRef.current) {
+          setLoadingVip(false);
+        }
       }
-    } catch (error) {
-      console.error('Erro ao calcular status VIP:', error);
-      if (isMountedRef.current) {
-        setEnhancedReservations(reservations.map(r => ({ ...r, vipStatus: undefined })));
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setLoadingVip(false);
-      }
-      processingRef.current = false;
-    }
-  }, []);
-
-  // Effect para processar reservas quando mudam
-  useEffect(() => {
-    isMountedRef.current = true;
-    
-    enhanceReservations(reservationData.reservations);
-
-    return () => {
-      isMountedRef.current = false;
     };
-  }, [reservationData.reservations, enhanceReservations]);
 
-  // Retornar tipo explícito para garantir que TypeScript reconheça vipStatus
-  const result: Omit<ReturnType<typeof useReservations>, 'reservations'> & { 
-    reservations: ReservationEnhanced[];
-    loadingVip: boolean;
-  } = {
+    fetchVipStatus();
+  }, [uniquePhones]);
+
+  // Combinar reservas com VIP status de forma estável
+  const enhancedReservations = useMemo((): ReservationEnhanced[] => {
+    return reservationData.reservations.map(reservation => ({
+      ...reservation,
+      vipStatus: reservation.phone ? vipMap.get(reservation.phone) : undefined,
+    }));
+  }, [reservationData.reservations, vipMap]);
+
+  return {
     ...reservationData,
-    reservations: enhancedReservations.length > 0 
-      ? enhancedReservations 
-      : reservationData.reservations.map(r => ({ ...r, vipStatus: undefined })),
+    reservations: enhancedReservations,
     loadingVip,
   };
-
-  return result;
 }
