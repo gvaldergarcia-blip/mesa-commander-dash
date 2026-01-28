@@ -179,6 +179,27 @@ export function useReservations() {
 
       console.log('[useReservations] Status atualizado com sucesso:', data);
 
+      // Emitir Broadcast para notificar a tela do cliente em tempo real
+      try {
+        const channel = supabase.channel(`reservation-broadcast-${reservationId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'reservation_updated',
+          payload: {
+            reservation_id: reservationId,
+            status: status,
+            canceled_at: status === 'canceled' ? new Date().toISOString() : null,
+            cancel_reason: cancelReason || null,
+          }
+        });
+        console.log('[useReservations] Broadcast enviado para reserva:', reservationId);
+        // Dar tempo pro broadcast ser enviado antes de fechar o canal
+        await new Promise(resolve => setTimeout(resolve, 100));
+        supabase.removeChannel(channel);
+      } catch (broadcastError) {
+        console.warn('[useReservations] Erro ao enviar broadcast (não crítico):', broadcastError);
+      }
+
       // Se status for 'completed', registrar/atualizar em customers
       if (status === 'completed' && reservationData) {
         await upsertCustomer({

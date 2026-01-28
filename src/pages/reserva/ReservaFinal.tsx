@@ -5,7 +5,7 @@
  * - Ações: cancelar reserva, abrir no Maps
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -116,63 +116,122 @@ export default function ReservaFinal() {
     fetchReservationInfo();
   }, [fetchReservationInfo]);
 
-  // Supabase Realtime: escutar mudanças na reserva em tempo real
+  // Ref para controlar o último status (evita toasts duplicados)
+  const lastStatusRef = useRef<string | null>(null);
+
+  // Supabase Realtime via Broadcast (mais confiável que postgres_changes para schemas não-public)
   useEffect(() => {
     if (!reservationId) return;
 
-    console.log('[ReservaFinal] Configurando Realtime para reserva:', reservationId);
+    console.log('[ReservaFinal] Configurando Realtime Broadcast para reserva:', reservationId);
 
     const channel = supabase
-      .channel(`reservation-${reservationId}`)
+      .channel(`reservation-broadcast-${reservationId}`)
       .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'mesaclik',
-          table: 'reservations',
-          filter: `id=eq.${reservationId}`
-        },
+        'broadcast',
+        { event: 'reservation_updated' },
         (payload) => {
-          console.log('[ReservaFinal] Realtime UPDATE recebido:', payload);
+          console.log('[ReservaFinal] Broadcast recebido:', payload);
           
-          // Atualizar o status localmente sem precisar buscar de novo
-          const newData = payload.new as any;
-          
-          setReservationInfo(prev => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              status: newData.status,
-              canceled_at: newData.canceled_at,
-              cancel_reason: newData.cancel_reason,
+          const newStatus = payload.payload?.status;
+          if (newStatus && newStatus !== lastStatusRef.current) {
+            lastStatusRef.current = newStatus;
+            
+            setReservationInfo(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: newStatus,
+                canceled_at: payload.payload?.canceled_at,
+                cancel_reason: payload.payload?.cancel_reason,
+              };
+            });
+
+            // Mostrar toast informando a mudança
+            const statusMessages: Record<string, string> = {
+              confirmed: '✅ Sua reserva foi confirmada pelo restaurante!',
+              canceled: '❌ Sua reserva foi cancelada.',
+              completed: '🎉 Reserva concluída! Obrigado pela visita.',
+              no_show: '⚠️ Sua reserva foi marcada como não comparecimento.',
+              pending: '⏳ Sua reserva está pendente de confirmação.',
+              seated: '🍽️ Você foi acomodado! Bom apetite!'
             };
-          });
 
-          // Mostrar toast informando a mudança
-          const statusMessages: Record<string, string> = {
-            confirmed: '✅ Sua reserva foi confirmada pelo restaurante!',
-            canceled: '❌ Sua reserva foi cancelada.',
-            completed: '🎉 Reserva concluída! Obrigado pela visita.',
-            no_show: '⚠️ Sua reserva foi marcada como não comparecimento.',
-            pending: '⏳ Sua reserva está pendente de confirmação.',
-            seated: '🍽️ Você foi acomodado! Bom apetite!'
-          };
-
-          toast({
-            title: 'Status atualizado',
-            description: statusMessages[newData.status] || `Status: ${newData.status}`,
-          });
+            toast({
+              title: 'Status atualizado',
+              description: statusMessages[newStatus] || `Status: ${newStatus}`,
+            });
+          }
         }
       )
       .subscribe((status) => {
-        console.log('[ReservaFinal] Realtime subscription status:', status);
+        console.log('[ReservaFinal] Broadcast subscription status:', status);
       });
 
     return () => {
-      console.log('[ReservaFinal] Removendo canal Realtime');
+      console.log('[ReservaFinal] Removendo canal Broadcast');
       supabase.removeChannel(channel);
     };
   }, [reservationId, toast]);
+
+  // Polling fallback: verificar status a cada 5 segundos
+  useEffect(() => {
+    if (!reservationId || !consentConfirmed) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-reservation-info', {
+          body: { reservation_id: reservationId },
+        });
+
+        if (!error && data && data.status) {
+          const newStatus = data.status;
+          
+          // Só atualiza se status mudou
+          if (newStatus !== lastStatusRef.current) {
+            console.log('[ReservaFinal] Polling detectou mudança:', lastStatusRef.current, '->', newStatus);
+            lastStatusRef.current = newStatus;
+
+            setReservationInfo(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: newStatus,
+                canceled_at: data.canceled_at,
+                cancel_reason: data.cancel_reason,
+              };
+            });
+
+            // Mostrar toast informando a mudança
+            const statusMessages: Record<string, string> = {
+              confirmed: '✅ Sua reserva foi confirmada pelo restaurante!',
+              canceled: '❌ Sua reserva foi cancelada.',
+              completed: '🎉 Reserva concluída! Obrigado pela visita.',
+              no_show: '⚠️ Sua reserva foi marcada como não comparecimento.',
+              pending: '⏳ Sua reserva está pendente de confirmação.',
+              seated: '🍽️ Você foi acomodado! Bom apetite!'
+            };
+
+            toast({
+              title: 'Status atualizado',
+              description: statusMessages[newStatus] || `Status: ${newStatus}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[ReservaFinal] Polling error:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [reservationId, consentConfirmed, toast]);
+
+  // Inicializar lastStatusRef quando carregar
+  useEffect(() => {
+    if (reservationInfo?.status) {
+      lastStatusRef.current = reservationInfo.status;
+    }
+  }, [reservationInfo?.status]);
 
   // Handler para confirmar consentimento
   const handleConfirmConsent = async () => {
@@ -252,23 +311,40 @@ export default function ReservaFinal() {
     }
   };
 
-  // Handler para cancelar reserva
+  // Handler para cancelar reserva - usa RPC para atualizar mesaclik.reservations
   const handleCancelReservation = async () => {
     if (!reservationInfo) return;
     
     setCanceling(true);
     try {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ 
-          status: 'canceled',
-          canceled_at: new Date().toISOString(),
-          canceled_by: 'customer',
-          cancel_reason: 'Cancelado pelo cliente'
-        })
-        .eq('id', reservationInfo.reservation_id);
+      // Usar a mesma RPC que o painel usa para garantir sincronização
+      const { data, error } = await supabase.rpc('update_reservation_status_panel', {
+        p_reservation_id: reservationInfo.reservation_id,
+        p_status: 'canceled',
+        p_cancel_reason: 'Cancelado pelo cliente'
+      });
 
       if (error) throw error;
+
+      // Emitir Broadcast para notificar o painel em tempo real
+      try {
+        const channel = supabase.channel(`reservation-broadcast-${reservationInfo.reservation_id}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'reservation_updated',
+          payload: {
+            reservation_id: reservationInfo.reservation_id,
+            status: 'canceled',
+            canceled_at: new Date().toISOString(),
+            cancel_reason: 'Cancelado pelo cliente',
+          }
+        });
+        console.log('[ReservaFinal] Broadcast de cancelamento enviado');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        supabase.removeChannel(channel);
+      } catch (broadcastError) {
+        console.warn('[ReservaFinal] Erro ao enviar broadcast (não crítico):', broadcastError);
+      }
 
       toast({
         title: 'Reserva cancelada',
@@ -276,6 +352,7 @@ export default function ReservaFinal() {
       });
 
       // Atualizar estado local
+      lastStatusRef.current = 'canceled';
       setReservationInfo(prev => prev ? { ...prev, status: 'canceled' } : null);
       setShowCancelDialog(false);
     } catch (err) {
