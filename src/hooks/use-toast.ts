@@ -174,7 +174,7 @@ function useToast() {
         listeners.splice(index, 1);
       }
     };
-  }, [state]);
+  }, []); // Empty dependency - subscribe only on mount/unmount
 
   return {
     ...state,
