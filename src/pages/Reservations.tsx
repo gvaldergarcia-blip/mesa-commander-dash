@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Calendar, Clock, User, Phone, Search, Filter, Mail } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
-import { useReservationsEnhanced } from "@/hooks/useReservationsEnhanced";
+import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
 import { VipBadge } from "@/components/queue/VipBadge";
 import { Button } from "@/components/ui/button";
