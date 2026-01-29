@@ -93,22 +93,9 @@ export function useReservations() {
       if (error) throw error;
       if (!data) throw new Error('Reserva não retornou dados');
 
-      // IMPORTANTE: Cadastrar/atualizar cliente em restaurant_customers
-      // para que apareça na lista de Clientes do CRM
-      try {
-        await supabase.rpc('upsert_restaurant_customer', {
-          p_restaurant_id: restaurantId,
-          p_email: reservation.customer_email,
-          p_name: reservation.customer_name,
-          p_phone: null, // reservas não têm telefone obrigatório
-          p_source: 'reservation',
-          p_marketing_optin: null, // mantém preferência atual se existir
-          p_terms_accepted: null,
-        });
-        console.log('[useReservations] Cliente registrado em restaurant_customers:', reservation.customer_email);
-      } catch (customerError) {
-        console.warn('[useReservations] Erro ao registrar cliente (não crítico):', customerError);
-      }
+      // NOTA: NÃO incrementar visita na criação da reserva.
+      // A visita só será contabilizada quando a reserva for COMPLETADA (status = 'completed').
+      // O cliente será registrado em restaurant_customers nesse momento.
 
       // Buscar informações do restaurante para o email
       const { data: restaurantData } = await supabase
@@ -178,7 +165,11 @@ export function useReservations() {
       // Usar dados já carregados da view (evita SELECT com RLS)
       const reservationFromState = reservations.find((r) => r.reservation_id === reservationId);
       const reservationData = reservationFromState
-        ? { name: reservationFromState.customer_name, phone: reservationFromState.phone }
+        ? { 
+            name: reservationFromState.customer_name, 
+            phone: reservationFromState.phone,
+            email: reservationFromState.customer_email 
+          }
         : null;
 
       // IMPORTANTE: update via RPC (SECURITY DEFINER) para evitar bloqueio por RLS,
@@ -217,11 +208,32 @@ export function useReservations() {
         console.warn('[useReservations] Erro ao enviar broadcast (não crítico):', broadcastError);
       }
 
-      // Se status for 'completed', registrar/atualizar em customers
+      // Se status for 'completed', registrar/atualizar cliente em restaurant_customers
+      // e também em customers (tabela legada)
       if (status === 'completed' && reservationData) {
+        // Atualizar restaurant_customers (CRM principal) via RPC
+        if (reservationData.email) {
+          try {
+            await supabase.rpc('upsert_restaurant_customer', {
+              p_restaurant_id: restaurantId,
+              p_email: reservationData.email,
+              p_name: reservationData.name,
+              p_phone: reservationData.phone || null,
+              p_source: 'reservation',
+              p_marketing_optin: null, // mantém preferência existente
+              p_terms_accepted: null,
+            });
+            console.log('[useReservations] Cliente atualizado em restaurant_customers (reserva completed):', reservationData.email);
+          } catch (customerError) {
+            console.warn('[useReservations] Erro ao atualizar restaurant_customers (não crítico):', customerError);
+          }
+        }
+
+        // Atualizar customers (tabela legada) também
         await upsertCustomer({
           name: reservationData.name,
           phone: reservationData.phone,
+          email: reservationData.email,
           source: 'reservation'
         });
       } else if (status === 'completed' && !reservationData) {
