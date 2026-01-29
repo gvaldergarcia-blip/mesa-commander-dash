@@ -208,9 +208,9 @@ export function useReservations() {
         console.warn('[useReservations] Erro ao enviar broadcast (não crítico):', broadcastError);
       }
 
-      // Se status for 'completed', registrar/atualizar cliente em restaurant_customers
-      // e também em customers (tabela legada)
-      if (status === 'completed' && reservationData) {
+      // Se status for 'confirmed' OU 'completed', registrar/atualizar cliente em restaurant_customers
+      // Isso garante que o cliente apareça na lista de "Clientes" assim que a reserva for confirmada
+      if ((status === 'confirmed' || status === 'completed') && reservationData) {
         // Atualizar restaurant_customers (CRM principal) via RPC
         if (reservationData.email) {
           try {
@@ -223,20 +223,22 @@ export function useReservations() {
               p_marketing_optin: null, // mantém preferência existente
               p_terms_accepted: null,
             });
-            console.log('[useReservations] Cliente atualizado em restaurant_customers (reserva completed):', reservationData.email);
+            console.log(`[useReservations] Cliente atualizado em restaurant_customers (reserva ${status}):`, reservationData.email);
           } catch (customerError) {
             console.warn('[useReservations] Erro ao atualizar restaurant_customers (não crítico):', customerError);
           }
         }
 
-        // Atualizar customers (tabela legada) também
-        await upsertCustomer({
-          name: reservationData.name,
-          phone: reservationData.phone,
-          email: reservationData.email,
-          source: 'reservation'
-        });
-      } else if (status === 'completed' && !reservationData) {
+        // Atualizar customers (tabela legada) apenas no completed (para contabilizar visita)
+        if (status === 'completed') {
+          await upsertCustomer({
+            name: reservationData.name,
+            phone: reservationData.phone,
+            email: reservationData.email,
+            source: 'reservation'
+          });
+        }
+      } else if ((status === 'confirmed' || status === 'completed') && !reservationData) {
         console.warn('[useReservations] Não encontrei dados da reserva no estado para registrar cliente:', reservationId);
       }
 

@@ -71,7 +71,7 @@ const getEmailContent = (data: ReservationEmailRequest) => {
   switch (type) {
     case 'confirmation':
       return {
-        subject: `✅ Sua reserva foi confirmada - ${restaurant_name}`,
+        subject: `🎉 Sua reserva foi confirmada - ${restaurant_name}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -80,97 +80,49 @@ const getEmailContent = (data: ReservationEmailRequest) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Reserva Confirmada</title>
           </head>
-          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;">
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fff7ed;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; padding: 40px 20px;">
               <tr>
                 <td align="center">
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
                     <!-- Header -->
                     <tr>
-                      <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); border-radius: 16px 16px 0 0;">
-                        <p style="margin: 0 0 8px; font-size: 48px;">✅</p>
-                        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Reserva Confirmada!</h1>
-                        <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurant_name}</p>
+                      <td style="padding: 40px 32px 32px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
+                        <p style="margin: 0 0 12px; font-size: 56px;">🎉</p>
+                        <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Reserva Confirmada!</h1>
+                        <p style="margin: 12px 0 0; color: rgba(255, 255, 255, 0.95); font-size: 18px; font-weight: 500;">${restaurant_name}</p>
                       </td>
                     </tr>
                     <!-- Body -->
                     <tr>
-                      <td style="padding: 32px;">
-                        ${customer_name ? `<p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Olá <strong>${customer_name}</strong>!</p>` : ''}
+                      <td style="padding: 40px 32px; text-align: center;">
+                        ${customer_name ? `<p style="margin: 0 0 16px; color: #3f3f46; font-size: 18px; line-height: 1.6;">Olá <strong style="color: #f97316;">${customer_name}</strong>!</p>` : ''}
                         
-                        <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          Sua reserva foi confirmada com sucesso. Estamos ansiosos para recebê-lo!
+                        <p style="margin: 0 0 32px; color: #52525b; font-size: 16px; line-height: 1.7;">
+                          Sua reserva foi confirmada com sucesso.<br/>
+                          <strong style="color: #f97316;">Estamos ansiosos para recebê-lo!</strong>
                         </p>
-                        
-                        <!-- Reservation Details -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0fdf4; border-radius: 12px; margin-bottom: 24px;">
-                          <tr>
-                            <td style="padding: 24px;">
-                              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <p style="margin: 0; color: #166534; font-size: 14px; font-weight: 600;">📅 Data</p>
-                                    <p style="margin: 4px 0 0; color: #3f3f46; font-size: 16px; font-weight: 700;">${reservation_date}</p>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <p style="margin: 0; color: #166534; font-size: 14px; font-weight: 600;">🕐 Horário</p>
-                                    <p style="margin: 4px 0 0; color: #3f3f46; font-size: 16px; font-weight: 700;">${reservation_time}</p>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <p style="margin: 0; color: #166534; font-size: 14px; font-weight: 600;">👥 Pessoas</p>
-                                    <p style="margin: 4px 0 0; color: #3f3f46; font-size: 16px; font-weight: 700;">${party_size} ${party_size === 1 ? 'pessoa' : 'pessoas'}</p>
-                                  </td>
-                                </tr>
-                                ${notes ? `
-                                <tr>
-                                  <td style="padding: 8px 0;">
-                                    <p style="margin: 0; color: #166534; font-size: 14px; font-weight: 600;">📝 Observações</p>
-                                    <p style="margin: 4px 0 0; color: #3f3f46; font-size: 14px;">${notes}</p>
-                                  </td>
-                                </tr>
-                                ` : ''}
-                              </table>
-                            </td>
-                          </tr>
-                        </table>
-                        
-                        ${restaurant_address ? `
-                        <!-- Restaurant Info -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 24px;">
-                          <tr>
-                            <td style="padding: 20px;">
-                              <p style="margin: 0; color: #9a3412; font-size: 14px; font-weight: 600;">📍 Endereço</p>
-                              <p style="margin: 8px 0 0; color: #3f3f46; font-size: 14px; line-height: 1.5;">${restaurant_address}</p>
-                              ${restaurant_cuisine ? `<p style="margin: 8px 0 0; color: #71717a; font-size: 12px;">Culinária: ${restaurant_cuisine}</p>` : ''}
-                            </td>
-                          </tr>
-                        </table>
-                        ` : ''}
                         
                         <!-- CTA Button -->
                         <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                           <tr>
                             <td align="center" style="padding: 8px 0 24px;">
-                              <a href="${reservation_url}" style="display: inline-block; padding: 18px 36px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
+                              <a href="${reservation_url}" style="display: inline-block; padding: 18px 40px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);">
                                 📱 Ver minha reserva
                               </a>
                             </td>
                           </tr>
                         </table>
                         
-                        <p style="margin: 0; color: #71717a; font-size: 14px; line-height: 1.6; text-align: center;">
-                          Clique no botão acima para ver detalhes, editar ou cancelar sua reserva.
+                        <p style="margin: 0; color: #a1a1aa; font-size: 13px; line-height: 1.6;">
+                          Clique no botão acima para ver os detalhes da sua reserva
                         </p>
                       </td>
                     </tr>
                     <!-- Footer -->
                     <tr>
-                      <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                        <p style="margin: 0; color: #16a34a; font-size: 12px; font-weight: 500;">
+                      <td style="padding: 24px 32px; background-color: #fff7ed; border-radius: 0 0 16px 16px; text-align: center;">
+                        <p style="margin: 0; color: #ea580c; font-size: 12px; font-weight: 500;">
                           🔒 Reserva realizada com segurança via MesaClik
                         </p>
                         <p style="margin: 8px 0 0; color: #a1a1aa; font-size: 11px;">
