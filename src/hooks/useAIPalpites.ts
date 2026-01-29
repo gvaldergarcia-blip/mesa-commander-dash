@@ -224,9 +224,14 @@ export function useAIPalpites(restaurantId: string = RESTAURANT_ID) {
     });
   }, [palpites]);
 
+  // REMOVIDO: Não gerar palpites automaticamente
+  // Só carrega palpites existentes ao montar, mas NÃO gera novos automaticamente
   useEffect(() => {
     fetchPalpites();
   }, [fetchPalpites]);
+
+  // NOTA: A geração de palpites só acontece quando o usuário clica em "Gerar Palpites"
+  // através da função generatePalpites()
 
   return {
     palpites,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useTheme } from "@/hooks/useTheme";
+import { supabase } from "@/lib/supabase/client";
+import { RESTAURANT_ID } from "@/config/current-restaurant";
 
 const allNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
@@ -35,9 +37,66 @@ const navigation = allNavigation.filter((item) => {
   return FEATURE_FLAGS[item.requiresFeature];
 });
 
+interface RestaurantInfo {
+  name: string;
+  logo_url: string | null;
+}
+
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
+
+  // Buscar dados do restaurante das configurações
+  useEffect(() => {
+    const fetchRestaurantInfo = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .schema('mesaclik')
+          .from('restaurants')
+          .select('name, logo_url')
+          .eq('id', RESTAURANT_ID)
+          .single();
+
+        if (!error && data) {
+          setRestaurant(data);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar dados do restaurante:', err);
+      }
+    };
+
+    fetchRestaurantInfo();
+
+    // Subscribe para atualizações em tempo real
+    const channel = supabase
+      .channel('sidebar-restaurant-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'mesaclik',
+          table: 'restaurants',
+          filter: `id=eq.${RESTAURANT_ID}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setRestaurant({
+              name: (payload.new as any).name,
+              logo_url: (payload.new as any).logo_url,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Obter inicial do nome do restaurante para fallback
+  const restaurantInitial = restaurant?.name?.charAt(0)?.toUpperCase() || 'R';
 
   return (
     <aside className={cn(
@@ -131,19 +190,39 @@ export function Sidebar() {
           </span>
         </button>
         
-        {/* Restaurant Info */}
+        {/* Restaurant Info - Exibe nome e logo oficiais das Configurações */}
         <div className={cn(
           "flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30",
           isCollapsed && "justify-center px-2"
         )}>
-          <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-semibold text-primary">R</span>
+          {/* Avatar com logo ou inicial */}
+          <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {restaurant?.logo_url ? (
+              <img 
+                src={restaurant.logo_url} 
+                alt={restaurant.name} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback para inicial se imagem falhar
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <span className={cn(
+              "text-xs font-semibold text-primary",
+              restaurant?.logo_url && "hidden"
+            )}>
+              {restaurantInitial}
+            </span>
           </div>
           <div className={cn(
             "min-w-0 transition-all duration-200",
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
-            <p className="text-sm font-medium truncate text-sidebar-foreground">Restaurante Demo</p>
+            <p className="text-sm font-medium truncate text-sidebar-foreground">
+              {restaurant?.name || 'Carregando...'}
+            </p>
             <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Administrador</p>
           </div>
         </div>
