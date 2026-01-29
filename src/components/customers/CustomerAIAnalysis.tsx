@@ -115,6 +115,7 @@ export function CustomerAIAnalysis({
   const [analysis, setAnalysis] = useState<CustomerAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   const fetchAnalysis = async () => {
     setLoading(true);
@@ -140,6 +141,7 @@ export function CustomerAIAnalysis({
 
       if (data?.analysis) {
         setAnalysis(data.analysis);
+        setHasGenerated(true);
       }
     } catch (err) {
       console.error('[CustomerAIAnalysis] Error:', err);
@@ -149,11 +151,7 @@ export function CustomerAIAnalysis({
     }
   };
 
-  useEffect(() => {
-    if (metrics.total_visits > 0) {
-      fetchAnalysis();
-    }
-  }, [customerId]);
+  // Não gera automaticamente - só quando o usuário clicar em "Gerar"
 
   // Estado inicial - sem dados suficientes
   if (metrics.total_visits === 0 && !loading) {
@@ -166,6 +164,34 @@ export function CustomerAIAnalysis({
           </p>
           <p className="text-sm text-muted-foreground/70 mt-1">
             O cliente precisa ter pelo menos uma visita registrada.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Estado inicial - pronto para gerar (só mostra se ainda não gerou)
+  if (!hasGenerated && !loading && !analysis) {
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 pb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-primary/10 rounded-lg">
+              <Brain className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Análise de IA</CardTitle>
+              <CardDescription className="text-xs">Clique em "Gerar" para analisar o comportamento do cliente</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="py-8 text-center">
+          <Button onClick={fetchAnalysis} className="gap-2">
+            <Brain className="w-4 h-4" />
+            Gerar Análise de IA
+          </Button>
+          <p className="text-xs text-muted-foreground mt-3">
+            A análise é gerada pela MesaClik IA com base no histórico do cliente.
           </p>
         </CardContent>
       </Card>
