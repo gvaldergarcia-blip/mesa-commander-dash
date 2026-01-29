@@ -93,6 +93,23 @@ export function useReservations() {
       if (error) throw error;
       if (!data) throw new Error('Reserva não retornou dados');
 
+      // IMPORTANTE: Cadastrar/atualizar cliente em restaurant_customers
+      // para que apareça na lista de Clientes do CRM
+      try {
+        await supabase.rpc('upsert_restaurant_customer', {
+          p_restaurant_id: restaurantId,
+          p_email: reservation.customer_email,
+          p_name: reservation.customer_name,
+          p_phone: null, // reservas não têm telefone obrigatório
+          p_source: 'reservation',
+          p_marketing_optin: null, // mantém preferência atual se existir
+          p_terms_accepted: null,
+        });
+        console.log('[useReservations] Cliente registrado em restaurant_customers:', reservation.customer_email);
+      } catch (customerError) {
+        console.warn('[useReservations] Erro ao registrar cliente (não crítico):', customerError);
+      }
+
       // Buscar informações do restaurante para o email
       const { data: restaurantData } = await supabase
         .schema('mesaclik')

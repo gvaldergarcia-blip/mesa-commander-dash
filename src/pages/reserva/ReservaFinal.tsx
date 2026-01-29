@@ -374,6 +374,13 @@ export default function ReservaFinal() {
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
   };
 
+  // Abrir Waze
+  const openWaze = () => {
+    if (!reservationInfo?.restaurant_address) return;
+    const encodedAddress = encodeURIComponent(reservationInfo.restaurant_address);
+    window.open(`https://waze.com/ul?q=${encodedAddress}&navigate=yes`, '_blank');
+  };
+
   // Formatar data e hora
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -660,7 +667,7 @@ export default function ReservaFinal() {
         {/* Bloco Ações */}
         <Card className="shadow-lg">
           <CardContent className="pt-6 space-y-3">
-            {/* Abrir no Maps */}
+            {/* Abrir no Google Maps */}
             {reservationInfo.restaurant_address && (
               <Button
                 variant="outline"
@@ -668,7 +675,19 @@ export default function ReservaFinal() {
                 onClick={openGoogleMaps}
               >
                 <Navigation className="h-4 w-4" />
-                Abrir endereço no Google Maps
+                Abrir no Google Maps
+              </Button>
+            )}
+
+            {/* Abrir no Waze */}
+            {reservationInfo.restaurant_address && (
+              <Button
+                variant="outline"
+                className="w-full gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                onClick={openWaze}
+              >
+                <Navigation className="h-4 w-4" />
+                Abrir no Waze
               </Button>
             )}
 
