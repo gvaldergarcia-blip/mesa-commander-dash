@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
 import { useQueueRealtime } from './useQueueRealtime';
@@ -103,12 +103,14 @@ type SourceType = 'all' | 'queue' | 'reservations';
 export function useReportsReal(period: PeriodType = '30days', sourceType: SourceType = 'all') {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasInitialData, setHasInitialData] = useState(false);
+  
+  // Usar ref para rastrear estado inicial (evita dependência circular no useCallback)
+  const hasInitialDataRef = useRef(false);
 
   const fetchReports = useCallback(async () => {
     try {
       // Só mostra loading no primeiro carregamento (evita flickering)
-      if (!hasInitialData) {
+      if (!hasInitialDataRef.current) {
         setLoading(true);
       }
 
@@ -486,17 +488,17 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         lastUpdated: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       });
       // Marca que já carregou dados iniciais
-      setHasInitialData(true);
+      hasInitialDataRef.current = true;
     } catch (err) {
       console.error('Erro ao carregar relatórios:', err);
     } finally {
       setLoading(false);
     }
-  }, [period, sourceType, hasInitialData]);
+  }, [period, sourceType]);
 
-  // Reset hasInitialData quando período ou fonte mudam
+  // Reset ref quando período ou fonte mudam
   useEffect(() => {
-    setHasInitialData(false);
+    hasInitialDataRef.current = false;
   }, [period, sourceType]);
 
   useEffect(() => {
@@ -507,6 +509,5 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
   useQueueRealtime(fetchReports);
   useReservationsRealtime(fetchReports);
 
-  // Loading só é true no primeiro carregamento
-  return { metrics, loading: loading && !hasInitialData, refetch: fetchReports };
+  return { metrics, loading, refetch: fetchReports };
 }
