@@ -104,13 +104,13 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Usar ref para rastrear estado inicial (evita dependência circular no useCallback)
-  const hasInitialDataRef = useRef(false);
+  // Usar ref object explícito para evitar problemas de HMR
+  const stateRef = useRef({ hasInitialData: false });
 
   const fetchReports = useCallback(async () => {
     try {
       // Só mostra loading no primeiro carregamento (evita flickering)
-      if (!hasInitialDataRef.current) {
+      if (!stateRef.current.hasInitialData) {
         setLoading(true);
       }
 
@@ -488,7 +488,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         lastUpdated: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       });
       // Marca que já carregou dados iniciais
-      hasInitialDataRef.current = true;
+      stateRef.current.hasInitialData = true;
     } catch (err) {
       console.error('Erro ao carregar relatórios:', err);
     } finally {
@@ -498,7 +498,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
 
   // Reset ref quando período ou fonte mudam
   useEffect(() => {
-    hasInitialDataRef.current = false;
+    stateRef.current.hasInitialData = false;
   }, [period, sourceType]);
 
   useEffect(() => {
