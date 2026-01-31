@@ -52,11 +52,28 @@ export function useReservations() {
         .from('v_reservations')
         .select('*')
         .eq('restaurant_id', restaurantId)
-        .order('starts_at', { ascending: true });
+        .order('reserved_for', { ascending: true });
 
       if (error) throw error;
-      console.log('[useReservations] Reservas carregadas:', data?.length);
-      setReservations(data || []);
+      
+      // Mapear campos da view para o formato esperado pelo frontend
+      const mappedData = (data || []).map((row: any) => ({
+        reservation_id: row.id,
+        restaurant_id: row.restaurant_id,
+        customer_name: row.name,
+        phone: row.phone || '—',
+        customer_email: row.customer_email,
+        people: row.party_size,
+        starts_at: row.reserved_for,
+        status: row.status,
+        notes: row.notes,
+        canceled_at: row.canceled_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      }));
+
+      console.log('[useReservations] Reservas carregadas:', mappedData?.length);
+      setReservations(mappedData);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar reservas';
       setError(message);
