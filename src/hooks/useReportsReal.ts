@@ -403,21 +403,24 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const resNoShow = includeReservations ? (currentReservations?.filter(r => r.status === 'no_show' || r.no_show_at).length || 0) : 0;
       
       // Montar distribuição baseado no filtro ativo
+      // CORES ÚNICAS - cada status tem cor distinta para evitar confusão visual
       const statusDistributionItems = [];
       
       if (includeQueue) {
-        if (queueSeated > 0) statusDistributionItems.push({ name: 'Atendidos (Fila)', value: queueSeated, color: 'hsl(var(--success))' });
-        if (queueWaiting + queueCalled > 0) statusDistributionItems.push({ name: 'Aguardando (Fila)', value: queueWaiting + queueCalled, color: 'hsl(var(--warning))' });
-        if (queueNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Fila)', value: queueNoShow, color: 'hsl(var(--destructive) / 0.7)' });
-        if (queueCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Fila)', value: queueCanceled, color: 'hsl(var(--destructive))' });
+        // Fila: Verde (atendidos), Amarelo (aguardando), Vermelho (cancelados), Roxo (no-show)
+        if (queueSeated > 0) statusDistributionItems.push({ name: 'Atendidos (Fila)', value: queueSeated, color: '#22c55e' }); // green-500
+        if (queueWaiting + queueCalled > 0) statusDistributionItems.push({ name: 'Aguardando (Fila)', value: queueWaiting + queueCalled, color: '#f59e0b' }); // amber-500
+        if (queueNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Fila)', value: queueNoShow, color: '#8b5cf6' }); // violet-500
+        if (queueCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Fila)', value: queueCanceled, color: '#ef4444' }); // red-500
       }
       
       if (includeReservations) {
-        if (resCompleted > 0) statusDistributionItems.push({ name: 'Concluídas (Reserva)', value: resCompleted, color: 'hsl(var(--primary))' });
-        if (resConfirmed > 0) statusDistributionItems.push({ name: 'Confirmadas (Reserva)', value: resConfirmed, color: 'hsl(var(--accent))' });
-        if (resPending > 0) statusDistributionItems.push({ name: 'Pendentes (Reserva)', value: resPending, color: 'hsl(var(--muted-foreground))' });
-        if (resNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Reserva)', value: resNoShow, color: 'hsl(var(--destructive) / 0.7)' });
-        if (resCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Reserva)', value: resCanceled, color: 'hsl(var(--destructive))' });
+        // Reservas: Laranja (concluídas), Azul (confirmadas), Cinza (pendentes), Rosa (no-show), Marrom (cancelados)
+        if (resCompleted > 0) statusDistributionItems.push({ name: 'Concluídas (Reserva)', value: resCompleted, color: '#f97316' }); // orange-500
+        if (resConfirmed > 0) statusDistributionItems.push({ name: 'Confirmadas (Reserva)', value: resConfirmed, color: '#3b82f6' }); // blue-500
+        if (resPending > 0) statusDistributionItems.push({ name: 'Pendentes (Reserva)', value: resPending, color: '#6b7280' }); // gray-500
+        if (resNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Reserva)', value: resNoShow, color: '#ec4899' }); // pink-500
+        if (resCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Reserva)', value: resCanceled, color: '#78350f' }); // amber-900 (marrom)
       }
       
       const statusDistribution = statusDistributionItems;
