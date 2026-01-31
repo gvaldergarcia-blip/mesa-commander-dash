@@ -103,10 +103,14 @@ type SourceType = 'all' | 'queue' | 'reservations';
 export function useReportsReal(period: PeriodType = '30days', sourceType: SourceType = 'all') {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasInitialData, setHasInitialData] = useState(false);
 
   const fetchReports = useCallback(async () => {
     try {
-      setLoading(true);
+      // Só mostra loading no primeiro carregamento (evita flickering)
+      if (!hasInitialData) {
+        setLoading(true);
+      }
 
       // Calcular datas do período atual e anterior (timezone Brasil)
       const now = new Date();
@@ -481,20 +485,28 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         hourlyDistribution,
         lastUpdated: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       });
+      // Marca que já carregou dados iniciais
+      setHasInitialData(true);
     } catch (err) {
       console.error('Erro ao carregar relatórios:', err);
     } finally {
       setLoading(false);
     }
+  }, [period, sourceType, hasInitialData]);
+
+  // Reset hasInitialData quando período ou fonte mudam
+  useEffect(() => {
+    setHasInitialData(false);
   }, [period, sourceType]);
 
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
 
-  // Realtime updates
+  // Realtime updates - silenciosos (não mostram loading)
   useQueueRealtime(fetchReports);
   useReservationsRealtime(fetchReports);
 
-  return { metrics, loading, refetch: fetchReports };
+  // Loading só é true no primeiro carregamento
+  return { metrics, loading: loading && !hasInitialData, refetch: fetchReports };
 }
