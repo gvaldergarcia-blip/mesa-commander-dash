@@ -46,21 +46,25 @@ export function useReservations() {
   const fetchReservations = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('[useReservations] Buscando reservas...');
-      const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('v_reservations')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('reserved_for', { ascending: true });
-
-      if (error) throw error;
+      console.log('[useReservations] Buscando reservas via RPC para restaurante:', restaurantId);
       
-      // Mapear campos da view para o formato esperado pelo frontend
+      // Usar RPC para evitar problemas de RLS
+      const { data, error } = await supabase.rpc('get_reservations_panel', {
+        p_restaurant_id: restaurantId
+      });
+
+      if (error) {
+        console.error('[useReservations] Erro na RPC:', error);
+        throw error;
+      }
+      
+      console.log('[useReservations] Dados brutos recebidos:', data?.length || 0, 'reservas');
+      
+      // Mapear campos da RPC para o formato esperado pelo frontend
       const mappedData = (data || []).map((row: any) => ({
         reservation_id: row.id,
         restaurant_id: row.restaurant_id,
-        customer_name: row.name,
+        customer_name: row.name || 'Cliente',
         phone: row.phone || '—',
         customer_email: row.customer_email,
         people: row.party_size,
@@ -72,8 +76,13 @@ export function useReservations() {
         updated_at: row.updated_at,
       }));
 
-      console.log('[useReservations] Reservas carregadas:', mappedData?.length);
+      console.log('[useReservations] Reservas mapeadas:', mappedData?.length);
+      if (mappedData.length > 0) {
+        console.log('[useReservations] Primeira reserva:', mappedData[0]);
+      }
+      
       setReservations(mappedData);
+      setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar reservas';
       setError(message);

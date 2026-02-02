@@ -1678,6 +1678,39 @@ export type Database = {
           status: string
         }[]
       }
+      get_reservations_panel: {
+        Args: { p_restaurant_id: string }
+        Returns: {
+          cancel_reason: string
+          canceled_at: string
+          canceled_by: string
+          completed_at: string
+          confirmed_at: string
+          created_at: string
+          customer_email: string
+          id: string
+          name: string
+          no_show_at: string
+          notes: string
+          party_size: number
+          phone: string
+          reserved_for: string
+          restaurant_id: string
+          status: Database["public"]["Enums"]["reservation_status"]
+          updated_at: string
+          user_id: string
+        }[]
+      }
+      get_restaurant_calendar: {
+        Args: { p_restaurant_id: string }
+        Returns: {
+          created_at: string
+          day: string
+          is_open: boolean
+          restaurant_id: string
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1695,6 +1728,10 @@ export type Database = {
         Returns: boolean
       }
       rotate_customer_visits_monthly: { Args: never; Returns: undefined }
+      toggle_restaurant_calendar_day: {
+        Args: { p_day: string; p_is_open: boolean; p_restaurant_id: string }
+        Returns: Json
+      }
       update_consent: {
         Args: {
           p_aceitou_ofertas_email?: boolean
