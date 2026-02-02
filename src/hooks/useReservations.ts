@@ -118,7 +118,7 @@ export function useReservations() {
       const { data: restaurantData } = await supabase
         .schema('mesaclik')
         .from('restaurants')
-        .select('name, address, cuisine')
+        .select('name, address_line, cuisine')
         .eq('id', restaurantId)
         .single();
 
@@ -142,7 +142,7 @@ export function useReservations() {
             email: reservation.customer_email,
             customer_name: reservation.customer_name,
             restaurant_name: restaurantData?.name || 'Restaurante',
-            restaurant_address: restaurantData?.address || null,
+            restaurant_address: restaurantData?.address_line || null,
             restaurant_cuisine: restaurantData?.cuisine || null,
             reservation_date: formattedDate,
             reservation_time: formattedTime,

@@ -33,7 +33,8 @@ export function ClearQueueDialog({ onConfirm, isLoading, totalWaiting }: ClearQu
     }
   };
 
-  const isDisabled = isLoading || totalWaiting === 0;
+  // Habilitado sempre que não estiver carregando (permite limpar fila mesmo vazia)
+  const isDisabled = isLoading;
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
