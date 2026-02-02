@@ -6,11 +6,11 @@ import {
   Target,
   Download,
   Share2,
-  XCircle,
   Mail,
   AlertTriangle,
   HelpCircle,
-  RefreshCw
+  RefreshCw,
+  CalendarCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,112 +34,35 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReportsReal } from "@/hooks/useReportsReal";
 import { useExportData } from "@/hooks/useExportData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+
+// Componentes de gráfico
 import { DailyEvolutionChart } from "@/components/reports/DailyEvolutionChart";
-import { StatusDistributionChart } from "@/components/reports/StatusDistributionChart";
-import { HourlyDistributionChart } from "@/components/reports/HourlyDistributionChart";
 import { InsightsCard } from "@/components/reports/InsightsCard";
 import { CustomerMetricsCard } from "@/components/reports/CustomerMetricsCard";
 import { PeakInfoCard } from "@/components/reports/PeakInfoCard";
-import { PerformanceCards } from "@/components/reports/PerformanceCards";
+import { QueueStatusChart } from "@/components/reports/QueueStatusChart";
+import { ReservationStatusChart } from "@/components/reports/ReservationStatusChart";
+import { QueueHourlyChart } from "@/components/reports/QueueHourlyChart";
+import { QueuePerformanceCard } from "@/components/reports/QueuePerformanceCard";
+import { ReservationPerformanceCard } from "@/components/reports/ReservationPerformanceCard";
 
 type PeriodType = 'today' | '7days' | '30days' | '90days';
 type SourceType = 'all' | 'queue' | 'reservations';
 
 /**
- * DOCUMENTAÇÃO DOS TOOLTIPS
- * Cada KPI tem uma explicação clara de como é calculado
+ * TOOLTIPS COM FÓRMULAS REAIS
  */
 const TOOLTIP_FORMULAS = {
-  avgWaitTime: "Como calculamos: Média de (horário atendido − horário de entrada) para clientes com status 'sentado'. Fonte: mesaclik.queue_entries onde seated_at está preenchido.",
-  conversionRate: "Como calculamos: (Clientes atendidos ÷ Total de entradas na fila) × 100. Representa a porcentagem de clientes que efetivamente foram atendidos. Fonte: mesaclik.queue_entries.",
-  noShowRate: "Como calculamos: (Reservas com status 'no_show' ÷ Reservas finalizadas) × 100. Só aparece se houver marcação de não comparecimento. Fonte: mesaclik.reservations.",
-  cancelRate: "Como calculamos: (Cancelamentos ÷ Total de registros) × 100. Inclui fila e reservas. Fonte: mesaclik.queue_entries + mesaclik.reservations.",
-  avgPartySize: "Como calculamos: Média do tamanho do grupo (party_size) dos clientes atendidos. Fonte: registros com status 'seated' ou 'completed'.",
+  avgWaitTime: "Média de (seated_at − created_at) para entradas com status 'seated'. APENAS fila.",
+  conversionRate: "(Atendidos ÷ Total entradas na fila) × 100. Taxa de clientes que foram efetivamente atendidos.",
+  noShowRate: "(No-shows ÷ Reservas finalizadas) × 100. APENAS reservas com status 'no_show'.",
+  avgPartySize: "Média de pessoas por grupo (party_size) dos atendidos.",
 };
-
-// Componente de KPI Card Premium
-function KPICard({
-  title,
-  value,
-  description,
-  icon: Icon,
-  trend,
-  tooltipText,
-  variant = "default",
-  hasData = true,
-}: {
-  title: string;
-  value: string;
-  description: string;
-  icon: React.ElementType;
-  trend?: { value: number; isPositive: boolean };
-  tooltipText?: string;
-  variant?: "default" | "success" | "warning" | "destructive";
-  hasData?: boolean;
-}) {
-  const variantStyles = {
-    default: "border-border",
-    success: "border-success/30 bg-success/5",
-    warning: "border-warning/30 bg-warning/5",
-    destructive: "border-destructive/30 bg-destructive/5",
-  };
-
-  const iconStyles = {
-    default: "bg-primary/10 text-primary",
-    success: "bg-success/10 text-success",
-    warning: "bg-warning/10 text-warning",
-    destructive: "bg-destructive/10 text-destructive",
-  };
-
-  return (
-    <Card className={`relative overflow-hidden transition-all hover:shadow-md ${variantStyles[variant]}`}>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium text-muted-foreground">{title}</p>
-              {tooltipText && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-sm">
-                      <p className="text-sm whitespace-pre-wrap">{tooltipText}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-            <p className={`text-2xl font-bold ${hasData ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {hasData ? value : '-'}
-            </p>
-            <p className="text-xs text-muted-foreground">{description}</p>
-          </div>
-          <div className={`p-2.5 rounded-xl ${iconStyles[variant]}`}>
-            <Icon className="w-5 h-5" />
-          </div>
-        </div>
-        {trend && hasData && trend.value !== 0 && (
-          <div className="flex items-center mt-3 pt-3 border-t border-border/50">
-            <span
-              className={`text-xs font-medium ${
-                trend.isPositive ? "text-success" : "text-destructive"
-              }`}
-            >
-              {trend.isPositive ? "↗" : "↘"} {Math.abs(trend.value)}%
-            </span>
-            <span className="text-xs text-muted-foreground ml-1.5">vs. período anterior</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function Reports() {
   const [period, setPeriod] = useState<PeriodType>('30days');
@@ -220,8 +143,8 @@ export default function Reports() {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
@@ -248,9 +171,8 @@ export default function Reports() {
     );
   }
 
-  // Verificar se há dados suficientes
-  const hasQueueData = metrics.queueMetrics[0]?.totalServed > 0 || metrics.avgQueueSize > 0;
-  const hasReservationData = metrics.reservationMetrics[0]?.confirmed > 0 || metrics.reservationMetrics[0]?.pending > 0;
+  const hasQueueData = metrics.queue.hasData;
+  const hasReservationData = metrics.reservations.hasData;
   const hasAnyData = hasQueueData || hasReservationData;
 
   return (
@@ -260,11 +182,9 @@ export default function Reports() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground mt-1">
-            Análise completa do desempenho do seu restaurante • {getPeriodLabel()}
+            Análise completa do desempenho • {getPeriodLabel()}
             {metrics.lastUpdated && (
-              <span className="text-xs ml-2">
-                (Atualizado às {metrics.lastUpdated})
-              </span>
+              <span className="text-xs ml-2">(Atualizado às {metrics.lastUpdated})</span>
             )}
           </p>
         </div>
@@ -272,16 +192,6 @@ export default function Reports() {
           <Button variant="ghost" size="icon" onClick={refetch} title="Atualizar dados">
             <RefreshCw className="w-4 h-4" />
           </Button>
-          <Select value={sourceType} onValueChange={(value) => setSourceType(value as SourceType)}>
-            <SelectTrigger className="w-44 bg-card">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Dados</SelectItem>
-              <SelectItem value="queue">Apenas Fila</SelectItem>
-              <SelectItem value="reservations">Apenas Reservas</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={period} onValueChange={(value) => setPeriod(value as PeriodType)}>
             <SelectTrigger className="w-44 bg-card">
               <SelectValue />
@@ -308,27 +218,15 @@ export default function Reports() {
                 <div className="space-y-2">
                   <h4 className="font-medium text-sm text-muted-foreground">Escolha o que exportar:</h4>
                   <div className="grid gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => handleExport('queue')}
-                    >
+                    <Button variant="outline" className="w-full justify-start" onClick={() => handleExport('queue')}>
                       <Download className="w-4 h-4 mr-2" />
                       Dados da Fila (CSV)
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => handleExport('reservations')}
-                    >
+                    <Button variant="outline" className="w-full justify-start" onClick={() => handleExport('reservations')}>
                       <Download className="w-4 h-4 mr-2" />
                       Dados de Reservas (CSV)
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => handleExport('kpis')}
-                    >
+                    <Button variant="outline" className="w-full justify-start" onClick={() => handleExport('kpis')}>
                       <Download className="w-4 h-4 mr-2" />
                       Indicadores Consolidados (CSV)
                     </Button>
@@ -338,17 +236,11 @@ export default function Reports() {
                 <div className="space-y-2">
                   <h4 className="font-medium text-sm text-muted-foreground">Compartilhar:</h4>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant="outline"
-                      onClick={() => handleShare('email')}
-                    >
+                    <Button variant="outline" onClick={() => handleShare('email')}>
                       <Mail className="w-4 h-4 mr-2" />
                       E-mail
                     </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={() => handleShare('whatsapp')}
-                    >
+                    <Button variant="outline" onClick={() => handleShare('whatsapp')}>
                       <Share2 className="w-4 h-4 mr-2" />
                       WhatsApp
                     </Button>
@@ -377,59 +269,7 @@ export default function Reports() {
         </Card>
       )}
 
-      {/* KPI Cards Premium */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPICard
-          title="Tempo Médio de Espera"
-          value={`${metrics.avgWaitTime.current} min`}
-          description="Fila → Atendimento"
-          icon={Clock}
-          trend={{ value: Math.abs(metrics.avgWaitTime.trend), isPositive: metrics.avgWaitTime.trend < 0 }}
-          tooltipText={TOOLTIP_FORMULAS.avgWaitTime}
-          hasData={metrics.avgWaitTime.current > 0}
-        />
-        <KPICard
-          title="Taxa de Conversão"
-          value={`${metrics.conversionRate.current}%`}
-          description="Entradas atendidas"
-          icon={Target}
-          trend={{ value: Math.abs(metrics.conversionRate.trend), isPositive: metrics.conversionRate.trend > 0 }}
-          tooltipText={TOOLTIP_FORMULAS.conversionRate}
-          variant={metrics.conversionRate.current >= 70 ? "success" : "default"}
-          hasData={hasQueueData}
-        />
-        <KPICard
-          title="Não Compareceram"
-          value={`${metrics.noShowRate.current}%`}
-          description="Reservas sem presença"
-          icon={XCircle}
-          trend={{ value: Math.abs(metrics.noShowRate.trend), isPositive: metrics.noShowRate.trend < 0 }}
-          tooltipText={TOOLTIP_FORMULAS.noShowRate}
-          variant={metrics.noShowRate.current > 10 ? "destructive" : "default"}
-          hasData={metrics.noShowRate.current > 0 || hasReservationData}
-        />
-        <KPICard
-          title="Taxa de Cancelamento"
-          value={`${metrics.cancelRate.current}%`}
-          description="Fila + Reservas"
-          icon={AlertTriangle}
-          trend={{ value: Math.abs(metrics.cancelRate.trend), isPositive: metrics.cancelRate.trend < 0 }}
-          tooltipText={TOOLTIP_FORMULAS.cancelRate}
-          variant={metrics.cancelRate.current > 20 ? "warning" : "default"}
-          hasData={hasAnyData}
-        />
-        <KPICard
-          title="Média por Grupo"
-          value={metrics.avgPartySize.current.toFixed(1)}
-          description="Pessoas por mesa"
-          icon={Users}
-          trend={{ value: Math.abs(metrics.avgPartySize.trend), isPositive: metrics.avgPartySize.trend > 0 }}
-          tooltipText={TOOLTIP_FORMULAS.avgPartySize}
-          hasData={metrics.avgPartySize.current > 0}
-        />
-      </div>
-
-      {/* Resumo Rápido - Total Atendidos, Cancelados, Horário e Dia de Pico */}
+      {/* Resumo Rápido - Totais e Picos */}
       <PeakInfoCard
         peakHour={metrics.peakHour}
         peakDay={metrics.peakDay}
@@ -437,41 +277,238 @@ export default function Reports() {
         totalCanceled={metrics.totalCanceled}
       />
 
-      {/* Gráficos Principais */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DailyEvolutionChart data={metrics?.dailyEvolution} />
-        <StatusDistributionChart data={metrics?.statusDistribution} />
-      </div>
+      {/* ============================================ */}
+      {/* SEÇÕES SEPARADAS: FILA vs RESERVA */}
+      {/* ============================================ */}
+      <Tabs defaultValue="all" className="space-y-6">
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value="all" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="queue" className="gap-2">
+            <Users className="w-4 h-4" />
+            Fila
+          </TabsTrigger>
+          <TabsTrigger value="reservations" className="gap-2">
+            <CalendarCheck className="w-4 h-4" />
+            Reservas
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Distribuição por Horário */}
-      <HourlyDistributionChart data={metrics?.hourlyDistribution} />
+        {/* ============================================ */}
+        {/* TAB: VISÃO GERAL */}
+        {/* ============================================ */}
+        <TabsContent value="all" className="space-y-6">
+          {/* KPIs Combinados */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Tempo Médio (FILA) */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-muted-foreground">Tempo Médio Fila</p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            <p className="text-sm">{TOOLTIP_FORMULAS.avgWaitTime}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <p className={`text-2xl font-bold ${hasQueueData ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {hasQueueData && metrics.queue.avgWaitTime > 0 ? `${metrics.queue.avgWaitTime} min` : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Entrada → Atendimento</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-primary/10">
+                    <Clock className="w-5 h-5 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Insights e Clientes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <InsightsCard
-          peakHour={metrics.peakHour}
-          peakDay={metrics.peakDay}
-          vipCustomers={metrics.vipCustomers}
-          totalServed={metrics.totalServed}
-          avgWaitTime={metrics.avgWaitTime.current}
-          conversionRate={metrics.conversionRate.current}
-          totalCanceled={metrics.totalCanceled}
-          noShowRate={metrics.noShowRate.current}
-          previousAvgWait={metrics.avgWaitTime.previous}
-          previousConversionRate={metrics.conversionRate.previous}
-        />
-        <CustomerMetricsCard
-          newCustomers={metrics.newCustomers}
-          vipCustomers={metrics.vipCustomers}
-        />
-      </div>
+            {/* Taxa Conversão (FILA) */}
+            <Card className={`relative overflow-hidden ${metrics.queue.conversionRate >= 70 ? 'border-success/30 bg-success/5' : ''}`}>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-muted-foreground">Conversão Fila</p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            <p className="text-sm">{TOOLTIP_FORMULAS.conversionRate}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <p className={`text-2xl font-bold ${hasQueueData ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {hasQueueData ? `${metrics.queue.conversionRate}%` : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Atendidos / Total</p>
+                  </div>
+                  <div className={`p-2.5 rounded-xl ${metrics.queue.conversionRate >= 70 ? 'bg-success/10' : 'bg-primary/10'}`}>
+                    <Target className={`w-5 h-5 ${metrics.queue.conversionRate >= 70 ? 'text-success' : 'text-primary'}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Performance Cards */}
-      <PerformanceCards
-        queueEfficiency={metrics.queueEfficiency}
-        avgQueueSize={metrics.avgQueueSize}
-        reservationMetrics={metrics.reservationMetrics}
-      />
+            {/* No-Show (RESERVAS) */}
+            <Card className={`relative overflow-hidden ${metrics.reservations.noShowRate > 10 ? 'border-destructive/30 bg-destructive/5' : ''}`}>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-muted-foreground">No-Show Reservas</p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            <p className="text-sm">{TOOLTIP_FORMULAS.noShowRate}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <p className={`text-2xl font-bold ${hasReservationData ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {hasReservationData ? `${metrics.reservations.noShowRate}%` : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Não compareceram</p>
+                  </div>
+                  <div className={`p-2.5 rounded-xl ${metrics.reservations.noShowRate > 10 ? 'bg-destructive/10' : 'bg-muted'}`}>
+                    <AlertTriangle className={`w-5 h-5 ${metrics.reservations.noShowRate > 10 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Média por Grupo */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-muted-foreground">Média por Grupo</p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-sm">
+                            <p className="text-sm">{TOOLTIP_FORMULAS.avgPartySize}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <p className={`text-2xl font-bold ${hasAnyData ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {hasAnyData && metrics.avgPartySize > 0 ? metrics.avgPartySize.toFixed(1) : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Pessoas por mesa</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-accent/10">
+                    <Users className="w-5 h-5 text-accent-foreground" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Evolução Diária + Insights */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DailyEvolutionChart data={metrics.dailyEvolution} />
+            <InsightsCard
+              peakHour={metrics.peakHour}
+              peakDay={metrics.peakDay}
+              vipCustomers={metrics.vipCustomers}
+              totalServed={metrics.totalServed}
+              avgWaitTime={metrics.queue.avgWaitTime}
+              conversionRate={metrics.queue.conversionRate}
+              totalCanceled={metrics.totalCanceled}
+              noShowRate={metrics.reservations.noShowRate}
+              previousAvgWait={metrics.queue.avgWaitTimePrevious}
+              previousConversionRate={metrics.queue.conversionRatePrevious}
+            />
+          </div>
+
+          {/* Gráficos de Status SEPARADOS */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <QueueStatusChart
+              seated={metrics.queue.seated}
+              waiting={metrics.queue.waiting + metrics.queue.called}
+              canceled={metrics.queue.canceled}
+              noShow={metrics.queue.noShow}
+            />
+            <ReservationStatusChart
+              completed={metrics.reservations.completed}
+              confirmed={metrics.reservations.confirmed}
+              pending={metrics.reservations.pending}
+              canceled={metrics.reservations.canceled}
+              noShow={metrics.reservations.noShow}
+            />
+          </div>
+
+          {/* Clientes */}
+          <CustomerMetricsCard
+            newCustomers={metrics.newCustomers}
+            vipCustomers={metrics.vipCustomers}
+          />
+        </TabsContent>
+
+        {/* ============================================ */}
+        {/* TAB: FILA */}
+        {/* ============================================ */}
+        <TabsContent value="queue" className="space-y-6">
+          <QueuePerformanceCard
+            avgWaitTime={metrics.queue.avgWaitTime}
+            efficiency={metrics.queue.conversionRate}
+            totalServed={metrics.queue.seated}
+            avgQueueSize={metrics.queue.avgQueueSize}
+            hasData={metrics.queue.hasData}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <QueueHourlyChart data={metrics.queue.hourlyDistribution} />
+            <QueueStatusChart
+              seated={metrics.queue.seated}
+              waiting={metrics.queue.waiting + metrics.queue.called}
+              canceled={metrics.queue.canceled}
+              noShow={metrics.queue.noShow}
+            />
+          </div>
+        </TabsContent>
+
+        {/* ============================================ */}
+        {/* TAB: RESERVAS */}
+        {/* ============================================ */}
+        <TabsContent value="reservations" className="space-y-6">
+          <ReservationPerformanceCard
+            confirmed={metrics.reservations.confirmed}
+            completed={metrics.reservations.completed}
+            pending={metrics.reservations.pending}
+            noShow={metrics.reservations.noShow}
+            canceled={metrics.reservations.canceled}
+            hasData={metrics.reservations.hasData}
+          />
+
+          <ReservationStatusChart
+            completed={metrics.reservations.completed}
+            confirmed={metrics.reservations.confirmed}
+            pending={metrics.reservations.pending}
+            canceled={metrics.reservations.canceled}
+            noShow={metrics.reservations.noShow}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
