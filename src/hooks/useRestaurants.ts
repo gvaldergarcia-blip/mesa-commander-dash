@@ -57,10 +57,14 @@ export function useRestaurants() {
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
+      // Buscar apenas o restaurante atual (RESTAURANT_ID do config)
+      const { RESTAURANT_ID } = await import('@/config/current-restaurant');
+      
       const { data, error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
         .select('*')
+        .eq('id', RESTAURANT_ID)
         .order('name');
 
       if (error) throw error;

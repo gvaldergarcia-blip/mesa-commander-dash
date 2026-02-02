@@ -134,6 +134,7 @@ export function useQueue() {
 
       // Buscar nome do restaurante
       const { data: restaurantData } = await supabase
+        .schema('mesaclik')
         .from('restaurants')
         .select('name')
         .eq('id', restaurantId)

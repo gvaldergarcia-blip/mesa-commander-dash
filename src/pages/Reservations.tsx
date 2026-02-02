@@ -419,13 +419,23 @@ export default function Reservations() {
                   <Input 
                     type="date"
                     value={newDate}
+                    min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => {
-                      setNewDate(e.target.value);
+                      const selectedDate = e.target.value;
+                      // Verificar se o dia está disponível no calendário
+                      if (!isDayAvailable(selectedDate)) {
+                        setFormErrors({...formErrors, date: 'Este dia está indisponível para reservas'});
+                        return;
+                      }
+                      setNewDate(selectedDate);
                       if (formErrors.date) setFormErrors({...formErrors, date: ''});
                     }}
                   />
                   {formErrors.date && (
                     <p className="text-sm text-destructive mt-1">{formErrors.date}</p>
+                  )}
+                  {newDate && !isDayAvailable(newDate) && (
+                    <p className="text-sm text-destructive mt-1">⚠️ Este dia está bloqueado no calendário</p>
                   )}
                 </div>
                 <div>
@@ -463,7 +473,7 @@ export default function Reservations() {
               <Button 
                 className="w-full"
                 onClick={handleCreateReservation}
-                disabled={isSubmitting || !newName || !newEmail || !newDate || !newTime}
+                disabled={isSubmitting || !newName || !newEmail || !newDate || !newTime || (newDate && !isDayAvailable(newDate))}
               >
                 {isSubmitting ? "Criando..." : "Criar Reserva"}
               </Button>
