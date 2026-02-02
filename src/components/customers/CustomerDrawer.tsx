@@ -3,9 +3,8 @@ import {
   X, 
   Star, 
   Mail, 
-  Phone, 
   Calendar, 
-  Users, 
+  Users,
   FileText, 
   Send, 
   Loader2,
@@ -255,8 +254,7 @@ export function CustomerDrawer({
                 {customer.customer_email}
               </p>
               {customer.customer_phone && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                  <Phone className="w-3.5 h-3.5" />
+                <p className="text-sm text-muted-foreground mt-0.5">
                   {customer.customer_phone}
                 </p>
               )}

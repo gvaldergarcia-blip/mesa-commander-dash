@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Calendar, Clock, User, Phone, Search, Filter, Mail } from "lucide-react";
+import { Plus, Calendar, Clock, User, Search, Filter, Mail } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
@@ -65,6 +65,15 @@ export default function Reservations() {
   
   const { calendarDays, loading: calendarLoading, toggleDayAvailability, isDayAvailable } = useRestaurantCalendar();
   
+  // Função para verificar se o botão deve estar habilitado (1 hora antes do horário marcado)
+  const isActionAllowed = (reservationDate: string) => {
+    const now = new Date();
+    const scheduledDate = new Date(reservationDate);
+    // Subtrair 1 hora do horário marcado
+    const oneHourBefore = new Date(scheduledDate.getTime() - 60 * 60 * 1000);
+    return now >= oneHourBefore;
+  };
+
   // Wrapper para atualizar status e mudar o filtro automaticamente
   const handleUpdateStatus = async (
     reservationId: string, 
@@ -73,16 +82,12 @@ export default function Reservations() {
   ) => {
     console.log('[Reservations] Atualizando status para:', newStatus);
     
-    // VALIDAÇÃO: Impedir conclusão antes da data marcada
-    if (newStatus === 'completed' && reservationDate) {
-      const now = new Date();
-      const scheduledDate = new Date(reservationDate);
-      
-      // Se tentar concluir antes da data marcada
-      if (now < scheduledDate) {
+    // VALIDAÇÃO: Impedir conclusão/no_show antes de 1 hora do horário marcado
+    if ((newStatus === 'completed' || newStatus === 'no_show') && reservationDate) {
+      if (!isActionAllowed(reservationDate)) {
         toast({
           title: "Ação não permitida",
-          description: "A reserva não pode ser concluída antes da data marcada pelo cliente.",
+          description: "Esta ação só pode ser realizada a partir de 1 hora antes do horário marcado.",
           variant: "destructive",
         });
         return; // Não prosseguir com a atualização
@@ -673,10 +678,6 @@ export default function Reservations() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                            <span className="flex items-center">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {reservation.phone}
-                            </span>
                             {reservation.customer_email && (
                               <span className="flex items-center">
                                 <Mail className="w-3 h-3 mr-1" />
@@ -859,10 +860,6 @@ export default function Reservations() {
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                            <span className="flex items-center">
-                              <Phone className="w-3 h-3 mr-1" />
-                              {reservation.phone}
-                            </span>
                             {reservation.customer_email && (
                               <span className="flex items-center">
                                 <Mail className="w-3 h-3 mr-1" />
@@ -1042,10 +1039,6 @@ export default function Reservations() {
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <Phone className="w-3 h-3 mr-1" />
-                            {reservation.phone}
-                          </span>
                           {reservation.customer_email && (
                             <span className="flex items-center">
                               <Mail className="w-3 h-3 mr-1" />

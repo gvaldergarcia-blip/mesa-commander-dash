@@ -2,10 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
-  Phone, 
   Mail, 
   Calendar, 
-  TrendingUp, 
+  TrendingUp,
   Clock, 
   Star, 
   CheckCircle2, 
@@ -452,7 +451,6 @@ export default function CustomerProfile() {
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {customer.phone && (
                   <div className="flex items-center gap-1.5">
-                    <Phone className="w-4 h-4" />
                     <span>{customer.phone}</span>
                   </div>
                 )}

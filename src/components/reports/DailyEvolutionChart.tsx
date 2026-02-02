@@ -55,12 +55,12 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
           </div>
           <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary" />
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#f97316' }} />
               <span className="text-muted-foreground">Fila:</span>
               <span className="font-semibold">{totalQueue}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-accent" />
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
               <span className="text-muted-foreground">Reservas:</span>
               <span className="font-semibold">{totalReservations}</span>
             </div>
@@ -72,12 +72,12 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="colorQueue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="colorReservations" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -93,6 +93,8 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
               fontSize={11}
               tickLine={false}
               axisLine={false}
+              allowDecimals={false}
+              domain={[0, 'auto']}
             />
             <RechartsTooltip 
               contentStyle={{
@@ -102,6 +104,7 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               }}
               labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 500, marginBottom: 4 }}
+              formatter={(value: number, name: string) => [value, name]}
             />
             <Legend 
               verticalAlign="bottom"
@@ -114,21 +117,23 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
               type="monotone" 
               dataKey="queue" 
               name="Fila"
-              stroke="hsl(var(--primary))" 
+              stroke="#f97316" 
               strokeWidth={2}
               fill="url(#colorQueue)"
-              dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, strokeWidth: 0 }}
+              dot={{ fill: '#f97316', strokeWidth: 0, r: 4 }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              connectNulls
             />
             <Area 
               type="monotone" 
               dataKey="reservations" 
               name="Reservas"
-              stroke="hsl(var(--accent))" 
+              stroke="#3b82f6" 
               strokeWidth={2}
               fill="url(#colorReservations)"
-              dot={{ fill: 'hsl(var(--accent))', strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, strokeWidth: 0 }}
+              dot={{ fill: '#3b82f6', strokeWidth: 0, r: 4 }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              connectNulls
             />
           </AreaChart>
         </ResponsiveContainer>
