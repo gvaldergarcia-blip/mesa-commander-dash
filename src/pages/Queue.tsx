@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { VipBadge } from "@/components/queue/VipBadge";
 import { QueueAlert } from "@/components/queue/QueueAlert";
 import { ClearQueueDialog } from "@/components/queue/ClearQueueDialog";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { 
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ import {
   type SizeGroup 
 } from "@/utils/queueUtils";
 
-export default function Queue() {
+function QueueContent() {
   const { restaurants } = useRestaurants();
   const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue, clearQueue } = useQueueEnhanced();
   const { getAverageForSize, generalAverage, loading: loadingAverages } = useQueueWaitTimeAverages(RESTAURANT_ID);
@@ -584,5 +585,13 @@ export default function Queue() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function Queue() {
+  return (
+    <ProtectedRoute>
+      <QueueContent />
+    </ProtectedRoute>
   );
 }

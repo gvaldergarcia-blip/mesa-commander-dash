@@ -5,7 +5,6 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { useToast } from "@/hooks/use-toast";
-import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +31,7 @@ import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, C
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 import { HoursSettings } from "@/components/settings/HoursSettings";
 import { QueueSettings } from "@/components/settings/QueueSettings";
@@ -54,7 +54,7 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
-export default function Settings() {
+function SettingsContent() {
   // DEV: Auth desabilitado para desenvolvimento
   // const { loading: authLoading, isAuthenticated } = useRequireAuth({ requireAdmin: true });
   const authLoading = false;
@@ -838,5 +838,13 @@ export default function Settings() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function Settings() {
+  return (
+    <ProtectedRoute requireAdmin>
+      <SettingsContent />
+    </ProtectedRoute>
   );
 }

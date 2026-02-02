@@ -39,6 +39,7 @@ import { useReportsReal } from "@/hooks/useReportsReal";
 import { useExportData } from "@/hooks/useExportData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 // Componentes de gráfico
 import { DailyEvolutionChart } from "@/components/reports/DailyEvolutionChart";
@@ -64,7 +65,7 @@ const TOOLTIP_FORMULAS = {
   avgPartySize: "Média de pessoas por grupo (party_size) dos atendidos.",
 };
 
-export default function Reports() {
+function ReportsContent() {
   const [period, setPeriod] = useState<PeriodType>('30days');
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -510,5 +511,13 @@ export default function Reports() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function Reports() {
+  return (
+    <ProtectedRoute>
+      <ReportsContent />
+    </ProtectedRoute>
   );
 }

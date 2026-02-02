@@ -13,8 +13,9 @@ import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClea
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
-export default function CustomersPage() {
+function CustomersPageContent() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
@@ -255,5 +256,13 @@ export default function CustomersPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CustomersPage() {
+  return (
+    <ProtectedRoute>
+      <CustomersPageContent />
+    </ProtectedRoute>
   );
 }

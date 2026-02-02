@@ -1593,6 +1593,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_user_data: { Args: { p_email: string }; Returns: Json }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
         Returns: Database["public"]["Tables"]["queue_entries"]["Row"]
