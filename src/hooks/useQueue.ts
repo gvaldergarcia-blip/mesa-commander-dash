@@ -73,7 +73,11 @@ export function useQueue() {
 
   const addToQueue = async (entry: { customer_name: string; email: string; people: number; notes?: string }) => {
     try {
-      // Buscar fila do restaurante
+      if (!restaurantId) {
+        throw new Error('Restaurant ID não configurado');
+      }
+      
+      // Buscar fila do restaurante usando RPC para garantir acesso
       const { data: activeQueue, error: queueError } = await supabase
         .schema('mesaclik')
         .from('queues')
@@ -87,6 +91,8 @@ export function useQueue() {
         throw new Error('Nenhuma fila encontrada para este restaurante');
       }
 
+      console.log('Adicionando à fila:', { restaurantId, queueId: activeQueue.id, entry });
+      
       // Usar RPC para adicionar à fila (bypassa RLS com SECURITY DEFINER)
       const { data: rpcResult, error: rpcError } = await supabase
         .schema('mesaclik')
@@ -98,8 +104,12 @@ export function useQueue() {
           p_party_size: entry.people,
           p_notes: entry.notes || null,
         });
+      
+      if (rpcError) {
+        console.error('Erro RPC add_customer_to_queue:', rpcError);
+        throw rpcError;
+      }
 
-      if (rpcError) throw rpcError;
       
       const result = rpcResult as { success: boolean; entry_id?: string; error?: string };
       
