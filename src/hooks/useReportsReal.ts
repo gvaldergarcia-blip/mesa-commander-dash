@@ -5,96 +5,64 @@ import { useQueueRealtime } from './useQueueRealtime';
 import { useReservationsRealtime } from './useReservationsRealtime';
 
 /**
- * DOCUMENTAÇÃO DAS MÉTRICAS - useReportsReal
+ * DOCUMENTAÇÃO DAS MÉTRICAS - useReportsReal (REFATORADO PREMIUM)
  * 
- * Todas as métricas são calculadas APENAS a partir de dados reais do banco.
- * 
- * STATUS DISPONÍVEIS:
- * - Fila (queue_entries): waiting, called, seated, canceled
- * - Reservas (reservations): pending, confirmed, seated, completed, canceled, no_show
- * 
- * FÓRMULAS:
- * 
- * 1. Tempo Médio de Espera (Fila):
- *    Média de (seated_at - created_at) para entries com status='seated' e seated_at preenchido
- * 
- * 2. Taxa de Conversão (Fila):
- *    (entries com status='seated' / total de entries) × 100
- *    Representa: % de clientes que entraram na fila e foram efetivamente atendidos
- * 
- * 3. Taxa de Não Comparecimento (Reservas):
- *    (reservas com status='no_show' / (reservas com status in ('completed','seated','no_show','canceled'))) × 100
- *    Se não houver status no_show, usa reservas canceladas como proxy
- * 
- * 4. Taxa de Cancelamento (Fila + Reservas):
- *    (cancelados / total de registros) × 100
- * 
- * 5. Média por Grupo:
- *    Média de party_size de todos os registros atendidos (seated/completed)
- * 
- * 6. Eficiência da Fila:
- *    (entries seated / total entries) × 100
- * 
- * 7. Horário de Pico:
- *    Hora com maior volume de created_at (entradas)
- * 
- * 8. Dia de Pico:
- *    Dia da semana com maior volume de created_at (entradas)
+ * PRINCÍPIOS:
+ * 1. Separação clara: Métricas de FILA e RESERVA são calculadas independentemente
+ * 2. Tempo de espera: APENAS para fila (entrada → seated_at)
+ * 3. No-show: APENAS para reservas (status='no_show' ou no_show_at preenchido)
+ * 4. Dados reais: Todos os números derivados de timestamps reais do banco
+ * 5. Fuso horário: Brasília (UTC-3)
  */
 
-type ReportMetrics = {
-  // KPIs principais com comparativo
-  avgWaitTime: { current: number; previous: number; trend: number };
-  conversionRate: { current: number; previous: number; trend: number };
-  noShowRate: { current: number; previous: number; trend: number };
-  cancelRate: { current: number; previous: number; trend: number };
-  avgPartySize: { current: number; previous: number; trend: number };
-  
-  // Métricas complementares
-  newCustomers: number;
-  vipCustomers: number;
+export type ReportMetrics = {
+  // === MÉTRICAS GERAIS ===
   totalServed: number;
   totalCanceled: number;
   peakHour: string;
   peakDay: string;
+  avgPartySize: number;
+  newCustomers: number;
+  vipCustomers: number;
+  lastUpdated: string;
   
-  // Métricas de fila
-  queueMetrics: Array<{
-    period: string;
-    avgWait: number;
-    totalServed: number;
-    peaked: string;
-  }>;
-  queueEfficiency: number;
-  avgQueueSize: number;
+  // === MÉTRICAS EXCLUSIVAS DE FILA ===
+  queue: {
+    avgWaitTime: number;        // Tempo médio entrada → seated_at (minutos)
+    avgWaitTimePrevious: number;
+    conversionRate: number;     // % atendidos / total entradas
+    conversionRatePrevious: number;
+    totalEntries: number;
+    seated: number;
+    waiting: number;
+    called: number;
+    canceled: number;
+    noShow: number;
+    avgQueueSize: number;       // Média diária
+    hourlyDistribution: Array<{ hour: string; count: number }>;
+    hasData: boolean;
+  };
   
-  // Métricas de reservas
-  reservationMetrics: Array<{
-    period: string;
+  // === MÉTRICAS EXCLUSIVAS DE RESERVAS ===
+  reservations: {
+    completed: number;
     confirmed: number;
     pending: number;
-    noShow: number;
     canceled: number;
-  }>;
+    noShow: number;
+    noShowRate: number;         // % no-show / finalizadas
+    noShowRatePrevious: number;
+    successRate: number;        // % concluídas+confirmadas / total
+    totalReservations: number;
+    hasData: boolean;
+  };
   
-  // Dados para gráficos
+  // === GRÁFICOS COMBINADOS (quando filtro = 'all') ===
   dailyEvolution: Array<{
     date: string;
     reservations: number;
     queue: number;
   }>;
-  statusDistribution: Array<{
-    name: string;
-    value: number;
-    color: string;
-  }>;
-  hourlyDistribution: Array<{
-    hour: string;
-    count: number;
-  }>;
-  
-  // Última atualização
-  lastUpdated: string;
 };
 
 type PeriodType = 'today' | '7days' | '30days' | '90days';
@@ -103,18 +71,15 @@ type SourceType = 'all' | 'queue' | 'reservations';
 export function useReportsReal(period: PeriodType = '30days', sourceType: SourceType = 'all') {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Usar ref object explícito para evitar problemas de HMR
   const stateRef = useRef({ hasInitialData: false });
 
   const fetchReports = useCallback(async () => {
     try {
-      // Só mostra loading no primeiro carregamento (evita flickering)
       if (!stateRef.current.hasInitialData) {
         setLoading(true);
       }
 
-      // Calcular datas do período atual e anterior (timezone Brasil)
+      // Calcular datas do período atual e anterior
       const now = new Date();
       const endDate = new Date(now);
       const startDate = new Date(now);
@@ -135,61 +100,45 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       }
 
       // ============================================
-      // PERÍODO ATUAL - Dados de fila (via RPC SECURITY DEFINER)
-      // Bypassa RLS para garantir dados corretos
+      // BUSCAR DADOS VIA RPC (bypassa RLS)
       // ============================================
-      const { data: currentQueueData, error: queueError } = await supabase
-        .rpc('get_reports_queue_data', {
+      const [
+        { data: currentQueueData },
+        { data: previousQueueData },
+        { data: currentReservations },
+        { data: previousReservations },
+        { data: customers }
+      ] = await Promise.all([
+        supabase.rpc('get_reports_queue_data', {
           p_restaurant_id: RESTAURANT_ID,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString()
-        });
-
-      if (queueError) {
-        console.error('Erro ao buscar dados de fila:', queueError);
-      }
-
-      // ============================================
-      // PERÍODO ANTERIOR - Dados de fila
-      // ============================================
-      const { data: previousQueueData } = await supabase
-        .rpc('get_reports_queue_data', {
+        }),
+        supabase.rpc('get_reports_queue_data', {
           p_restaurant_id: RESTAURANT_ID,
           p_start_date: previousStartDate.toISOString(),
           p_end_date: previousEndDate.toISOString()
-        });
-
-      // ============================================
-      // PERÍODO ATUAL - Dados de reservas (via RPC SECURITY DEFINER)
-      // ============================================
-      const { data: currentReservations, error: resError } = await supabase
-        .rpc('get_reports_reservation_data', {
+        }),
+        supabase.rpc('get_reports_reservation_data', {
           p_restaurant_id: RESTAURANT_ID,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString()
-        });
-
-      if (resError) {
-        console.error('Erro ao buscar reservas:', resError);
-      }
-
-      // ============================================
-      // PERÍODO ANTERIOR - Dados de reservas
-      // ============================================
-      const { data: previousReservations } = await supabase
-        .rpc('get_reports_reservation_data', {
+        }),
+        supabase.rpc('get_reports_reservation_data', {
           p_restaurant_id: RESTAURANT_ID,
           p_start_date: previousStartDate.toISOString(),
           p_end_date: previousEndDate.toISOString()
-        });
+        }),
+        supabase.from('customers').select('id, total_visits, vip_status, created_at')
+      ]);
 
       // ============================================
-      // 1. TEMPO MÉDIO DE ESPERA (apenas fila)
-      // Fórmula: Média de (seated_at - created_at) para status='seated' ou 'served'
+      // 1. MÉTRICAS DE FILA (EXCLUSIVO)
       // ============================================
+      
+      // Tempo médio de espera: entrada → seated_at
       const calcAvgWait = (data: any[] | null) => {
         if (!data) return 0;
-        // Considerar seated OU served com seated_at preenchido
         const seatedWithTimestamp = data.filter(e => 
           ['seated', 'served'].includes(e.status) && e.seated_at
         );
@@ -197,182 +146,91 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         
         const total = seatedWithTimestamp.reduce((sum, e) => {
           const diff = new Date(e.seated_at).getTime() - new Date(e.created_at).getTime();
-          return sum + Math.max(0, diff / 60000); // Evitar valores negativos
+          return sum + Math.max(0, diff / 60000);
         }, 0);
         return Math.round(total / seatedWithTimestamp.length);
       };
 
+      const queueSeated = currentQueueData?.filter((e: any) => ['seated', 'served'].includes(e.status)).length || 0;
+      const queueWaiting = currentQueueData?.filter((e: any) => e.status === 'waiting').length || 0;
+      const queueCalled = currentQueueData?.filter((e: any) => e.status === 'called').length || 0;
+      const queueCanceled = currentQueueData?.filter((e: any) => e.status === 'canceled').length || 0;
+      const queueNoShow = currentQueueData?.filter((e: any) => e.status === 'no_show').length || 0;
+      const totalQueueEntries = currentQueueData?.length || 0;
+
       const currentAvgWait = calcAvgWait(currentQueueData);
       const previousAvgWait = calcAvgWait(previousQueueData);
-      const waitTrend = previousAvgWait > 0 
-        ? Math.round(((currentAvgWait - previousAvgWait) / previousAvgWait) * 100) 
-        : 0;
 
-      // ============================================
-      // 2. TAXA DE CONVERSÃO (Fila)
-      // Fórmula: (atendidos / total_entries) × 100
-      // Atendidos = seated + served
-      // Representa % de clientes que foram efetivamente atendidos
-      // ============================================
-      const calcQueueConversion = (data: any[] | null) => {
-        if (!data || data.length === 0) return 0;
-        const atendidos = data.filter(e => ['seated', 'served'].includes(e.status)).length;
-        return Math.round((atendidos / data.length) * 100);
-      };
+      const currentQueueConv = totalQueueEntries > 0 ? Math.round((queueSeated / totalQueueEntries) * 100) : 0;
+      const prevQueueSeated = previousQueueData?.filter((e: any) => ['seated', 'served'].includes(e.status)).length || 0;
+      const prevQueueTotal = previousQueueData?.length || 0;
+      const previousQueueConv = prevQueueTotal > 0 ? Math.round((prevQueueSeated / prevQueueTotal) * 100) : 0;
 
-      const currentQueueConv = calcQueueConversion(currentQueueData);
-      const previousQueueConv = calcQueueConversion(previousQueueData);
-      const convTrend = previousQueueConv > 0 
-        ? Math.round(((currentQueueConv - previousQueueConv) / previousQueueConv) * 100) 
-        : 0;
-      // ============================================
-      // 3. TAXA DE NÃO COMPARECIMENTO (Reservas)
-      // Fórmula: (no_show / finalizadas) × 100
-      // Onde finalizadas = completed + seated + no_show + canceled
-      // Se não houver status no_show, essa métrica fica zerada
-      // ============================================
-      const calcNoShowRate = (data: any[] | null) => {
-        if (!data || data.length === 0) return 0;
-        
-        // Verificar se há reservas com status 'no_show' ou no_show_at preenchido
-        const noShowCount = data.filter(r => 
-          r.status === 'no_show' || r.no_show_at !== null
-        ).length;
-        
-        // Base: reservas que tiveram um desfecho (não estão mais pendentes)
-        const finalizedCount = data.filter(r => 
-          ['completed', 'seated', 'no_show', 'canceled'].includes(r.status) || 
-          r.completed_at !== null || 
-          r.no_show_at !== null
-        ).length;
-        
-        if (finalizedCount === 0) return 0;
-        return Math.round((noShowCount / finalizedCount) * 100);
-      };
-
-      const currentNoShowRate = calcNoShowRate(currentReservations);
-      const previousNoShowRate = calcNoShowRate(previousReservations);
-      const noShowTrend = previousNoShowRate > 0 
-        ? Math.round(((currentNoShowRate - previousNoShowRate) / previousNoShowRate) * 100) 
-        : 0;
-
-      // ============================================
-      // 4. TAXA DE CANCELAMENTO (Fila + Reservas)
-      // Fórmula: (cancelados / total) × 100
-      // ============================================
-      const calcCancelRate = (queueData: any[] | null, resData: any[] | null, source: SourceType) => {
-        let total = 0;
-        let canceled = 0;
-        
-        if (source !== 'reservations' && queueData) {
-          total += queueData.length;
-          canceled += queueData.filter(e => e.status === 'canceled').length;
-        }
-        
-        if (source !== 'queue' && resData) {
-          total += resData.length;
-          canceled += resData.filter(r => r.status === 'canceled').length;
-        }
-        
-        if (total === 0) return 0;
-        return Math.round((canceled / total) * 100);
-      };
-
-      const currentCancelRate = calcCancelRate(currentQueueData, currentReservations, sourceType);
-      const previousCancelRate = calcCancelRate(previousQueueData, previousReservations, sourceType);
-      const cancelTrend = previousCancelRate > 0 
-        ? Math.round(((currentCancelRate - previousCancelRate) / previousCancelRate) * 100) 
-        : 0;
-
-      // ============================================
-      // 5. MÉDIA DE PESSOAS POR GRUPO (atendidos)
-      // Fórmula: Média de party_size dos status finalizados com sucesso
-      // ============================================
-      const calcAvgParty = (queueData: any[] | null, resData: any[] | null, source: SourceType) => {
-        const served: any[] = [];
-        
-        if (source !== 'reservations' && queueData) {
-          // Fila: seated ou served
-          served.push(...queueData.filter(e => ['seated', 'served'].includes(e.status)));
-        }
-        
-        if (source !== 'queue' && resData) {
-          // Reservas: completed (não tem 'seated' no enum de reservas)
-          served.push(...resData.filter(r => r.status === 'completed'));
-        }
-        
-        if (served.length === 0) return 0;
-        const total = served.reduce((sum, e) => sum + (e.party_size || 0), 0);
-        return Math.round((total / served.length) * 10) / 10;
-      };
-
-      const currentAvgParty = calcAvgParty(currentQueueData, currentReservations, sourceType);
-      const previousAvgParty = calcAvgParty(previousQueueData, previousReservations, sourceType);
-      const partyTrend = previousAvgParty > 0 
-        ? Math.round(((currentAvgParty - previousAvgParty) / previousAvgParty) * 100) 
-        : 0;
-
-      // ============================================
-      // 6. CLIENTES NOVOS E VIP
-      // Novos: clientes criados no período (created_at)
-      // VIP: vip_status=true OU total_visits >= 10 (REGRA OFICIAL)
-      // ============================================
-      const { data: customers } = await supabase
-        .from('customers')
-        .select('id, total_visits, vip_status, created_at');
-
-      // Clientes criados no período analisado
-      const newCustomers = customers?.filter(c => {
-        if (!c.created_at) return false;
-        const createdAt = new Date(c.created_at);
-        return createdAt >= startDate && createdAt <= endDate;
-      }).length || 0;
-      
-      // Clientes VIP: vip_status=true OU total_visits >= 10 (REGRA OFICIAL do sistema)
-      const vipCustomers = customers?.filter(c => 
-        c.vip_status === true || (c.total_visits && c.total_visits >= 10)
-      ).length || 0;
-
-      // ============================================
-      // 7. HORÁRIO E DIA DE PICO (baseado em entradas)
-      // ============================================
+      // Distribuição horária (APENAS FILA)
       const hourCounts: { [key: string]: number } = {};
-      const dayCounts: { [key: string]: number } = {};
-
-      currentQueueData?.forEach(e => {
+      currentQueueData?.forEach((e: any) => {
         const date = new Date(e.created_at);
         const hour = date.getHours();
-        const day = date.toLocaleDateString('pt-BR', { weekday: 'long' });
         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-        dayCounts[day] = (dayCounts[day] || 0) + 1;
       });
 
-      currentReservations?.forEach(r => {
-        const date = new Date(r.reserved_for);
-        const hour = date.getHours();
-        const day = date.toLocaleDateString('pt-BR', { weekday: 'long' });
-        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+      const hourlyDistribution = Object.entries(hourCounts)
+        .map(([hour, count]) => ({ hour: `${hour.padStart(2, '0')}:00`, count }))
+        .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
+
+      // ============================================
+      // 2. MÉTRICAS DE RESERVAS (EXCLUSIVO)
+      // ============================================
+      const resCompleted = currentReservations?.filter((r: any) => r.status === 'completed').length || 0;
+      const resConfirmed = currentReservations?.filter((r: any) => r.status === 'confirmed').length || 0;
+      const resPending = currentReservations?.filter((r: any) => r.status === 'pending').length || 0;
+      const resCanceled = currentReservations?.filter((r: any) => r.status === 'canceled').length || 0;
+      const resNoShow = currentReservations?.filter((r: any) => r.status === 'no_show' || r.no_show_at).length || 0;
+      const totalReservations = currentReservations?.length || 0;
+
+      // No-show rate (apenas reservas finalizadas)
+      const resFinalized = resCompleted + resNoShow + resCanceled;
+      const noShowRate = resFinalized > 0 ? Math.round((resNoShow / resFinalized) * 100) : 0;
+      
+      const prevResNoShow = previousReservations?.filter((r: any) => r.status === 'no_show' || r.no_show_at).length || 0;
+      const prevResFinalized = (previousReservations?.filter((r: any) => 
+        ['completed', 'no_show', 'canceled'].includes(r.status)
+      ).length || 0);
+      const prevNoShowRate = prevResFinalized > 0 ? Math.round((prevResNoShow / prevResFinalized) * 100) : 0;
+
+      const successRate = totalReservations > 0 
+        ? Math.round(((resCompleted + resConfirmed) / totalReservations) * 100) 
+        : 0;
+
+      // ============================================
+      // 3. MÉTRICAS COMBINADAS
+      // ============================================
+      const dayCounts: { [key: string]: number } = {};
+      
+      currentQueueData?.forEach((e: any) => {
+        const day = new Date(e.created_at).toLocaleDateString('pt-BR', { weekday: 'long' });
+        dayCounts[day] = (dayCounts[day] || 0) + 1;
+      });
+      currentReservations?.forEach((r: any) => {
+        const day = new Date(r.reserved_for).toLocaleDateString('pt-BR', { weekday: 'long' });
         dayCounts[day] = (dayCounts[day] || 0) + 1;
       });
 
       const peakHourEntry = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
-      const peakHour = peakHourEntry ? `${peakHourEntry[0]}:00` : '-';
+      const peakHour = peakHourEntry ? `${peakHourEntry[0].padStart(2, '0')}:00` : '-';
       
       const peakDayEntry = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
       const peakDay = peakDayEntry ? peakDayEntry[0] : '-';
 
-      // ============================================
-      // 8. EVOLUÇÃO DIÁRIA
-      // ============================================
+      // Evolução diária
       const dailyMap: { [key: string]: { reservations: number; queue: number } } = {};
       
-      currentReservations?.forEach(r => {
+      currentReservations?.forEach((r: any) => {
         const date = new Date(r.reserved_for).toLocaleDateString('pt-BR');
         if (!dailyMap[date]) dailyMap[date] = { reservations: 0, queue: 0 };
         dailyMap[date].reservations++;
       });
-
-      currentQueueData?.forEach(e => {
+      currentQueueData?.forEach((e: any) => {
         const date = new Date(e.created_at).toLocaleDateString('pt-BR');
         if (!dailyMap[date]) dailyMap[date] = { reservations: 0, queue: 0 };
         dailyMap[date].queue++;
@@ -387,107 +245,71 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         })
         .slice(-30);
 
-      // ============================================
-      // 9. DISTRIBUIÇÃO DE STATUS (Pizza)
-      // Status válidos - Fila: waiting, called, seated, canceled, no_show, served
-      // Status válidos - Reserva: pending, confirmed, canceled, no_show, completed
-      // IMPORTANTE: Respeitar o filtro sourceType
-      // ============================================
-      const includeQueue = sourceType !== 'reservations';
-      const includeReservations = sourceType !== 'queue';
-      
-      const queueSeated = includeQueue ? (currentQueueData?.filter(e => ['seated', 'served'].includes(e.status)).length || 0) : 0;
-      const queueCanceled = includeQueue ? (currentQueueData?.filter(e => e.status === 'canceled').length || 0) : 0;
-      const queueWaiting = includeQueue ? (currentQueueData?.filter(e => e.status === 'waiting').length || 0) : 0;
-      const queueCalled = includeQueue ? (currentQueueData?.filter(e => e.status === 'called').length || 0) : 0;
-      const queueNoShow = includeQueue ? (currentQueueData?.filter(e => e.status === 'no_show').length || 0) : 0;
-      
-      const resCompleted = includeReservations ? (currentReservations?.filter(r => r.status === 'completed').length || 0) : 0;
-      const resConfirmed = includeReservations ? (currentReservations?.filter(r => r.status === 'confirmed').length || 0) : 0;
-      const resPending = includeReservations ? (currentReservations?.filter(r => r.status === 'pending').length || 0) : 0;
-      const resCanceled = includeReservations ? (currentReservations?.filter(r => r.status === 'canceled').length || 0) : 0;
-      const resNoShow = includeReservations ? (currentReservations?.filter(r => r.status === 'no_show' || r.no_show_at).length || 0) : 0;
-      
-      // Montar distribuição baseado no filtro ativo
-      // CORES ÚNICAS - cada status tem cor distinta para evitar confusão visual
-      const statusDistributionItems = [];
-      
-      if (includeQueue) {
-        // Fila: Verde (atendidos), Amarelo (aguardando), Vermelho (cancelados), Roxo (no-show)
-        if (queueSeated > 0) statusDistributionItems.push({ name: 'Atendidos (Fila)', value: queueSeated, color: '#22c55e' }); // green-500
-        if (queueWaiting + queueCalled > 0) statusDistributionItems.push({ name: 'Aguardando (Fila)', value: queueWaiting + queueCalled, color: '#f59e0b' }); // amber-500
-        if (queueNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Fila)', value: queueNoShow, color: '#8b5cf6' }); // violet-500
-        if (queueCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Fila)', value: queueCanceled, color: '#ef4444' }); // red-500
-      }
-      
-      if (includeReservations) {
-        // Reservas: Laranja (concluídas), Azul (confirmadas), Cinza (pendentes), Rosa (no-show), Marrom (cancelados)
-        if (resCompleted > 0) statusDistributionItems.push({ name: 'Concluídas (Reserva)', value: resCompleted, color: '#f97316' }); // orange-500
-        if (resConfirmed > 0) statusDistributionItems.push({ name: 'Confirmadas (Reserva)', value: resConfirmed, color: '#3b82f6' }); // blue-500
-        if (resPending > 0) statusDistributionItems.push({ name: 'Pendentes (Reserva)', value: resPending, color: '#6b7280' }); // gray-500
-        if (resNoShow > 0) statusDistributionItems.push({ name: 'Não Compareceram (Reserva)', value: resNoShow, color: '#ec4899' }); // pink-500
-        if (resCanceled > 0) statusDistributionItems.push({ name: 'Cancelados (Reserva)', value: resCanceled, color: '#78350f' }); // amber-900 (marrom)
-      }
-      
-      const statusDistribution = statusDistributionItems;
-
-      // ============================================
-      // 10. DISTRIBUIÇÃO HORÁRIA
-      // ============================================
-      const hourlyDistribution = Object.entries(hourCounts)
-        .map(([hour, count]) => ({ hour: `${hour.padStart(2, '0')}:00`, count }))
-        .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
-
-      // ============================================
-      // 11. MÉTRICAS DETALHADAS
-      // ============================================
-      const totalServed = queueSeated + resCompleted;
-      const totalCanceled = queueCanceled + resCanceled;
-      
-      const queueMetrics = [{
-        period: period === 'today' ? 'Hoje' : `Últimos ${days} dias`,
-        avgWait: currentAvgWait,
-        totalServed: queueSeated,
-        peaked: peakHour,
-      }];
-
-      const queueEfficiency = (currentQueueData?.length || 0) > 0
-        ? Math.round((queueSeated / (currentQueueData?.length || 1)) * 100)
+      // Média de pessoas por grupo (atendidos)
+      const allServed = [
+        ...(currentQueueData?.filter((e: any) => ['seated', 'served'].includes(e.status)) || []),
+        ...(currentReservations?.filter((r: any) => r.status === 'completed') || [])
+      ];
+      const avgPartySize = allServed.length > 0
+        ? Math.round((allServed.reduce((sum, e) => sum + (e.party_size || 0), 0) / allServed.length) * 10) / 10
         : 0;
 
-      const reservationMetrics = [{
-        period: period === 'today' ? 'Hoje' : `Últimos ${days} dias`,
-        confirmed: resCompleted,
-        pending: resPending,
-        noShow: resNoShow,
-        canceled: resCanceled,
-      }];
+      // Clientes
+      const newCustomers = customers?.filter(c => {
+        if (!c.created_at) return false;
+        const createdAt = new Date(c.created_at);
+        return createdAt >= startDate && createdAt <= endDate;
+      }).length || 0;
+      
+      const vipCustomers = customers?.filter(c => 
+        c.vip_status === true || (c.total_visits && c.total_visits >= 10)
+      ).length || 0;
 
       // ============================================
       // RESULTADO FINAL
       // ============================================
       setMetrics({
-        avgWaitTime: { current: currentAvgWait, previous: previousAvgWait, trend: waitTrend },
-        conversionRate: { current: currentQueueConv, previous: previousQueueConv, trend: convTrend },
-        noShowRate: { current: currentNoShowRate, previous: previousNoShowRate, trend: noShowTrend },
-        cancelRate: { current: currentCancelRate, previous: previousCancelRate, trend: cancelTrend },
-        avgPartySize: { current: currentAvgParty, previous: previousAvgParty, trend: partyTrend },
-        newCustomers,
-        vipCustomers,
-        totalServed,
-        totalCanceled,
+        totalServed: queueSeated + resCompleted,
+        totalCanceled: queueCanceled + resCanceled,
         peakHour,
         peakDay,
-        queueMetrics,
-        queueEfficiency,
-        avgQueueSize: Math.round((currentQueueData?.length || 0) / Math.max(days, 1)),
-        reservationMetrics,
-        dailyEvolution,
-        statusDistribution,
-        hourlyDistribution,
+        avgPartySize,
+        newCustomers,
+        vipCustomers,
         lastUpdated: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        
+        queue: {
+          avgWaitTime: currentAvgWait,
+          avgWaitTimePrevious: previousAvgWait,
+          conversionRate: currentQueueConv,
+          conversionRatePrevious: previousQueueConv,
+          totalEntries: totalQueueEntries,
+          seated: queueSeated,
+          waiting: queueWaiting,
+          called: queueCalled,
+          canceled: queueCanceled,
+          noShow: queueNoShow,
+          avgQueueSize: Math.round(totalQueueEntries / Math.max(days, 1)),
+          hourlyDistribution,
+          hasData: totalQueueEntries > 0,
+        },
+        
+        reservations: {
+          completed: resCompleted,
+          confirmed: resConfirmed,
+          pending: resPending,
+          canceled: resCanceled,
+          noShow: resNoShow,
+          noShowRate,
+          noShowRatePrevious: prevNoShowRate,
+          successRate,
+          totalReservations,
+          hasData: totalReservations > 0,
+        },
+        
+        dailyEvolution,
       });
-      // Marca que já carregou dados iniciais
+
       stateRef.current.hasInitialData = true;
     } catch (err) {
       console.error('Erro ao carregar relatórios:', err);
@@ -496,7 +318,6 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
     }
   }, [period, sourceType]);
 
-  // Reset ref quando período ou fonte mudam
   useEffect(() => {
     stateRef.current.hasInitialData = false;
   }, [period, sourceType]);
@@ -505,7 +326,6 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
     fetchReports();
   }, [fetchReports]);
 
-  // Realtime updates - silenciosos (não mostram loading)
   useQueueRealtime(fetchReports);
   useReservationsRealtime(fetchReports);
 
