@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { reservationSchema, normalizeReservationToUTC } from "@/lib/validations/reservation";
 import { logAudit } from "@/lib/audit";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
-import mesaclikLogo from "@/assets/mesaclik-m-logo.png";
+
 import { 
   Dialog,
   DialogContent,
@@ -370,16 +370,9 @@ export default function Reservations() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img 
-            src={mesaclikLogo} 
-            alt="MesaClik" 
-            className="w-10 h-10 rounded-lg"
-          />
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
-            <p className="text-muted-foreground">Gerencie as reservas do seu restaurante</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
+          <p className="text-muted-foreground">Gerencie as reservas do seu restaurante</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
