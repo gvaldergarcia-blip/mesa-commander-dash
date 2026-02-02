@@ -13,8 +13,9 @@ import { PalpitesStats } from '@/components/intelligence/PalpitesStats';
 import { PalpitesFilters } from '@/components/intelligence/PalpitesFilters';
 import { PalpiteCard } from '@/components/intelligence/PalpiteCard';
 import { SendPalpitePromotionDialog } from '@/components/intelligence/SendPalpitePromotionDialog';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
-export default function Intelligence() {
+function IntelligenceContent() {
   const {
     palpites,
     stats,
@@ -151,5 +152,13 @@ export default function Intelligence() {
         onSent={handlePromotionSent}
       />
     </div>
+  );
+}
+
+export default function Intelligence() {
+  return (
+    <ProtectedRoute>
+      <IntelligenceContent />
+    </ProtectedRoute>
   );
 }

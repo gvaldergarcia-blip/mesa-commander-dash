@@ -11,6 +11,7 @@ import { useQueue } from "@/hooks/useQueue";
 import mesaclikLogo from "@/assets/mesaclik-logo.png";
 import { useReservations } from "@/hooks/useReservations";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { 
   Dialog,
   DialogContent,
@@ -27,7 +28,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
-export default function Dashboard() {
+function DashboardContent() {
   const { restaurants, loading: loadingRestaurants } = useRestaurants();
   const { metrics, recentActivity, loading: loadingMetrics } = useDashboardMetricsReal();
   const { addToQueue } = useQueue();
@@ -358,5 +359,13 @@ export default function Dashboard() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   );
 }

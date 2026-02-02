@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { reservationSchema, normalizeReservationToUTC } from "@/lib/validations/reservation";
 import { logAudit } from "@/lib/audit";
 import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 import { 
   Dialog,
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function Reservations() {
+function ReservationsContent() {
   const { restaurants } = useRestaurants();
   const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
   
@@ -1209,5 +1210,13 @@ export default function Reservations() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function Reservations() {
+  return (
+    <ProtectedRoute>
+      <ReservationsContent />
+    </ProtectedRoute>
   );
 }
