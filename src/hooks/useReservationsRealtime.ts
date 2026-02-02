@@ -8,31 +8,57 @@ export function useReservationsRealtime(onUpdate: () => void) {
   onUpdateRef.current = onUpdate;
 
   useEffect(() => {
-    // Canal para postgres_changes (atualização via RPC no schema mesaclik)
-    const dbChannel = supabase
-      .channel('reservations-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'mesaclik',
-          table: 'reservations',
-          filter: `restaurant_id=eq.${RESTAURANT_ID}`
-        },
-        () => {
-          console.log('[useReservationsRealtime] postgres_changes recebido');
-          onUpdateRef.current();
-        }
-      )
-      .subscribe();
+    let dbChannel: ReturnType<typeof supabase.channel> | null = null;
+    
+    const setupChannel = () => {
+      // Canal para postgres_changes (atualização via RPC no schema mesaclik)
+      dbChannel = supabase
+        .channel(`reservations-realtime-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'mesaclik',
+            table: 'reservations',
+            filter: `restaurant_id=eq.${RESTAURANT_ID}`
+          },
+          (payload) => {
+            console.log('[useReservationsRealtime] postgres_changes recebido:', payload.eventType);
+            onUpdateRef.current();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'reservations',
+            filter: `restaurant_id=eq.${RESTAURANT_ID}`
+          },
+          (payload) => {
+            console.log('[useReservationsRealtime] public schema change:', payload.eventType);
+            onUpdateRef.current();
+          }
+        )
+        .subscribe((status) => {
+          console.log('[useReservationsRealtime] Subscription status:', status);
+          if (status === 'CHANNEL_ERROR') {
+            console.warn('[useReservationsRealtime] Channel error, will retry via polling');
+          }
+        });
+    };
 
-    // Polling fallback a cada 5 segundos para garantir sincronização
+    setupChannel();
+
+    // Polling fallback a cada 3 segundos para garantir sincronização
     const pollingInterval = setInterval(() => {
       onUpdateRef.current();
-    }, 5000);
+    }, 3000);
 
     return () => {
-      supabase.removeChannel(dbChannel);
+      if (dbChannel) {
+        supabase.removeChannel(dbChannel);
+      }
       clearInterval(pollingInterval);
     };
   }, []);
