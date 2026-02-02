@@ -28,7 +28,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, Gift, Tag, CreditCard, Shield, Info } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -343,7 +343,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
@@ -359,14 +359,6 @@ export default function Settings() {
           <TabsTrigger value="reservation" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Reservas</span>
-          </TabsTrigger>
-          <TabsTrigger value="loyalty" className="flex items-center gap-2">
-            <Gift className="h-4 w-4" />
-            <span className="hidden sm:inline">10 Cliks</span>
-          </TabsTrigger>
-          <TabsTrigger value="promotions" className="flex items-center gap-2">
-            <Tag className="h-4 w-4" />
-            <span className="hidden sm:inline">Cupons</span>
           </TabsTrigger>
           <TabsTrigger value="billing" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
@@ -741,88 +733,7 @@ export default function Settings() {
           <ReservationSettings restaurantId={RESTAURANT_ID} />
         </TabsContent>
 
-        {/* Tab 5: Programa de Fidelidade */}
-        <TabsContent value="loyalty">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="h-5 w-5 text-primary" />
-                Programa de Fidelidade 10 Cliks
-              </CardTitle>
-              <CardDescription>
-                Fidelize seus clientes com pontos e recompensas
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="p-6 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 opacity-50">
-                <h3 className="font-semibold text-lg mb-2">Como funciona o 10 Cliks?</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  A cada 10 visitas completas, seu cliente ganha uma recompensa especial. 
-                  Configure prêmios, promoções e incentive a fidelização.
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Programa ativo</span>
-                  <Switch disabled />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab 7: Cupons & Promoções */}
-        <TabsContent value="promotions">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Tag className="h-5 w-5 text-primary" />
-                Cupons & Promoções
-              </CardTitle>
-              <CardDescription>
-                Configure preferências de marketing e promoções
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="p-6 border rounded-lg bg-background opacity-50">
-                <h3 className="font-semibold mb-2">Ofertas por E-mail</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Envie cupons e promoções exclusivas para clientes que aceitaram receber ofertas.
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Aceitar enviar ofertas</span>
-                  <Switch disabled />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab 8: Plano & Pagamento */}
+        {/* Tab 5: Plano & Pagamento */}
         <TabsContent value="billing">
           <Card>
             <CardHeader>

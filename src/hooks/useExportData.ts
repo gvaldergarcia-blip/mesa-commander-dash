@@ -1,18 +1,20 @@
 import { supabase } from '@/lib/supabase/client';
 import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useToast } from '@/hooks/use-toast';
 
 type ExportType = 'queue' | 'reservations' | 'kpis';
 
-interface ExportParams {
-  type: ExportType;
-  startDate: Date;
-  endDate: Date;
-}
-
 export function useExportData() {
+  const { toast } = useToast();
+
   const exportToCSV = (data: any[], filename: string) => {
     if (data.length === 0) {
-      return;
+      toast({
+        title: 'Sem dados',
+        description: 'Não há dados para exportar no período selecionado.',
+        variant: 'destructive',
+      });
+      return false;
     }
 
     const headers = Object.keys(data[0]);
@@ -21,8 +23,10 @@ export function useExportData() {
       ...data.map(row => 
         headers.map(header => {
           const value = row[header];
+          // Handle null/undefined
+          if (value === null || value === undefined) return '';
           // Escape commas and quotes
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
             return `"${value.replace(/"/g, '""')}"`;
           }
           return value;
@@ -30,7 +34,9 @@ export function useExportData() {
       )
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Add BOM for Excel UTF-8 compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     
@@ -40,130 +46,235 @@ export function useExportData() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return true;
   };
 
   const exportQueueData = async (startDate: Date, endDate: Date) => {
-    const { data, error } = await supabase
-      .schema('mesaclik')
-      .from('queue_entries')
-      .select('*')
-      .eq('restaurant_id', RESTAURANT_ID)
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .order('created_at', { ascending: false });
+    try {
+      // Usar RPC para contornar RLS
+      const { data, error } = await supabase.rpc('get_reports_queue_data', {
+        p_restaurant_id: RESTAURANT_ID,
+        p_start_date: startDate.toISOString(),
+        p_end_date: endDate.toISOString()
+      });
 
-    if (error) throw error;
-    
-    const formattedData = data.map(entry => ({
-      'ID': entry.id,
-      'Nome': entry.customer_name,
-      'Telefone': entry.phone,
-      'Pessoas': entry.party_size,
-      'Status': entry.status,
-      'Criado em': new Date(entry.created_at).toLocaleString('pt-BR'),
-      'Sentado em': entry.seated_at ? new Date(entry.seated_at).toLocaleString('pt-BR') : '',
-      'Tempo de espera (min)': entry.seated_at 
-        ? Math.round((new Date(entry.seated_at).getTime() - new Date(entry.created_at).getTime()) / 60000)
-        : ''
-    }));
+      if (error) {
+        console.error('[Export] Erro ao buscar dados da fila:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        toast({
+          title: 'Sem dados',
+          description: 'Não há dados de fila no período selecionado.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    exportToCSV(formattedData, `fila_${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}.csv`);
+      const formattedData = data.map((entry: any) => ({
+        'ID': entry.id,
+        'Status': entry.status === 'seated' ? 'Atendido' : 
+                  entry.status === 'waiting' ? 'Aguardando' : 
+                  entry.status === 'called' ? 'Chamado' : 
+                  entry.status === 'canceled' ? 'Cancelado' : 
+                  entry.status === 'no_show' ? 'Não compareceu' : entry.status,
+        'Pessoas': entry.party_size,
+        'Criado em': new Date(entry.created_at).toLocaleString('pt-BR'),
+        'Sentado em': entry.seated_at ? new Date(entry.seated_at).toLocaleString('pt-BR') : '',
+        'Cancelado em': entry.canceled_at ? new Date(entry.canceled_at).toLocaleString('pt-BR') : '',
+        'Tempo de espera (min)': entry.seated_at 
+          ? Math.round((new Date(entry.seated_at).getTime() - new Date(entry.created_at).getTime()) / 60000)
+          : ''
+      }));
+
+      exportToCSV(formattedData, `fila_${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}.csv`);
+    } catch (error) {
+      console.error('[Export] Erro:', error);
+      throw error;
+    }
   };
 
   const exportReservationsData = async (startDate: Date, endDate: Date) => {
-    const { data, error } = await supabase
-      .schema('mesaclik')
-      .from('reservations')
-      .select('*')
-      .eq('restaurant_id', RESTAURANT_ID)
-      .gte('reservation_datetime', startDate.toISOString())
-      .lte('reservation_datetime', endDate.toISOString())
-      .order('reservation_datetime', { ascending: false });
+    try {
+      // Usar RPC para contornar RLS
+      const { data, error } = await supabase.rpc('get_reports_reservation_data', {
+        p_restaurant_id: RESTAURANT_ID,
+        p_start_date: startDate.toISOString(),
+        p_end_date: endDate.toISOString()
+      });
 
-    if (error) throw error;
-    
-    const formattedData = data.map(reservation => ({
-      'ID': reservation.id,
-      'Nome': reservation.customer_name,
-      'Telefone': reservation.phone,
-      'Pessoas': reservation.party_size,
-      'Status': reservation.status,
-      'Data/Hora': new Date(reservation.reservation_datetime).toLocaleString('pt-BR'),
-      'Criado em': new Date(reservation.created_at).toLocaleString('pt-BR'),
-      'Notas': reservation.notes || ''
-    }));
+      if (error) {
+        console.error('[Export] Erro ao buscar dados de reservas:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        toast({
+          title: 'Sem dados',
+          description: 'Não há dados de reservas no período selecionado.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-    exportToCSV(formattedData, `reservas_${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}.csv`);
+      const formattedData = data.map((reservation: any) => ({
+        'ID': reservation.id,
+        'Status': reservation.status === 'completed' ? 'Concluída' : 
+                  reservation.status === 'confirmed' ? 'Confirmada' : 
+                  reservation.status === 'pending' ? 'Pendente' : 
+                  reservation.status === 'canceled' ? 'Cancelada' : 
+                  reservation.status === 'no_show' ? 'Não compareceu' : reservation.status,
+        'Pessoas': reservation.party_size,
+        'Data/Hora Reserva': reservation.reserved_for ? new Date(reservation.reserved_for).toLocaleString('pt-BR') : '',
+        'Criado em': new Date(reservation.created_at).toLocaleString('pt-BR'),
+        'Confirmado em': reservation.confirmed_at ? new Date(reservation.confirmed_at).toLocaleString('pt-BR') : '',
+        'Concluído em': reservation.completed_at ? new Date(reservation.completed_at).toLocaleString('pt-BR') : '',
+        'Cancelado em': reservation.canceled_at ? new Date(reservation.canceled_at).toLocaleString('pt-BR') : '',
+      }));
+
+      exportToCSV(formattedData, `reservas_${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}.csv`);
+    } catch (error) {
+      console.error('[Export] Erro:', error);
+      throw error;
+    }
   };
 
   const exportKPIsData = async (startDate: Date, endDate: Date) => {
-    // Buscar dados de fila
-    const { data: queueData } = await supabase
-      .schema('mesaclik')
-      .from('queue_entries')
-      .select('created_at, seated_at, status')
-      .eq('restaurant_id', RESTAURANT_ID)
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .eq('status', 'seated')
-      .not('seated_at', 'is', null);
+    try {
+      // Buscar dados via RPC
+      const [
+        { data: queueData, error: queueError },
+        { data: reservationsData, error: resError }
+      ] = await Promise.all([
+        supabase.rpc('get_reports_queue_data', {
+          p_restaurant_id: RESTAURANT_ID,
+          p_start_date: startDate.toISOString(),
+          p_end_date: endDate.toISOString()
+        }),
+        supabase.rpc('get_reports_reservation_data', {
+          p_restaurant_id: RESTAURANT_ID,
+          p_start_date: startDate.toISOString(),
+          p_end_date: endDate.toISOString()
+        })
+      ]);
 
-    // Buscar dados de reservas
-    const { data: reservationsData } = await supabase
-      .schema('mesaclik')
-      .from('reservations')
-      .select('status, created_at')
-      .eq('restaurant_id', RESTAURANT_ID)
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString());
+      if (queueError) console.warn('[Export] Erro ao buscar fila:', queueError);
+      if (resError) console.warn('[Export] Erro ao buscar reservas:', resError);
 
-    // Calcular KPIs
-    const avgWaitTime = queueData && queueData.length > 0
-      ? Math.round(queueData.reduce((sum, entry) => {
-          const created = new Date(entry.created_at).getTime();
-          const seated = new Date(entry.seated_at!).getTime();
-          return sum + (seated - created) / 60000;
-        }, 0) / queueData.length)
-      : 0;
+      // Calcular KPIs de Fila
+      const seatedEntries = queueData?.filter((e: any) => ['seated', 'served'].includes(e.status) && e.seated_at) || [];
+      const avgWaitTime = seatedEntries.length > 0
+        ? Math.round(seatedEntries.reduce((sum: number, entry: any) => {
+            const created = new Date(entry.created_at).getTime();
+            const seated = new Date(entry.seated_at).getTime();
+            return sum + (seated - created) / 60000;
+          }, 0) / seatedEntries.length)
+        : 0;
 
-    const totalReservations = reservationsData?.length || 0;
-    const confirmedReservations = reservationsData?.filter(r => 
-      r.status === 'confirmed' || r.status === 'completed' || r.status === 'seated'
-    ).length || 0;
-    const noShowReservations = reservationsData?.filter(r => 
-      r.status === 'canceled'
-    ).length || 0;
+      const totalQueueEntries = queueData?.length || 0;
+      const queueSeated = seatedEntries.length;
+      const queueCanceled = queueData?.filter((e: any) => e.status === 'canceled').length || 0;
+      const queueConversionRate = totalQueueEntries > 0 
+        ? Math.round((queueSeated / totalQueueEntries) * 100) 
+        : 0;
 
-    const conversionRate = totalReservations > 0 
-      ? Math.round((confirmedReservations / totalReservations) * 100)
-      : 0;
-    const noShowRate = confirmedReservations > 0
-      ? Math.round((noShowReservations / totalReservations) * 100)
-      : 0;
+      // Calcular KPIs de Reservas
+      const totalReservations = reservationsData?.length || 0;
+      const resCompleted = reservationsData?.filter((r: any) => r.status === 'completed').length || 0;
+      const resConfirmed = reservationsData?.filter((r: any) => r.status === 'confirmed').length || 0;
+      const resCanceled = reservationsData?.filter((r: any) => r.status === 'canceled').length || 0;
+      const resNoShow = reservationsData?.filter((r: any) => r.status === 'no_show' || r.no_show_at).length || 0;
+      
+      const resFinalized = resCompleted + resNoShow + resCanceled;
+      const noShowRate = resFinalized > 0 ? Math.round((resNoShow / resFinalized) * 100) : 0;
+      const successRate = totalReservations > 0 
+        ? Math.round(((resCompleted + resConfirmed) / totalReservations) * 100) 
+        : 0;
 
-    const kpisData = [{
-      'Métrica': 'Tempo Médio de Espera',
-      'Valor': `${avgWaitTime} min`,
-      'Período': `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`
-    }, {
-      'Métrica': 'Taxa de Conversão',
-      'Valor': `${conversionRate}%`,
-      'Período': `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`
-    }, {
-      'Métrica': 'Taxa de No-Show',
-      'Valor': `${noShowRate}%`,
-      'Período': `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`
-    }, {
-      'Métrica': 'Total de Atendimentos (Fila)',
-      'Valor': queueData?.length || 0,
-      'Período': `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`
-    }, {
-      'Métrica': 'Total de Reservas',
-      'Valor': totalReservations,
-      'Período': `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`
-    }];
+      const periodLabel = `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`;
 
-    exportToCSV(kpisData, `kpis_${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}.csv`);
+      const kpisData = [
+        {
+          'Categoria': 'Fila',
+          'Métrica': 'Total de Entradas',
+          'Valor': totalQueueEntries,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Fila',
+          'Métrica': 'Total Atendidos',
+          'Valor': queueSeated,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Fila',
+          'Métrica': 'Cancelados',
+          'Valor': queueCanceled,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Fila',
+          'Métrica': 'Tempo Médio de Espera',
+          'Valor': `${avgWaitTime} min`,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Fila',
+          'Métrica': 'Taxa de Conversão',
+          'Valor': `${queueConversionRate}%`,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Total de Reservas',
+          'Valor': totalReservations,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Concluídas',
+          'Valor': resCompleted,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Confirmadas',
+          'Valor': resConfirmed,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Canceladas',
+          'Valor': resCanceled,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Não Compareceram',
+          'Valor': resNoShow,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Taxa de No-Show',
+          'Valor': `${noShowRate}%`,
+          'Período': periodLabel
+        },
+        {
+          'Categoria': 'Reservas',
+          'Métrica': 'Taxa de Sucesso',
+          'Valor': `${successRate}%`,
+          'Período': periodLabel
+        },
+      ];
+
+      exportToCSV(kpisData, `kpis_${startDate.toISOString().split('T')[0]}_${endDate.toISOString().split('T')[0]}.csv`);
+    } catch (error) {
+      console.error('[Export] Erro:', error);
+      throw error;
+    }
   };
 
   return {

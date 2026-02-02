@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Mail, Eye, Users, CheckCircle2, XCircle } from "lucide-react";
+import { Mail, Eye, Users, CheckCircle2, XCircle } from "lucide-react";
 import { useCustomersEnhanced, CustomerFilter, SourceFilter, MarketingFilter } from "@/hooks/useCustomersEnhanced";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -192,8 +192,7 @@ export default function Customers() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm space-y-1">
-                        <div className="flex items-center text-muted-foreground">
-                          <Phone className="w-3 h-3 mr-1" />
+                        <div className="text-muted-foreground">
                           {customer.phone}
                         </div>
                         {customer.email && (
