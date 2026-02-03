@@ -4,6 +4,7 @@ import { useRestaurants } from "@/hooks/useRestaurants";
 import { ReservationStatusFilter } from "@/components/reservations/ReservationStatusFilter";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
+import { useReservationSettings } from "@/hooks/useReservationSettings";
 import { VipBadge } from "@/components/queue/VipBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 function ReservationsContent() {
   const { restaurants } = useRestaurants();
   const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
+  const { settings: reservationSettings, loading: loadingSettings } = useReservationSettings(RESTAURANT_ID);
+  
+  // Configuração de max_party_size das configurações de reserva
+  const MAX_PARTY_SIZE_RESERVATION = reservationSettings?.max_party_size || 8;
   
   // Track if we have loaded data at least once to prevent flicker on refetch
   const [hasInitialData, setHasInitialData] = useState(false);
@@ -478,7 +483,7 @@ function ReservationsContent() {
                   <SelectValue placeholder="Número de pessoas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1,2,3,4,5,6,7,8].map(n => (
+                  {Array.from({ length: MAX_PARTY_SIZE_RESERVATION }, (_, i) => i + 1).map(n => (
                     <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
                   ))}
                 </SelectContent>
