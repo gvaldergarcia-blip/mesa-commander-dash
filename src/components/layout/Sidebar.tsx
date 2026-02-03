@@ -108,13 +108,16 @@ export function Sidebar() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-sidebar-border/50">
           <div className={cn(
-            "flex items-center transition-all duration-200",
+            "flex items-center space-x-3 transition-all duration-200",
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
-            <h1 className="text-xl font-bold tracking-tight">
-              <span className="text-sidebar-foreground">MESA</span>
-              <span className="text-primary">CLIK</span>
-            </h1>
+            <div className="bg-primary p-2 rounded-lg shadow-sm">
+              <ChefHat className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-base font-semibold tracking-tight">MesaClik</h1>
+              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Painel</p>
+            </div>
           </div>
           <Button
             variant="ghost"
