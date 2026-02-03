@@ -1182,7 +1182,9 @@ function ReservationsContent() {
                       const date = new Date(currentYear, currentMonth, day);
                       const dateString = date.toISOString().split('T')[0];
                       const isAvailable = isDayAvailable(dateString);
-                      const isPast = date < today;
+                      // Comparar apenas a data, não incluir o dia de hoje como passado
+                      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                      const isPast = date < todayDateOnly;
                       
                       days.push(
                         <button

@@ -67,6 +67,9 @@ const getEmailContent = (data: ReservationEmailRequest) => {
   } = data;
   
   const name = customer_name || 'Cliente';
+  
+  // Logo MESACLIK hospedada no projeto
+  const mesaclikLogoUrl = 'https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app/images/mesaclik-logo.png';
 
   switch (type) {
     case 'confirmation':
@@ -119,15 +122,19 @@ const getEmailContent = (data: ReservationEmailRequest) => {
                         </p>
                       </td>
                     </tr>
-                    <!-- Footer -->
+                    <!-- Footer with MesaClik logo -->
                     <tr>
                       <td style="padding: 24px 32px; background-color: #fff7ed; border-radius: 0 0 16px 16px; text-align: center;">
                         <p style="margin: 0; color: #ea580c; font-size: 12px; font-weight: 500;">
-                          🔒 Reserva realizada com segurança via MesaClik
+                          🔒 Reserva realizada com segurança
                         </p>
-                        <p style="margin: 8px 0 0; color: #a1a1aa; font-size: 11px;">
-                          Este e-mail foi enviado pelo ${restaurant_name}
-                        </p>
+                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 16px auto 0;">
+                          <tr>
+                            <td style="text-align: center;">
+                              <img src="${mesaclikLogoUrl}" alt="MesaClik" width="100" style="display: inline-block; height: auto;" />
+                            </td>
+                          </tr>
+                        </table>
                       </td>
                     </tr>
                   </table>

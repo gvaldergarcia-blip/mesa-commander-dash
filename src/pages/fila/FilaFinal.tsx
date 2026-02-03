@@ -21,6 +21,7 @@ interface QueueInfo {
   queue_id: string;
   restaurant_id: string;
   restaurant_name: string;
+  restaurant_logo_url?: string | null;
   status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
   position: number | null;
   party_size: number;
@@ -107,6 +108,7 @@ export default function FilaFinal() {
         queue_id: data.queue_id || '',
         restaurant_id: data.restaurant_id || restauranteIdParam || '',
         restaurant_name: data.restaurant_name || 'Restaurante',
+        restaurant_logo_url: data.restaurant_logo_url || null,
         status: data.status || 'waiting',
         position,
         party_size: partySize,
@@ -401,9 +403,23 @@ export default function FilaFinal() {
         <CardHeader className="text-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-lg pb-6">
           <div className="text-3xl mb-2">🎉</div>
           <CardTitle className="text-2xl font-bold text-white">Você está na fila!</CardTitle>
-          <CardDescription className="text-white/90 text-base">
-            {queueInfo.restaurant_name}
-          </CardDescription>
+          {/* Restaurant info with logo */}
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {queueInfo.restaurant_logo_url ? (
+              <img 
+                src={queueInfo.restaurant_logo_url} 
+                alt={queueInfo.restaurant_name}
+                className="w-10 h-10 rounded-full object-cover border-2 border-white/30"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg">
+                {queueInfo.restaurant_name.charAt(0)}
+              </div>
+            )}
+            <CardDescription className="text-white/90 text-base">
+              {queueInfo.restaurant_name}
+            </CardDescription>
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
@@ -469,6 +485,15 @@ export default function FilaFinal() {
           <p className="text-center text-sm text-muted-foreground">
             Fique de olho! Avisaremos quando for a sua vez.
           </p>
+
+          {/* MesaClik footer logo */}
+          <div className="pt-4 border-t border-border/50 flex justify-center">
+            <img 
+              src="/images/mesaclik-logo.png" 
+              alt="MesaClik" 
+              className="h-8 opacity-60"
+            />
+          </div>
         </CardContent>
       </Card>
     </div>
