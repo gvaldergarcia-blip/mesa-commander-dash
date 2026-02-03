@@ -1,11 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Calendar, Clock, User, Search, Filter, Mail } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
 import { VipBadge } from "@/components/queue/VipBadge";
-import { ReservationStatusChips } from "@/components/reservations/ReservationStatusChips";
-import { ReservationDatePicker } from "@/components/reservations/ReservationDatePicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -425,15 +423,27 @@ function ReservationsContent() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <ReservationDatePicker
+                  <Input 
+                    type="date"
                     value={newDate}
-                    onChange={(date) => {
-                      setNewDate(date);
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      const selectedDate = e.target.value;
+                      // Verificar se o dia está disponível no calendário
+                      if (!isDayAvailable(selectedDate)) {
+                        setFormErrors({...formErrors, date: 'Este dia está indisponível para reservas'});
+                        return;
+                      }
+                      setNewDate(selectedDate);
                       if (formErrors.date) setFormErrors({...formErrors, date: ''});
                     }}
-                    isDayAvailable={isDayAvailable}
-                    error={formErrors.date}
                   />
+                  {formErrors.date && (
+                    <p className="text-sm text-destructive mt-1">{formErrors.date}</p>
+                  )}
+                  {newDate && !isDayAvailable(newDate) && (
+                    <p className="text-sm text-destructive mt-1">⚠️ Este dia está bloqueado no calendário</p>
+                  )}
                 </div>
                 <div>
                   <Input 
@@ -581,36 +591,10 @@ function ReservationsContent() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
-          {/* Status Filter Chips */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Reservas por Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ReservationStatusChips
-                activeStatus={statusFilter}
-                onStatusChange={setStatusFilter}
-                counts={{
-                  pending: periodReservations.filter(r => r.status === 'pending').length,
-                  confirmed: periodReservations.filter(r => r.status === 'confirmed').length,
-                  completed: periodReservations.filter(r => r.status === 'completed').length,
-                  canceled: periodReservations.filter(r => r.status === 'canceled').length,
-                  no_show: periodReservations.filter(r => r.status === 'no_show').length,
-                }}
-              />
-              <p className="text-xs text-muted-foreground mt-3">
-                💡 Clique em um status para filtrar. Cada categoria mostra o total de reservas.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Additional Filters */}
+          {/* Filters */}
           <Card>
             <CardHeader>
-              <CardTitle>Filtros Adicionais</CardTitle>
+              <CardTitle>Filtros</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
@@ -625,6 +609,19 @@ function ReservationsContent() {
                     />
                   </div>
                 </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="pending">Pendentes</SelectItem>
+                    <SelectItem value="confirmed">Confirmadas</SelectItem>
+                    <SelectItem value="completed">Concluídas</SelectItem>
+                    <SelectItem value="canceled">Canceladas</SelectItem>
+                    <SelectItem value="no_show">Não compareceu</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Tamanho do grupo" />

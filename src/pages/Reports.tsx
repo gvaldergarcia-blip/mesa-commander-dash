@@ -132,10 +132,9 @@ function ReportsContent() {
     const message = `Relatório MesaClik - ${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
     
     if (type === 'email') {
-      window.open(`mailto:?subject=${encodeURIComponent(message)}&body=${encodeURIComponent('Confira os relatórios anexados.')}`, '_blank', 'noopener,noreferrer');
+      window.open(`mailto:?subject=${encodeURIComponent(message)}&body=${encodeURIComponent('Confira os relatórios anexados.')}`);
     } else if (type === 'whatsapp') {
-      // Usar web.whatsapp.com como fallback mais confiável que api.whatsapp.com
-      window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`);
     }
     
     setExportDialogOpen(false);
