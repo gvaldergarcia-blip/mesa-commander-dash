@@ -14,7 +14,7 @@ type QueueEntry = {
   people: number;
   status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show' | 'cleared';
   notes?: string;
-  position?: number;
+  queue_position?: number;
   called_at?: string;
   seated_at?: string;
   canceled_at?: string;
