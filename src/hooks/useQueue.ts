@@ -284,10 +284,14 @@ export function useQueue() {
 
   const clearQueue = async (): Promise<{ success: boolean; entries_affected: number }> => {
     try {
+      // Usar RPC clear_queue do schema public (SECURITY DEFINER que acessa mesaclik)
       const { data, error: rpcError } = await supabase
         .rpc('clear_queue', { p_restaurant_id: restaurantId });
 
-      if (rpcError) throw rpcError;
+      if (rpcError) {
+        console.error('[clearQueue] RPC error:', rpcError);
+        throw rpcError;
+      }
 
       const result = data as { success: boolean; error?: string; entries_affected?: number; message?: string };
 
