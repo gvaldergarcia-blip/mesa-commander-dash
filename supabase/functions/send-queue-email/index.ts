@@ -54,6 +54,9 @@ interface QueueEmailRequest {
 const getEmailContent = (data: QueueEmailRequest) => {
   const { customer_name, restaurant_name, position, party_size, size_group, estimated_wait_minutes, type, queue_url } = data;
   const name = customer_name || 'Cliente';
+  
+  // Logo MESACLIK hospedada no projeto
+  const mesaclikLogoUrl = 'https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app/images/mesaclik-logo.png';
 
   switch (type) {
     case 'entry':
@@ -115,9 +118,16 @@ const getEmailContent = (data: QueueEmailRequest) => {
                         </p>
                       </td>
                     </tr>
-                    <!-- Footer -->
+                    <!-- Footer with MesaClik logo -->
                     <tr>
                       <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 8px;">
+                          <tr>
+                            <td style="text-align: center;">
+                              <img src="${mesaclikLogoUrl}" alt="MesaClik" width="100" style="display: inline-block; height: auto;" />
+                            </td>
+                          </tr>
+                        </table>
                         <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
                           Este e-mail foi enviado pelo ${restaurant_name}
                         </p>

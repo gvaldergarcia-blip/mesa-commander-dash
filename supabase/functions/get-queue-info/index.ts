@@ -127,11 +127,11 @@ Deno.serve(async (req) => {
 
     console.log('Queue settings:', { queueSettings, settingsError });
 
-    // Buscar nome do restaurante (preferir mesaclik.restaurants)
+    // Buscar nome e logo do restaurante (preferir mesaclik.restaurants)
     const { data: restaurantMesaclik } = await supabase
       .schema('mesaclik')
       .from('restaurants')
-      .select('name')
+      .select('name, logo_url')
       .eq('id', restaurant_id)
       .maybeSingle();
 
@@ -144,6 +144,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
     const restaurant_name = restaurantMesaclik?.name || restaurantPublic?.name || 'Restaurante';
+    const restaurant_logo_url = restaurantMesaclik?.logo_url || null;
 
     // Buscar todas as entradas aguardando no restaurante (últimas 24h), ordenadas por created_at ASC, id ASC
     // Para calcular posição, preferimos filtrar por queue_id quando possível (evita misturar filas do mesmo restaurante).
@@ -215,6 +216,7 @@ Deno.serve(async (req) => {
       ticket_id: ticket_id ?? null,
       restaurant_id,
       restaurant_name,
+      restaurant_logo_url,
       queue_id: entryData?.queue_id ?? null,
       status: entryData?.status ?? null,
       party_size: entryData?.party_size ?? null,

@@ -44,6 +44,7 @@ interface ReservationInfo {
   restaurant_name: string;
   restaurant_address: string | null;
   restaurant_cuisine: string | null;
+  restaurant_logo_url: string | null;
   customer_name: string;
   customer_email: string | null;
   phone: string | null;
@@ -583,13 +584,26 @@ export default function ReservaFinal() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <p className="font-semibold text-lg">{reservationInfo.restaurant_name}</p>
-              {reservationInfo.restaurant_cuisine && (
-                <Badge variant="secondary" className="mt-1">
-                  {reservationInfo.restaurant_cuisine}
-                </Badge>
+            <div className="flex items-center gap-3">
+              {reservationInfo.restaurant_logo_url ? (
+                <img 
+                  src={reservationInfo.restaurant_logo_url} 
+                  alt={reservationInfo.restaurant_name}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-orange-200"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xl">
+                  {reservationInfo.restaurant_name.charAt(0)}
+                </div>
               )}
+              <div>
+                <p className="font-semibold text-lg">{reservationInfo.restaurant_name}</p>
+                {reservationInfo.restaurant_cuisine && (
+                  <Badge variant="secondary" className="mt-1">
+                    {reservationInfo.restaurant_cuisine}
+                  </Badge>
+                )}
+              </div>
             </div>
             {reservationInfo.restaurant_address && (
               <p className="text-muted-foreground text-sm">
@@ -705,12 +719,17 @@ export default function ReservaFinal() {
           </CardContent>
         </Card>
 
-        {/* Rodapé */}
-        <div className="text-center py-4">
+        {/* Rodapé com logo MesaClik */}
+        <div className="text-center py-4 space-y-3">
           <p className="text-sm text-orange-600 flex items-center justify-center gap-2">
             <ShieldCheck className="h-4 w-4" />
-            Reserva realizada com segurança via MesaClik
+            Reserva realizada com segurança
           </p>
+          <img 
+            src="/images/mesaclik-logo.png" 
+            alt="MesaClik" 
+            className="h-8 mx-auto opacity-60"
+          />
         </div>
       </div>
 
