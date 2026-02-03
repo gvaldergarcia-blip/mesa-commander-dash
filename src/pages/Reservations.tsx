@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Calendar, Clock, User, Search, Filter, Mail } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
+import { ReservationStatusFilter } from "@/components/reservations/ReservationStatusFilter";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
 import { useRestaurantCalendar } from "@/hooks/useRestaurantCalendar";
 import { VipBadge } from "@/components/queue/VipBadge";
@@ -359,9 +360,21 @@ function ReservationsContent() {
   const totalReservations = periodReservations.length;
   const confirmedCount = periodReservations.filter(r => r.status === "confirmed").length;
   const pendingCount = periodReservations.filter(r => r.status === "pending").length;
+  const completedCount = periodReservations.filter(r => r.status === "completed").length;
+  const canceledCount = periodReservations.filter(r => r.status === "canceled").length;
+  const noShowCount = periodReservations.filter(r => r.status === "no_show").length;
   const totalPeople = periodReservations
     .filter(r => r.status !== 'canceled' && r.status !== 'no_show')
     .reduce((sum, r) => sum + r.people, 0);
+
+  // Status counts for the filter chips
+  const statusCounts = useMemo(() => ({
+    pending: pendingCount,
+    confirmed: confirmedCount,
+    completed: completedCount,
+    canceled: canceledCount,
+    no_show: noShowCount,
+  }), [pendingCount, confirmedCount, completedCount, canceledCount, noShowCount]);
 
   // Only show loading on initial load, not on refetch (prevents flicker)
   if (loading && !hasInitialData) {
@@ -591,10 +604,17 @@ function ReservationsContent() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
+          {/* Status Filter Chips */}
+          <ReservationStatusFilter
+            statusFilter={statusFilter}
+            onStatusChange={(status) => setStatusFilter(status)}
+            counts={statusCounts}
+          />
+
           {/* Filters */}
           <Card>
             <CardHeader>
-              <CardTitle>Filtros</CardTitle>
+              <CardTitle>Filtros Adicionais</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
@@ -609,19 +629,6 @@ function ReservationsContent() {
                     />
                   </div>
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    <SelectItem value="pending">Pendentes</SelectItem>
-                    <SelectItem value="confirmed">Confirmadas</SelectItem>
-                    <SelectItem value="completed">Concluídas</SelectItem>
-                    <SelectItem value="canceled">Canceladas</SelectItem>
-                    <SelectItem value="no_show">Não compareceu</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Select value={partySizeFilter} onValueChange={setPartySizeFilter}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Tamanho do grupo" />
