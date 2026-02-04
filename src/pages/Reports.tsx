@@ -187,8 +187,8 @@ function ReportsContent() {
       const body = summary.replace(/\*/g, '').replace(/━/g, '-');
       window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     } else if (type === 'whatsapp') {
-      // Usar web.whatsapp.com com link universal - funciona em desktop e mobile
-      const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(summary)}`;
+      // Usar api.whatsapp.com que funciona universalmente em desktop e mobile
+      const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(summary)}`;
       window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     }
     
