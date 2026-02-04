@@ -114,7 +114,7 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
               )}
             />
             <Area 
-              type="monotone" 
+              type="linear" 
               dataKey="queue" 
               name="Fila"
               stroke="#f97316" 
@@ -122,10 +122,9 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
               fill="url(#colorQueue)"
               dot={{ fill: '#f97316', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, strokeWidth: 0 }}
-              connectNulls
             />
             <Area 
-              type="monotone" 
+              type="linear" 
               dataKey="reservations" 
               name="Reservas"
               stroke="#3b82f6" 
@@ -133,7 +132,6 @@ export function DailyEvolutionChart({ data }: DailyEvolutionChartProps) {
               fill="url(#colorReservations)"
               dot={{ fill: '#3b82f6', strokeWidth: 0, r: 4 }}
               activeDot={{ r: 6, strokeWidth: 0 }}
-              connectNulls
             />
           </AreaChart>
         </ResponsiveContainer>
