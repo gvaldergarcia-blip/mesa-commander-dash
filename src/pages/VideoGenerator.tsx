@@ -329,14 +329,14 @@ export default function VideoGenerator() {
                   <div className="space-y-2">
                     <Label>CTA Final (opcional)</Label>
                     <Select
-                      value={formData.cta_type}
-                      onValueChange={(v) => setFormData(prev => ({ ...prev, cta_type: v }))}
+                      value={formData.cta_type || "none"}
+                      onValueChange={(v) => setFormData(prev => ({ ...prev, cta_type: v === "none" ? "" : v }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um CTA" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Sem CTA</SelectItem>
+                        <SelectItem value="none">Sem CTA</SelectItem>
                         {CTA_OPTIONS.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                         ))}
