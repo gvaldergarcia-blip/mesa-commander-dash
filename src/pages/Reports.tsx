@@ -127,14 +127,69 @@ function ReportsContent() {
     }
   };
 
+  const buildReportSummary = () => {
+    const { startDate, endDate } = getPeriodDates();
+    const periodStr = `${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
+    
+    let summary = `📊 *Relatório MesaClik*\n`;
+    summary += `📅 Período: ${periodStr}\n\n`;
+    
+    // Resumo geral
+    summary += `*RESUMO GERAL*\n`;
+    summary += `━━━━━━━━━━━━━━━\n`;
+    summary += `👥 Total Atendidos: ${metrics?.totalServed || 0}\n`;
+    summary += `❌ Total Cancelados: ${metrics?.totalCanceled || 0}\n`;
+    if (metrics?.peakHour) summary += `🕐 Horário de Pico: ${metrics.peakHour}\n`;
+    if (metrics?.peakDay) summary += `📆 Dia de Maior Movimento: ${metrics.peakDay}\n`;
+    summary += `\n`;
+    
+    // Métricas de Fila
+    if (metrics?.queue.hasData) {
+      summary += `*FILA*\n`;
+      summary += `━━━━━━━━━━━━━━━\n`;
+      summary += `⏱️ Tempo Médio: ${metrics.queue.avgWaitTime} min\n`;
+      summary += `✅ Taxa de Conversão: ${metrics.queue.conversionRate}%\n`;
+      summary += `👤 Total na Fila: ${metrics.queue.totalEntries}\n`;
+      summary += `✔️ Atendidos: ${metrics.queue.seated}\n`;
+      summary += `🚫 Cancelados: ${metrics.queue.canceled}\n`;
+      summary += `\n`;
+    }
+    
+    // Métricas de Reservas
+    if (metrics?.reservations.hasData) {
+      summary += `*RESERVAS*\n`;
+      summary += `━━━━━━━━━━━━━━━\n`;
+      summary += `📋 Total: ${metrics.reservations.totalReservations}\n`;
+      summary += `✅ Concluídas: ${metrics.reservations.completed}\n`;
+      summary += `📌 Confirmadas: ${metrics.reservations.confirmed}\n`;
+      summary += `🚫 Canceladas: ${metrics.reservations.canceled}\n`;
+      summary += `⚠️ No-Show: ${metrics.reservations.noShow} (${metrics.reservations.noShowRate}%)\n`;
+      summary += `\n`;
+    }
+    
+    // Média geral
+    if (metrics?.avgPartySize && metrics.avgPartySize > 0) {
+      summary += `👥 Média de Pessoas por Grupo: ${metrics.avgPartySize.toFixed(1)}\n`;
+    }
+    
+    summary += `\n_Gerado pelo MesaClik_`;
+    
+    return summary;
+  };
+
   const handleShare = (type: 'email' | 'whatsapp') => {
     const { startDate, endDate } = getPeriodDates();
-    const message = `Relatório MesaClik - ${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
+    const periodStr = `${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`;
+    const summary = buildReportSummary();
     
     if (type === 'email') {
-      window.open(`mailto:?subject=${encodeURIComponent(message)}&body=${encodeURIComponent('Confira os relatórios anexados.')}`);
+      const subject = `Relatório MesaClik - ${periodStr}`;
+      const body = summary.replace(/\*/g, '').replace(/━/g, '-');
+      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     } else if (type === 'whatsapp') {
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`);
+      // Usar web.whatsapp.com com link universal - funciona em desktop e mobile
+      const whatsappUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(summary)}`;
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     }
     
     setExportDialogOpen(false);
