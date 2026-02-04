@@ -224,7 +224,7 @@ export default function VideoGenerator() {
           <Card className="px-4 py-2">
             <div className="text-sm text-muted-foreground">Vídeos este mês</div>
             <div className="text-xl font-bold">
-              {usage.videos_generated} / {usage.limit}
+              {usage.videos_generated} / {usage.limit === Infinity ? "Ilimitado" : usage.limit}
             </div>
           </Card>
         )}
