@@ -50,3 +50,12 @@ verify_jwt = false
 
 [functions.analyze-customer]
 verify_jwt = false
+
+[functions.render-video]
+verify_jwt = false
+
+[functions.get-video-status]
+verify_jwt = false
+
+[functions.process-video]
+verify_jwt = false
