@@ -26,6 +26,7 @@ import {
   Film
 } from "lucide-react";
 import { useVideoGenerator, VideoJob, CreateVideoParams } from "@/hooks/useVideoGenerator";
+import { SlideshowPreview } from "@/components/video/SlideshowPreview";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -520,7 +521,7 @@ export default function VideoGenerator() {
                       <p className="text-xs text-destructive">{job.error_message}</p>
                     )}
                     <div className="flex gap-2">
-                      {job.status === "done" && job.video_url && (
+                      {job.status === "done" && (
                         <>
                           <Button
                             variant="outline"
@@ -530,22 +531,26 @@ export default function VideoGenerator() {
                           >
                             <Eye className="h-4 w-4" /> Ver
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                          >
-                            <a href={job.video_url} download>
-                              <Download className="h-4 w-4" />
-                            </a>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyVideoLink(job.video_url!)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
+                          {job.video_url && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                              >
+                                <a href={job.video_url} download>
+                                  <Download className="h-4 w-4" />
+                                </a>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyVideoLink(job.video_url!)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </>
                       )}
                       <Button
@@ -566,19 +571,30 @@ export default function VideoGenerator() {
         </TabsContent>
       </Tabs>
 
-      {/* Video Preview Dialog */}
+      {/* Video/Slideshow Preview Dialog */}
       <Dialog open={!!previewVideo} onOpenChange={() => setPreviewVideo(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{previewVideo?.restaurant_name}</DialogTitle>
           </DialogHeader>
-          {previewVideo?.video_url && (
+          {previewVideo?.video_url ? (
             <video
               src={previewVideo.video_url}
               controls
               autoPlay
               className="w-full aspect-[9/16] rounded-lg bg-black"
             />
+          ) : previewVideo?.image_urls && previewVideo.image_urls.length > 0 ? (
+            <SlideshowPreview 
+              images={previewVideo.image_urls} 
+              duration={previewVideo.duration}
+              promoText={previewVideo.promo_text || undefined}
+              restaurantName={previewVideo.restaurant_name}
+            />
+          ) : (
+            <div className="w-full aspect-[9/16] rounded-lg bg-muted flex items-center justify-center">
+              <p className="text-muted-foreground">Sem preview disponível</p>
+            </div>
           )}
         </DialogContent>
       </Dialog>

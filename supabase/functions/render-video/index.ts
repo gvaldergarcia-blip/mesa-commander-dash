@@ -129,13 +129,43 @@ serve(async (req) => {
 
     console.log("Video job created:", job.id);
 
-    // Return job ID immediately (async processing)
+    // Trigger processing in background (fire and forget)
+    const processPromise = (async () => {
+      try {
+        console.log("Starting background video processing for job:", job.id);
+        const processResponse = await fetch(
+          `${supabaseUrl}/functions/v1/process-video`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ job_id: job.id }),
+          }
+        );
+        const processResult = await processResponse.json();
+        console.log("Background processing result:", processResult);
+      } catch (err) {
+        console.error("Background processing error:", err);
+      }
+    })();
+
+    // Use waitUntil if available (Supabase Edge Runtime)
+    if (typeof (globalThis as any).EdgeRuntime !== 'undefined') {
+      (globalThis as any).EdgeRuntime.waitUntil(processPromise);
+    } else {
+      // Fallback: just let it run (response returns first)
+      processPromise.catch(console.error);
+    }
+
+    // Return job ID immediately
     return new Response(
       JSON.stringify({
         success: true,
         job_id: job.id,
         status: "queued",
-        message: "Video generation started. Check status endpoint for updates.",
+        message: "Video generation started. Processing in background.",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
