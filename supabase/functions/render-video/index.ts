@@ -88,7 +88,7 @@ serve(async (req) => {
     }
 
     const currentUsage = usageData?.videos_generated || 0;
-    const MONTHLY_LIMIT = 3; // Free plan limit
+    const MONTHLY_LIMIT = 10; // Free plan limit (increased for dev/testing)
 
     if (currentUsage >= MONTHLY_LIMIT) {
       return new Response(

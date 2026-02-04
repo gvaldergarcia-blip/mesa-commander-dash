@@ -81,7 +81,7 @@ export function useVideoGenerator() {
       
       return {
         videos_generated: data?.videos_generated || 0,
-        limit: 3, // Free plan limit
+        limit: 10, // Free plan limit (increased for dev/testing)
       } as VideoUsage;
     },
   });
