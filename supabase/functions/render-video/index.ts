@@ -73,32 +73,8 @@ serve(async (req) => {
       );
     }
 
-    // Check monthly usage limit
-    const currentMonth = new Date().toISOString().slice(0, 7); // "2026-02"
-    
-    const { data: usageData, error: usageError } = await supabase
-      .from("video_usage")
-      .select("videos_generated")
-      .eq("restaurant_id", restaurant_id)
-      .eq("month_year", currentMonth)
-      .single();
-
-    if (usageError && usageError.code !== "PGRST116") {
-      console.error("Error checking usage:", usageError);
-    }
-
-    const currentUsage = usageData?.videos_generated || 0;
-    const MONTHLY_LIMIT = 10; // Free plan limit (increased for dev/testing)
-
-    if (currentUsage >= MONTHLY_LIMIT) {
-      return new Response(
-        JSON.stringify({
-          error: `Limite mensal atingido (${MONTHLY_LIMIT} vídeos). Aguarde o próximo mês ou faça upgrade.`,
-          usage: { current: currentUsage, limit: MONTHLY_LIMIT },
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Note: Monthly limit check removed for development
+    // In production, implement proper subscription-based limits
 
     // Create job record
     const { data: job, error: jobError } = await supabase

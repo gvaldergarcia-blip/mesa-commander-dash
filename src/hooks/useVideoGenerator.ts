@@ -65,7 +65,7 @@ export function useVideoGenerator() {
     },
   });
 
-  // Fetch monthly usage
+  // Monthly usage tracking (no limit enforced)
   const { data: usageData } = useQuery({
     queryKey: ["video-usage", RESTAURANT_ID],
     queryFn: async () => {
@@ -81,7 +81,7 @@ export function useVideoGenerator() {
       
       return {
         videos_generated: data?.videos_generated || 0,
-        limit: 10, // Free plan limit (increased for dev/testing)
+        limit: Infinity, // No limit
       } as VideoUsage;
     },
   });
