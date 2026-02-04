@@ -1531,6 +1531,115 @@ export type Database = {
         }
         Relationships: []
       }
+      video_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          cta_custom: string | null
+          cta_type: string | null
+          duration: number
+          error_message: string | null
+          id: string
+          image_urls: string[]
+          location: string | null
+          logo_url: string | null
+          music_url: string | null
+          promo_text: string | null
+          restaurant_id: string
+          restaurant_name: string
+          status: string
+          template: string
+          thumbnail_url: string | null
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          cta_custom?: string | null
+          cta_type?: string | null
+          duration: number
+          error_message?: string | null
+          id?: string
+          image_urls: string[]
+          location?: string | null
+          logo_url?: string | null
+          music_url?: string | null
+          promo_text?: string | null
+          restaurant_id: string
+          restaurant_name: string
+          status?: string
+          template: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          cta_custom?: string | null
+          cta_type?: string | null
+          duration?: number
+          error_message?: string | null
+          id?: string
+          image_urls?: string[]
+          location?: string | null
+          logo_url?: string | null
+          music_url?: string | null
+          promo_text?: string | null
+          restaurant_id?: string
+          restaurant_name?: string
+          status?: string
+          template?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_jobs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_usage: {
+        Row: {
+          created_at: string
+          id: string
+          month_year: string
+          restaurant_id: string
+          updated_at: string
+          videos_generated: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month_year: string
+          restaurant_id: string
+          updated_at?: string
+          videos_generated?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month_year?: string
+          restaurant_id?: string
+          updated_at?: string
+          videos_generated?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_usage_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
