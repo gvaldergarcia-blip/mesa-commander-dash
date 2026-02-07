@@ -1703,6 +1703,7 @@ export type Database = {
         }
       }
       delete_user_data: { Args: { p_email: string }; Returns: Json }
+      ensure_dev_test_restaurant: { Args: never; Returns: undefined }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
         Returns: Database["public"]["Tables"]["queue_entries"]["Row"]
