@@ -52,7 +52,8 @@ export function Sidebar() {
   useEffect(() => {
     const fetchRestaurantInfo = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
+          .schema('mesaclik')
           .from('restaurants')
           .select('name, logo_url')
           .eq('id', RESTAURANT_ID)
@@ -75,7 +76,7 @@ export function Sidebar() {
         'postgres_changes',
         {
           event: 'UPDATE',
-          schema: 'public',
+          schema: 'mesaclik',
           table: 'restaurants',
           filter: `id=eq.${RESTAURANT_ID}`,
         },
