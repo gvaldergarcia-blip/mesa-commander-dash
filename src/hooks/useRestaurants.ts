@@ -19,7 +19,7 @@ export function useRestaurants() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'mesaclik',
+          schema: 'public',
           table: 'restaurants',
         },
         (payload) => {
@@ -60,8 +60,7 @@ export function useRestaurants() {
       // Buscar apenas o restaurante atual (RESTAURANT_ID do config)
       const { RESTAURANT_ID } = await import('@/config/current-restaurant');
       
-      const { data, error } = await (supabase as any)
-        .schema('mesaclik')
+      const { data, error } = await supabase
         .from('restaurants')
         .select('*')
         .eq('id', RESTAURANT_ID)
