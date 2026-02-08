@@ -513,12 +513,17 @@ export type Database = {
           owner_name: string
           owner_whatsapp: string
           razao_social: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           restaurant_name: string
           rua: string
           status: string
           suggested_plan: string | null
           terms_accepted: boolean
           terms_accepted_at: string | null
+          trial_end_at: string | null
+          trial_start_at: string | null
           uf: string
           unit_count: number | null
           updated_at: string
@@ -550,12 +555,17 @@ export type Database = {
           owner_name: string
           owner_whatsapp: string
           razao_social: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           restaurant_name: string
           rua: string
           status?: string
           suggested_plan?: string | null
           terms_accepted?: boolean
           terms_accepted_at?: string | null
+          trial_end_at?: string | null
+          trial_start_at?: string | null
           uf: string
           unit_count?: number | null
           updated_at?: string
@@ -587,12 +597,17 @@ export type Database = {
           owner_name?: string
           owner_whatsapp?: string
           razao_social?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           restaurant_name?: string
           rua?: string
           status?: string
           suggested_plan?: string | null
           terms_accepted?: boolean
           terms_accepted_at?: string | null
+          trial_end_at?: string | null
+          trial_start_at?: string | null
           uf?: string
           unit_count?: number | null
           updated_at?: string
