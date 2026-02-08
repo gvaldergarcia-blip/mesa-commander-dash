@@ -1,8 +1,8 @@
-import { useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { ReactNode } from 'react';
+import { Loader2, ShieldAlert, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -15,85 +15,27 @@ interface ProtectedRouteProps {
  * ARQUITETURA:
  * - O login é realizado no SITE institucional (externo)
  * - A sessão/token é compartilhada via Supabase Auth
- * - Este componente valida se existe sessão antes de renderizar
+ * - Este componente valida se existe sessão E restaurante antes de renderizar
  * 
- * EM DESENVOLVIMENTO:
- * - Se não houver sessão, mostra tela de bloqueio
- * - Se o owner do restaurante for admin, permite bypass (dev mode)
+ * SEGURANÇA:
+ * - Sem bypass de desenvolvimento - sempre requer autenticação real
+ * - Valida que o usuário tem acesso a um restaurante específico
  */
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user, restaurant, isLoading, isAuthenticated, error } = useRestaurant();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (session?.user) {
-          setIsAuthenticated(true);
-          
-          // Verificar se é admin
-          if (requireAdmin) {
-            const { data: roles } = await supabase
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', session.user.id);
-
-            const hasAdminRole = roles?.some(r => 
-              r.role === 'admin' || r.role === 'owner' || r.role === 'manager'
-            );
-            
-            setIsAdmin(hasAdminRole || false);
-          } else {
-            setIsAdmin(true); // Se não requer admin, considera válido
-          }
-        } else {
-          // DEV MODE: Permitir acesso se o restaurante pertence a um admin
-          // Em produção, isso seria removido e redirecionaria para o site de login
-          const isDevelopment = import.meta.env.DEV || window.location.hostname.includes('lovable.app');
-          
-          if (isDevelopment) {
-            // Em desenvolvimento, permitir acesso para testes
-            console.warn('[ProtectedRoute] DEV MODE: Acesso sem sessão permitido para testes');
-            setIsAuthenticated(true);
-            setIsAdmin(true);
-          } else {
-            setIsAuthenticated(false);
-          }
-        }
-      } catch (error) {
-        console.error('[ProtectedRoute] Error checking auth:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listener para mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-      } else if (session?.user) {
-        setIsAuthenticated(true);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [requireAdmin]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Verificando autenticação...</p>
+        </div>
       </div>
     );
   }
 
+  // Usuário não autenticado
   if (!isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-[400px] p-6">
@@ -109,12 +51,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Faça login no site MesaClik para acessar o painel de controle.
+              Faça login no site MesaClik para acessar o painel de controle do seu restaurante.
             </p>
             <Button 
               className="w-full"
               onClick={() => {
-                // Em produção, redirecionar para o site de login
+                // Redirecionar para o site de login
                 window.location.href = 'https://mesaclik.com.br/login';
               }}
             >
@@ -126,28 +68,52 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     );
   }
 
-  if (requireAdmin && !isAdmin) {
+  // Usuário autenticado mas sem restaurante associado
+  if (!restaurant) {
     return (
       <div className="flex items-center justify-center min-h-[400px] p-6">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
-              <ShieldAlert className="h-6 w-6 text-warning" />
+              <Building2 className="h-6 w-6 text-warning" />
             </div>
-            <CardTitle>Permissão Negada</CardTitle>
+            <CardTitle>Nenhum Restaurante Encontrado</CardTitle>
             <CardDescription>
-              Você não tem permissão para acessar esta página.
+              {error || 'Você não está associado a nenhum restaurante.'}
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center">
+          <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Entre em contato com o administrador do restaurante.
+              Se você é dono de um restaurante, complete o cadastro no site MesaClik.
+              Se você é funcionário, peça ao administrador para adicionar seu acesso.
             </p>
+            <div className="flex flex-col gap-2">
+              <Button 
+                className="w-full"
+                onClick={() => {
+                  window.location.href = 'https://mesaclik.com.br/cadastro';
+                }}
+              >
+                Cadastrar Restaurante
+              </Button>
+              <Button 
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  window.location.href = 'https://mesaclik.com.br/suporte';
+                }}
+              >
+                Falar com Suporte
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
+
+  // TODO: Implementar verificação de admin se requireAdmin = true
+  // Por enquanto, qualquer usuário com restaurante associado tem acesso
 
   return <>{children}</>;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -18,8 +18,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useTheme } from "@/hooks/useTheme";
-import { supabase } from "@/lib/supabase/client";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 
 const allNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
@@ -38,63 +37,12 @@ const navigation = allNavigation.filter((item) => {
   return FEATURE_FLAGS[item.requiresFeature];
 });
 
-interface RestaurantInfo {
-  name: string;
-  logo_url: string | null;
-}
-
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
-
-  // Buscar dados do restaurante das configurações
-  useEffect(() => {
-    const fetchRestaurantInfo = async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .schema('mesaclik')
-          .from('restaurants')
-          .select('name, logo_url')
-          .eq('id', RESTAURANT_ID)
-          .single();
-
-        if (!error && data) {
-          setRestaurant(data);
-        }
-      } catch (err) {
-        console.error('Erro ao buscar dados do restaurante:', err);
-      }
-    };
-
-    fetchRestaurantInfo();
-
-    // Subscribe para atualizações em tempo real
-    const channel = supabase
-      .channel('sidebar-restaurant-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'mesaclik',
-          table: 'restaurants',
-          filter: `id=eq.${RESTAURANT_ID}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            setRestaurant({
-              name: (payload.new as any).name,
-              logo_url: (payload.new as any).logo_url,
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  
+  // Usar contexto dinâmico em vez de ID hardcoded
+  const { restaurant } = useRestaurant();
 
   // Obter inicial do nome do restaurante para fallback
   const restaurantInitial = restaurant?.name?.charAt(0)?.toUpperCase() || 'R';

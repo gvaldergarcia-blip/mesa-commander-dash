@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { RestaurantProvider } from "@/contexts/RestaurantContext";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Queue from "./pages/Queue";
 import Reservations from "./pages/Reservations";
@@ -19,7 +21,7 @@ import NotFound from "./pages/NotFound";
 import { FeatureDisabled } from "./components/common/FeatureDisabled";
 import { FEATURE_FLAGS } from "./config/feature-flags";
 
-// Páginas da Fila Web (OTP)
+// Páginas da Fila Web (OTP) - públicas
 import FilaEntrar from "./pages/fila/FilaEntrar";
 import FilaVerificar from "./pages/fila/FilaVerificar";
 import FilaFinal from "./pages/fila/FilaFinal";
@@ -55,45 +57,50 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <Routes>
-        {/* Rotas públicas da Fila Web (sem DashboardLayout) */}
+        {/* Rotas públicas da Fila Web (sem autenticação, sem DashboardLayout) */}
         <Route path="/fila/entrar" element={<FilaEntrar />} />
         <Route path="/fila/verificar" element={<FilaVerificar />} />
         <Route path="/fila/final" element={<FilaFinal />} />
 
         {/* Rota pública de Reserva */}
         <Route path="/reserva/final" element={<ReservaFinal />} />
+        
         {/* Rotas públicas legais (sem DashboardLayout) */}
         <Route path="/termos" element={<TermosDeUso />} />
         <Route path="/privacidade" element={<PoliticaPrivacidade />} />
 
-        {/* Rotas com DashboardLayout */}
+        {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={
-          <DashboardLayout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/queue" element={<Queue />} />
-              <Route path="/reservations" element={<Reservations />} />
-              <Route path="/customers" element={<CustomersPage />} />
-              <Route path="/customers/:customerId" element={<CustomerProfile />} />
-              {/* Rotas protegidas por feature flag - Cupons/Promoções */}
-              <Route path="/promotions" element={
-                <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
-                  <Promotions />
-                </FeatureGuard>
-              } />
-              <Route path="/cupons" element={
-                <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
-                  <Coupons />
-                </FeatureGuard>
-              } />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/intelligence" element={<Intelligence />} />
-              <Route path="/marketing/videos" element={<VideoGenerator />} />
-              <Route path="/settings" element={<Settings />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </DashboardLayout>
+          <RestaurantProvider>
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/queue" element={<Queue />} />
+                  <Route path="/reservations" element={<Reservations />} />
+                  <Route path="/customers" element={<CustomersPage />} />
+                  <Route path="/customers/:customerId" element={<CustomerProfile />} />
+                  {/* Rotas protegidas por feature flag - Cupons/Promoções */}
+                  <Route path="/promotions" element={
+                    <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
+                      <Promotions />
+                    </FeatureGuard>
+                  } />
+                  <Route path="/cupons" element={
+                    <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
+                      <Coupons />
+                    </FeatureGuard>
+                  } />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/intelligence" element={<Intelligence />} />
+                  <Route path="/marketing/videos" element={<VideoGenerator />} />
+                  <Route path="/settings" element={<Settings />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
+          </RestaurantProvider>
         } />
       </Routes>
     </BrowserRouter>

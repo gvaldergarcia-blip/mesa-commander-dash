@@ -1829,7 +1829,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: { Args: { p_user_id?: string }; Returns: boolean }
+      is_admin:
+        | { Args: never; Returns: boolean }
+        | { Args: { p_user_id?: string }; Returns: boolean }
       is_restaurant_authorized: {
         Args: { p_restaurant_id: string }
         Returns: boolean
