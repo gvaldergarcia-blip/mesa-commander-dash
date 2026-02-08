@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export type CustomerStatus = 'active' | 'inactive';
 
@@ -41,7 +41,9 @@ export type CustomerKPIs = {
   marketingOptIn: number;
 };
 
-export function useRestaurantCustomers(restaurantId: string = RESTAURANT_ID) {
+export function useRestaurantCustomers(overrideRestaurantId?: string) {
+  const { restaurantId: contextRestaurantId } = useRestaurant();
+  const restaurantId = overrideRestaurantId || contextRestaurantId;
   const [customers, setCustomers] = useState<RestaurantCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

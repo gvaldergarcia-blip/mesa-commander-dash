@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export function useQueueRealtime(onUpdate: () => void) {
+  const { restaurantId } = useRestaurant();
   const queueIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!restaurantId) return;
+    
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const setup = async () => {
@@ -14,7 +17,7 @@ export function useQueueRealtime(onUpdate: () => void) {
         .schema('mesaclik')
         .from('queues')
         .select('id')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .limit(1)
         .maybeSingle();
       
@@ -50,5 +53,5 @@ export function useQueueRealtime(onUpdate: () => void) {
         supabase.removeChannel(channel);
       }
     };
-  }, [onUpdate]);
+  }, [onUpdate, restaurantId]);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { useQueueRealtime } from './useQueueRealtime';
 import { useReservationsRealtime } from './useReservationsRealtime';
 
@@ -57,6 +57,7 @@ export type RecentActivityItem = {
 };
 
 export function useDashboardMetricsReal() {
+  const { restaurantId } = useRestaurant();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     peopleInQueue: 0,
     groupsInQueue: 0,
@@ -93,7 +94,7 @@ export function useDashboardMetricsReal() {
       const { data: queueEntries, error: queueRpcError } = await supabase
         .schema('mesaclik')
         .rpc('get_queue_entries', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           // 48h para não perder entradas que foram criadas ontem mas tiveram atualização hoje
           p_hours_back: 48,
         });
@@ -131,7 +132,7 @@ export function useDashboardMetricsReal() {
       const { data: reservationsRpc, error: reservationsRpcError } = await supabase
         .schema('public')
         .rpc('get_reports_reservation_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: todayStartISO,
           p_end_date: todayEndISO,
         });
@@ -158,14 +159,14 @@ export function useDashboardMetricsReal() {
         .schema('mesaclik')
         .from('reservations')
         .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .gte('created_at', startOfThisWeek.toISOString());
 
       const { count: lastWeekCount } = await supabase
         .schema('mesaclik')
         .from('reservations')
         .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .gte('created_at', startOfLastWeek.toISOString())
         .lt('created_at', startOfThisWeek.toISOString());
 

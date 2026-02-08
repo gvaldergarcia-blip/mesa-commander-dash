@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 export type PalpiteType = 
   | 'LONG_WAIT_RECOVERY' 
@@ -51,7 +50,7 @@ export type PalpiteStatusFilter = 'all' | 'new' | 'seen' | 'dismissed' | 'sent';
 export type PalpitePriorityFilter = 'all' | 'low' | 'med' | 'high';
 export type PalpiteTypeFilter = 'all' | PalpiteType;
 
-export function useAIPalpites(restaurantId: string = RESTAURANT_ID) {
+export function useAIPalpites(restaurantId: string) {
   const [palpites, setPalpites] = useState<AIPalpite[]>([]);
   const [stats, setStats] = useState<PalpitesStats>({
     total: 0,
@@ -64,6 +63,8 @@ export function useAIPalpites(restaurantId: string = RESTAURANT_ID) {
   const { toast } = useToast();
 
   const fetchPalpites = useCallback(async () => {
+    if (!restaurantId) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -129,6 +130,8 @@ export function useAIPalpites(restaurantId: string = RESTAURANT_ID) {
   }, [restaurantId, toast]);
 
   const generatePalpites = useCallback(async () => {
+    if (!restaurantId) return 0;
+    
     try {
       const { data, error: rpcError } = await supabase
         .rpc('generate_ai_palpites', { p_restaurant_id: restaurantId });

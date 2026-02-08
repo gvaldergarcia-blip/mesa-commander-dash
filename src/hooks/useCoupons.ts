@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { FEATURE_FLAGS, FEATURE_DISABLED_MESSAGE } from '@/config/feature-flags';
 
 export type DiscountType = 'percentage' | 'fixed';
@@ -46,6 +46,7 @@ export type CreateCouponParams = Omit<Coupon, 'id' | 'created_at' | 'updated_at'
 export type UpdateCouponParams = Partial<CreateCouponParams> & { id: string };
 
 export function useCoupons() {
+  const { restaurantId } = useRestaurant();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,17 +56,17 @@ export function useCoupons() {
   const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
 
   useEffect(() => {
-    if (isFeatureEnabled) {
+    if (isFeatureEnabled && restaurantId) {
       fetchCoupons();
     } else {
       setLoading(false);
       setCoupons([]);
     }
-  }, [isFeatureEnabled]);
+  }, [isFeatureEnabled, restaurantId]);
 
   const fetchCoupons = async () => {
     // Se feature desabilitada, não faz nada
-    if (!isFeatureEnabled) {
+    if (!isFeatureEnabled || !restaurantId) {
       setLoading(false);
       return;
     }
@@ -76,7 +77,7 @@ export function useCoupons() {
         .schema('mesaclik')
         .from('coupons')
         .select('*')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

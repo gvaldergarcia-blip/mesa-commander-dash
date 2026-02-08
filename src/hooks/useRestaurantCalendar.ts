@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 type CalendarDay = {
   restaurant_id: string;
@@ -12,19 +12,22 @@ type CalendarDay = {
 };
 
 export function useRestaurantCalendar() {
+  const { restaurantId } = useRestaurant();
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchCalendar = useCallback(async () => {
+    if (!restaurantId) return;
+    
     try {
       setLoading(true);
-      console.log('[useRestaurantCalendar] Fetching calendar for restaurant:', RESTAURANT_ID);
+      console.log('[useRestaurantCalendar] Fetching calendar for restaurant:', restaurantId);
       
       // Usar RPC para buscar dados do schema mesaclik sem problemas de RLS
       const { data, error } = await supabase
         .rpc('get_restaurant_calendar', {
-          p_restaurant_id: RESTAURANT_ID
+          p_restaurant_id: restaurantId
         });
 
       if (error) {
@@ -34,7 +37,7 @@ export function useRestaurantCalendar() {
           .schema('mesaclik')
           .from('restaurant_calendar')
           .select('*')
-          .eq('restaurant_id', RESTAURANT_ID)
+          .eq('restaurant_id', restaurantId)
           .order('day', { ascending: true });
         
         if (directError) throw directError;
@@ -59,19 +62,21 @@ export function useRestaurantCalendar() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [restaurantId, toast]);
 
   useEffect(() => {
     fetchCalendar();
   }, [fetchCalendar]);
 
   const toggleDayAvailability = async (day: string, isOpen: boolean) => {
+    if (!restaurantId) return;
+    
     try {
-      console.log('[useRestaurantCalendar] Toggling day:', { day, isOpen, restaurant_id: RESTAURANT_ID });
+      console.log('[useRestaurantCalendar] Toggling day:', { day, isOpen, restaurant_id: restaurantId });
       
       // Usar RPC para update no schema mesaclik
       const { data, error } = await supabase.rpc('toggle_restaurant_calendar_day', {
-        p_restaurant_id: RESTAURANT_ID,
+        p_restaurant_id: restaurantId,
         p_day: day,
         p_is_open: isOpen
       });
