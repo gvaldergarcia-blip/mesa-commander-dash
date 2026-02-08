@@ -16,7 +16,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Coupons from "./pages/Coupons";
 import Intelligence from "./pages/Intelligence";
-import VideoGenerator from "./pages/VideoGenerator";
+
 import NotFound from "./pages/NotFound";
 import { FeatureDisabled } from "./components/common/FeatureDisabled";
 import { FEATURE_FLAGS } from "./config/feature-flags";
@@ -93,7 +93,6 @@ const App = () => (
                   } />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/intelligence" element={<Intelligence />} />
-                  <Route path="/marketing/videos" element={<VideoGenerator />} />
                   <Route path="/settings" element={<Settings />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
