@@ -12,7 +12,6 @@ import {
   X,
   Moon,
   Sun,
-  Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,7 +25,6 @@ const allNavigation = [
   { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
-  { name: "Vídeos", href: "/marketing/videos", icon: Film, requiresFeature: null },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },
 ];
