@@ -24,5 +24,5 @@ export const CURRENT_RESTAURANT = {
 /** @deprecated Use useRestaurantId() hook instead */
 export const RESTAURANT_ID = CURRENT_RESTAURANT.id;
 
-/** @deprecated Não usar em produção - sempre requer autenticação real */
-export const DEV_FORCE_RESTAURANT = false; // Desabilitado para produção
+/** Em preview, bypass está habilitado para facilitar desenvolvimento */
+export const DEV_FORCE_RESTAURANT = true;

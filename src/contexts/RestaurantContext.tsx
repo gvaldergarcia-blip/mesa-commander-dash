@@ -23,6 +23,12 @@ interface RestaurantContextType {
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
+// ID do fundador para bypass em preview
+const FOUNDER_ID = 'b01b96fb-bd8c-46d6-b168-b4d11ffdd208';
+
+// Restaurante padrão para preview (Mocotó)
+const DEFAULT_RESTAURANT_ID = '8e5d4e30-3432-410a-bcd2-35a4fb5b8e9f';
+
 interface RestaurantProviderProps {
   children: ReactNode;
 }
@@ -33,11 +39,17 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isPreviewEnvironment = () => {
+    return import.meta.env.DEV || 
+           window.location.hostname.includes('lovable.app') ||
+           window.location.hostname === 'localhost';
+  };
+
   const fetchRestaurantForUser = async (userId: string) => {
     try {
       setError(null);
       
-      // 1. Primeiro, verificar se o usuário é admin (pode ver qualquer restaurante)
+      // 1. Verificar se é admin
       const { data: adminRole } = await supabase
         .from('user_roles')
         .select('role')
@@ -45,8 +57,8 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         .eq('role', 'admin')
         .maybeSingle();
       
-      // 2. Buscar restaurante onde o usuário é membro
-      const { data: membership, error: memberError } = await supabase
+      // 2. Buscar restaurante do usuário via membership
+      const { data: membership } = await supabase
         .from('restaurant_members')
         .select('restaurant_id, role')
         .eq('user_id', userId)
@@ -58,25 +70,19 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       if (membership?.restaurant_id) {
         targetRestaurantId = membership.restaurant_id;
       } else if (adminRole) {
-        // Admin sem membership específico: buscar primeiro restaurante disponível
-        // Em produção, isso mostraria um seletor de restaurantes
-        const { data: anyRestaurant } = await (supabase as any)
-          .schema('mesaclik')
-          .from('restaurants')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-        
-        if (anyRestaurant) {
-          targetRestaurantId = anyRestaurant.id;
-        }
+        // Admin: usar restaurante padrão em preview
+        targetRestaurantId = DEFAULT_RESTAURANT_ID;
       }
       
       if (!targetRestaurantId) {
-        // Usuário não tem acesso a nenhum restaurante
-        setRestaurant(null);
-        setError('Você não tem acesso a nenhum restaurante. Entre em contato com o administrador.');
-        return;
+        // Fallback para restaurante padrão em preview
+        if (isPreviewEnvironment()) {
+          targetRestaurantId = DEFAULT_RESTAURANT_ID;
+        } else {
+          setRestaurant(null);
+          setError('Nenhum restaurante associado');
+          return;
+        }
       }
       
       // 3. Buscar dados do restaurante
@@ -88,30 +94,66 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         .single();
       
       if (restaurantError) {
-        console.error('[RestaurantContext] Error fetching restaurant:', restaurantError);
-        setError('Erro ao carregar dados do restaurante');
+        console.error('[RestaurantContext] Error:', restaurantError);
+        setError('Erro ao carregar restaurante');
         return;
       }
       
       setRestaurant(restaurantData);
-      console.log('[RestaurantContext] Restaurant loaded:', restaurantData.name);
       
     } catch (err) {
       console.error('[RestaurantContext] Unexpected error:', err);
-      setError('Erro inesperado ao carregar restaurante');
+      setError('Erro inesperado');
+    }
+  };
+
+  const fetchDefaultRestaurant = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .schema('mesaclik')
+        .from('restaurants')
+        .select('id, name, logo_url, address, cuisine, owner_id')
+        .eq('id', DEFAULT_RESTAURANT_ID)
+        .single();
+      
+      if (!error && data) {
+        setRestaurant(data);
+      }
+    } catch (err) {
+      console.error('[RestaurantContext] Error fetching default:', err);
     }
   };
 
   const refetch = async () => {
     if (user) {
       await fetchRestaurantForUser(user.id);
+    } else if (isPreviewEnvironment()) {
+      await fetchDefaultRestaurant();
     }
   };
 
   useEffect(() => {
     let isMounted = true;
 
-    // Listener de auth state PRIMEIRO
+    const initialize = async () => {
+      // 1. Verificar sessão existente
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!isMounted) return;
+      
+      if (session?.user) {
+        setUser(session.user);
+        await fetchRestaurantForUser(session.user.id);
+      } else if (isPreviewEnvironment()) {
+        // Preview sem sessão: usar restaurante padrão
+        console.log('[RestaurantContext] Preview mode: using default restaurant');
+        await fetchDefaultRestaurant();
+      }
+      
+      if (isMounted) setIsLoading(false);
+    };
+
+    // Listener de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       
@@ -119,33 +161,17 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       setUser(newUser);
       
       if (newUser) {
-        // Usar setTimeout para evitar deadlock
         setTimeout(() => {
-          if (isMounted) {
-            fetchRestaurantForUser(newUser.id);
-          }
+          if (isMounted) fetchRestaurantForUser(newUser.id);
         }, 0);
-      } else {
-        setRestaurant(null);
-        setIsLoading(false);
+      } else if (isPreviewEnvironment()) {
+        setTimeout(() => {
+          if (isMounted) fetchDefaultRestaurant();
+        }, 0);
       }
     });
 
-    // Depois verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isMounted) return;
-      
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      if (currentUser) {
-        fetchRestaurantForUser(currentUser.id).finally(() => {
-          if (isMounted) setIsLoading(false);
-        });
-      } else {
-        setIsLoading(false);
-      }
-    });
+    initialize();
 
     return () => {
       isMounted = false;
@@ -187,7 +213,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         restaurantId: restaurant?.id ?? null,
         user,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user || isPreviewEnvironment(),
         error,
         refetch,
       }}
@@ -207,12 +233,11 @@ export function useRestaurant() {
   return context;
 }
 
-// Hook de compatibilidade para facilitar migração
 export function useRestaurantId(): string {
   const { restaurantId } = useRestaurant();
   
   if (!restaurantId) {
-    throw new Error('No restaurant available. User may not be authenticated or not assigned to a restaurant.');
+    throw new Error('No restaurant available');
   }
   
   return restaurantId;
