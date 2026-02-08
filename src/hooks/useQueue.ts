@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueueRealtime } from './useQueueRealtime';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { getSizeGroup, matchesSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
 
 type QueueEntry = {
@@ -25,7 +25,7 @@ type QueueEntry = {
 export type { QueueEntry };
 
 export function useQueue() {
-  const restaurantId = RESTAURANT_ID;
+  const { restaurantId } = useRestaurant();
   const [queueEntries, setQueueEntries] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

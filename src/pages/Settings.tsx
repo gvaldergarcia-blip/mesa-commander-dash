@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,7 @@ function SettingsContent() {
   // const { loading: authLoading, isAuthenticated } = useRequireAuth({ requireAdmin: true });
   const authLoading = false;
   const isAuthenticated = true;
+  const { restaurantId } = useRestaurant();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -82,7 +83,9 @@ function SettingsContent() {
   });
 
   useEffect(() => {
-    fetchRestaurantData();
+    if (restaurantId) {
+      fetchRestaurantData();
+    }
     
     // Realtime subscription
     const channel = supabase
@@ -93,7 +96,7 @@ function SettingsContent() {
           event: 'UPDATE',
           schema: 'mesaclik',
           table: 'restaurants',
-          filter: `id=eq.${RESTAURANT_ID}`
+          filter: `id=eq.${restaurantId}`
         },
         (payload) => {
           console.log('[Realtime] Restaurant updated:', payload.new);
@@ -118,18 +121,18 @@ function SettingsContent() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [restaurantId]);
 
   const fetchRestaurantData = async () => {
     try {
       setLoading(true);
-      console.log('[Settings] Fetching restaurant data for ID:', RESTAURANT_ID);
+      console.log('[Settings] Fetching restaurant data for ID:', restaurantId);
       
       const { data, error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
         .select('name, address_line, city, cuisine, about, image_url, menu_url, menu_image_url, logo_url')
-        .eq('id', RESTAURANT_ID)
+        .eq('id', restaurantId)
         .maybeSingle();
 
       console.log('[Settings] Query result:', { data, error });
@@ -150,7 +153,7 @@ function SettingsContent() {
           logo_url: data.logo_url || "",
         });
       } else {
-        console.warn('[Settings] No data found for restaurant ID:', RESTAURANT_ID);
+        console.warn('[Settings] No data found for restaurant ID:', restaurantId);
       }
     } catch (error) {
       console.error('[Settings] Error fetching restaurant:', error);
@@ -169,7 +172,7 @@ function SettingsContent() {
       setUploadingImage(true);
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${RESTAURANT_ID}-image-${Date.now()}.${fileExt}`;
+      const fileName = `${restaurantId}-image-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -205,7 +208,7 @@ function SettingsContent() {
       setUploadingMenuImage(true);
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${RESTAURANT_ID}-menu-${Date.now()}.${fileExt}`;
+      const fileName = `${restaurantId}-menu-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -241,7 +244,7 @@ function SettingsContent() {
       setUploadingLogo(true);
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${RESTAURANT_ID}-logo-${Date.now()}.${fileExt}`;
+      const fileName = `${restaurantId}-logo-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -299,7 +302,7 @@ function SettingsContent() {
           menu_image_url: values.menu_image_url || null,
           logo_url: values.logo_url || null,
         })
-        .eq('id', RESTAURANT_ID);
+        .eq('id', restaurantId);
 
       console.log('[Settings] Update result:', { error });
 
@@ -720,17 +723,17 @@ function SettingsContent() {
 
         {/* Tab 2: Horários & Funcionamento */}
         <TabsContent value="hours">
-          <HoursSettings restaurantId={RESTAURANT_ID} />
+          <HoursSettings restaurantId={restaurantId || ''} />
         </TabsContent>
 
         {/* Tab 3: Fila de Espera */}
         <TabsContent value="queue">
-          <QueueSettings restaurantId={RESTAURANT_ID} />
+          <QueueSettings restaurantId={restaurantId || ''} />
         </TabsContent>
 
         {/* Tab 4: Reservas */}
         <TabsContent value="reservation">
-          <ReservationSettings restaurantId={RESTAURANT_ID} />
+          <ReservationSettings restaurantId={restaurantId || ''} />
         </TabsContent>
 
         {/* Tab 5: Plano & Pagamento */}

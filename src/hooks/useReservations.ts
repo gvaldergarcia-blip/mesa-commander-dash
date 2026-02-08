@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useReservationsRealtime } from './useReservationsRealtime';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 type Reservation = {
   reservation_id: string;
@@ -37,7 +37,7 @@ type DbReservation = {
 };
 
 export function useReservations() {
-  const restaurantId = RESTAURANT_ID;
+  const { restaurantId } = useRestaurant();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

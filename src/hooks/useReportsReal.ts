@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { useQueueRealtime } from './useQueueRealtime';
 import { useReservationsRealtime } from './useReservationsRealtime';
 
@@ -69,6 +69,7 @@ type PeriodType = 'today' | '7days' | '30days' | '90days';
 type SourceType = 'all' | 'queue' | 'reservations';
 
 export function useReportsReal(period: PeriodType = '30days', sourceType: SourceType = 'all') {
+  const { restaurantId } = useRestaurant();
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const stateRef = useRef({ hasInitialData: false });
@@ -110,22 +111,22 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         { data: customers }
       ] = await Promise.all([
         supabase.rpc('get_reports_queue_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString()
         }),
         supabase.rpc('get_reports_queue_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: previousStartDate.toISOString(),
           p_end_date: previousEndDate.toISOString()
         }),
         supabase.rpc('get_reports_reservation_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString()
         }),
         supabase.rpc('get_reports_reservation_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: previousStartDate.toISOString(),
           p_end_date: previousEndDate.toISOString()
         }),

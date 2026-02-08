@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
 
 export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
 
@@ -56,13 +55,15 @@ export type CreateCampaignInput = {
   audience_filter?: AudienceFilter;
 };
 
-export function useRestaurantCampaigns(restaurantId: string = RESTAURANT_ID) {
+export function useRestaurantCampaigns(restaurantId: string) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchCampaigns = useCallback(async () => {
+    if (!restaurantId) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -90,6 +91,8 @@ export function useRestaurantCampaigns(restaurantId: string = RESTAURANT_ID) {
 
   // Criar nova campanha
   const createCampaign = useCallback(async (input: CreateCampaignInput): Promise<Campaign | null> => {
+    if (!restaurantId) return null;
+    
     try {
       const { data, error: createError } = await supabase
         .from('restaurant_campaigns')
@@ -133,6 +136,8 @@ export function useRestaurantCampaigns(restaurantId: string = RESTAURANT_ID) {
     campaignId: string, 
     recipients: { email: string; name?: string; customerId?: string }[]
   ): Promise<boolean> => {
+    if (!restaurantId) return false;
+    
     try {
       // Atualizar status para "sending"
       await supabase

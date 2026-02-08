@@ -1,10 +1,11 @@
 import { supabase } from '@/lib/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { useToast } from '@/hooks/use-toast';
 
 type ExportType = 'queue' | 'reservations' | 'kpis';
 
 export function useExportData() {
+  const { restaurantId } = useRestaurant();
   const { toast } = useToast();
 
   const exportToCSV = (data: any[], filename: string) => {
@@ -54,7 +55,7 @@ export function useExportData() {
     try {
       // Usar RPC para contornar RLS
       const { data, error } = await supabase.rpc('get_reports_queue_data', {
-        p_restaurant_id: RESTAURANT_ID,
+        p_restaurant_id: restaurantId,
         p_start_date: startDate.toISOString(),
         p_end_date: endDate.toISOString()
       });
@@ -100,7 +101,7 @@ export function useExportData() {
     try {
       // Usar RPC para contornar RLS
       const { data, error } = await supabase.rpc('get_reports_reservation_data', {
-        p_restaurant_id: RESTAURANT_ID,
+        p_restaurant_id: restaurantId,
         p_start_date: startDate.toISOString(),
         p_end_date: endDate.toISOString()
       });
@@ -149,12 +150,12 @@ export function useExportData() {
         { data: reservationsData, error: resError }
       ] = await Promise.all([
         supabase.rpc('get_reports_queue_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString()
         }),
         supabase.rpc('get_reports_reservation_data', {
-          p_restaurant_id: RESTAURANT_ID,
+          p_restaurant_id: restaurantId,
           p_start_date: startDate.toISOString(),
           p_end_date: endDate.toISOString()
         })

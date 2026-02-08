@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export function useReservationsRealtime(onUpdate: () => void) {
+  const { restaurantId } = useRestaurant();
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
 
   useEffect(() => {
+    if (!restaurantId) return;
+    
     let dbChannel: ReturnType<typeof supabase.channel> | null = null;
     
     const setupChannel = () => {
@@ -20,7 +22,7 @@ export function useReservationsRealtime(onUpdate: () => void) {
             event: '*',
             schema: 'mesaclik',
             table: 'reservations',
-            filter: `restaurant_id=eq.${RESTAURANT_ID}`
+            filter: `restaurant_id=eq.${restaurantId}`
           },
           (payload) => {
             console.log('[useReservationsRealtime] postgres_changes recebido:', payload.eventType);
@@ -33,7 +35,7 @@ export function useReservationsRealtime(onUpdate: () => void) {
             event: '*',
             schema: 'public',
             table: 'reservations',
-            filter: `restaurant_id=eq.${RESTAURANT_ID}`
+            filter: `restaurant_id=eq.${restaurantId}`
           },
           (payload) => {
             console.log('[useReservationsRealtime] public schema change:', payload.eventType);
@@ -61,5 +63,5 @@ export function useReservationsRealtime(onUpdate: () => void) {
       }
       clearInterval(pollingInterval);
     };
-  }, []);
+  }, [restaurantId]);
 }

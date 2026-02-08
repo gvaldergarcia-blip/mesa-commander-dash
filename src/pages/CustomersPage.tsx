@@ -5,6 +5,7 @@ import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, 
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { useCustomerInsights, generateInsightsForCustomer } from "@/hooks/useCustomerInsights";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomerStrategicKPIs } from "@/components/customers/CustomerStrategicKPIs";
@@ -12,11 +13,11 @@ import { CustomerListPremium } from "@/components/customers/CustomerListPremium"
 import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 function CustomersPageContent() {
   const navigate = useNavigate();
+  const { restaurantId } = useRestaurant();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -29,10 +30,10 @@ function CustomersPageContent() {
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
   
   
-  const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers(RESTAURANT_ID);
-  const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(RESTAURANT_ID);
+  const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers();
+  const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(restaurantId || '');
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
-  useCustomerInsights(RESTAURANT_ID);
+  useCustomerInsights(restaurantId || '');
 
   // Gera insights em tempo real para cada cliente
   const customerInsightsMap = useMemo(() => {

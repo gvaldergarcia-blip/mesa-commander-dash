@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Brain, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { 
   useAIPalpites, 
   AIPalpite,
@@ -16,6 +17,7 @@ import { SendPalpitePromotionDialog } from '@/components/intelligence/SendPalpit
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 function IntelligenceContent() {
+  const { restaurantId } = useRestaurant();
   const {
     palpites,
     stats,
@@ -23,7 +25,7 @@ function IntelligenceContent() {
     generatePalpites,
     updatePalpiteStatus,
     filterPalpites,
-  } = useAIPalpites();
+  } = useAIPalpites(restaurantId || '');
 
   const [statusFilter, setStatusFilter] = useState<PalpiteStatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PalpitePriorityFilter>('all');
