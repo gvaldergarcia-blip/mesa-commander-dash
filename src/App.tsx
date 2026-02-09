@@ -1,6 +1,7 @@
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { useSessionFromUrl } from "@/hooks/useSessionFromUrl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -51,7 +52,11 @@ const FeatureGuard = ({
   return <>{children}</>;
 };
 
-const App = () => (
+const App = () => {
+  // Restaurar sessão de tokens passados via URL pelo site institucional
+  useSessionFromUrl();
+
+  return (
   <QueryClientProvider client={queryClient}>
     <Toaster />
     <Sonner />
@@ -104,6 +109,7 @@ const App = () => (
       </Routes>
     </BrowserRouter>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
