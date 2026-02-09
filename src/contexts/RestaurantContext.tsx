@@ -159,13 +159,24 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
     };
 
     const initialize = async () => {
+      const urlHasTokens = window.location.search.includes('access_token');
+      console.log('[RestaurantContext] Initialize START', { urlHasTokens, href: window.location.href });
+
       // 1. PRIMEIRO: tentar restaurar sessão de tokens na URL (vindo do site institucional)
       const restoredFromUrl = await restoreSessionFromUrl();
+      console.log('[RestaurantContext] After restoreSessionFromUrl', { restoredFromUrl });
 
       // 2. Buscar sessão (já restaurada ou existente)
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!isMounted) return;
+
+      console.log('[RestaurantContext] Session check', { 
+        hasSession: !!session, 
+        userId: session?.user?.id,
+        email: session?.user?.email,
+        isPreview: isPreviewEnvironment()
+      });
       
       if (session?.user) {
         setUser(session.user);
@@ -173,6 +184,8 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       } else if (isPreviewEnvironment()) {
         console.log('[RestaurantContext] Preview mode: using default restaurant');
         await fetchDefaultRestaurant();
+      } else {
+        console.warn('[RestaurantContext] No session and not in preview. User has no access.');
       }
       
       if (isMounted) setIsLoading(false);
