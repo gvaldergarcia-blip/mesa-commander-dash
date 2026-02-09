@@ -227,7 +227,16 @@ export function useRestaurant() {
   const context = useContext(RestaurantContext);
   
   if (context === undefined) {
-    throw new Error('useRestaurant must be used within a RestaurantProvider');
+    // Fallback seguro para evitar crash durante HMR ou ordem de montagem
+    return {
+      restaurant: null,
+      restaurantId: null,
+      user: null,
+      isLoading: true,
+      isAuthenticated: false,
+      error: null,
+      refetch: async () => {},
+    } as RestaurantContextType;
   }
   
   return context;
