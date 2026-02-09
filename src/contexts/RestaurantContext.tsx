@@ -6,7 +6,7 @@ interface Restaurant {
   id: string;
   name: string;
   logo_url: string | null;
-  address: string | null;
+  address_line: string | null;
   cuisine: string;
   owner_id: string | null;
 }
@@ -89,7 +89,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       const { data: restaurantData, error: restaurantError } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
-        .select('id, name, logo_url, address, cuisine, owner_id')
+        .select('id, name, logo_url, address_line, cuisine, owner_id')
         .eq('id', targetRestaurantId)
         .single();
       
@@ -112,7 +112,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       const { data, error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
-        .select('id, name, logo_url, address, cuisine, owner_id')
+        .select('id, name, logo_url, address_line, cuisine, owner_id')
         .eq('id', DEFAULT_RESTAURANT_ID)
         .single();
       
