@@ -135,8 +135,34 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   useEffect(() => {
     let isMounted = true;
 
+    const restoreSessionFromUrl = async (): Promise<boolean> => {
+      const params = new URLSearchParams(window.location.search);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        console.log('[RestaurantContext] Restaurando sessão via URL tokens...');
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        // Limpar tokens da URL
+        window.history.replaceState({}, '', window.location.pathname);
+        if (error) {
+          console.error('[RestaurantContext] Erro ao restaurar sessão via URL:', error);
+          return false;
+        }
+        console.log('[RestaurantContext] Sessão restaurada via URL com sucesso');
+        return true;
+      }
+      return false;
+    };
+
     const initialize = async () => {
-      // 1. Verificar sessão existente
+      // 1. PRIMEIRO: tentar restaurar sessão de tokens na URL (vindo do site institucional)
+      const restoredFromUrl = await restoreSessionFromUrl();
+
+      // 2. Buscar sessão (já restaurada ou existente)
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!isMounted) return;
@@ -145,7 +171,6 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         setUser(session.user);
         await fetchRestaurantForUser(session.user.id);
       } else if (isPreviewEnvironment()) {
-        // Preview sem sessão: usar restaurante padrão
         console.log('[RestaurantContext] Preview mode: using default restaurant');
         await fetchDefaultRestaurant();
       }
@@ -153,7 +178,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       if (isMounted) setIsLoading(false);
     };
 
-    // Listener de auth
+    // Listener de auth para mudanças POSTERIORES (não controla isLoading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       
