@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useRestaurantTerms } from '@/hooks/useRestaurantTerms';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { supabase } from '@/lib/supabase/client';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { differenceInDays, format } from 'date-fns';
@@ -19,6 +19,7 @@ type NewCouponDialogProps = {
 };
 
 export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
+  const { restaurantId } = useRestaurant();
   const { toast } = useToast();
   const { createCoupon } = useCoupons();
   const { termsAccepted, acceptTerms, loading: termsLoading } = useRestaurantTerms();
@@ -195,7 +196,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
     try {
       const fileExt = uploadedFile.name.split('.').pop();
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `${RESTAURANT_ID}/${fileName}`;
+      const filePath = `${restaurantId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('coupons')
@@ -251,7 +252,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
       });
 
       const coupon = await createCoupon({
-        restaurant_id: RESTAURANT_ID,
+        restaurant_id: restaurantId!,
         title: couponTitle.trim(),
         description: couponDescription.trim() || 'Oferta especial do restaurante',
         discount_type: 'fixed',

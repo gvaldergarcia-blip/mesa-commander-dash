@@ -9,10 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useLoyaltyProgram } from '@/hooks/useLoyaltyProgram';
 import { Badge } from '@/components/ui/badge';
 import { Award, Trophy, Target } from 'lucide-react';
-import { CURRENT_RESTAURANT } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export function TenCliksTab() {
-  const { program, points, loading, saveProgram, resetPoints } = useLoyaltyProgram(CURRENT_RESTAURANT.id);
+  const { restaurantId } = useRestaurant();
+  const { program, points, loading, saveProgram, resetPoints } = useLoyaltyProgram(restaurantId || '');
   
   const [formData, setFormData] = useState({
     enabled: false,

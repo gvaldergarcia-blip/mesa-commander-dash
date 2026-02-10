@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export type PaymentTransaction = {
   id: string;
@@ -20,18 +20,19 @@ export type PaymentTransaction = {
 };
 
 export function usePaymentTransactions() {
+  const { restaurantId } = useRestaurant();
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTransactions = async () => {
+    if (!restaurantId) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('payment_transactions' as any)
         .select('*')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setTransactions((data as any) || []);
     } catch (error) {
@@ -42,51 +43,30 @@ export function usePaymentTransactions() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (restaurantId) fetchTransactions();
+  }, [restaurantId]);
 
   const createTransaction = async (transaction: Omit<PaymentTransaction, 'id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const { data, error } = await supabase
-        .from('payment_transactions' as any)
-        .insert([transaction as any])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      await fetchTransactions();
-      return data;
-    } catch (error) {
-      console.error('Error creating transaction:', error);
-      throw error;
-    }
+    const { data, error } = await supabase
+      .from('payment_transactions' as any)
+      .insert([transaction as any])
+      .select()
+      .single();
+    if (error) throw error;
+    await fetchTransactions();
+    return data;
   };
 
   const updateTransactionStatus = async (transactionId: string, status: PaymentTransaction['status'], paidAt?: string) => {
-    try {
-      const updateData: any = { status };
-      if (paidAt) updateData.paid_at = paidAt;
-
-      const { error } = await supabase
-        .from('payment_transactions' as any)
-        .update(updateData)
-        .eq('id', transactionId);
-
-      if (error) throw error;
-      
-      await fetchTransactions();
-    } catch (error) {
-      console.error('Error updating transaction:', error);
-      throw error;
-    }
+    const updateData: any = { status };
+    if (paidAt) updateData.paid_at = paidAt;
+    const { error } = await supabase
+      .from('payment_transactions' as any)
+      .update(updateData)
+      .eq('id', transactionId);
+    if (error) throw error;
+    await fetchTransactions();
   };
 
-  return {
-    transactions,
-    loading,
-    createTransaction,
-    updateTransactionStatus,
-    refetch: fetchTransactions,
-  };
+  return { transactions, loading, createTransaction, updateTransactionStatus, refetch: fetchTransactions };
 }

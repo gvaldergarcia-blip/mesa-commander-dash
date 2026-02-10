@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { FEATURE_FLAGS, FEATURE_DISABLED_MESSAGE } from '@/config/feature-flags';
 
 type Promotion = {
@@ -18,65 +18,49 @@ type Promotion = {
 };
 
 export function usePromotions() {
+  const { restaurantId } = useRestaurant();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Feature flag check - desabilita operações de promoções
   const isFeatureEnabled = FEATURE_FLAGS.CUPONS_ENABLED;
 
   useEffect(() => {
-    if (isFeatureEnabled) {
+    if (isFeatureEnabled && restaurantId) {
       fetchPromotions();
     } else {
       setLoading(false);
       setPromotions([]);
     }
-  }, [isFeatureEnabled]);
+  }, [isFeatureEnabled, restaurantId]);
 
   const fetchPromotions = async () => {
-    // Se feature desabilitada, não faz nada
-    if (!isFeatureEnabled) {
-      setLoading(false);
-      return;
-    }
-
+    if (!isFeatureEnabled || !restaurantId) { setLoading(false); return; }
     try {
       setLoading(true);
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('promotions')
         .select('*')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setPromotions(data || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar promoções';
       setError(message);
-      toast({
-        title: 'Erro',
-        description: message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   const createPromotion = async (promotion: Omit<Promotion, 'id' | 'created_at' | 'updated_at'>) => {
-    // Se feature desabilitada, bloqueia operação
     if (!isFeatureEnabled) {
-      toast({
-        title: 'Funcionalidade desativada',
-        description: FEATURE_DISABLED_MESSAGE,
-        variant: 'destructive',
-      });
+      toast({ title: 'Funcionalidade desativada', description: FEATURE_DISABLED_MESSAGE, variant: 'destructive' });
       throw new Error(FEATURE_DISABLED_MESSAGE);
     }
-
     try {
       const { data, error } = await supabase
         .schema('mesaclik')
@@ -84,32 +68,16 @@ export function usePromotions() {
         .insert([promotion])
         .select()
         .single();
-
       if (error) throw error;
-
-      toast({
-        title: 'Sucesso',
-        description: 'Promoção criada com sucesso',
-      });
-
+      toast({ title: 'Sucesso', description: 'Promoção criada com sucesso' });
       await fetchPromotions();
       return data;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar promoção';
-      toast({
-        title: 'Erro',
-        description: message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
       throw err;
     }
   };
 
-  return {
-    promotions,
-    loading,
-    error,
-    refetch: fetchPromotions,
-    createPromotion,
-  };
+  return { promotions, loading, error, refetch: fetchPromotions, createPromotion };
 }

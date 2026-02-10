@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export type TermsAcceptance = {
   id: string;
@@ -14,35 +14,28 @@ export type TermsAcceptance = {
 };
 
 export function useRestaurantTerms() {
+  const { restaurantId } = useRestaurant();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    checkTermsAcceptance();
-  }, []);
+    if (restaurantId) checkTermsAcceptance();
+  }, [restaurantId]);
 
   const checkTermsAcceptance = async () => {
+    if (!restaurantId) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('restaurant_terms_acceptance')
         .select('*')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .eq('terms_type', 'coupon_publication')
         .maybeSingle();
-
       if (error && error.code !== 'PGRST116') throw error;
-      
-      // Se já existe, considera aceito
-      if (data) {
-        setTermsAccepted(true);
-        return;
-      }
-      
-      // Se não existe, assume que não foi aceito ainda
-      setTermsAccepted(false);
+      setTermsAccepted(!!data);
     } catch (err) {
       console.error('Erro ao verificar aceite de termos:', err);
       setTermsAccepted(false);
@@ -52,31 +45,10 @@ export function useRestaurantTerms() {
   };
 
   const acceptTerms = async () => {
-    try {
-      // Como o registro já existe no banco, apenas marca como aceito
-      setTermsAccepted(true);
-      
-      toast({
-        title: 'Termos aceitos',
-        description: 'Você pode agora publicar cupons pagos',
-      });
-
-      return true;
-    } catch (err) {
-      console.error('Erro ao aceitar termos:', err);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao processar aceite de termos',
-        variant: 'destructive',
-      });
-      return false;
-    }
+    setTermsAccepted(true);
+    toast({ title: 'Termos aceitos', description: 'Você pode agora publicar cupons pagos' });
+    return true;
   };
 
-  return {
-    termsAccepted,
-    loading,
-    acceptTerms,
-    refetch: checkTermsAcceptance,
-  };
+  return { termsAccepted, loading, acceptTerms, refetch: checkTermsAcceptance };
 }

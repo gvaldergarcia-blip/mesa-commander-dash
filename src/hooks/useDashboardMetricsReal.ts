@@ -278,7 +278,7 @@ export function useDashboardMetricsReal() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [restaurantId]);
 
   useEffect(() => {
     fetchMetrics();
