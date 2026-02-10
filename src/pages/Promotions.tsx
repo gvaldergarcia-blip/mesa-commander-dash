@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePromotions } from "@/hooks/usePromotions";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { promotionSchema, normalizePromotionToUTC, calculatePromotionStatus } from "@/lib/validations/promotion";
 import { logAudit } from "@/lib/audit";
 import {
@@ -33,6 +33,7 @@ import { CouponsTab } from "@/components/promotions/CouponsTab";
 import { TransactionHistoryTab } from "@/components/promotions/TransactionHistoryTab";
 
 export default function Promotions() {
+  const { restaurantId } = useRestaurant();
   const { promotions, loading, createPromotion } = usePromotions();
   const { toast } = useToast();
   const [selectedPromotion, setSelectedPromotion] = useState<typeof promotions[0] | null>(null);
@@ -105,7 +106,7 @@ export default function Promotions() {
         starts_at: startsAt,
         ends_at: endsAt,
         audience_filter: audienceFilter,
-        restaurant_id: RESTAURANT_ID,
+        restaurant_id: restaurantId!,
       });
 
       if (!validationResult.success) {
@@ -137,7 +138,7 @@ export default function Promotions() {
 
       // Criar promoção
       const result = await createPromotion({
-        restaurant_id: RESTAURANT_ID,
+        restaurant_id: restaurantId!,
         title: normalizedData.title,
         description: normalizedData.description,
         starts_at: normalizedData.starts_at,
@@ -151,7 +152,7 @@ export default function Promotions() {
         entity: 'promotion',
         entityId: result?.id || 'unknown',
         action: 'create',
-        restaurantId: RESTAURANT_ID,
+        restaurantId: restaurantId!,
         success: true,
         metadata: { audience_filter: audienceFilter, status: calculatedStatus },
       });
@@ -178,7 +179,7 @@ export default function Promotions() {
         entity: 'promotion',
         entityId: 'failed',
         action: 'create',
-        restaurantId: RESTAURANT_ID,
+        restaurantId: restaurantId!,
         success: false,
         errorMessage: err.message,
       });
@@ -213,7 +214,7 @@ export default function Promotions() {
           .schema('mesaclik')
           .from('email_logs')
           .select('status')
-          .eq('restaurant_id', RESTAURANT_ID);
+          .eq('restaurant_id', restaurantId!);
         
         if (error) throw error;
         

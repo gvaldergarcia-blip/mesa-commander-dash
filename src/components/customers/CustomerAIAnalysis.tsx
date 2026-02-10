@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 type RiskLevel = 'baixo' | 'medio' | 'alto';
 type SensibilityLevel = 'baixa' | 'media' | 'alta';
@@ -112,6 +112,7 @@ export function CustomerAIAnalysis({
   metrics,
   historyData 
 }: CustomerAIAnalysisProps) {
+  const { restaurantId } = useRestaurant();
   const [analysis, setAnalysis] = useState<CustomerAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +126,7 @@ export function CustomerAIAnalysis({
       const { data, error: fnError } = await supabase.functions.invoke('analyze-customer', {
         body: {
           customer_id: customerId,
-          restaurant_id: RESTAURANT_ID,
+          restaurant_id: restaurantId,
           customer_data: customerData,
           metrics,
           history_data: historyData,

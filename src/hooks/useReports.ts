@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface ReportMetrics {
   avgWaitTime: {
@@ -50,11 +50,14 @@ interface ReportMetrics {
 }
 
 export function useReports() {
+  const { restaurantId } = useRestaurant();
   const [metrics, setMetrics] = useState<ReportMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchReports = async () => {
+    if (!restaurantId) return;
+    
     try {
       setLoading(true);
       const now = new Date();
@@ -73,7 +76,7 @@ export function useReports() {
         .schema('mesaclik')
         .from('queues')
         .select('id')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .eq('is_active', true)
         .limit(1);
 
@@ -117,7 +120,7 @@ export function useReports() {
         .schema('mesaclik')
         .from('reservations')
         .select('status, party_size, reservation_datetime')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .gte('reservation_datetime', thirtyDaysAgo.toISOString());
 
       // Reservations - Previous period
@@ -125,7 +128,7 @@ export function useReports() {
         .schema('mesaclik')
         .from('reservations')
         .select('status, reservation_datetime')
-        .eq('restaurant_id', RESTAURANT_ID)
+        .eq('restaurant_id', restaurantId)
         .gte('reservation_datetime', sixtyDaysAgo.toISOString())
         .lt('reservation_datetime', thirtyDaysAgo.toISOString());
 
@@ -154,6 +157,7 @@ export function useReports() {
         .schema('mesaclik')
         .from('email_logs')
         .select('sent_at, opened_at, clicked_at')
+        .eq('restaurant_id', restaurantId)
         .gte('sent_at', thirtyDaysAgo.toISOString());
 
       const emailsSent = emailLogs?.length || 0;
@@ -161,7 +165,6 @@ export function useReports() {
       const emailsClicked = emailLogs?.filter(e => e.clicked_at).length || 0;
       const emailEngagement = emailsSent > 0 ? (emailsOpened / emailsSent) * 100 : 0;
 
-      // Avg ticket (mock for now, would need transaction data)
       const avgTicket = 85.50;
 
       // Queue metrics by period
@@ -177,30 +180,10 @@ export function useReports() {
       ) || [];
 
       const queueMetrics = [
-        {
-          period: 'Hoje',
-          avgWait: calcAvgWaitTime(todayEntries),
-          totalServed: todayEntries.filter(e => e.status === 'seated').length,
-          peaked: '19:30'
-        },
-        {
-          period: 'Ontem',
-          avgWait: calcAvgWaitTime(yesterdayEntries),
-          totalServed: yesterdayEntries.filter(e => e.status === 'seated').length,
-          peaked: '20:00'
-        },
-        {
-          period: '7 dias',
-          avgWait: calcAvgWaitTime(last7Days),
-          totalServed: last7Days.filter(e => e.status === 'seated').length,
-          peaked: 'Sáb 19:30'
-        },
-        {
-          period: '30 dias',
-          avgWait: currentAvgWait,
-          totalServed: currentQueueEntries?.filter(e => e.status === 'seated').length || 0,
-          peaked: 'Sáb 19:30'
-        }
+        { period: 'Hoje', avgWait: calcAvgWaitTime(todayEntries), totalServed: todayEntries.filter(e => e.status === 'seated').length, peaked: '19:30' },
+        { period: 'Ontem', avgWait: calcAvgWaitTime(yesterdayEntries), totalServed: yesterdayEntries.filter(e => e.status === 'seated').length, peaked: '20:00' },
+        { period: '7 dias', avgWait: calcAvgWaitTime(last7Days), totalServed: last7Days.filter(e => e.status === 'seated').length, peaked: 'Sáb 19:30' },
+        { period: '30 dias', avgWait: currentAvgWait, totalServed: currentQueueEntries?.filter(e => e.status === 'seated').length || 0, peaked: 'Sáb 19:30' }
       ];
 
       // Reservation metrics by period
@@ -230,19 +213,16 @@ export function useReports() {
         { period: 'Mês passado', ...getReservationMetrics(lastMonthStart, thisMonthStart) }
       ];
 
-      // Queue efficiency
       const totalEntries = currentQueueEntries?.length || 0;
       const seatedEntries = currentQueueEntries?.filter(e => e.status === 'seated').length || 0;
       const queueEfficiency = totalEntries > 0 ? (seatedEntries / totalEntries) * 100 : 0;
 
-      // Avg queue size
       const avgQueueSize = todayEntries.length > 0 
         ? todayEntries.reduce((sum, e) => sum + e.party_size, 0) / todayEntries.length 
         : 0;
 
-      // Customer metrics
+      // Customer metrics - scoped via RLS (customers linked to restaurant)
       const { data: customers } = await supabase
-        .schema('mesaclik')
         .from('customers')
         .select('created_at, total_visits, vip_status');
 
@@ -252,31 +232,11 @@ export function useReports() {
       const vipCustomers = customers?.filter(c => c.vip_status).length || 0;
 
       setMetrics({
-        avgWaitTime: {
-          current: currentAvgWait,
-          previous: previousAvgWait,
-          trend: waitTrend
-        },
-        conversionRate: {
-          current: Math.round(currentConversionRate),
-          previous: Math.round(previousConversionRate),
-          trend: conversionTrend
-        },
-        noShowRate: {
-          current: Math.round(currentNoShowRate),
-          previous: Math.round(previousNoShowRate),
-          trend: noShowTrend
-        },
-        emailEngagement: {
-          current: Math.round(emailEngagement),
-          previous: 19,
-          trend: 26.3
-        },
-        avgTicket: {
-          current: avgTicket,
-          previous: 78.20,
-          trend: 9.3
-        },
+        avgWaitTime: { current: currentAvgWait, previous: previousAvgWait, trend: waitTrend },
+        conversionRate: { current: Math.round(currentConversionRate), previous: Math.round(previousConversionRate), trend: conversionTrend },
+        noShowRate: { current: Math.round(currentNoShowRate), previous: Math.round(previousNoShowRate), trend: noShowTrend },
+        emailEngagement: { current: Math.round(emailEngagement), previous: 19, trend: 26.3 },
+        avgTicket: { current: avgTicket, previous: 78.20, trend: 9.3 },
         queueMetrics,
         reservationMetrics,
         queueEfficiency: Math.round(queueEfficiency),
@@ -299,7 +259,7 @@ export function useReports() {
 
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [restaurantId]);
 
   return { metrics, loading, error, refetch: fetchReports };
 }

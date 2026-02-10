@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 export interface DashboardMetrics {
   people_in_queue: number;
@@ -11,6 +12,7 @@ export interface DashboardMetrics {
 }
 
 export function useDashboardMetrics() {
+  const { restaurantId } = useRestaurant();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     people_in_queue: 0,
     groups_in_queue: 0,
@@ -22,15 +24,16 @@ export function useDashboardMetrics() {
   const [loading, setLoading] = useState(true);
 
   const fetchMetrics = useCallback(async () => {
+    if (!restaurantId) return;
     try {
       setLoading(true);
 
-      // Buscar KPIs da view
       const { data, error } = await supabase
         .schema('mesaclik')
         .from('v_dashboard_kpis')
         .select('*')
-        .single();
+        .eq('restaurant_id', restaurantId)
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -55,40 +58,26 @@ export function useDashboardMetrics() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [restaurantId]);
 
   useEffect(() => {
     fetchMetrics();
 
-    // Configurar realtime para queue_entries
     const queueChannel = supabase
       .channel('queue-metrics')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'mesaclik',
-          table: 'queue_entries',
-        },
-        () => {
-          fetchMetrics();
-        }
+        { event: '*', schema: 'mesaclik', table: 'queue_entries' },
+        () => { fetchMetrics(); }
       )
       .subscribe();
 
-    // Configurar realtime para reservations
     const reservationsChannel = supabase
       .channel('reservations-metrics')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'mesaclik',
-          table: 'reservations',
-        },
-        () => {
-          fetchMetrics();
-        }
+        { event: '*', schema: 'mesaclik', table: 'reservations' },
+        () => { fetchMetrics(); }
       )
       .subscribe();
 

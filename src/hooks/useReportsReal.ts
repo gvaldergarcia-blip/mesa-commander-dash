@@ -317,7 +317,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
     } finally {
       setLoading(false);
     }
-  }, [period, sourceType]);
+  }, [period, sourceType, restaurantId]);
 
   useEffect(() => {
     stateRef.current.hasInitialData = false;

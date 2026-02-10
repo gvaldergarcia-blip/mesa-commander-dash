@@ -15,7 +15,7 @@ import {
 import { AIPalpite } from '@/hooks/useAIPalpites';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { RESTAURANT_ID } from '@/config/current-restaurant';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface SendPalpitePromotionDialogProps {
   open: boolean;
@@ -30,6 +30,7 @@ export function SendPalpitePromotionDialog({
   palpite,
   onSent,
 }: SendPalpitePromotionDialogProps) {
+  const { restaurantId } = useRestaurant();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [couponCode, setCouponCode] = useState('');
@@ -73,7 +74,7 @@ export function SendPalpitePromotionDialog({
 
       // Log the email with origin = palpite_ia
       await supabase.from('email_logs').insert({
-        restaurant_id: RESTAURANT_ID,
+        restaurant_id: restaurantId!,
         customer_id: palpite.customer_id,
         email: palpite.customer_email || '',
         subject,
