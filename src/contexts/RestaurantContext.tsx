@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 
@@ -132,7 +132,16 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
     }
   };
 
+  // Ref to ensure initial load logic runs only once
+  const initializedRef = useRef(false);
+  // Ref to track which user's restaurant data we've already loaded
+  const loadedForUserRef = useRef<string | null>(null);
+
   useEffect(() => {
+    // Prevent running initialization more than once
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     let isMounted = true;
 
     const restoreSessionFromUrl = async (): Promise<boolean> => {
@@ -146,7 +155,6 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-        // Limpar tokens da URL
         window.history.replaceState({}, '', window.location.pathname);
         if (error) {
           console.error('[RestaurantContext] Erro ao restaurar sessão via URL:', error);
@@ -162,11 +170,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       const urlHasTokens = window.location.search.includes('access_token');
       console.log('[RestaurantContext] Initialize START', { urlHasTokens, href: window.location.href });
 
-      // 1. PRIMEIRO: tentar restaurar sessão de tokens na URL (vindo do site institucional)
       const restoredFromUrl = await restoreSessionFromUrl();
       console.log('[RestaurantContext] After restoreSessionFromUrl', { restoredFromUrl });
 
-      // 2. Buscar sessão (já restaurada ou existente)
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!isMounted) return;
@@ -180,6 +186,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       
       if (session?.user) {
         setUser(session.user);
+        loadedForUserRef.current = session.user.id;
         await fetchRestaurantForUser(session.user.id);
       } else if (isPreviewEnvironment()) {
         console.log('[RestaurantContext] Preview mode: using default restaurant');
@@ -191,18 +198,26 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       if (isMounted) setIsLoading(false);
     };
 
-    // Listener de auth para mudanças POSTERIORES (não controla isLoading)
+    // Listener for ONGOING auth changes — does NOT control isLoading
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       
       const newUser = session?.user ?? null;
       setUser(newUser);
       
-      if (newUser) {
+      if (event === 'SIGNED_OUT') {
+        loadedForUserRef.current = null;
+        setRestaurant(null);
+        return;
+      }
+
+      // Only re-fetch restaurant if user actually changed
+      if (newUser && newUser.id !== loadedForUserRef.current) {
+        loadedForUserRef.current = newUser.id;
         setTimeout(() => {
           if (isMounted) fetchRestaurantForUser(newUser.id);
         }, 0);
-      } else if (isPreviewEnvironment()) {
+      } else if (!newUser && isPreviewEnvironment()) {
         setTimeout(() => {
           if (isMounted) fetchDefaultRestaurant();
         }, 0);
