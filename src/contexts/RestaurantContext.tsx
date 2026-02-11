@@ -126,12 +126,19 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
     let isMounted = true;
 
     const restoreSessionFromUrl = async (): Promise<boolean> => {
-      const params = new URLSearchParams(window.location.search);
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+      // Check query params (?access_token=...)
+      let accessToken = new URLSearchParams(window.location.search).get('access_token');
+      let refreshToken = new URLSearchParams(window.location.search).get('refresh_token');
+
+      // Check hash fragments (#access_token=...) — used by iframe redirects
+      if (!accessToken && window.location.hash.includes('access_token=')) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        accessToken = hashParams.get('access_token');
+        refreshToken = hashParams.get('refresh_token');
+      }
 
       if (accessToken && refreshToken) {
-        console.log('[RestaurantContext] Restaurando sessão via URL tokens...');
+        console.log('[RestaurantContext] Restaurando sessão via URL/hash tokens...');
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
@@ -141,14 +148,14 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
           console.error('[RestaurantContext] Erro ao restaurar sessão via URL:', error);
           return false;
         }
-        console.log('[RestaurantContext] Sessão restaurada via URL com sucesso');
+        console.log('[RestaurantContext] Sessão restaurada via URL/hash com sucesso');
         return true;
       }
       return false;
     };
 
     const initialize = async () => {
-      const urlHasTokens = window.location.search.includes('access_token');
+      const urlHasTokens = window.location.search.includes('access_token') || window.location.hash.includes('access_token');
       console.log('[RestaurantContext] Initialize START', { urlHasTokens, href: window.location.href });
 
       const restoredFromUrl = await restoreSessionFromUrl();
