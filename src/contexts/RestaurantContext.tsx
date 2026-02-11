@@ -46,16 +46,18 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
     try {
       setError(null);
       
-      // 1. Verificar se é admin
-      const { data: adminRole } = await supabase
+      // 1. Verificar se é admin (schema public explícito)
+      const { data: adminRole } = await (supabase as any)
+        .schema('public')
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
         .maybeSingle();
       
-      // 2. Buscar restaurante do usuário via membership
-      const { data: membership } = await supabase
+      // 2. Buscar restaurante do usuário via membership (CRÍTICO: filtrar por user_id)
+      const { data: membership } = await (supabase as any)
+        .schema('public')
         .from('restaurant_members')
         .select('restaurant_id, role')
         .eq('user_id', userId)
@@ -78,8 +80,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         return;
       }
       
-      // 3. Buscar dados do restaurante
-      const { data: restaurantData, error: restaurantError } = await supabase
+      // 3. Buscar dados do restaurante (public.restaurants - sincronizado via trigger)
+      const { data: restaurantData, error: restaurantError } = await (supabase as any)
+        .schema('public')
         .from('restaurants')
         .select('id, name, image_url, address_line, cuisine, owner_id')
         .eq('id', targetRestaurantId)
