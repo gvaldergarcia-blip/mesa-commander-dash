@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { useSessionFromUrl } from "@/hooks/useSessionFromUrl";
@@ -34,7 +34,40 @@ import ReservaFinal from "./pages/reserva/ReservaFinal";
 import TermosDeUso from "./pages/legal/TermosDeUso";
 import PoliticaPrivacidade from "./pages/legal/PoliticaPrivacidade";
 
+import { supabase } from "@/integrations/supabase/client";
+
 const queryClient = new QueryClient();
+
+/**
+ * Limpa o cache do React Query quando o usuário muda de sessão.
+ * Impede que dados de um restaurante apareçam para outro usuário.
+ */
+function useClearCacheOnUserChange() {
+  const prevUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const currentUserId = session?.user?.id ?? null;
+
+      if (event === 'SIGNED_OUT') {
+        console.log('[CacheClear] SIGNED_OUT — limpando cache');
+        queryClient.clear();
+        prevUserIdRef.current = null;
+        return;
+      }
+
+      if (currentUserId && currentUserId !== prevUserIdRef.current) {
+        if (prevUserIdRef.current !== null) {
+          console.log('[CacheClear] Usuário mudou — limpando cache');
+          queryClient.clear();
+        }
+        prevUserIdRef.current = currentUserId;
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+}
 
 // Componente wrapper para rotas que requerem feature flags
 const FeatureGuard = ({ 
@@ -55,6 +88,8 @@ const FeatureGuard = ({
 const App = () => {
   // Restaurar sessão de tokens passados via URL pelo site institucional
   useSessionFromUrl();
+  // Limpar cache React Query ao trocar de usuário
+  useClearCacheOnUserChange();
 
   return (
   <QueryClientProvider client={queryClient}>

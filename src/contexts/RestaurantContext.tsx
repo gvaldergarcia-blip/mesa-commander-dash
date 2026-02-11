@@ -94,6 +94,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         return;
       }
       
+      console.log('[RestaurantContext] Restaurante resolvido:', restaurantData?.name, 'para userId:', userId);
       setRestaurant(restaurantData);
       
     } catch (err) {
@@ -196,8 +197,10 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       setUser(newUser);
       
       if (event === 'SIGNED_OUT') {
+        console.log('[RestaurantContext] SIGNED_OUT - limpando estado');
         loadedForUserRef.current = null;
         setRestaurant(null);
+        setError(null);
         return;
       }
 
