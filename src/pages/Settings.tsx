@@ -85,6 +85,8 @@ function SettingsContent() {
   useEffect(() => {
     if (restaurantId) {
       fetchRestaurantData();
+    } else {
+      setLoading(false);
     }
     
     // Realtime subscription
