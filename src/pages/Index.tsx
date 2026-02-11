@@ -2,47 +2,20 @@ import { Users, Calendar, TrendingUp, Activity, CheckCircle, XCircle, PhoneCall 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
-import { CURRENT_RESTAURANT } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Badge } from "@/components/ui/badge";
-import { useRestaurants } from "@/hooks/useRestaurants";
 import { CouponsCarousel } from "@/components/coupons/CouponsCarousel";
-import { Button } from "@/components/ui/button";
-import { createTestCoupon } from "@/utils/testCoupon";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Index() {
   const { metrics, loading } = useDashboardMetrics();
-  const { restaurants, loading: loadingRestaurants } = useRestaurants();
+  const { restaurant, isLoading: loadingRestaurant } = useRestaurant();
   const { toast } = useToast();
-  
-  // Get the current restaurant data from Supabase
-  const currentRestaurant = restaurants.find(r => r.id === CURRENT_RESTAURANT.id);
-  
-  console.log('[Dashboard] Restaurants:', restaurants);
-  console.log('[Dashboard] Current restaurant:', currentRestaurant);
-  console.log('[Dashboard] Looking for ID:', CURRENT_RESTAURANT.id);
-
-  const handleCreateTestCoupon = async () => {
-    try {
-      await createTestCoupon();
-      toast({
-        title: 'Cupom de teste criado!',
-        description: 'Recarregando página...',
-      });
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Falha ao criar cupom de teste',
-        variant: 'destructive',
-      });
-    }
-  };
 
   // Calculate weekly growth (mock for now - would need historical data)
   const weeklyGrowth = "+12%";
 
-  if (loading || loadingRestaurants) {
+  if (loading || loadingRestaurant) {
     return (
       <div className="p-6">
         <p>Carregando métricas...</p>
@@ -57,15 +30,12 @@ export default function Index() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground flex items-center gap-2">
-            Painel de controle - {currentRestaurant?.name || CURRENT_RESTAURANT.name}
+            Painel de controle - {restaurant?.name || 'Carregando...'}
             <Badge variant="secondary" className="bg-success/10 text-success">
               Conectado
             </Badge>
           </p>
         </div>
-        <Button onClick={handleCreateTestCoupon} variant="outline">
-          🧪 Criar Cupom Teste
-        </Button>
       </div>
 
       {/* Main Metrics */}

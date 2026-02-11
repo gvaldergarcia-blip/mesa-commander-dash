@@ -26,7 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase/client";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
@@ -105,6 +105,7 @@ export default function CustomerProfile() {
   const { customerId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
   
   const [customer, setCustomer] = useState<CustomerData | null>(null);
@@ -242,7 +243,7 @@ export default function CustomerProfile() {
       const { data, error } = await supabase.functions.invoke('get-customer-history', {
         body: {
           customer_id: customerId,
-          restaurant_id: RESTAURANT_ID,
+          restaurant_id: restaurantId || '',
           email: email || '',
           phone: phone && phone !== '—' ? phone : ''
         }

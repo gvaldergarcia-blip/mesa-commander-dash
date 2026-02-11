@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { reservationSchema, normalizeReservationToUTC } from "@/lib/validations/reservation";
 import { logAudit } from "@/lib/audit";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 import { 
@@ -34,9 +34,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function ReservationsContent() {
+  const { restaurantId } = useRestaurant();
   const { restaurants } = useRestaurants();
   const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
-  const { settings: reservationSettings, loading: loadingSettings } = useReservationSettings(RESTAURANT_ID);
+  const { settings: reservationSettings, loading: loadingSettings } = useReservationSettings(restaurantId || '');
   
   // Configuração de max_party_size das configurações de reserva
   const MAX_PARTY_SIZE_RESERVATION = reservationSettings?.max_party_size || 8;
@@ -166,7 +167,7 @@ function ReservationsContent() {
         entity: 'reservation',
         entityId: result?.id || 'unknown',
         action: 'create',
-        restaurantId: RESTAURANT_ID,
+        restaurantId: restaurantId || '',
         success: true,
         metadata: { party_size: normalizedData.people },
       });
@@ -192,7 +193,7 @@ function ReservationsContent() {
         entity: 'reservation',
         entityId: 'failed',
         action: 'create',
-        restaurantId: RESTAURANT_ID,
+        restaurantId: restaurantId || '',
         success: false,
         errorMessage: err.message,
       });

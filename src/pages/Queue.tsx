@@ -5,7 +5,7 @@ import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
 import { useQueueSettings } from "@/hooks/useQueueSettings";
 import { useToast } from "@/hooks/use-toast";
-import { RESTAURANT_ID } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,10 +38,11 @@ import {
 } from "@/utils/queueUtils";
 
 function QueueContent() {
+  const { restaurantId } = useRestaurant();
   const { restaurants } = useRestaurants();
   const { queueEntries, loading, loadingVip, updateQueueStatus, addToQueue, clearQueue } = useQueueEnhanced();
-  const { getAverageForSize, generalAverage, loading: loadingAverages } = useQueueWaitTimeAverages(RESTAURANT_ID);
-  const { settings: queueSettings, loading: loadingSettings } = useQueueSettings(RESTAURANT_ID);
+  const { getAverageForSize, generalAverage, loading: loadingAverages } = useQueueWaitTimeAverages(restaurantId || '');
+  const { settings: queueSettings, loading: loadingSettings } = useQueueSettings(restaurantId || '');
   const { toast } = useToast();
 
   // CONFIGURAÇÃO: Usar valores das configurações do restaurante
@@ -158,7 +159,7 @@ function QueueContent() {
         entity: 'queue_entry',
         entityId: entryId,
         action: 'cancel',
-        restaurantId: RESTAURANT_ID,
+        restaurantId: restaurantId || '',
         success: true,
         metadata: { canceled_by: 'restaurant', source: 'dashboard' }
       });

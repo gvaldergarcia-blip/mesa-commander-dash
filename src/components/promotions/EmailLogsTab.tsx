@@ -23,13 +23,14 @@ import {
 } from "@/components/ui/dialog";
 import { useEligibleCustomers } from "@/hooks/useEligibleCustomers";
 import { useEmailLogs } from "@/hooks/useEmailLogs";
-import { CURRENT_RESTAURANT } from "@/config/current-restaurant";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { ComposeEmailModal } from "./ComposeEmailModal";
 import { CustomerDetailDrawer } from "./CustomerDetailDrawer";
 
 export function EmailLogsTab() {
-  const { customers, loading: customersLoading, includeInactive, setIncludeInactive } = useEligibleCustomers(CURRENT_RESTAURANT.id);
-  const { emailLogs, loading: logsLoading } = useEmailLogs(CURRENT_RESTAURANT.id);
+  const { restaurantId } = useRestaurant();
+  const { customers, loading: customersLoading, includeInactive, setIncludeInactive } = useEligibleCustomers(restaurantId || '');
+  const { emailLogs, loading: logsLoading } = useEmailLogs(restaurantId || '');
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -257,7 +258,7 @@ export function EmailLogsTab() {
             open={isComposeOpen}
             onOpenChange={setIsComposeOpen}
             customer={selectedCustomer}
-            restaurantId={CURRENT_RESTAURANT.id}
+            restaurantId={restaurantId || ''}
           />
           <CustomerDetailDrawer
             open={isDetailOpen}
