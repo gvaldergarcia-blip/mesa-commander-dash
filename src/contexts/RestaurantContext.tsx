@@ -5,7 +5,7 @@ import { User } from '@supabase/supabase-js';
 interface Restaurant {
   id: string;
   name: string;
-  logo_url: string | null;
+  image_url: string | null;
   address_line: string | null;
   cuisine: string;
   owner_id: string | null;
@@ -79,10 +79,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       }
       
       // 3. Buscar dados do restaurante
-      const { data: restaurantData, error: restaurantError } = await (supabase as any)
-        .schema('mesaclik')
+      const { data: restaurantData, error: restaurantError } = await supabase
         .from('restaurants')
-        .select('id, name, logo_url, address_line, cuisine, owner_id')
+        .select('id, name, image_url, address_line, cuisine, owner_id')
         .eq('id', targetRestaurantId)
         .single();
       
@@ -230,7 +229,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         'postgres_changes',
         {
           event: 'UPDATE',
-          schema: 'mesaclik',
+          schema: 'public',
           table: 'restaurants',
           filter: `id=eq.${restaurant.id}`,
         },

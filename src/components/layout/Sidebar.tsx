@@ -144,13 +144,12 @@ export function Sidebar() {
         )}>
           {/* Avatar com logo ou inicial */}
           <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {restaurant?.logo_url ? (
+            {restaurant?.image_url ? (
               <img 
-                src={restaurant.logo_url} 
+                src={restaurant.image_url} 
                 alt={restaurant.name} 
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Fallback para inicial se imagem falhar
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                 }}
@@ -158,7 +157,7 @@ export function Sidebar() {
             ) : null}
             <span className={cn(
               "text-xs font-semibold text-primary",
-              restaurant?.logo_url && "hidden"
+              restaurant?.image_url && "hidden"
             )}>
               {restaurantInitial}
             </span>
