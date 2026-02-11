@@ -123,11 +123,38 @@ Deno.serve(async (req) => {
 
     // ========== APPROVE — PROVISION EVERYTHING ==========
 
-    // Step A: Create restaurant in mesaclik schema
+    // Step A: Create restaurant in PUBLIC schema (panel reads from here)
     const { data: restaurant, error: restErr } = await supabaseAdmin
+      .from("restaurants")
+      .insert({
+        name: application.restaurant_name,
+        cuisine: application.cuisine || "Outros",
+        address_line: application.address_line || null,
+        city: application.city || null,
+        owner_id: application.owner_user_id,
+        has_queue: true,
+        has_reservation: true,
+      })
+      .select("id")
+      .single();
+
+    if (restErr || !restaurant) {
+      console.error("Error creating restaurant in public:", restErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to create restaurant", details: restErr?.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const restaurantId = restaurant.id;
+    console.log(`Restaurant created in public: ${restaurantId}`);
+
+    // Step A2: Also create in mesaclik schema (operational RPCs use this)
+    const { error: mesaclikRestErr } = await supabaseAdmin
       .schema("mesaclik" as any)
       .from("restaurants")
       .insert({
+        id: restaurantId, // same ID for consistency
         name: application.restaurant_name,
         cuisine: application.cuisine || "Outros",
         address_line: application.address_line || null,
@@ -139,20 +166,14 @@ Deno.serve(async (req) => {
         is_active: true,
         has_queue: true,
         has_reservation: true,
-      })
-      .select("id")
-      .single();
+      });
 
-    if (restErr || !restaurant) {
-      console.error("Error creating restaurant:", restErr);
-      return new Response(
-        JSON.stringify({ error: "Failed to create restaurant", details: restErr?.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (mesaclikRestErr) {
+      console.error("Error creating restaurant in mesaclik (non-fatal):", mesaclikRestErr);
+      // Non-fatal: panel works from public, mesaclik can be synced later
+    } else {
+      console.log(`Restaurant also created in mesaclik: ${restaurantId}`);
     }
-
-    const restaurantId = restaurant.id;
-    console.log(`Restaurant created: ${restaurantId}`);
 
     // Step B: CRITICAL — Create restaurant_members link
     const { error: memberErr } = await supabaseAdmin
@@ -165,7 +186,8 @@ Deno.serve(async (req) => {
 
     if (memberErr) {
       console.error("Error creating restaurant_members:", memberErr);
-      // Rollback: delete restaurant
+      // Rollback: delete restaurant from both schemas
+      await supabaseAdmin.from("restaurants").delete().eq("id", restaurantId);
       await supabaseAdmin.schema("mesaclik" as any).from("restaurants").delete().eq("id", restaurantId);
       return new Response(
         JSON.stringify({ error: "Failed to link user to restaurant", details: memberErr.message }),
