@@ -96,7 +96,7 @@ function SettingsContent() {
         'postgres_changes',
         {
           event: 'UPDATE',
-          schema: 'mesaclik',
+          schema: 'public',
           table: 'restaurants',
           filter: `id=eq.${restaurantId}`
         },
