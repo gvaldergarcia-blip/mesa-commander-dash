@@ -65,7 +65,7 @@ export const SMS_TEMPLATES = {
   QUEUE_CALLED: () => 
     `Olá! Sua mesa está pronta. Você tem 5 minutos para chegar ao restaurante antes que sua vez seja passada ao próximo da fila.`,
   RESERVATION_CONFIRMED: (name: string, datetime: string) =>
-    `Olá ${name}! Sua reserva para ${datetime} foi confirmada. Aguardamos você! - Mocotó`,
+    `Olá ${name}! Sua reserva para ${datetime} foi confirmada. Aguardamos você!`,
   RESERVATION_REMINDER: (name: string, datetime: string) =>
-    `Olá ${name}! Lembramos que sua reserva é para ${datetime}. Até logo! - Mocotó`,
+    `Olá ${name}! Lembramos que sua reserva é para ${datetime}. Até logo!`,
 };

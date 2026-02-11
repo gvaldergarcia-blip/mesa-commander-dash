@@ -23,8 +23,8 @@ interface RestaurantContextType {
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
-// Restaurante padrão APENAS para preview sem login (desenvolvimento local)
-const DEFAULT_RESTAURANT_ID = '8e5d4e30-3432-410a-bcd2-35a4fb5b8e9f';
+// Sem restaurante padrão - cada usuário carrega o seu via restaurant_members
+const DEFAULT_RESTAURANT_ID: string | null = null;
 
 interface RestaurantProviderProps {
   children: ReactNode;
@@ -66,7 +66,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       
       if (membership?.restaurant_id) {
         targetRestaurantId = membership.restaurant_id;
-      } else if (adminRole) {
+      } else if (adminRole && DEFAULT_RESTAURANT_ID) {
         // Admin sem membership: usar restaurante padrão apenas em dev
         targetRestaurantId = DEFAULT_RESTAURANT_ID;
       }
@@ -101,20 +101,8 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   };
 
   const fetchDefaultRestaurant = async () => {
-    try {
-      const { data, error } = await (supabase as any)
-        .schema('mesaclik')
-        .from('restaurants')
-        .select('id, name, logo_url, address_line, cuisine, owner_id')
-        .eq('id', DEFAULT_RESTAURANT_ID)
-        .single();
-      
-      if (!error && data) {
-        setRestaurant(data);
-      }
-    } catch (err) {
-      console.error('[RestaurantContext] Error fetching default:', err);
-    }
+    // Sem restaurante padrão - usuário precisa estar autenticado e vinculado
+    console.log('[RestaurantContext] Nenhum restaurante padrão configurado. Login necessário.');
   };
 
   const refetch = async () => {

@@ -11,13 +11,12 @@
  * @deprecated Use useRestaurant() hook instead
  */
 
-// IDs mantidos temporariamente para compatibilidade durante migração
-// ATENÇÃO: Estes valores NÃO devem ser usados em produção!
+// Valores vazios - nenhum restaurante hardcoded
 export const CURRENT_RESTAURANT = {
-  id: '8e5d4e30-3432-410a-bcd2-35a4fb5b8e9f',
-  name: 'Mocotó',
-  ownerId: 'b01b96fb-bd8c-46d6-b168-b4d11ffdd208',
-  address: 'Av. Nossa Sra. do Loreto, 1100 - Vila Medeiros, São Paulo',
+  id: '',
+  name: '',
+  ownerId: '',
+  address: '',
   cuisine: 'Outros'
 } as const;
 
@@ -25,4 +24,4 @@ export const CURRENT_RESTAURANT = {
 export const RESTAURANT_ID = CURRENT_RESTAURANT.id;
 
 /** Em preview, bypass está habilitado para facilitar desenvolvimento */
-export const DEV_FORCE_RESTAURANT = true;
+export const DEV_FORCE_RESTAURANT = false;
