@@ -23,10 +23,7 @@ interface RestaurantContextType {
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
-// ID do fundador para bypass em preview
-const FOUNDER_ID = 'b01b96fb-bd8c-46d6-b168-b4d11ffdd208';
-
-// Restaurante padrão para preview (Mocotó)
+// Restaurante padrão APENAS para preview sem login (desenvolvimento local)
 const DEFAULT_RESTAURANT_ID = '8e5d4e30-3432-410a-bcd2-35a4fb5b8e9f';
 
 interface RestaurantProviderProps {
@@ -70,19 +67,15 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       if (membership?.restaurant_id) {
         targetRestaurantId = membership.restaurant_id;
       } else if (adminRole) {
-        // Admin: usar restaurante padrão em preview
+        // Admin sem membership: usar restaurante padrão apenas em dev
         targetRestaurantId = DEFAULT_RESTAURANT_ID;
       }
       
       if (!targetRestaurantId) {
-        // Fallback para restaurante padrão em preview
-        if (isPreviewEnvironment()) {
-          targetRestaurantId = DEFAULT_RESTAURANT_ID;
-        } else {
-          setRestaurant(null);
-          setError('Nenhum restaurante associado');
-          return;
-        }
+        // Usuário autenticado sem restaurante vinculado = erro
+        setRestaurant(null);
+        setError('Nenhum restaurante associado à sua conta. Verifique com o suporte.');
+        return;
       }
       
       // 3. Buscar dados do restaurante
