@@ -59,3 +59,9 @@ verify_jwt = false
 
 [functions.process-video]
 verify_jwt = false
+
+[functions.approve-restaurant]
+verify_jwt = false
+
+[functions.notify-application]
+verify_jwt = false
