@@ -44,8 +44,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     );
   }
 
-  // Sem restaurante vinculado
-  if (!restaurantId) {
+  const isPreview = import.meta.env.DEV || 
+    window.location.hostname.includes('lovable.app') || 
+    window.location.hostname === 'localhost';
+
+  // Sem restaurante vinculado — bloqueia apenas em produção
+  if (!restaurantId && !isPreview) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-4 max-w-md px-6">
