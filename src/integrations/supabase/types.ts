@@ -1014,6 +1014,75 @@ export type Database = {
           },
         ]
       }
+      restaurant_applications: {
+        Row: {
+          address_line: string | null
+          approved_at: string | null
+          approved_by: string | null
+          city: string | null
+          created_at: string
+          cuisine: string
+          district: string | null
+          id: string
+          owner_email: string
+          owner_phone: string | null
+          owner_user_id: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          restaurant_id: string | null
+          restaurant_name: string
+          state: string | null
+          status: string
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          address_line?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
+          created_at?: string
+          cuisine?: string
+          district?: string | null
+          id?: string
+          owner_email: string
+          owner_phone?: string | null
+          owner_user_id: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          restaurant_id?: string | null
+          restaurant_name: string
+          state?: string | null
+          status?: string
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          address_line?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
+          created_at?: string
+          cuisine?: string
+          district?: string | null
+          id?: string
+          owner_email?: string
+          owner_phone?: string | null
+          owner_user_id?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          restaurant_id?: string | null
+          restaurant_name?: string
+          state?: string | null
+          status?: string
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       restaurant_campaign_recipients: {
         Row: {
           campaign_id: string
