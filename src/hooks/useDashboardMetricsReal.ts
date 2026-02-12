@@ -72,6 +72,10 @@ export function useDashboardMetricsReal() {
   const [loading, setLoading] = useState(true);
 
   const fetchMetrics = useCallback(async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
 

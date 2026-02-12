@@ -44,6 +44,10 @@ export function useReservations() {
   const { toast } = useToast();
 
   const fetchReservations = useCallback(async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       console.log('[useReservations] Buscando reservas via RPC para restaurante:', restaurantId);
