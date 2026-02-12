@@ -12,7 +12,9 @@ import {
   X,
   Moon,
   Sun,
+  LogOut,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
@@ -134,6 +136,33 @@ export function Sidebar() {
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
             {theme === "dark" ? "Modo Escuro" : "Modo Claro"}
+          </span>
+        </button>
+
+        {/* Logout Button */}
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            if (window.top) {
+              window.top.location.href = '/';
+            } else {
+              window.location.href = '/';
+            }
+          }}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150",
+            "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span className={cn(
+            "transition-all duration-200",
+            isCollapsed && "opacity-0 w-0 overflow-hidden"
+          )}>
+            Sair
           </span>
         </button>
         
