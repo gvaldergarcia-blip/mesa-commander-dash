@@ -17,10 +17,15 @@ export function useReservationSettings(restaurantId: string) {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchSettings();
+    if (restaurantId) {
+      fetchSettings();
+    } else {
+      setLoading(false);
+    }
   }, [restaurantId]);
 
   const fetchSettings = async () => {
+    if (!restaurantId) return;
     try {
       setLoading(true);
       const { data, error } = await supabase

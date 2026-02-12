@@ -50,6 +50,10 @@ export function useRestaurantCustomers(overrideRestaurantId?: string) {
   const { toast } = useToast();
 
   const fetchCustomers = useCallback(async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);

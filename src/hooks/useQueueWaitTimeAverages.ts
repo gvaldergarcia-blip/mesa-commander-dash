@@ -24,6 +24,10 @@ export function useQueueWaitTimeAverages(restaurantId: string) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     const fetchAverages = async () => {
       try {
         setLoading(true);

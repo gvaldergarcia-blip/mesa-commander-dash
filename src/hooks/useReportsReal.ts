@@ -75,6 +75,10 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
   const stateRef = useRef({ hasInitialData: false });
 
   const fetchReports = useCallback(async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       if (!stateRef.current.hasInitialData) {
         setLoading(true);

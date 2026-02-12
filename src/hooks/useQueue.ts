@@ -32,6 +32,10 @@ export function useQueue() {
   const { toast } = useToast();
 
   const fetchQueue = useCallback(async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);

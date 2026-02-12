@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
+import { useRestaurant } from '@/contexts/RestaurantContext';
 type Customer = {
   name: string;
   phone: string;
@@ -13,6 +13,7 @@ type Customer = {
 };
 
 export function useCustomers() {
+  const { restaurantId } = useRestaurant();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,10 @@ export function useCustomers() {
   }, []);
 
   const fetchCustomers = async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const { data, error } = await supabase
