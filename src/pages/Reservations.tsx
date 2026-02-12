@@ -53,7 +53,7 @@ function ReservationsContent() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [periodFilter, setPeriodFilter] = useState("week");
+  const [periodFilter, setPeriodFilter] = useState("all");
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [customDateStart, setCustomDateStart] = useState("");
   const [customDateEnd, setCustomDateEnd] = useState("");

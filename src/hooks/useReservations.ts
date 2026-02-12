@@ -123,9 +123,24 @@ export function useReservations() {
       if (error) throw error;
       if (!data) throw new Error('Reserva não retornou dados');
 
-      // NOTA: NÃO incrementar visita na criação da reserva.
-      // A visita só será contabilizada quando a reserva for COMPLETADA (status = 'completed').
-      // O cliente será registrado em restaurant_customers nesse momento.
+      // Registrar cliente em restaurant_customers ao criar a reserva
+      // para que apareça na lista de Clientes imediatamente
+      if (reservation.customer_email) {
+        try {
+          await supabase.rpc('upsert_restaurant_customer', {
+            p_restaurant_id: restaurantId,
+            p_email: reservation.customer_email,
+            p_name: reservation.customer_name,
+            p_phone: null,
+            p_source: 'reservation',
+            p_marketing_optin: null,
+            p_terms_accepted: null,
+          });
+          console.log('[useReservations] Cliente registrado em restaurant_customers na criação da reserva');
+        } catch (customerError) {
+          console.warn('[useReservations] Erro ao registrar cliente na criação (não crítico):', customerError);
+        }
+      }
 
       // Buscar informações do restaurante para o email
       const { data: restaurantData } = await supabase
