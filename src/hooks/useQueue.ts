@@ -83,10 +83,10 @@ export function useQueue() {
       
       // Buscar fila do restaurante no schema PUBLIC (onde as queues são gerenciadas)
       const { data: activeQueue, error: queueError } = await supabase
+        .schema('mesaclik')
         .from('queues')
         .select('id')
         .eq('restaurant_id', restaurantId)
-        .eq('is_active', true)
         .limit(1)
         .maybeSingle();
 
