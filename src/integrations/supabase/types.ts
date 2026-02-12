@@ -1913,9 +1913,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin:
-        | { Args: never; Returns: boolean }
-        | { Args: { p_user_id?: string }; Returns: boolean }
+      is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_member_of: { Args: { p_restaurant_id: string }; Returns: boolean }
       is_member_or_admin: {
         Args: { p_restaurant_id: string }
