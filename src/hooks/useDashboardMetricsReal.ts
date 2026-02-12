@@ -202,7 +202,8 @@ export function useDashboardMetricsReal() {
           'called': 'Chamado para mesa',
           'seated': 'Sentado',
           'canceled': 'Cancelado',
-          'no_show': 'Não compareceu'
+          'no_show': 'Não compareceu',
+          'cleared': 'Fila limpa',
         };
 
         // Determinar timestamp baseado no status
