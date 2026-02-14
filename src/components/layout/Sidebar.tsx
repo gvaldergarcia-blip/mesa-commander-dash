@@ -8,7 +8,6 @@ import {
   Megaphone,
   BarChart3,
   Settings,
-  Sparkles,
   Menu,
   X,
   Moon,
@@ -29,7 +28,6 @@ const allNavigation = [
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
-  { name: "Marketing IA", href: "/marketing", icon: Sparkles, requiresFeature: null },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },
 ];
 
