@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.notify-application]
 verify_jwt = false
+
+[functions.generate-marketing-post]
+verify_jwt = false
