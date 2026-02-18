@@ -34,6 +34,10 @@ import ReservaFinal from "./pages/reserva/ReservaFinal";
 import TermosDeUso from "./pages/legal/TermosDeUso";
 import PoliticaPrivacidade from "./pages/legal/PoliticaPrivacidade";
 
+// Marketing (público)
+import MarketingOptIn from "./pages/marketing/MarketingOptIn";
+import MarketingUnsubscribe from "./pages/marketing/MarketingUnsubscribe";
+
 import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient();
@@ -108,6 +112,10 @@ const App = () => {
         {/* Rotas públicas legais (sem DashboardLayout) */}
         <Route path="/termos" element={<TermosDeUso />} />
         <Route path="/privacidade" element={<PoliticaPrivacidade />} />
+
+        {/* Rotas públicas marketing (sem DashboardLayout) */}
+        <Route path="/marketing/optin" element={<MarketingOptIn />} />
+        <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
 
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={

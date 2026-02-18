@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
@@ -38,6 +40,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
     setEmail("");
     setPhone("");
     setNotes("");
+    setMarketingOptIn(false);
   };
 
   const handleSubmit = async () => {
@@ -63,6 +66,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
         p_name: trimmedName,
         p_phone: phone.trim() || null,
         p_source: "manual",
+        p_marketing_optin: marketingOptIn,
+        p_opt_in_source: marketingOptIn ? "manual_by_restaurant" : null,
       });
 
       if (error) {
@@ -153,6 +158,18 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
               maxLength={500}
               rows={3}
             />
+          </div>
+
+          <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+            <Checkbox
+              id="marketing-optin"
+              checked={marketingOptIn}
+              onCheckedChange={(checked) => setMarketingOptIn(checked === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="marketing-optin" className="text-sm leading-relaxed cursor-pointer">
+              Cliente autorizou receber promoções por e-mail
+            </Label>
           </div>
         </div>
 

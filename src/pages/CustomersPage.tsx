@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Send, Users, UserPlus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
@@ -19,6 +21,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 function CustomersPageContent() {
   const navigate = useNavigate();
   const { restaurantId } = useRestaurant();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -223,12 +226,35 @@ function CustomersPageContent() {
       <CustomerListPremium
         customers={filteredCustomers}
         onViewProfile={(customerId) => {
-          // Navigate to full customer profile page
           navigate(`/customers/${customerId}`);
         }}
         onSendPromotion={(customer) => {
           setSelectedCustomer(customer);
           setPromotionDialogOpen(true);
+        }}
+        onRequestConsent={async (customer) => {
+          if (!restaurantId) return;
+          try {
+            const { data, error } = await supabase.functions.invoke("send-consent-request", {
+              body: {
+                customer_id: customer.id,
+                restaurant_id: restaurantId,
+                site_url: window.location.origin,
+              },
+            });
+            if (error) throw error;
+            if (!data?.success) throw new Error(data?.error || "Erro ao enviar");
+            toast({
+              title: "✉️ Solicitação enviada!",
+              description: `E-mail de consentimento enviado para ${customer.customer_name || customer.customer_email}`,
+            });
+          } catch (err) {
+            toast({
+              title: "Erro",
+              description: err instanceof Error ? err.message : "Erro ao enviar solicitação",
+              variant: "destructive",
+            });
+          }
         }}
         getInsightMessage={getInsightMessage}
       />
@@ -248,6 +274,18 @@ function CustomersPageContent() {
           onOpenChange={setPromotionDialogOpen}
           customer={selectedCustomer}
           onSubmit={async (data) => {
+            // Fetch unsubscribe_token for this customer
+            let unsubToken: string | undefined;
+            if (restaurantId) {
+              const { data: tokenData } = await supabase
+                .from("restaurant_customers")
+                .select("unsubscribe_token")
+                .eq("id", selectedCustomer.id)
+                .eq("restaurant_id", restaurantId)
+                .single();
+              unsubToken = tokenData?.unsubscribe_token || undefined;
+            }
+
             await sendPromotion({
               to_email: data.recipients[0]?.email || selectedCustomer.customer_email,
               to_name: data.recipients[0]?.name || selectedCustomer.customer_name || undefined,
@@ -258,6 +296,8 @@ function CustomersPageContent() {
               cta_text: data.ctaText,
               cta_url: data.ctaUrl,
               image_url: data.imageUrl,
+              unsubscribe_token: unsubToken,
+              site_url: window.location.origin,
             });
           }}
           isSubmitting={sendingPromotion}
