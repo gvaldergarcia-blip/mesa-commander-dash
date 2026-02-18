@@ -3,6 +3,8 @@
  * Premium templates with cinematic effects — no external API costs
  */
 
+import type { MusicTheme } from './audioGenerator';
+
 export interface RenderOptions {
   images: string[];
   format: 'vertical' | 'square';
@@ -13,6 +15,7 @@ export interface RenderOptions {
   cta?: string;
   restaurantName: string;
   logoUrl?: string;
+  musicTheme?: Exclude<MusicTheme, 'auto'>;
   onProgress?: (progress: number) => void;
 }
 
@@ -623,9 +626,9 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   // Add ambient background music
   let audioCleanup: (() => void) | null = null;
   try {
-    const { createAmbientMusic, getMoodForTemplate } = await import('./audioGenerator');
-    const mood = getMoodForTemplate(templateId);
-    const music = createAmbientMusic(duration, mood);
+    const { createAmbientMusic, getThemeForTemplate } = await import('./audioGenerator');
+    const resolvedTheme = options.musicTheme || getThemeForTemplate(templateId);
+    const music = createAmbientMusic(duration, resolvedTheme);
     const audioTrack = music.destination.stream.getAudioTracks()[0];
     if (audioTrack) {
       stream.addTrack(audioTrack);

@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Video,
   Upload,
@@ -23,14 +24,19 @@ import {
   Image as ImageIcon,
   Sparkles,
   Film,
+  Music,
+  FileText,
 } from "lucide-react";
 import { useVideoGenerator, type VideoJob, type CreateVideoParams } from "@/hooks/useVideoGenerator";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 import { LivePreview } from "@/components/video/LivePreview";
 import { SlideshowPreview } from "@/components/video/SlideshowPreview";
 import { VoiceDictateButton } from "@/components/video/VoiceDictateButton";
 import { VoiceChatPanel } from "@/components/video/VoiceChatPanel";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
 import { getTemplateList } from "@/lib/video/videoRenderer";
+import { resolveTheme, type MusicTheme } from "@/lib/video/audioGenerator";
+import { generateScript, type VideoScript } from "@/lib/video/scriptGenerator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -59,12 +65,16 @@ export default function VideoGenerator() {
     restaurantName,
   } = useVideoGenerator();
 
+  const { restaurant } = useRestaurant();
+
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState<VideoJob | null>(null);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
+  const [scriptPreview, setScriptPreview] = useState<VideoScript | null>(null);
+  const [showScriptDialog, setShowScriptDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -74,6 +84,7 @@ export default function VideoGenerator() {
     duration: 15 as 7 | 15 | 30,
     templateId: "elegante",
     cta: "",
+    musicTheme: "auto" as MusicTheme,
   });
 
   const handleFormUpdate = useCallback((updates: Partial<typeof formData>) => {
@@ -144,6 +155,23 @@ export default function VideoGenerator() {
       return;
     }
 
+    // Generate and show script preview
+    const script = generateScript({
+      headline: formData.headline.trim(),
+      subtext: formData.subtext.trim() || undefined,
+      cta: formData.cta || undefined,
+      restaurantName: restaurantName || "Restaurante",
+      duration: formData.duration,
+    });
+    setScriptPreview(script);
+    setShowScriptDialog(true);
+  };
+
+  const handleConfirmGenerate = () => {
+    setShowScriptDialog(false);
+
+    const resolvedMusicTheme = resolveTheme(formData.musicTheme, restaurant?.cuisine);
+
     const params: CreateVideoParams = {
       headline: formData.headline.trim(),
       subtext: formData.subtext.trim() || undefined,
@@ -151,6 +179,7 @@ export default function VideoGenerator() {
       format: formData.format,
       duration: formData.duration,
       templateId: formData.templateId,
+      musicTheme: resolvedMusicTheme,
       imageFiles: selectedImages,
       logoFile: logoFile || undefined,
       restaurantName: restaurantName || "Restaurante",
@@ -162,6 +191,7 @@ export default function VideoGenerator() {
         setImagePreviewUrls([]);
         setLogoFile(null);
         setLogoPreview(null);
+        setScriptPreview(null);
         setFormData({
           headline: "",
           subtext: "",
@@ -169,6 +199,7 @@ export default function VideoGenerator() {
           duration: 15,
           templateId: "elegante",
           cta: "",
+          musicTheme: "auto",
         });
       },
     });
@@ -464,6 +495,54 @@ export default function VideoGenerator() {
                 </CardContent>
               </Card>
 
+              {/* Music Theme Selection */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Music className="h-4 w-4 text-primary" />
+                    Tema Musical
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Escolha a trilha sonora de fundo do vídeo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup
+                    value={formData.musicTheme}
+                    onValueChange={(v) => setFormData((p) => ({ ...p, musicTheme: v as MusicTheme }))}
+                    className="grid grid-cols-2 gap-2"
+                  >
+                    {[
+                      { value: "auto", label: "🤖 Automático", desc: "IA escolhe com base na categoria" },
+                      { value: "sofisticado", label: "🎹 Sofisticado", desc: "Piano / jazz leve / lounge" },
+                      { value: "jovem", label: "🎧 Jovem", desc: "Pop moderno / lo-fi upbeat" },
+                      { value: "familiar", label: "🎸 Familiar", desc: "Violão acústico / MPB leve" },
+                    ].map((opt) => (
+                      <label
+                        key={opt.value}
+                        className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all ${
+                          formData.musicTheme === opt.value
+                            ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
+                            : "border-border hover:border-primary/40 hover:bg-muted/50"
+                        }`}
+                      >
+                        <RadioGroupItem value={opt.value} className="mt-0.5" />
+                        <div>
+                          <span className="font-medium text-xs block">{opt.label}</span>
+                          <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{opt.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                  {formData.musicTheme === "auto" && restaurant?.cuisine && (
+                    <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      Categoria "{restaurant.cuisine}" → tema <strong>{resolveTheme("auto", restaurant.cuisine)}</strong>
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Progress */}
               {isBusy && (
                 <Card className="border-primary/30 bg-primary/5">
@@ -618,6 +697,64 @@ export default function VideoGenerator() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Script Preview Dialog */}
+      <Dialog open={showScriptDialog} onOpenChange={setShowScriptDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              Roteiro do Vídeo
+            </DialogTitle>
+          </DialogHeader>
+          {scriptPreview && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Confira o roteiro que será exibido no vídeo antes de gerar:
+              </p>
+              <div className="space-y-2">
+                {scriptPreview.segments.map((seg, i) => (
+                  <div key={i} className="flex gap-3 items-start p-2.5 rounded-lg bg-muted/50 border">
+                    <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">
+                      {seg.type === 'intro' ? '🎬 Intro' :
+                       seg.type === 'headline' ? '📝 Título' :
+                       seg.type === 'subtext' ? '💬 Subtexto' :
+                       seg.type === 'cta' ? '👆 CTA' : '🎬 Encerramento'}
+                    </Badge>
+                    <div>
+                      <p className="text-sm font-medium">{seg.text}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {Math.round(seg.startPercent * formData.duration)}s – {Math.round(seg.endPercent * formData.duration)}s
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
+                <Music className="h-4 w-4 text-primary shrink-0" />
+                <p className="text-xs">
+                  Trilha: <strong>
+                    {formData.musicTheme === 'auto'
+                      ? `Automático (${resolveTheme('auto', restaurant?.cuisine)})`
+                      : formData.musicTheme === 'sofisticado' ? 'Sofisticado'
+                      : formData.musicTheme === 'jovem' ? 'Jovem'
+                      : 'Familiar'}
+                  </strong>
+                </p>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setShowScriptDialog(false)}>
+                  Voltar e editar
+                </Button>
+                <Button className="flex-1 gap-1.5" onClick={handleConfirmGenerate} disabled={isBusy}>
+                  {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Gerar Vídeo
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Video Preview Dialog */}
       <Dialog open={!!previewVideo} onOpenChange={() => setPreviewVideo(null)}>
