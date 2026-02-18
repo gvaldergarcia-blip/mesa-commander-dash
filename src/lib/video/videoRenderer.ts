@@ -4,7 +4,8 @@
  */
 
 import type { MusicTheme } from './audioGenerator';
-import type { NarrationScript, NarrationSegment } from './ttsNarrator';
+import type { NarrationScript } from './ttsNarrator';
+import { drawAnimatedSubtitle, getSubtitleState } from './subtitleRenderer';
 
 export interface RenderOptions {
   images: string[];
@@ -609,66 +610,7 @@ export function getTemplateList() {
   }));
 }
 
-// ─── Subtitle renderer ─────────────────────────────────────
-function drawSubtitle(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  w: number, h: number,
-  alpha: number
-) {
-  if (!text || alpha <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = Math.min(1, alpha);
-
-  // Glassmorphism bar
-  const barH = h * 0.08;
-  const barY = h * 0.82;
-  const barX = w * 0.06;
-  const barW = w * 0.88;
-  const r = barH * 0.35;
-
-  drawRoundedRect(ctx, barX, barY, barW, barH, r);
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fill();
-
-  // Subtle border
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Text
-  const fontSize = w * 0.028;
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `500 ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 4;
-
-  // Word-wrap
-  const maxTextW = barW * 0.9;
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-  for (const word of words) {
-    const test = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(test).width > maxTextW && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = test;
-    }
-  }
-  lines.push(currentLine);
-
-  const lineH = fontSize * 1.3;
-  const startY = barY + barH / 2 - ((lines.length - 1) * lineH) / 2;
-  for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], w / 2, startY + i * lineH);
-  }
-
-  ctx.restore();
-}
+// Subtitle rendering is now handled by subtitleRenderer.ts
 
 // ─── Main render function ──────────────────────────────────
 export async function renderVideo(options: RenderOptions): Promise<Blob> {
@@ -687,12 +629,19 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const stream = canvas.captureStream(30);
 
-  // Add ambient background music
+  // Add ambient background music with ducking support
   let audioCleanup: (() => void) | null = null;
   try {
     const { createAmbientMusic, getThemeForTemplate } = await import('./audioGenerator');
     const resolvedTheme = options.musicTheme || getThemeForTemplate(templateId);
-    const music = createAmbientMusic(duration, resolvedTheme);
+
+    // Pass narration segments for automatic ducking
+    const duckingSegments = options.narrationScript?.segments?.map(s => ({
+      startPercent: s.startPercent,
+      endPercent: s.endPercent,
+    }));
+
+    const music = createAmbientMusic(duration, resolvedTheme, duckingSegments);
     const audioTrack = music.destination.stream.getAudioTracks()[0];
     if (audioTrack) {
       stream.addTrack(audioTrack);
@@ -703,14 +652,15 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
     console.warn('Audio generation failed, rendering without audio:', e);
   }
 
-  // Setup TTS narration (plays through speakers during rendering)
+  // Setup TTS narration (plays through speakers during rendering — not captured in file)
   let narrationController: ReturnType<typeof import('./ttsNarrator').createNarrationController> | null = null;
   if (options.enableNarration && options.narrationScript && options.narrationScript.segments.length > 0) {
     try {
       const { createNarrationController, ensureVoicesLoaded } = await import('./ttsNarrator');
       await ensureVoicesLoaded();
       narrationController = createNarrationController(options.narrationScript, {
-        rate: 0.92,
+        rate: 0.9,
+        pitch: 1.0,
         volume: 1.0,
       });
     } catch (e) {
@@ -726,7 +676,7 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 8_000_000,
+    videoBitsPerSecond: 12_000_000,
   });
 
   const chunks: Blob[] = [];
@@ -764,25 +714,23 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
       template.render(ctx, loadedImages, t, options, width, height);
 
-      // Render subtitles + trigger TTS
+      // Render premium animated subtitles + trigger TTS
       if (options.narrationScript && options.narrationScript.segments.length > 0) {
-        const activeSegment = options.narrationScript.segments.find(
-          (s) => t >= s.startPercent && t <= s.endPercent
-        );
+        const subtitleState = getSubtitleState(options.narrationScript.segments, t);
         
-        if (activeSegment) {
-          // Fade in/out for subtitle
-          const segDuration = activeSegment.endPercent - activeSegment.startPercent;
-          const segProgress = (t - activeSegment.startPercent) / segDuration;
-          const fadeIn = Math.min(segProgress / 0.15, 1);
-          const fadeOut = Math.min((1 - segProgress) / 0.15, 1);
-          const alpha = Math.min(fadeIn, fadeOut);
-          
-          drawSubtitle(ctx, activeSegment.text, width, height, alpha);
+        if (subtitleState) {
+          drawAnimatedSubtitle(
+            ctx,
+            subtitleState.segment.text,
+            width,
+            height,
+            subtitleState.progress,
+            subtitleState.alpha
+          );
 
-          // Trigger TTS speech
+          // Trigger TTS speech (plays through speakers during rendering)
           if (narrationController) {
-            narrationController.speakSegment(activeSegment);
+            narrationController.speakSegment(subtitleState.segment);
           }
         }
       }
