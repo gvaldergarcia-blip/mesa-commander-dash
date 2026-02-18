@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { toast } from "sonner";
 import { renderVideo, generateThumbnail, type RenderOptions } from "@/lib/video/videoRenderer";
+import type { MusicTheme } from "@/lib/video/audioGenerator";
 
 export interface VideoJob {
   id: string;
@@ -41,6 +42,7 @@ export interface CreateVideoParams {
   format: "vertical" | "square";
   duration: 7 | 15 | 30;
   templateId: string;
+  musicTheme?: Exclude<MusicTheme, 'auto'>;
   musicId?: string;
   imageFiles: File[];
   logoFile?: File;
@@ -162,6 +164,7 @@ export function useVideoGenerator() {
         cta: params.cta,
         restaurantName: params.restaurantName,
         logoUrl,
+        musicTheme: params.musicTheme,
         onProgress: (p) => setRenderProgress(p),
       };
 
