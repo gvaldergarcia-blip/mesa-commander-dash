@@ -87,6 +87,8 @@ export default function VideoGenerator() {
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [customMusicFile, setCustomMusicFile] = useState<File | null>(null);
+  const [customMusicName, setCustomMusicName] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState<VideoJob | null>(null);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -100,7 +102,7 @@ export default function VideoGenerator() {
     duration: 15 as 7 | 15 | 30,
     templateId: "elegante",
     cta: "",
-    musicTheme: "auto" as MusicTheme,
+    musicTheme: "auto" as MusicTheme | "custom",
     enableNarration: true,
   });
 
@@ -188,13 +190,20 @@ export default function VideoGenerator() {
       return;
     }
 
+    if (formData.musicTheme === 'custom' && !customMusicFile) {
+      toast.error("Envie um arquivo MP3 para a música");
+      return;
+    }
+
     setShowConfirmDialog(true);
   };
 
   const handleConfirmGenerate = () => {
     setShowConfirmDialog(false);
 
-    const resolvedMusicTheme = resolveTheme(formData.musicTheme, restaurant?.cuisine);
+    const resolvedMusicTheme = formData.musicTheme !== 'custom'
+      ? resolveTheme(formData.musicTheme as MusicTheme, restaurant?.cuisine)
+      : undefined;
 
     // Build narration timeline from AI script if available
     let narrationScript;
@@ -218,6 +227,7 @@ export default function VideoGenerator() {
       restaurantName: restaurantName || "Restaurante",
       narrationScript,
       enableNarration: formData.enableNarration && hasScript,
+      customMusicFile: formData.musicTheme === 'custom' ? customMusicFile || undefined : undefined,
     };
 
     createVideo(params, {
@@ -227,6 +237,8 @@ export default function VideoGenerator() {
         setLogoFile(null);
         setLogoPreview(null);
         videoScript.resetScript();
+        setCustomMusicFile(null);
+        setCustomMusicName(null);
         setFormData({
           headline: "",
           subtext: "",
@@ -548,14 +560,21 @@ export default function VideoGenerator() {
                 <CardContent>
                   <RadioGroup
                     value={formData.musicTheme}
-                    onValueChange={(v) => setFormData((p) => ({ ...p, musicTheme: v as MusicTheme }))}
+                    onValueChange={(v) => {
+                      setFormData((p) => ({ ...p, musicTheme: v as MusicTheme | "custom" }));
+                      if (v !== "custom") {
+                        setCustomMusicFile(null);
+                        setCustomMusicName(null);
+                      }
+                    }}
                     className="grid grid-cols-2 gap-2"
                   >
                     {[
                       { value: "sofisticado", label: "🎹 Sofisticada", desc: "Jazz instrumental moderno, vibe restaurante/hotel de luxo" },
                       { value: "familiar", label: "🎸 Familiar", desc: "Ambiente leve, acolhedora, orgânica" },
                       { value: "jovem", label: "🎧 Jovem", desc: "Moderna, vibrante, dinâmica" },
-                      { value: "auto", label: "🤖 Automático", desc: "IA escolhe com base na categoria do restaurante" },
+                      { value: "auto", label: "🤖 Automático", desc: "IA escolhe com base na categoria" },
+                      { value: "custom", label: "🎵 Minha Música", desc: "Faça upload do seu MP3" },
                     ].map((opt) => (
                       <label
                         key={opt.value}
@@ -573,15 +592,48 @@ export default function VideoGenerator() {
                       </label>
                     ))}
                   </RadioGroup>
+
+                  {formData.musicTheme === "custom" && (
+                    <div className="mt-3">
+                      {customMusicFile ? (
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border">
+                          <Music className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-xs truncate flex-1">{customMusicName}</span>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => { setCustomMusicFile(null); setCustomMusicName(null); }}>
+                            <Trash2 className="h-3 w-3 mr-1" /> Remover
+                          </Button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
+                          <Upload className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Enviar arquivo MP3</span>
+                          <input
+                            type="file"
+                            accept="audio/mpeg,audio/mp3,.mp3"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 20 * 1024 * 1024) {
+                                  toast.error("Arquivo muito grande (máx 20MB)");
+                                  return;
+                                }
+                                setCustomMusicFile(file);
+                                setCustomMusicName(file.name);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
+
                   {formData.musicTheme === "auto" && restaurant?.cuisine && (
                     <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
                       <Sparkles className="h-3 w-3" />
                       Categoria "{restaurant.cuisine}" → tema <strong>{resolveTheme("auto", restaurant.cuisine)}</strong>
                     </p>
                   )}
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    Padrão: <strong>Sofisticada</strong> caso nenhuma seja selecionada. Upload de música própria não é permitido.
-                  </p>
                 </CardContent>
               </Card>
 
