@@ -499,7 +499,7 @@ export default function VideoGenerator() {
               {/* Submit */}
               <Button
                 onClick={handleSubmit}
-                disabled={isBusy || selectedImages.length < 3}
+                disabled={isBusy || selectedImages.length < 3 || !formData.headline.trim()}
                 className="w-full h-12 text-lg gap-2"
               >
                 {isBusy ? (
@@ -514,6 +514,13 @@ export default function VideoGenerator() {
                   </>
                 )}
               </Button>
+              {!isBusy && (selectedImages.length < 3 || !formData.headline.trim()) && (
+                <p className="text-sm text-destructive text-center">
+                  {selectedImages.length < 3
+                    ? `Adicione pelo menos 3 imagens (${selectedImages.length}/3)`
+                    : "Preencha o campo Headline"}
+                </p>
+              )}
             </div>
           </div>
         </TabsContent>
