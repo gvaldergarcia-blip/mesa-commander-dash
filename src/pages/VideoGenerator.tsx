@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Video,
   Upload,
@@ -30,6 +31,8 @@ import {
   Pencil,
   RefreshCw,
   Wand2,
+  Mic,
+  Volume2,
 } from "lucide-react";
 import { useVideoGenerator, type VideoJob, type CreateVideoParams } from "@/hooks/useVideoGenerator";
 import { useRestaurant } from "@/contexts/RestaurantContext";
@@ -41,6 +44,7 @@ import { useVoiceChat } from "@/hooks/useVoiceChat";
 import { useVideoScript, type GeneratedScript } from "@/hooks/useVideoScript";
 import { getTemplateList } from "@/lib/video/videoRenderer";
 import { resolveTheme, type MusicTheme } from "@/lib/video/audioGenerator";
+import { buildNarrationTimeline } from "@/lib/video/ttsNarrator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -97,6 +101,7 @@ export default function VideoGenerator() {
     templateId: "elegante",
     cta: "",
     musicTheme: "auto" as MusicTheme,
+    enableNarration: true,
   });
 
   const handleFormUpdate = useCallback((updates: Partial<typeof formData>) => {
@@ -191,6 +196,15 @@ export default function VideoGenerator() {
 
     const resolvedMusicTheme = resolveTheme(formData.musicTheme, restaurant?.cuisine);
 
+    // Build narration timeline from AI script if available
+    let narrationScript;
+    if (hasScript && formData.enableNarration && videoScript.script) {
+      narrationScript = buildNarrationTimeline(
+        videoScript.script.segments,
+        formData.duration
+      );
+    }
+
     const params: CreateVideoParams = {
       headline: formData.headline.trim(),
       subtext: formData.subtext.trim() || undefined,
@@ -202,6 +216,8 @@ export default function VideoGenerator() {
       imageFiles: selectedImages,
       logoFile: logoFile || undefined,
       restaurantName: restaurantName || "Restaurante",
+      narrationScript,
+      enableNarration: formData.enableNarration && hasScript,
     };
 
     createVideo(params, {
@@ -219,6 +235,7 @@ export default function VideoGenerator() {
           templateId: "elegante",
           cta: "",
           musicTheme: "auto",
+          enableNarration: true,
         });
       },
     });
@@ -654,6 +671,23 @@ export default function VideoGenerator() {
                         })}
                       </div>
 
+                      {/* Narration toggle */}
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="h-4 w-4 text-primary" />
+                          <div>
+                            <p className="text-xs font-medium">Narração com voz IA</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Voz pt-BR lê o roteiro + legendas sincronizadas no vídeo
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={formData.enableNarration}
+                          onCheckedChange={(v) => setFormData((p) => ({ ...p, enableNarration: v }))}
+                        />
+                      </div>
+
                       {/* Full narration preview */}
                       <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                         <p className="text-[10px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
@@ -887,6 +921,11 @@ export default function VideoGenerator() {
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-[10px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
                   <Wand2 className="h-3 w-3" /> Roteiro IA
+                  {formData.enableNarration && (
+                    <Badge variant="secondary" className="text-[10px] ml-1 gap-1">
+                      <Volume2 className="h-2.5 w-2.5" /> Narração ativada
+                    </Badge>
+                  )}
                 </p>
                 <p className="text-xs leading-relaxed italic text-foreground/80">
                   "{videoScript.script!.full_narration}"
@@ -904,6 +943,9 @@ export default function VideoGenerator() {
                     : formData.musicTheme === 'jovem' ? 'Jovem'
                     : 'Familiar'}
                 </strong>
+                {hasScript && formData.enableNarration && (
+                  <span className="text-muted-foreground"> + voz IA</span>
+                )}
               </p>
             </div>
 
