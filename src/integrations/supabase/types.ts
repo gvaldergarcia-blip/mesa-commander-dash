@@ -1753,82 +1753,73 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
-          cta_custom: string | null
-          cta_type: string | null
-          duration: number
+          cta: string | null
+          duration_seconds: number
           error_message: string | null
+          format: string
+          headline: string
           id: string
           image_urls: string[]
-          location: string | null
           logo_url: string | null
-          music_url: string | null
-          promo_text: string | null
+          music_id: string | null
+          progress: number | null
           restaurant_id: string
-          restaurant_name: string
+          restaurant_name: string | null
           status: string
-          template: string
+          subtext: string | null
+          template_id: string
           thumbnail_url: string | null
           updated_at: string
+          user_id: string | null
           video_url: string | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string
-          cta_custom?: string | null
-          cta_type?: string | null
-          duration: number
+          cta?: string | null
+          duration_seconds?: number
           error_message?: string | null
+          format?: string
+          headline: string
           id?: string
-          image_urls: string[]
-          location?: string | null
+          image_urls?: string[]
           logo_url?: string | null
-          music_url?: string | null
-          promo_text?: string | null
+          music_id?: string | null
+          progress?: number | null
           restaurant_id: string
-          restaurant_name: string
+          restaurant_name?: string | null
           status?: string
-          template: string
+          subtext?: string | null
+          template_id?: string
           thumbnail_url?: string | null
           updated_at?: string
+          user_id?: string | null
           video_url?: string | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string
-          cta_custom?: string | null
-          cta_type?: string | null
-          duration?: number
+          cta?: string | null
+          duration_seconds?: number
           error_message?: string | null
+          format?: string
+          headline?: string
           id?: string
           image_urls?: string[]
-          location?: string | null
           logo_url?: string | null
-          music_url?: string | null
-          promo_text?: string | null
+          music_id?: string | null
+          progress?: number | null
           restaurant_id?: string
-          restaurant_name?: string
+          restaurant_name?: string | null
           status?: string
-          template?: string
+          subtext?: string | null
+          template_id?: string
           thumbnail_url?: string | null
           updated_at?: string
+          user_id?: string | null
           video_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "video_jobs_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "approved_restaurants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "video_jobs_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       video_usage: {
         Row: {
@@ -1855,22 +1846,7 @@ export type Database = {
           updated_at?: string
           videos_generated?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "video_usage_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "approved_restaurants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "video_usage_restaurant_id_fkey"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

@@ -1,24 +1,28 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { toast } from "sonner";
+import { renderVideo, generateThumbnail, type RenderOptions } from "@/lib/video/videoRenderer";
 
 export interface VideoJob {
   id: string;
   restaurant_id: string;
-  status: "queued" | "rendering" | "done" | "failed";
-  template: "A" | "B" | "C";
-  duration: 7 | 15 | 30;
-  restaurant_name: string;
-  location: string | null;
-  promo_text: string | null;
-  cta_type: string | null;
-  cta_custom: string | null;
-  image_urls: string[];
-  logo_url: string | null;
+  user_id: string | null;
+  format: "vertical" | "square";
+  duration_seconds: number;
+  template_id: string;
+  headline: string;
+  subtext: string | null;
+  cta: string | null;
+  music_id: string | null;
+  status: "queued" | "processing" | "done" | "failed";
+  progress: number;
   video_url: string | null;
   thumbnail_url: string | null;
+  image_urls: string[];
+  logo_url: string | null;
+  restaurant_name: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -31,22 +35,28 @@ export interface VideoUsage {
 }
 
 export interface CreateVideoParams {
-  restaurant_name: string;
-  location?: string;
-  promo_text?: string;
-  template: "A" | "B" | "C";
+  headline: string;
+  subtext?: string;
+  cta?: string;
+  format: "vertical" | "square";
   duration: 7 | 15 | 30;
-  cta_type?: "reserve" | "queue" | "whatsapp" | "custom" | null;
-  cta_custom?: string;
-  image_urls: string[];
-  logo_url?: string;
+  templateId: string;
+  musicId?: string;
+  imageFiles: File[];
+  logoFile?: File;
+  restaurantName: string;
 }
 
-export function useVideoGenerator() {
-  const { restaurantId } = useRestaurant();
-  const queryClient = useQueryClient();
-  const [uploadProgress, setUploadProgress] = useState(0);
+const MONTHLY_LIMIT = 5;
 
+export function useVideoGenerator() {
+  const { restaurantId, restaurant } = useRestaurant();
+  const queryClient = useQueryClient();
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isRendering, setIsRendering] = useState(false);
+
+  // Fetch video jobs
   const {
     data: videoJobs,
     isLoading: isLoadingJobs,
@@ -55,97 +65,233 @@ export function useVideoGenerator() {
     queryKey: ["video-jobs", restaurantId],
     queryFn: async () => {
       if (!restaurantId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("video_jobs")
         .select("*")
         .eq("restaurant_id", restaurantId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as VideoJob[];
+      return (data || []) as VideoJob[];
     },
     enabled: !!restaurantId,
   });
 
+  // Fetch monthly usage
   const { data: usageData } = useQuery({
     queryKey: ["video-usage", restaurantId],
     queryFn: async () => {
-      if (!restaurantId) return { videos_generated: 0, limit: 10 } as VideoUsage;
+      if (!restaurantId) return { videos_generated: 0, limit: MONTHLY_LIMIT } as VideoUsage;
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("video_usage")
         .select("videos_generated")
         .eq("restaurant_id", restaurantId)
         .eq("month_year", currentMonth)
         .single();
       if (error && error.code !== "PGRST116") throw error;
-      return { videos_generated: data?.videos_generated || 0, limit: 10 } as VideoUsage;
+      return { videos_generated: data?.videos_generated || 0, limit: MONTHLY_LIMIT } as VideoUsage;
     },
     enabled: !!restaurantId,
   });
 
+  // Upload a single image to storage
   const uploadImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split(".").pop();
     const fileName = `${restaurantId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const { data, error } = await supabase.storage.from("videos").upload(fileName, file, { cacheControl: "3600", upsert: false });
+    const { data, error } = await supabase.storage
+      .from("marketing-videos")
+      .upload(fileName, file, { cacheControl: "3600", upsert: false });
     if (error) throw error;
-    const { data: publicUrl } = supabase.storage.from("videos").getPublicUrl(data.path);
+    const { data: publicUrl } = supabase.storage.from("marketing-videos").getPublicUrl(data.path);
     return publicUrl.publicUrl;
   };
 
-  const uploadImages = async (files: File[]): Promise<string[]> => {
-    const urls: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const url = await uploadImage(files[i]);
-      urls.push(url);
-      setUploadProgress(((i + 1) / files.length) * 100);
-    }
-    setUploadProgress(0);
-    return urls;
-  };
-
+  // Full create flow: upload → create record → render client-side → save
   const createVideoMutation = useMutation({
     mutationFn: async (params: CreateVideoParams) => {
-      const { data, error } = await supabase.functions.invoke("render-video", {
-        body: { restaurant_id: restaurantId, ...params },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
+      if (!restaurantId) throw new Error("Restaurant não encontrado");
+
+      // Check usage
+      if (usageData && usageData.videos_generated >= MONTHLY_LIMIT) {
+        throw new Error(`Limite mensal atingido (${MONTHLY_LIMIT} vídeos). Aguarde o próximo mês.`);
+      }
+
+      // 1. Upload images
+      setUploadProgress(0);
+      const imageUrls: string[] = [];
+      for (let i = 0; i < params.imageFiles.length; i++) {
+        const url = await uploadImage(params.imageFiles[i]);
+        imageUrls.push(url);
+        setUploadProgress(((i + 1) / params.imageFiles.length) * 100);
+      }
+
+      let logoUrl: string | undefined;
+      if (params.logoFile) {
+        logoUrl = await uploadImage(params.logoFile);
+      }
+
+      // 2. Create DB record
+      const { data: job, error: insertError } = await (supabase as any)
+        .from("video_jobs")
+        .insert({
+          restaurant_id: restaurantId,
+          format: params.format,
+          duration_seconds: params.duration,
+          template_id: params.templateId,
+          headline: params.headline,
+          subtext: params.subtext || null,
+          cta: params.cta || null,
+          music_id: params.musicId || null,
+          status: "processing",
+          image_urls: imageUrls,
+          logo_url: logoUrl || null,
+          restaurant_name: params.restaurantName,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // 3. Render video client-side
+      setIsRendering(true);
+      setRenderProgress(0);
+
+      const renderOpts: RenderOptions = {
+        images: imageUrls,
+        format: params.format,
+        duration: params.duration,
+        templateId: params.templateId,
+        headline: params.headline,
+        subtext: params.subtext,
+        cta: params.cta,
+        restaurantName: params.restaurantName,
+        logoUrl,
+        onProgress: (p) => setRenderProgress(p),
+      };
+
+      try {
+        const videoBlob = await renderVideo(renderOpts);
+
+        // 4. Upload video to storage
+        const videoFileName = `${restaurantId}/videos/${Date.now()}_${params.format}_${params.duration}s.webm`;
+        const { data: videoData, error: uploadError } = await supabase.storage
+          .from("marketing-videos")
+          .upload(videoFileName, videoBlob, {
+            contentType: "video/webm",
+            cacheControl: "3600",
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: videoPublicUrl } = supabase.storage
+          .from("marketing-videos")
+          .getPublicUrl(videoData.path);
+
+        // 5. Generate thumbnail
+        let thumbnailUrl: string | null = null;
+        try {
+          const thumbDataUrl = await generateThumbnail(renderOpts);
+          const thumbBlob = await fetch(thumbDataUrl).then((r) => r.blob());
+          const thumbFileName = `${restaurantId}/thumbnails/${Date.now()}.jpg`;
+          const { data: thumbData } = await supabase.storage
+            .from("marketing-videos")
+            .upload(thumbFileName, thumbBlob, {
+              contentType: "image/jpeg",
+              cacheControl: "3600",
+            });
+          if (thumbData) {
+            const { data: thumbUrl } = supabase.storage
+              .from("marketing-videos")
+              .getPublicUrl(thumbData.path);
+            thumbnailUrl = thumbUrl.publicUrl;
+          }
+        } catch {
+          // Thumbnail is optional
+        }
+
+        // 6. Update record
+        await (supabase as any)
+          .from("video_jobs")
+          .update({
+            status: "done",
+            progress: 100,
+            video_url: videoPublicUrl.publicUrl,
+            thumbnail_url: thumbnailUrl,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", job.id);
+
+        // 7. Update usage
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const { data: existingUsage } = await (supabase as any)
+          .from("video_usage")
+          .select("id, videos_generated")
+          .eq("restaurant_id", restaurantId)
+          .eq("month_year", currentMonth)
+          .single();
+
+        if (existingUsage) {
+          await (supabase as any)
+            .from("video_usage")
+            .update({
+              videos_generated: existingUsage.videos_generated + 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingUsage.id);
+        } else {
+          await (supabase as any)
+            .from("video_usage")
+            .insert({
+              restaurant_id: restaurantId,
+              month_year: currentMonth,
+              videos_generated: 1,
+            });
+        }
+
+        return job;
+      } catch (renderError) {
+        // Update record as failed
+        await (supabase as any)
+          .from("video_jobs")
+          .update({
+            status: "failed",
+            error_message: renderError instanceof Error ? renderError.message : "Erro na renderização",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", job.id);
+        throw renderError;
+      } finally {
+        setIsRendering(false);
+        setRenderProgress(0);
+        setUploadProgress(0);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["video-jobs", restaurantId] });
       queryClient.invalidateQueries({ queryKey: ["video-usage", restaurantId] });
-      toast.success("Vídeo adicionado à fila de geração!");
+      toast.success("Vídeo gerado com sucesso!");
     },
     onError: (error: Error) => {
       console.error("Error creating video:", error);
-      toast.error(error.message || "Erro ao criar vídeo");
+      toast.error(error.message || "Erro ao gerar vídeo");
     },
   });
 
+  // Delete video job
   const deleteVideoMutation = useMutation({
     mutationFn: async (jobId: string) => {
-      const { error } = await supabase.from("video_jobs").delete().eq("id", jobId);
+      const { error } = await (supabase as any).from("video_jobs").delete().eq("id", jobId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["video-jobs", restaurantId] });
       toast.success("Vídeo removido");
     },
-    onError: (error: Error) => {
-      console.error("Error deleting video:", error);
+    onError: () => {
       toast.error("Erro ao remover vídeo");
     },
   });
-
-  const updateVideoUrl = async (jobId: string, videoUrl: string, thumbnailUrl?: string) => {
-    const { error } = await supabase
-      .from("video_jobs")
-      .update({ video_url: videoUrl, thumbnail_url: thumbnailUrl || null, status: "done", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("id", jobId);
-    if (error) throw error;
-    queryClient.invalidateQueries({ queryKey: ["video-jobs", restaurantId] });
-  };
 
   return {
     videoJobs,
@@ -153,11 +299,12 @@ export function useVideoGenerator() {
     refetchJobs,
     usage: usageData,
     uploadProgress,
-    uploadImages,
+    renderProgress,
+    isRendering,
     createVideo: createVideoMutation.mutate,
     isCreating: createVideoMutation.isPending,
     deleteVideo: deleteVideoMutation.mutate,
     isDeleting: deleteVideoMutation.isPending,
-    updateVideoUrl,
+    restaurantName: restaurant?.name || "",
   };
 }
