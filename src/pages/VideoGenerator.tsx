@@ -26,6 +26,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useVideoGenerator, type VideoJob, type CreateVideoParams } from "@/hooks/useVideoGenerator";
+import PresenterForm from "@/components/video/PresenterForm";
 import { LivePreview } from "@/components/video/LivePreview";
 import { SlideshowPreview } from "@/components/video/SlideshowPreview";
 import { VoiceDictateButton } from "@/components/video/VoiceDictateButton";
@@ -234,12 +235,21 @@ export default function VideoGenerator() {
       <Tabs defaultValue="create" className="space-y-6">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="create" className="gap-2">
-            <Sparkles className="h-4 w-4" /> Criar Vídeo
+            <Sparkles className="h-4 w-4" /> Slideshow
+          </TabsTrigger>
+          <TabsTrigger value="presenter" className="gap-2">
+            <MessageCircle className="h-4 w-4" /> IA Apresentador
+            <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Premium</Badge>
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <Video className="h-4 w-4" /> Meus Vídeos
           </TabsTrigger>
         </TabsList>
+
+        {/* ─── PRESENTER TAB ─── */}
+        <TabsContent value="presenter" className="space-y-6">
+          <PresenterForm />
+        </TabsContent>
 
         {/* ─── CREATE TAB ─── */}
         <TabsContent value="create" className="space-y-6">
