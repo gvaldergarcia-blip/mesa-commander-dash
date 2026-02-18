@@ -619,6 +619,23 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   const template = TEMPLATES[templateId] || TEMPLATES.elegante;
 
   const stream = canvas.captureStream(30);
+
+  // Add ambient background music
+  let audioCleanup: (() => void) | null = null;
+  try {
+    const { createAmbientMusic, getMoodForTemplate } = await import('./audioGenerator');
+    const mood = getMoodForTemplate(templateId);
+    const music = createAmbientMusic(duration, mood);
+    const audioTrack = music.destination.stream.getAudioTracks()[0];
+    if (audioTrack) {
+      stream.addTrack(audioTrack);
+    }
+    music.start();
+    audioCleanup = () => music.stop();
+  } catch (e) {
+    console.warn('Audio generation failed, rendering without audio:', e);
+  }
+
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
     ? 'video/webm;codecs=vp9'
     : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
@@ -637,11 +654,13 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   return new Promise<Blob>((resolve, reject) => {
     recorder.onstop = () => {
+      audioCleanup?.();
       const blob = new Blob(chunks, { type: 'video/webm' });
       resolve(blob);
     };
 
     recorder.onerror = (e) => {
+      audioCleanup?.();
       reject(new Error('MediaRecorder error: ' + ((e as any).error?.message || 'unknown')));
     };
 
