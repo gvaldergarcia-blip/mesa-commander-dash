@@ -660,37 +660,29 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
       stream.addTrack(audioTrack);
     }
 
-    // Fetch real TTS audio and schedule it through the same AudioContext
-    if (options.enableNarration && options.narrationScript?.segments?.length) {
+    // Fetch single TTS audio for the full narration text (avoids overlapping segments)
+    if (options.enableNarration && options.narrationScript?.fullText) {
       try {
         const { fetchTTSAudio } = await import('./ttsNarrator');
-        const segments = options.narrationScript.segments;
+        const fullText = options.narrationScript.fullText;
 
-        // Fetch all TTS segments in parallel
-        const ttsResults = await Promise.all(
-          segments.map(async (seg) => {
-            const audioData = await fetchTTSAudio(seg.text);
-            // slice(0) to avoid detached ArrayBuffer issues
-            const audioBuffer = await musicCtx!.audioCtx.decodeAudioData(audioData.slice(0));
-            return { buffer: audioBuffer, startPercent: seg.startPercent };
-          })
-        );
+        const audioData = await fetchTTSAudio(fullText);
+        const audioBuffer = await musicCtx!.audioCtx.decodeAudioData(audioData.slice(0));
 
-        // Start music, then schedule TTS at correct timeline offsets
+        // Start music first
         musicCtx.start();
         const baseTime = musicCtx.audioCtx.currentTime;
 
-        for (const { buffer, startPercent } of ttsResults) {
-          const source = musicCtx.audioCtx.createBufferSource();
-          source.buffer = buffer;
-          const ttsGain = musicCtx.audioCtx.createGain();
-          ttsGain.gain.value = 1.0;
-          source.connect(ttsGain);
-          ttsGain.connect(musicCtx.destination);
-          source.start(baseTime + startPercent * duration);
-        }
+        // Schedule single narration starting at 8% of timeline
+        const source = musicCtx.audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        const ttsGain = musicCtx.audioCtx.createGain();
+        ttsGain.gain.value = 1.2; // Slightly louder for clarity
+        source.connect(ttsGain);
+        ttsGain.connect(musicCtx.destination);
+        source.start(baseTime + 0.08 * duration);
 
-        console.log(`TTS: ${ttsResults.length} segments scheduled for playback`);
+        console.log(`TTS: single narration scheduled (${audioBuffer.duration.toFixed(1)}s)`);
       } catch (e) {
         console.warn('TTS audio failed, rendering with subtitles only:', e);
         musicCtx.start();
