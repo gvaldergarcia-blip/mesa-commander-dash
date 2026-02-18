@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.send-consent-request]
 verify_jwt = false
+
+[functions.generate-video-script]
+verify_jwt = false
