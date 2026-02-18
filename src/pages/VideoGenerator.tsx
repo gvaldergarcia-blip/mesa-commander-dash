@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,9 @@ import {
   Film,
   Music,
   FileText,
+  Pencil,
+  RefreshCw,
+  Wand2,
 } from "lucide-react";
 import { useVideoGenerator, type VideoJob, type CreateVideoParams } from "@/hooks/useVideoGenerator";
 import { useRestaurant } from "@/contexts/RestaurantContext";
@@ -34,9 +38,9 @@ import { SlideshowPreview } from "@/components/video/SlideshowPreview";
 import { VoiceDictateButton } from "@/components/video/VoiceDictateButton";
 import { VoiceChatPanel } from "@/components/video/VoiceChatPanel";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
+import { useVideoScript, type GeneratedScript } from "@/hooks/useVideoScript";
 import { getTemplateList } from "@/lib/video/videoRenderer";
 import { resolveTheme, type MusicTheme } from "@/lib/video/audioGenerator";
-import { generateScript, type VideoScript } from "@/lib/video/scriptGenerator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,6 +53,13 @@ const CTA_OPTIONS = [
   { value: "Chame no WhatsApp", label: "Chame no WhatsApp" },
   { value: "Veja o cardápio", label: "Veja o cardápio" },
 ];
+
+const SEGMENT_LABELS: Record<string, { emoji: string; label: string }> = {
+  abertura: { emoji: "🎬", label: "Abertura" },
+  destaque: { emoji: "🍽️", label: "Destaque" },
+  promocao: { emoji: "🏷️", label: "Promoção" },
+  cta: { emoji: "👆", label: "Chamada Final" },
+};
 
 export default function VideoGenerator() {
   const {
@@ -66,6 +77,7 @@ export default function VideoGenerator() {
   } = useVideoGenerator();
 
   const { restaurant } = useRestaurant();
+  const videoScript = useVideoScript();
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
@@ -73,8 +85,8 @@ export default function VideoGenerator() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState<VideoJob | null>(null);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
-  const [scriptPreview, setScriptPreview] = useState<VideoScript | null>(null);
-  const [showScriptDialog, setShowScriptDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [editingSegment, setEditingSegment] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -137,6 +149,22 @@ export default function VideoGenerator() {
     }
   };
 
+  const handleGenerateScript = async () => {
+    if (!formData.headline.trim()) {
+      toast.error("Preencha o Headline antes de gerar o roteiro");
+      return;
+    }
+
+    await videoScript.generateScript({
+      headline: formData.headline.trim(),
+      subtext: formData.subtext.trim() || undefined,
+      cta: formData.cta || undefined,
+      restaurantName: restaurantName || "Restaurante",
+      templateId: formData.templateId,
+      duration: formData.duration,
+    });
+  };
+
   const handleSubmit = () => {
     if (!formData.headline.trim()) {
       toast.error("Informe o título (headline)");
@@ -155,20 +183,11 @@ export default function VideoGenerator() {
       return;
     }
 
-    // Generate and show script preview
-    const script = generateScript({
-      headline: formData.headline.trim(),
-      subtext: formData.subtext.trim() || undefined,
-      cta: formData.cta || undefined,
-      restaurantName: restaurantName || "Restaurante",
-      duration: formData.duration,
-    });
-    setScriptPreview(script);
-    setShowScriptDialog(true);
+    setShowConfirmDialog(true);
   };
 
   const handleConfirmGenerate = () => {
-    setShowScriptDialog(false);
+    setShowConfirmDialog(false);
 
     const resolvedMusicTheme = resolveTheme(formData.musicTheme, restaurant?.cuisine);
 
@@ -191,7 +210,7 @@ export default function VideoGenerator() {
         setImagePreviewUrls([]);
         setLogoFile(null);
         setLogoPreview(null);
-        setScriptPreview(null);
+        videoScript.resetScript();
         setFormData({
           headline: "",
           subtext: "",
@@ -228,6 +247,9 @@ export default function VideoGenerator() {
       ? uploadProgress * 0.3
       : 30 + renderProgress * 0.7
     : 0;
+
+  const canGenerateScript = formData.headline.trim().length > 0;
+  const hasScript = !!videoScript.script;
 
   return (
     <div className="space-y-6">
@@ -500,10 +522,10 @@ export default function VideoGenerator() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Music className="h-4 w-4 text-primary" />
-                    Tema Musical
+                    Música
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Escolha a trilha sonora de fundo do vídeo
+                    Trilha instrumental de fundo — volume ajustado automaticamente com ducking e fade suave (1.5s).
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -513,10 +535,10 @@ export default function VideoGenerator() {
                     className="grid grid-cols-2 gap-2"
                   >
                     {[
-                      { value: "auto", label: "🤖 Automático", desc: "IA escolhe com base na categoria" },
-                      { value: "sofisticado", label: "🎹 Sofisticado", desc: "Piano / jazz leve / lounge" },
-                      { value: "jovem", label: "🎧 Jovem", desc: "Pop moderno / lo-fi upbeat" },
-                      { value: "familiar", label: "🎸 Familiar", desc: "Violão acústico / MPB leve" },
+                      { value: "sofisticado", label: "🎹 Sofisticada", desc: "Jazz instrumental moderno, vibe restaurante/hotel de luxo" },
+                      { value: "familiar", label: "🎸 Familiar", desc: "Ambiente leve, acolhedora, orgânica" },
+                      { value: "jovem", label: "🎧 Jovem", desc: "Moderna, vibrante, dinâmica" },
+                      { value: "auto", label: "🤖 Automático", desc: "IA escolhe com base na categoria do restaurante" },
                     ].map((opt) => (
                       <label
                         key={opt.value}
@@ -539,6 +561,136 @@ export default function VideoGenerator() {
                       <Sparkles className="h-3 w-3" />
                       Categoria "{restaurant.cuisine}" → tema <strong>{resolveTheme("auto", restaurant.cuisine)}</strong>
                     </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    Padrão: <strong>Sofisticada</strong> caso nenhuma seja selecionada. Upload de música própria não é permitido.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* ─── AI Script Generation ─── */}
+              <Card className="border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wand2 className="h-4 w-4 text-primary" />
+                    Roteiro (gerado por IA)
+                    <Badge variant="secondary" className="ml-auto text-[10px]">Opcional</Badge>
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Ao preencher os campos de texto acima, a IA gera automaticamente um roteiro profissional de narração para o vídeo, ajustado à duração e ao estilo do template.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {!hasScript ? (
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-lg bg-muted/50 border border-dashed text-center space-y-2">
+                        <FileText className="h-8 w-8 text-muted-foreground mx-auto" />
+                        <p className="text-xs text-muted-foreground">
+                          Preencha o Headline e clique abaixo para gerar um roteiro profissional com IA.
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          A IA usa: headline, subtexto, CTA, nome do restaurante, template e duração.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleGenerateScript}
+                        disabled={!canGenerateScript || videoScript.isGenerating}
+                        className="w-full gap-2"
+                        variant="outline"
+                      >
+                        {videoScript.isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Gerando roteiro...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-4 w-4" />
+                            Gerar Roteiro com IA
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Script segments */}
+                      <div className="space-y-2">
+                        {videoScript.script!.segments.map((seg, i) => {
+                          const meta = SEGMENT_LABELS[seg.type] || { emoji: "📝", label: seg.type };
+                          const isEditing = editingSegment === i;
+                          return (
+                            <div key={i} className="p-3 rounded-lg bg-muted/50 border group">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                                    {meta.emoji} {meta.label}
+                                  </Badge>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    ~{seg.duration_hint}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => setEditingSegment(isEditing ? null : i)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              {isEditing ? (
+                                <Textarea
+                                  value={seg.text}
+                                  onChange={(e) => videoScript.updateSegmentText(i, e.target.value)}
+                                  className="text-sm min-h-[60px] mt-1"
+                                  onBlur={() => setEditingSegment(null)}
+                                  autoFocus
+                                />
+                              ) : (
+                                <p className="text-sm leading-relaxed">{seg.text}</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Full narration preview */}
+                      <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                        <p className="text-[10px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                          <FileText className="h-3 w-3" /> Narração completa
+                        </p>
+                        <p className="text-xs leading-relaxed italic text-foreground/80">
+                          "{videoScript.script!.full_narration}"
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs"
+                          onClick={handleGenerateScript}
+                          disabled={videoScript.isGenerating}
+                        >
+                          {videoScript.isGenerating ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3" />
+                          )}
+                          Gerar novo roteiro
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1.5 text-xs text-muted-foreground"
+                          onClick={() => videoScript.resetScript()}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Remover roteiro
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -698,61 +850,81 @@ export default function VideoGenerator() {
         </TabsContent>
       </Tabs>
 
-      {/* Script Preview Dialog */}
-      <Dialog open={showScriptDialog} onOpenChange={setShowScriptDialog}>
+      {/* Confirm Generate Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              Roteiro do Vídeo
+              <Sparkles className="h-4 w-4 text-primary" />
+              Confirmar geração do vídeo
             </DialogTitle>
           </DialogHeader>
-          {scriptPreview && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Confira o roteiro que será exibido no vídeo antes de gerar:
-              </p>
-              <div className="space-y-2">
-                {scriptPreview.segments.map((seg, i) => (
-                  <div key={i} className="flex gap-3 items-start p-2.5 rounded-lg bg-muted/50 border">
-                    <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">
-                      {seg.type === 'intro' ? '🎬 Intro' :
-                       seg.type === 'headline' ? '📝 Título' :
-                       seg.type === 'subtext' ? '💬 Subtexto' :
-                       seg.type === 'cta' ? '👆 CTA' : '🎬 Encerramento'}
-                    </Badge>
-                    <div>
-                      <p className="text-sm font-medium">{seg.text}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {Math.round(seg.startPercent * formData.duration)}s – {Math.round(seg.endPercent * formData.duration)}s
-                      </p>
-                    </div>
-                  </div>
-                ))}
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Revise as configurações antes de gerar:
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex gap-3 items-start p-2.5 rounded-lg bg-muted/50 border">
+                <Badge variant="secondary" className="text-[10px] shrink-0">📝 Headline</Badge>
+                <p className="text-sm font-medium">{formData.headline}</p>
               </div>
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
-                <Music className="h-4 w-4 text-primary shrink-0" />
-                <p className="text-xs">
-                  Trilha: <strong>
-                    {formData.musicTheme === 'auto'
-                      ? `Automático (${resolveTheme('auto', restaurant?.cuisine)})`
-                      : formData.musicTheme === 'sofisticado' ? 'Sofisticado'
-                      : formData.musicTheme === 'jovem' ? 'Jovem'
-                      : 'Familiar'}
-                  </strong>
+              {formData.subtext && (
+                <div className="flex gap-3 items-start p-2.5 rounded-lg bg-muted/50 border">
+                  <Badge variant="secondary" className="text-[10px] shrink-0">💬 Subtexto</Badge>
+                  <p className="text-sm">{formData.subtext}</p>
+                </div>
+              )}
+              {formData.cta && (
+                <div className="flex gap-3 items-start p-2.5 rounded-lg bg-muted/50 border">
+                  <Badge variant="secondary" className="text-[10px] shrink-0">👆 CTA</Badge>
+                  <p className="text-sm">{formData.cta}</p>
+                </div>
+              )}
+            </div>
+
+            {hasScript && (
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <Wand2 className="h-3 w-3" /> Roteiro IA
+                </p>
+                <p className="text-xs leading-relaxed italic text-foreground/80">
+                  "{videoScript.script!.full_narration}"
                 </p>
               </div>
-              <div className="flex gap-2 pt-1">
-                <Button variant="outline" className="flex-1" onClick={() => setShowScriptDialog(false)}>
-                  Voltar e editar
-                </Button>
-                <Button className="flex-1 gap-1.5" onClick={handleConfirmGenerate} disabled={isBusy}>
-                  {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Gerar Vídeo
-                </Button>
-              </div>
+            )}
+
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border">
+              <Music className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-xs">
+                Trilha: <strong>
+                  {formData.musicTheme === 'auto'
+                    ? `Automático (${resolveTheme('auto', restaurant?.cuisine)})`
+                    : formData.musicTheme === 'sofisticado' ? 'Sofisticada'
+                    : formData.musicTheme === 'jovem' ? 'Jovem'
+                    : 'Familiar'}
+                </strong>
+              </p>
             </div>
-          )}
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>🖼️ {selectedImages.length} imagens</span>
+              <span>•</span>
+              <span>⏱️ {formData.duration}s</span>
+              <span>•</span>
+              <span>🎬 {TEMPLATES.find(t => t.id === formData.templateId)?.name}</span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setShowConfirmDialog(false)}>
+                Voltar e editar
+              </Button>
+              <Button className="flex-1 gap-1.5" onClick={handleConfirmGenerate} disabled={isBusy}>
+                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Gerar Vídeo
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
