@@ -140,6 +140,13 @@ export type Database = {
             foreignKeyName: "clientes_restaurante_restaurante_id_fkey"
             columns: ["restaurante_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_restaurante_restaurante_id_fkey"
+            columns: ["restaurante_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -183,6 +190,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "consentimentos_cliente_restaurante_id_fkey"
+            columns: ["restaurante_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "consentimentos_cliente_restaurante_id_fkey"
             columns: ["restaurante_id"]
@@ -481,6 +495,13 @@ export type Database = {
             foreignKeyName: "fila_entradas_restaurante_id_fkey"
             columns: ["restaurante_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_entradas_restaurante_id_fkey"
+            columns: ["restaurante_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -615,6 +636,48 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_posts: {
+        Row: {
+          created_at: string
+          cta: string | null
+          format: string
+          headline: string
+          id: string
+          image_url: string | null
+          restaurant_id: string
+          subtext: string | null
+          template_id: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          cta?: string | null
+          format: string
+          headline: string
+          id?: string
+          image_url?: string | null
+          restaurant_id: string
+          subtext?: string | null
+          template_id?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          cta?: string | null
+          format?: string
+          headline?: string
+          id?: string
+          image_url?: string | null
+          restaurant_id?: string
+          subtext?: string | null
+          template_id?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -681,6 +744,13 @@ export type Database = {
             foreignKeyName: "promotions_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -715,6 +785,13 @@ export type Database = {
           restaurant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "queue_admin_logs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "queue_admin_logs_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -910,6 +987,13 @@ export type Database = {
             foreignKeyName: "queues_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queues_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1003,6 +1087,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
             referencedColumns: ["id"]
           },
           {
@@ -1142,6 +1233,13 @@ export type Database = {
             foreignKeyName: "restaurant_campaign_recipients_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_campaign_recipients_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1207,6 +1305,13 @@ export type Database = {
             foreignKeyName: "restaurant_campaigns_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_campaigns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1238,6 +1343,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "restaurant_closures_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "restaurant_closures_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -1427,6 +1539,13 @@ export type Database = {
             foreignKeyName: "restaurant_special_dates_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_special_dates_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1437,6 +1556,7 @@ export type Database = {
           about: string | null
           address: string | null
           address_line: string | null
+          approved_at: string | null
           city: string | null
           created_at: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
@@ -1452,12 +1572,14 @@ export type Database = {
           menu_url: string | null
           name: string
           owner_id: string | null
+          status: string
           updated_at: string
         }
         Insert: {
           about?: string | null
           address?: string | null
           address_line?: string | null
+          approved_at?: string | null
           city?: string | null
           created_at?: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
@@ -1473,12 +1595,14 @@ export type Database = {
           menu_url?: string | null
           name: string
           owner_id?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
           about?: string | null
           address?: string | null
           address_line?: string | null
+          approved_at?: string | null
           city?: string | null
           created_at?: string | null
           cuisine?: Database["public"]["Enums"]["cuisine_enum"]
@@ -1494,6 +1618,7 @@ export type Database = {
           menu_url?: string | null
           name?: string
           owner_id?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -1684,6 +1809,13 @@ export type Database = {
             foreignKeyName: "video_jobs_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_jobs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1719,6 +1851,13 @@ export type Database = {
             foreignKeyName: "video_usage_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_usage_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1726,7 +1865,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      approved_restaurants: {
+        Row: {
+          address_line: string | null
+          approved_at: string | null
+          city: string | null
+          cuisine: Database["public"]["Enums"]["cuisine_enum"] | null
+          has_queue: boolean | null
+          has_reservation: boolean | null
+          id: string | null
+          image_url: string | null
+          name: string | null
+        }
+        Insert: {
+          address_line?: string | null
+          approved_at?: string | null
+          city?: string | null
+          cuisine?: Database["public"]["Enums"]["cuisine_enum"] | null
+          has_queue?: boolean | null
+          has_reservation?: boolean | null
+          id?: string | null
+          image_url?: string | null
+          name?: string | null
+        }
+        Update: {
+          address_line?: string | null
+          approved_at?: string | null
+          city?: string | null
+          cuisine?: Database["public"]["Enums"]["cuisine_enum"] | null
+          has_queue?: boolean | null
+          has_reservation?: boolean | null
+          id?: string | null
+          image_url?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cancel_my_queue_entry: {
