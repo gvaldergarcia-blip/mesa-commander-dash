@@ -699,6 +699,7 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const width = 1080;
   const height = format === 'vertical' ? 1920 : 1080;
+  const FPS = 30;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -708,7 +709,7 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   const loadedImages = await Promise.all(options.images.map(loadImage));
   const template = TEMPLATES[templateId] || TEMPLATES.elegante;
 
-  const stream = canvas.captureStream(30);
+  const stream = canvas.captureStream(FPS);
 
   // ─── Audio setup: music + real TTS narration ───
   let audioCleanup: (() => void) | null = null;
@@ -728,10 +729,26 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
         await tempCtx.close();
 
         // Calculate precise ducking window based on actual TTS audio duration
-        const narrationStart = 0.06; // Start at 6% of timeline
-        const narrationEnd = Math.min(narrationStart + ttsAudioBuffer.duration / duration, 0.95);
-        ttsDuckingSegments = [{ startPercent: narrationStart, endPercent: narrationEnd }];
-        console.log(`TTS: audio decoded (${ttsAudioBuffer.duration.toFixed(1)}s), ducking ${(narrationStart * 100).toFixed(0)}%-${(narrationEnd * 100).toFixed(0)}%`);
+        const narrationStartPct = 0.06;
+        const narrationEndPct = Math.min(narrationStartPct + ttsAudioBuffer.duration / duration, 0.95);
+        ttsDuckingSegments = [{ startPercent: narrationStartPct, endPercent: narrationEndPct }];
+
+        // ── CRITICAL: Recalculate subtitle segment timings to match actual audio ──
+        // The TTS plays the full text as one continuous track. Each segment's subtitle
+        // timing must be proportional to its character count within the audio window.
+        const segments = options.narrationScript.segments;
+        const totalChars = segments.reduce((sum, s) => sum + s.text.length, 0);
+        const audioWindow = narrationEndPct - narrationStartPct;
+        let cursor = narrationStartPct;
+        for (const seg of segments) {
+          const proportion = seg.text.length / totalChars;
+          const segDuration = audioWindow * proportion;
+          seg.startPercent = cursor;
+          seg.endPercent = cursor + segDuration;
+          cursor += segDuration;
+        }
+
+        console.log(`TTS: audio decoded (${ttsAudioBuffer.duration.toFixed(1)}s), ducking ${(narrationStartPct * 100).toFixed(0)}%-${(narrationEndPct * 100).toFixed(0)}%, segments synced`);
       } catch (e) {
         console.warn('TTS audio failed, rendering with subtitles only:', e);
       }
@@ -801,7 +818,7 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 12_000_000,
+    videoBitsPerSecond: 16_000_000,
   });
 
   const chunks: Blob[] = [];

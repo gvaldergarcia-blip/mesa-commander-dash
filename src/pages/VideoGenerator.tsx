@@ -309,7 +309,7 @@ export default function VideoGenerator() {
 
         {/* ─── CREATE TAB ─── */}
         <TabsContent value="create" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr,380px]">
+          <div className="max-w-3xl mx-auto space-y-5">
             {/* Left: Form */}
             <div className="space-y-5">
               {/* Images */}
@@ -807,25 +807,7 @@ export default function VideoGenerator() {
               )}
             </div>
 
-            {/* Right: Live Preview */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <h3 className="text-sm font-semibold">Preview ao vivo</h3>
-              </div>
-              <div className="sticky top-4">
-                <LivePreview
-                  imageUrls={imagePreviewUrls}
-                  format={formData.format}
-                  duration={formData.duration}
-                  templateId={formData.templateId}
-                  headline={formData.headline}
-                  subtext={formData.subtext || undefined}
-                  cta={formData.cta || undefined}
-                  restaurantName={restaurantName || "Restaurante"}
-                />
-              </div>
-            </div>
+            {/* Preview removed — final video is rendered in 1080p */}
           </div>
         </TabsContent>
 
