@@ -98,7 +98,7 @@ export default function VideoGenerator() {
   const [formData, setFormData] = useState({
     headline: "",
     subtext: "",
-    format: "vertical" as "vertical" | "square",
+    format: "square" as "vertical" | "square",
     duration: 15 as 7 | 15 | 30,
     templateId: "elegante",
     cta: "",
@@ -242,7 +242,7 @@ export default function VideoGenerator() {
         setFormData({
           headline: "",
           subtext: "",
-          format: "vertical",
+          format: "square",
           duration: 15,
           templateId: "elegante",
           cta: "",
@@ -454,30 +454,6 @@ export default function VideoGenerator() {
                     <CardTitle className="text-base">Configurações</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {/* Format */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Formato</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { value: "vertical" as const, label: "Vertical", desc: "9:16" },
-                          { value: "square" as const, label: "Quadrado", desc: "1:1" },
-                        ].map((f) => (
-                          <button
-                            key={f.value}
-                            onClick={() => setFormData((p) => ({ ...p, format: f.value }))}
-                            className={`p-2.5 border rounded-lg transition-all text-center ${
-                              formData.format === f.value
-                                ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
-                                : "border-border hover:border-primary/40"
-                            }`}
-                          >
-                            <span className="font-medium text-xs">{f.label}</span>
-                            <p className="text-[10px] text-muted-foreground">{f.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* Duration */}
                     <div className="space-y-1.5">
                       <Label className="text-xs">Duração</Label>
