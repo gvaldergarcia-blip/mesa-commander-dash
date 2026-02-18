@@ -13,6 +13,8 @@ interface PromotionData {
   cta_url?: string;
   image_url?: string;
   restaurant_name?: string;
+  unsubscribe_token?: string;
+  site_url?: string;
 }
 
 interface SendPromotionResult {

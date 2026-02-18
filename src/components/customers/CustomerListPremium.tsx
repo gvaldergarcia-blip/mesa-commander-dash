@@ -1,4 +1,4 @@
-import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail } from "lucide-react";
+import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail, MailPlus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ type CustomerListPremiumProps = {
   customers: RestaurantCustomer[];
   onViewProfile: (customerId: string) => void;
   onSendPromotion: (customer: RestaurantCustomer) => void;
+  onRequestConsent?: (customer: RestaurantCustomer) => void;
   getInsightMessage: (customer: RestaurantCustomer) => string | null;
 };
 
@@ -127,11 +128,13 @@ function CustomerRow({
   customer, 
   onViewProfile, 
   onSendPromotion,
+  onRequestConsent,
   insightMessage,
 }: { 
   customer: RestaurantCustomer; 
   onViewProfile: (id: string) => void;
   onSendPromotion: (customer: RestaurantCustomer) => void;
+  onRequestConsent?: (customer: RestaurantCustomer) => void;
   insightMessage: string | null;
 }) {
   const statuses = getCustomerStatuses(customer);
@@ -219,32 +222,55 @@ function CustomerRow({
           {/* Actions */}
           <div className="flex items-center gap-1 ml-auto">
             <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                      "h-9 w-9 p-0",
-                      customer.marketing_optin 
-                        ? "text-primary hover:text-primary hover:bg-primary/10" 
-                        : "text-muted-foreground opacity-50 cursor-not-allowed"
-                    )}
-                    disabled={!customer.marketing_optin}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (customer.marketing_optin) {
+              {customer.marketing_optin ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-9 w-9 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         onSendPromotion(customer);
-                      }
-                    }}
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {customer.marketing_optin ? 'Criar oferta' : 'Não aceita promoções'}
-                </TooltipContent>
-              </Tooltip>
+                      }}
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Enviar promoção</TooltipContent>
+                </Tooltip>
+              ) : onRequestConsent ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestConsent(customer);
+                      }}
+                    >
+                      <MailPlus className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Solicitar consentimento</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-9 w-9 p-0 text-muted-foreground opacity-50 cursor-not-allowed"
+                      disabled
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Não aceita promoções</TooltipContent>
+                </Tooltip>
+              )}
             </TooltipProvider>
           </div>
         </div>
@@ -257,6 +283,7 @@ export function CustomerListPremium({
   customers, 
   onViewProfile, 
   onSendPromotion,
+  onRequestConsent,
   getInsightMessage,
 }: CustomerListPremiumProps) {
   if (customers.length === 0) {
@@ -285,6 +312,7 @@ export function CustomerListPremium({
           customer={customer}
           onViewProfile={onViewProfile}
           onSendPromotion={onSendPromotion}
+          onRequestConsent={onRequestConsent}
           insightMessage={getInsightMessage(customer)}
         />
       ))}

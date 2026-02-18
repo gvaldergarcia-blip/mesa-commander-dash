@@ -1370,6 +1370,7 @@ export type Database = {
           last_seen_at: string
           marketing_optin: boolean
           marketing_optin_at: string | null
+          opt_in_source: string | null
           restaurant_id: string
           status: string
           tags: string[] | null
@@ -1378,6 +1379,8 @@ export type Database = {
           total_queue_visits: number
           total_reservation_visits: number
           total_visits: number | null
+          unsubscribe_token: string | null
+          unsubscribed_at: string | null
           updated_at: string
           vip: boolean
         }
@@ -1391,6 +1394,7 @@ export type Database = {
           last_seen_at?: string
           marketing_optin?: boolean
           marketing_optin_at?: string | null
+          opt_in_source?: string | null
           restaurant_id: string
           status?: string
           tags?: string[] | null
@@ -1399,6 +1403,8 @@ export type Database = {
           total_queue_visits?: number
           total_reservation_visits?: number
           total_visits?: number | null
+          unsubscribe_token?: string | null
+          unsubscribed_at?: string | null
           updated_at?: string
           vip?: boolean
         }
@@ -1412,6 +1418,7 @@ export type Database = {
           last_seen_at?: string
           marketing_optin?: boolean
           marketing_optin_at?: string | null
+          opt_in_source?: string | null
           restaurant_id?: string
           status?: string
           tags?: string[] | null
@@ -1420,6 +1427,8 @@ export type Database = {
           total_queue_visits?: number
           total_reservation_visits?: number
           total_visits?: number | null
+          unsubscribe_token?: string | null
+          unsubscribed_at?: string | null
           updated_at?: string
           vip?: boolean
         }
@@ -1939,6 +1948,7 @@ export type Database = {
             Returns: Json
           }
       clear_queue: { Args: { p_restaurant_id: string }; Returns: Json }
+      confirm_marketing_optin: { Args: { p_token: string }; Returns: Json }
       create_queue_entry_web: {
         Args: { p_party_size?: number; p_restaurante_id: string }
         Returns: Json
@@ -2101,6 +2111,7 @@ export type Database = {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
       }
+      marketing_unsubscribe: { Args: { p_token: string }; Returns: Json }
       rotate_customer_visits_monthly: { Args: never; Returns: undefined }
       toggle_restaurant_calendar_day: {
         Args: { p_day: string; p_is_open: boolean; p_restaurant_id: string }
@@ -2131,18 +2142,32 @@ export type Database = {
         Args: { p_email?: string; p_name: string; p_phone: string }
         Returns: string
       }
-      upsert_restaurant_customer: {
-        Args: {
-          p_email: string
-          p_marketing_optin?: boolean
-          p_name?: string
-          p_phone?: string
-          p_restaurant_id: string
-          p_source?: string
-          p_terms_accepted?: boolean
-        }
-        Returns: string
-      }
+      upsert_restaurant_customer:
+        | {
+            Args: {
+              p_email: string
+              p_marketing_optin?: boolean
+              p_name?: string
+              p_phone?: string
+              p_restaurant_id: string
+              p_source?: string
+              p_terms_accepted?: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_email: string
+              p_marketing_optin?: boolean
+              p_name?: string
+              p_opt_in_source?: string
+              p_phone?: string
+              p_restaurant_id: string
+              p_source?: string
+              p_terms_accepted?: boolean
+            }
+            Returns: string
+          }
     }
     Enums: {
       app_role: "admin" | "owner" | "manager" | "user"

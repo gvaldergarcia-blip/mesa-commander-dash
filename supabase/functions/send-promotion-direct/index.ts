@@ -93,11 +93,16 @@ interface PromotionEmailRequest {
   cta_url?: string;
   image_url?: string;
   restaurant_name?: string;
+  unsubscribe_token?: string;
+  site_url?: string;
 }
 
 // Template baseado no layout de e-mail de fila (que funciona no Gmail)
 const buildPromotionHtml = (data: PromotionEmailRequest): string => {
-  const { to_name, message, coupon_code, expires_at, cta_url, image_url, restaurant_name } = data;
+  const { to_name, message, coupon_code, expires_at, cta_url, image_url, restaurant_name, unsubscribe_token, site_url } = data;
+  const name = to_name || 'Cliente';
+  const baseUrl = site_url || 'https://mesaclik.com.br';
+  const unsubscribeUrl = unsubscribe_token ? `${baseUrl}/marketing/unsubscribe?token=${unsubscribe_token}` : null;
   const name = to_name || 'Cliente';
 
   // Formatar data de expiração
@@ -188,6 +193,13 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
                   <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
                     Este e-mail foi enviado pelo ${restaurant_name || 'MesaClik'}
                   </p>
+                  ${unsubscribeUrl ? `
+                  <p style="margin: 8px 0 0; color: #a1a1aa; font-size: 11px;">
+                    <a href="${unsubscribeUrl}" style="color: #a1a1aa; text-decoration: underline;">
+                      Se não quiser mais receber e-mails, clique aqui
+                    </a>
+                  </p>
+                  ` : ''}
                 </td>
               </tr>
             </table>
@@ -224,23 +236,32 @@ const handler = async (req: Request): Promise<Response> => {
 
     const html = buildPromotionHtml(requestData);
     const fromAddress = `${requestData.restaurant_name || 'MesaClik'} <${RESEND_FROM_EMAIL}>`;
+    const baseUrl = requestData.site_url || 'https://mesaclik.com.br';
+    const unsubUrl = requestData.unsubscribe_token
+      ? `${baseUrl}/marketing/unsubscribe?token=${requestData.unsubscribe_token}`
+      : null;
+
     const textBody = [
       requestData.to_name ? `Olá, ${requestData.to_name}!` : undefined,
       requestData.message,
       requestData.coupon_code ? `\nCupom: ${requestData.coupon_code}` : undefined,
       requestData.expires_at ? `Validade: ${new Date(requestData.expires_at).toLocaleDateString('pt-BR')}` : undefined,
       requestData.cta_url ? `\nVer oferta: ${requestData.cta_url}` : undefined,
-      "\nCancelar recebimento: suporte@mesaclik.com.br",
+      unsubUrl ? `\nCancelar recebimento: ${unsubUrl}` : "\nCancelar recebimento: suporte@mesaclik.com.br",
     ]
       .filter(Boolean)
       .join("\n");
 
-    const headers = {
-      // Gmail pode penalizar marketing sem headers de descadastro; mantemos via header (sem link "#" no HTML).
-      "List-Unsubscribe": "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>",
-      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    const headers: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
     };
+    if (unsubUrl) {
+      headers["List-Unsubscribe"] = `<${unsubUrl}>`;
+      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+    } else {
+      headers["List-Unsubscribe"] = "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>";
+      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+    }
     
     console.log('Sending promotion email to:', requestData.to_email);
     console.log('Sending from:', fromAddress);
