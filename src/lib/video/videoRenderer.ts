@@ -164,17 +164,30 @@ function drawRoundedRect(
 
 // ─── Premium effects ──────────────────────────────────────
 
-/** Floating light particles */
+/** Floating light particles with depth-of-field blur effect */
 function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, count = 20) {
   ctx.save();
   for (let i = 0; i < count; i++) {
     const seed = i * 137.508;
-    const px = ((seed * 7.31 + t * 80 * (0.5 + (i % 3) * 0.3)) % (w + 40)) - 20;
-    const py = ((seed * 3.17 + t * 30 * (0.3 + (i % 4) * 0.2)) % (h + 40)) - 20;
-    const size = 1.5 + (i % 5) * 0.8;
-    const alpha = 0.15 + Math.sin(t * 3 + seed) * 0.1;
+    const speed = 0.3 + (i % 5) * 0.15;
+    const px = ((seed * 7.31 + t * 60 * speed) % (w + 80)) - 40;
+    const py = ((seed * 3.17 + t * 25 * (0.3 + (i % 4) * 0.15) + Math.sin(t * 2 + seed) * 30) % (h + 80)) - 40;
+    const baseSize = 1.2 + (i % 6) * 0.6;
+    const breathe = Math.sin(t * 2.5 + seed * 0.7) * 0.5 + 0.5;
+    const size = baseSize * (0.7 + breathe * 0.6);
+    const alpha = (0.08 + breathe * 0.12) * (py < h * 0.3 ? 0.7 : 1);
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#ffffff';
+    
+    // Soft glow halo
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, size * 3);
+    glow.addColorStop(0, 'rgba(255,245,230,0.3)');
+    glow.addColorStop(0.5, 'rgba(255,220,180,0.08)');
+    glow.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(px - size * 3, py - size * 3, size * 6, size * 6);
+    
+    // Core dot
+    ctx.fillStyle = 'rgba(255,250,240,0.9)';
     ctx.beginPath();
     ctx.arc(px, py, size, 0, Math.PI * 2);
     ctx.fill();
@@ -182,35 +195,65 @@ function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: n
   ctx.restore();
 }
 
-/** Cinematic light leak / lens flare */
+/** Cinematic light leak / lens flare with color shift */
 function drawLightLeak(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
   ctx.save();
-  const cx = w * (0.7 + Math.sin(t * 2) * 0.2);
-  const cy = h * (0.2 + Math.cos(t * 1.5) * 0.15);
-  const r = w * 0.6;
+  // Primary warm leak
+  const cx = w * (0.65 + Math.sin(t * 1.3) * 0.25);
+  const cy = h * (0.15 + Math.cos(t * 0.9) * 0.12);
+  const r = w * 0.65;
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-  grad.addColorStop(0, 'rgba(255,200,100,0.12)');
-  grad.addColorStop(0.4, 'rgba(255,150,50,0.05)');
+  grad.addColorStop(0, 'rgba(255,210,120,0.14)');
+  grad.addColorStop(0.3, 'rgba(255,160,60,0.06)');
+  grad.addColorStop(0.7, 'rgba(255,120,40,0.02)');
   grad.addColorStop(1, 'rgba(255,100,0,0)');
   ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  
+  // Secondary cooler leak (opposite corner)
+  const cx2 = w * (0.3 + Math.cos(t * 1.7) * 0.2);
+  const cy2 = h * (0.8 + Math.sin(t * 1.1) * 0.1);
+  const grad2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, w * 0.5);
+  grad2.addColorStop(0, 'rgba(180,140,255,0.06)');
+  grad2.addColorStop(0.5, 'rgba(140,100,220,0.02)');
+  grad2.addColorStop(1, 'rgba(100,80,180,0)');
+  ctx.fillStyle = grad2;
   ctx.fillRect(0, 0, w, h);
   ctx.restore();
 }
 
-/** Animated accent line */
+/** Subtle film grain for cinematic texture */
+function drawFilmGrain(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity = 0.03) {
+  ctx.save();
+  ctx.globalAlpha = intensity;
+  const imageData = ctx.getImageData(0, 0, Math.min(w, 540), Math.min(h, 540));
+  const data = imageData.data;
+  const seed = Math.floor(t * 24) * 1000;
+  for (let i = 0; i < data.length; i += 16) {
+    const noise = ((seed + i * 9301 + 49297) % 233280) / 233280 * 2 - 1;
+    const val = noise * 40;
+    data[i] += val;
+    data[i + 1] += val;
+    data[i + 2] += val;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  ctx.restore();
+}
+
+/** Animated accent line with glow */
 function drawAccentLine(
   ctx: CanvasRenderingContext2D,
   x1: number, y: number, x2: number,
   t: number, color = '#e11d48', lineW = 3
 ) {
-  const progress = easeInOut(Math.min(t * 4, 1));
+  const progress = easeInOut(Math.min(t * 3.5, 1));
   const currentX2 = x1 + (x2 - x1) * progress;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = lineW;
   ctx.lineCap = 'round';
   ctx.shadowColor = color;
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = 12;
   ctx.beginPath();
   ctx.moveTo(x1, y);
   ctx.lineTo(currentX2, y);
@@ -275,35 +318,46 @@ function getSlideIndex(t: number, count: number): { index: number; slideT: numbe
   const slideTime = 1 / count;
   const index = Math.min(Math.floor(t / slideTime), count - 1);
   const slideT = (t - index * slideTime) / slideTime;
-  const transitionDuration = 0.18;
+  const transitionDuration = 0.22; // Longer, smoother transitions
   const transitionT = slideT < transitionDuration ? slideT / transitionDuration : 1;
   return { index, slideT, transitionT };
 }
 
-// ═══ Template 1: Elegante — Cinematic crossfade, particles, centered text ═══
+// ═══ Template 1: Elegante — Cinematic crossfade, particles, film look ═══
 const templateElegante: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
-  const { index, transitionT } = getSlideIndex(t, images.length);
+  const { index, slideT, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Slow Ken Burns on each slide
-  const kbScale = 1.02 + Math.sin(t * 1.5) * 0.02;
+  // Continuous Ken Burns — each slide gets unique direction
+  const dirs = [
+    { sx: 1.0, ex: 1.08, px: -20, py: -15 },
+    { sx: 1.04, ex: 1.0, px: 25, py: -10 },
+    { sx: 1.0, ex: 1.06, px: -15, py: 20 },
+    { sx: 1.06, ex: 1.0, px: 20, py: 15 },
+  ];
+  const dir = dirs[index % dirs.length];
+  const prevDir = dirs[prevIndex % dirs.length];
+  const kbScale = dir.sx + (dir.ex - dir.sx) * easeInOut(slideT);
+  const kbPanX = dir.px * easeInOut(slideT);
+  const kbPanY = dir.py * easeInOut(slideT);
 
   if (transitionT < 1) {
-    drawCover(ctx, images[prevIndex], 0, 0, w, h, kbScale);
+    const prevKb = prevDir.ex; // Previous slide ends at its end scale
+    drawCover(ctx, images[prevIndex], 0, 0, w, h, prevKb, prevDir.px, prevDir.py);
   }
   ctx.globalAlpha = easeInOutQuart(transitionT);
-  drawCover(ctx, images[index], 0, 0, w, h, kbScale);
+  drawCover(ctx, images[index], 0, 0, w, h, kbScale, kbPanX, kbPanY);
   ctx.globalAlpha = 1;
 
   // Cinematic overlay
-  drawGradientOverlay(ctx, w, h, 0.5, 0.75, 0.35);
+  drawGradientOverlay(ctx, w, h, 0.55, 0.8, 0.3);
   drawLightLeak(ctx, w, h, t);
-  drawParticles(ctx, w, h, t, 15);
+  drawParticles(ctx, w, h, t, 18);
 
   // Top accent line
   drawAccentLine(ctx, w * 0.35, h * 0.08, w * 0.65, t);
 
-  // Headline with entrance
+  // Headline with smooth entrance
   const headAlpha = t < 0.06 ? t / 0.06 : t > 0.85 ? (1 - t) / 0.15 : 1;
   const headY = h * 0.14 + (1 - easeOut(Math.min(t / 0.12, 1))) * 40;
   drawText(ctx, opts.headline, w / 2, headY, w * 0.046, '#ffffff', headAlpha, 'bold', w * 0.78);
@@ -333,14 +387,18 @@ const templateElegante: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     const bh = w * 0.065;
     drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.72 - bh / 2, bw, bh, ctaAlpha, w * 0.026, 'filled');
   }
+
+  // Film grain
+  drawFilmGrain(ctx, w, h, t, 0.02);
 };
 
 // ═══ Template 2: Dinâmico — Slide transitions, modern bar, energetic ═══
 const templateDinamico: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
-  const { index, transitionT } = getSlideIndex(t, images.length);
+  const { index, slideT, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Slide with parallax
+  // Slide with parallax + subtle Ken Burns
+  const kbScale = 1.02 + Math.sin(t * 1.2) * 0.02;
   const offset = (1 - easeInOutQuart(transitionT)) * w;
   if (transitionT < 1) {
     ctx.save();
@@ -350,7 +408,7 @@ const templateDinamico: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   }
   ctx.save();
   ctx.translate(transitionT < 1 ? w - offset : 0, 0);
-  drawCover(ctx, images[index], 0, 0, w, h, 1.02);
+  drawCover(ctx, images[index], 0, 0, w, h, kbScale);
   ctx.restore();
 
   // Bottom gradient bar
@@ -389,7 +447,8 @@ const templateDinamico: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     drawText(ctx, opts.subtext, w * 0.07, h - barH * 0.28, w * 0.026, 'rgba(255,255,255,0.8)', subAlpha, '400', w * 0.82, 'left');
   }
 
-  drawParticles(ctx, w, h, t, 10);
+  drawParticles(ctx, w, h, t, 12);
+  drawLightLeak(ctx, w, h, t);
 
   // CTA
   if (opts.cta && t > 0.75) {
@@ -398,23 +457,26 @@ const templateDinamico: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     const bh = w * 0.06;
     drawCTAButton(ctx, opts.cta, w * 0.07, h - barH * 0.6 - bh / 2, bw, bh, ctaAlpha, w * 0.024, 'filled');
   }
+
+  drawFilmGrain(ctx, w, h, t, 0.015);
 };
 
-// ═══ Template 3: Ken Burns — Cinematic zoom/pan, film look ═══
+// ═══ Template 3: Ken Burns — Deep cinematic zoom/pan, film look ═══
 const templateKenBurns: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   const { index, slideT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
+  // More dramatic zoom range
   const zoomStart = 1.0;
-  const zoomEnd = 1.2;
+  const zoomEnd = 1.25;
   const directions = [
-    { px: -35, py: -25 }, { px: 35, py: -18 },
-    { px: -25, py: 30 }, { px: 28, py: 22 },
-    { px: -18, py: -35 }, { px: 32, py: 12 },
-    { px: -28, py: 18 }, { px: 22, py: -28 },
+    { px: -45, py: -30 }, { px: 40, py: -22 },
+    { px: -30, py: 35 }, { px: 35, py: 28 },
+    { px: -22, py: -40 }, { px: 38, py: 15 },
+    { px: -35, py: 22 }, { px: 28, py: -35 },
   ];
 
-  const transThreshold = 0.15;
+  const transThreshold = 0.2;
   if (slideT < transThreshold && index > 0) {
     const fadeT = slideT / transThreshold;
     const prevDir = directions[prevIndex % directions.length];
@@ -424,18 +486,18 @@ const templateKenBurns: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
 
   const dir = directions[index % directions.length];
   const zoom = zoomStart + (zoomEnd - zoomStart) * easeInOut(slideT);
-  const px = dir.px * slideT;
-  const py = dir.py * slideT;
+  const px = dir.px * easeInOut(slideT);
+  const py = dir.py * easeInOut(slideT);
   drawCover(ctx, images[index], 0, 0, w, h, zoom, px, py);
   ctx.globalAlpha = 1;
 
   // Cinematic bars (letterbox effect)
-  const barSize = h * 0.04;
-  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  const barSize = h * 0.05;
+  ctx.fillStyle = 'rgba(0,0,0,0.9)';
   ctx.fillRect(0, 0, w, barSize);
   ctx.fillRect(0, h - barSize, w, barSize);
 
-  drawGradientOverlay(ctx, w, h, 0.45, 0.65, 0.3);
+  drawGradientOverlay(ctx, w, h, 0.5, 0.7, 0.28);
   drawLightLeak(ctx, w, h, t);
 
   // Headline
@@ -452,7 +514,7 @@ const templateKenBurns: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   drawAccentLine(ctx, w * 0.35, h * 0.91, w * 0.65, t, 'rgba(255,255,255,0.3)', 1);
   drawText(ctx, opts.restaurantName, w / 2, h * 0.94, w * 0.02, 'rgba(255,255,255,0.65)', 0.7, '500');
 
-  drawParticles(ctx, w, h, t, 12);
+  drawParticles(ctx, w, h, t, 14);
 
   // CTA
   if (opts.cta && t > 0.78) {
@@ -461,14 +523,18 @@ const templateKenBurns: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     const bh = w * 0.06;
     drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.73 - bh / 2, bw, bh, ctaA, w * 0.026, 'glass');
   }
+
+  // Film grain for cinema feel
+  drawFilmGrain(ctx, w, h, t, 0.025);
 };
 
 // ═══ Template 4: Moderno — Bold typography, geometric, high contrast ═══
 const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
-  const { index, transitionT } = getSlideIndex(t, images.length);
+  const { index, slideT, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Scale zoom transition
+  // Scale zoom transition with subtle Ken Burns
+  const kbPan = Math.sin(t * 0.8) * 12;
   if (transitionT < 1) {
     ctx.save();
     const s = 1 + (1 - transitionT) * 0.06;
@@ -476,7 +542,7 @@ const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     ctx.scale(s, s);
     ctx.translate(-w / 2, -h / 2);
     ctx.globalAlpha = 1 - easeInOutQuart(transitionT);
-    drawCover(ctx, images[prevIndex], 0, 0, w, h);
+    drawCover(ctx, images[prevIndex], 0, 0, w, h, 1.03, -kbPan);
     ctx.restore();
   }
 
@@ -486,7 +552,7 @@ const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   ctx.scale(scale, scale);
   ctx.translate(-w / 2, -h / 2);
   ctx.globalAlpha = easeInOutQuart(transitionT);
-  drawCover(ctx, images[index], 0, 0, w, h);
+  drawCover(ctx, images[index], 0, 0, w, h, 1.03, kbPan);
   ctx.restore();
   ctx.globalAlpha = 1;
 
@@ -529,6 +595,8 @@ const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     drawText(ctx, opts.subtext, w / 2, h * 0.87, w * 0.026, 'rgba(255,255,255,0.85)', sa, '400', w * 0.78);
   }
 
+  drawLightLeak(ctx, w, h, t);
+
   // CTA
   if (opts.cta && t > 0.8) {
     const ctaA = easeOut((t - 0.8) / 0.12);
@@ -536,24 +604,29 @@ const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     const bh = w * 0.065;
     drawCTAButton(ctx, opts.cta.toUpperCase(), (w - bw) / 2, h * 0.68 - bh / 2, bw, bh, ctaA, w * 0.022, 'filled');
   }
+
+  drawFilmGrain(ctx, w, h, t, 0.015);
 };
 
 // ═══ Template 5: Minimalista — Clean, refined, editorial ═══
 const templateMinimalista: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
-  const { index, transitionT } = getSlideIndex(t, images.length);
+  const { index, slideT, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Smooth crossfade with subtle zoom
-  const zoomCurrent = 1 + (1 - easeInOut(transitionT)) * 0.02;
-  drawCover(ctx, images[prevIndex], 0, 0, w, h, 1.02);
+  // Smooth crossfade with subtle Ken Burns drift
+  const driftX = Math.sin(t * 0.6) * 10;
+  const driftY = Math.cos(t * 0.4) * 6;
+  const zoomCurrent = 1.01 + (1 - easeInOut(transitionT)) * 0.03;
+  drawCover(ctx, images[prevIndex], 0, 0, w, h, 1.04, -driftX, -driftY);
   ctx.globalAlpha = easeInOutQuart(transitionT);
-  drawCover(ctx, images[index], 0, 0, w, h, zoomCurrent);
+  drawCover(ctx, images[index], 0, 0, w, h, zoomCurrent, driftX, driftY);
   ctx.globalAlpha = 1;
 
   // Soft vignette
-  const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.95);
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.2, w / 2, h / 2, w * 0.9);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
+  vignette.addColorStop(0.7, 'rgba(0,0,0,0.15)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.55)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
 
@@ -583,7 +656,7 @@ const templateMinimalista: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   // Restaurant name
   drawText(ctx, opts.restaurantName, w / 2, h * 0.935, w * 0.018, 'rgba(255,255,255,0.5)', 0.6, '400');
 
-  drawParticles(ctx, w, h, t, 8);
+  drawParticles(ctx, w, h, t, 10);
 
   // CTA
   if (opts.cta && t > 0.82) {
@@ -592,6 +665,8 @@ const templateMinimalista: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     const bh = w * 0.055;
     drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.67 - bh / 2, bw, bh, ctaA, w * 0.022, 'glass');
   }
+
+  drawFilmGrain(ctx, w, h, t, 0.018);
 };
 
 const TEMPLATES: Record<string, { name: string; description: string; emoji: string; render: TemplateRenderFn }> = {
@@ -640,19 +715,36 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   let musicCtx: { audioCtx: AudioContext; destination: MediaStreamAudioDestinationNode; start: () => void; stop: () => void } | null = null;
 
   try {
-    const duckingSegments = options.narrationScript?.segments?.map(s => ({
-      startPercent: s.startPercent,
-      endPercent: s.endPercent,
-    }));
+    // First, fetch TTS audio if narration is enabled (we need its duration for ducking)
+    let ttsAudioBuffer: AudioBuffer | null = null;
+    let ttsDuckingSegments: Array<{ startPercent: number; endPercent: number }> | undefined;
 
-    // Create music source (custom MP3 or procedural)
+    if (options.enableNarration && options.narrationScript?.fullText) {
+      try {
+        const { fetchTTSAudio } = await import('./ttsNarrator');
+        const tempCtx = new AudioContext({ sampleRate: 44100 });
+        const audioData = await fetchTTSAudio(options.narrationScript.fullText);
+        ttsAudioBuffer = await tempCtx.decodeAudioData(audioData.slice(0));
+        await tempCtx.close();
+
+        // Calculate precise ducking window based on actual TTS audio duration
+        const narrationStart = 0.06; // Start at 6% of timeline
+        const narrationEnd = Math.min(narrationStart + ttsAudioBuffer.duration / duration, 0.95);
+        ttsDuckingSegments = [{ startPercent: narrationStart, endPercent: narrationEnd }];
+        console.log(`TTS: audio decoded (${ttsAudioBuffer.duration.toFixed(1)}s), ducking ${(narrationStart * 100).toFixed(0)}%-${(narrationEnd * 100).toFixed(0)}%`);
+      } catch (e) {
+        console.warn('TTS audio failed, rendering with subtitles only:', e);
+      }
+    }
+
+    // Create music source with precise ducking based on actual TTS duration
     if (options.customMusicUrl) {
       const { createMusicFromUrl } = await import('./audioGenerator');
-      musicCtx = await createMusicFromUrl(options.customMusicUrl, duration, duckingSegments);
+      musicCtx = await createMusicFromUrl(options.customMusicUrl, duration, ttsDuckingSegments);
     } else {
       const { createAmbientMusic, getThemeForTemplate } = await import('./audioGenerator');
       const resolvedTheme = options.musicTheme || getThemeForTemplate(templateId);
-      musicCtx = createAmbientMusic(duration, resolvedTheme, duckingSegments);
+      musicCtx = createAmbientMusic(duration, resolvedTheme, ttsDuckingSegments);
     }
 
     const audioTrack = musicCtx.destination.stream.getAudioTracks()[0];
@@ -660,35 +752,40 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
       stream.addTrack(audioTrack);
     }
 
-    // Fetch single TTS audio for the full narration text (avoids overlapping segments)
-    if (options.enableNarration && options.narrationScript?.fullText) {
-      try {
-        const { fetchTTSAudio } = await import('./ttsNarrator');
-        const fullText = options.narrationScript.fullText;
+    // Schedule the single TTS narration through the music AudioContext
+    musicCtx.start();
 
-        const audioData = await fetchTTSAudio(fullText);
-        const audioBuffer = await musicCtx!.audioCtx.decodeAudioData(audioData.slice(0));
+    if (ttsAudioBuffer) {
+      const baseTime = musicCtx.audioCtx.currentTime;
+      const source = musicCtx.audioCtx.createBufferSource();
+      source.buffer = ttsAudioBuffer;
 
-        // Start music first
-        musicCtx.start();
-        const baseTime = musicCtx.audioCtx.currentTime;
+      // Voice processing chain: gain → compressor → destination
+      const ttsGain = musicCtx.audioCtx.createGain();
+      ttsGain.gain.value = 1.4; // Voice prominence
 
-        // Schedule single narration starting at 8% of timeline
-        const source = musicCtx.audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        const ttsGain = musicCtx.audioCtx.createGain();
-        ttsGain.gain.value = 1.2; // Slightly louder for clarity
-        source.connect(ttsGain);
-        ttsGain.connect(musicCtx.destination);
-        source.start(baseTime + 0.08 * duration);
+      const voiceCompressor = musicCtx.audioCtx.createDynamicsCompressor();
+      voiceCompressor.threshold.value = -18;
+      voiceCompressor.knee.value = 8;
+      voiceCompressor.ratio.value = 3;
+      voiceCompressor.attack.value = 0.005;
+      voiceCompressor.release.value = 0.15;
 
-        console.log(`TTS: single narration scheduled (${audioBuffer.duration.toFixed(1)}s)`);
-      } catch (e) {
-        console.warn('TTS audio failed, rendering with subtitles only:', e);
-        musicCtx.start();
+      source.connect(ttsGain);
+      ttsGain.connect(voiceCompressor);
+      voiceCompressor.connect(musicCtx.destination);
+
+      // Smooth voice fade in/out
+      ttsGain.gain.setValueAtTime(0, baseTime + 0.06 * duration);
+      ttsGain.gain.linearRampToValueAtTime(1.4, baseTime + 0.06 * duration + 0.3);
+      const narrationEnd = 0.06 * duration + ttsAudioBuffer.duration;
+      if (narrationEnd > 0.8) {
+        ttsGain.gain.setValueAtTime(1.4, baseTime + narrationEnd - 0.5);
+        ttsGain.gain.linearRampToValueAtTime(0, baseTime + narrationEnd);
       }
-    } else {
-      musicCtx.start();
+
+      source.start(baseTime + 0.06 * duration);
+      console.log(`TTS: single narration scheduled at ${(0.06 * duration).toFixed(1)}s`);
     }
 
     audioCleanup = () => musicCtx!.stop();
