@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Users } from "lucide-react";
+import { Send, Users, UserPlus } from "lucide-react";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { useRestaurantCampaigns } from "@/hooks/useRestaurantCampaigns";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
@@ -12,6 +12,7 @@ import { CustomerStrategicKPIs } from "@/components/customers/CustomerStrategicK
 import { CustomerListPremium } from "@/components/customers/CustomerListPremium";
 import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
+import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
@@ -28,7 +29,7 @@ function CustomersPageContent() {
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
-  
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers();
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(restaurantId || '');
@@ -175,11 +176,17 @@ function CustomersPageContent() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-        <p className="text-muted-foreground mt-1">
-          CRM completo • {customers.length} clientes cadastrados
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+          <p className="text-muted-foreground mt-1">
+            CRM completo • {customers.length} clientes cadastrados
+          </p>
+        </div>
+        <Button onClick={() => setCreateCustomerOpen(true)} className="gap-2">
+          <UserPlus className="h-4 w-4" />
+          Cadastrar cliente
+        </Button>
       </div>
 
       {/* Strategic KPIs */}
@@ -256,6 +263,12 @@ function CustomersPageContent() {
           isSubmitting={sendingPromotion}
         />
       )}
+
+      <CreateCustomerDialog
+        open={createCustomerOpen}
+        onOpenChange={setCreateCustomerOpen}
+        onSuccess={refetch}
+      />
     </div>
   );
 }
