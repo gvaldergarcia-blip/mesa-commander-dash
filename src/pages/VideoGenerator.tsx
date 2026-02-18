@@ -676,9 +676,9 @@ export default function VideoGenerator() {
                         <div className="flex items-center gap-2">
                           <Volume2 className="h-4 w-4 text-primary" />
                           <div>
-                            <p className="text-xs font-medium">Narração com voz IA</p>
+                           <p className="text-xs font-medium">Narração com voz IA</p>
                             <p className="text-[10px] text-muted-foreground">
-                              Voz pt-BR lê o roteiro + legendas sincronizadas no vídeo
+                              Legendas animadas word-by-word + voz pt-BR nos alto-falantes + ducking automático na música
                             </p>
                           </div>
                         </div>
