@@ -615,6 +615,11 @@ export function getTemplateList() {
 
 // ─── Main render function ──────────────────────────────────
 export async function renderVideo(options: RenderOptions): Promise<Blob> {
+  // Cancel any browser speech synthesis to prevent duplicate voices
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+
   const { format, duration, templateId } = options;
 
   const width = 1080;
@@ -724,7 +729,6 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
     recorder.onerror = (e) => {
       audioCleanup?.();
-      narrationController?.stop();
       reject(new Error('MediaRecorder error: ' + ((e as any).error?.message || 'unknown')));
     };
 
