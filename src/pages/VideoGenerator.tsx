@@ -23,9 +23,9 @@ import {
   Image as ImageIcon,
   Sparkles,
   Film,
-  GripVertical,
 } from "lucide-react";
 import { useVideoGenerator, type VideoJob, type CreateVideoParams } from "@/hooks/useVideoGenerator";
+import { LivePreview } from "@/components/video/LivePreview";
 import { SlideshowPreview } from "@/components/video/SlideshowPreview";
 import { getTemplateList } from "@/lib/video/videoRenderer";
 import { toast } from "sonner";
@@ -39,13 +39,6 @@ const CTA_OPTIONS = [
   { value: "Entre na fila", label: "Entre na fila" },
   { value: "Chame no WhatsApp", label: "Chame no WhatsApp" },
   { value: "Veja o cardápio", label: "Veja o cardápio" },
-];
-
-const MUSIC_OPTIONS = [
-  { value: "none", label: "Nenhuma" },
-  { value: "lofi", label: "Lo-fi (em breve)" },
-  { value: "pop", label: "Pop leve (em breve)" },
-  { value: "eletronica", label: "Eletrônica leve (em breve)" },
 ];
 
 export default function VideoGenerator() {
@@ -77,7 +70,6 @@ export default function VideoGenerator() {
     duration: 15 as 7 | 15 | 30,
     templateId: "elegante",
     cta: "",
-    musicId: "none",
   });
 
   const isBusy = isCreating || isRendering;
@@ -153,7 +145,6 @@ export default function VideoGenerator() {
       format: formData.format,
       duration: formData.duration,
       templateId: formData.templateId,
-      musicId: formData.musicId !== "none" ? formData.musicId : undefined,
       imageFiles: selectedImages,
       logoFile: logoFile || undefined,
       restaurantName: restaurantName || "Restaurante",
@@ -172,7 +163,6 @@ export default function VideoGenerator() {
           duration: 15,
           templateId: "elegante",
           cta: "",
-          musicId: "none",
         });
       },
     });
@@ -196,11 +186,10 @@ export default function VideoGenerator() {
     }
   };
 
-  // Get active rendering state
   const overallProgress = isBusy
     ? uploadProgress > 0 && renderProgress === 0
-      ? uploadProgress * 0.3 // Upload = 0-30%
-      : 30 + renderProgress * 0.7 // Render = 30-100%
+      ? uploadProgress * 0.3
+      : 30 + renderProgress * 0.7
     : 0;
 
   return (
@@ -209,27 +198,32 @@ export default function VideoGenerator() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Film className="h-6 w-6 text-primary" />
-            Marketing IA — Vídeo Automático
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Film className="h-5 w-5 text-primary" />
+            </div>
+            Marketing IA — Vídeo Premium
           </h1>
-          <p className="text-muted-foreground">
-            Gere vídeos profissionais para Reels e Stories automaticamente
+          <p className="text-muted-foreground mt-1">
+            Gere vídeos cinematográficos para Reels e Stories em segundos
           </p>
         </div>
         {usage && (
-          <Card className="px-4 py-2">
-            <div className="text-sm text-muted-foreground">Vídeos este mês</div>
-            <div className="text-xl font-bold">
-              {usage.videos_generated} / {usage.limit}
-            </div>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="px-4 py-3">
+              <div className="text-xs text-muted-foreground font-medium">Vídeos este mês</div>
+              <div className="text-2xl font-bold text-primary">
+                {usage.videos_generated}
+                <span className="text-sm font-normal text-muted-foreground"> / {usage.limit}</span>
+              </div>
+            </CardContent>
           </Card>
         )}
       </div>
 
       <Tabs defaultValue="create" className="space-y-6">
-        <TabsList>
+        <TabsList className="bg-muted/50">
           <TabsTrigger value="create" className="gap-2">
-            <Plus className="h-4 w-4" /> Criar Vídeo
+            <Sparkles className="h-4 w-4" /> Criar Vídeo
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <Video className="h-4 w-4" /> Meus Vídeos
@@ -238,201 +232,63 @@ export default function VideoGenerator() {
 
         {/* ─── CREATE TAB ─── */}
         <TabsContent value="create" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-[1fr,380px]">
             {/* Left: Form */}
-            <div className="space-y-6">
-              {/* Headline & Subtext */}
+            <div className="space-y-5">
+              {/* Images */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Textos do Vídeo</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="headline">Headline * (máx 40 caracteres)</Label>
-                    <Input
-                      id="headline"
-                      placeholder="Ex: Sabor que marca presença"
-                      value={formData.headline}
-                      maxLength={40}
-                      onChange={(e) => setFormData((p) => ({ ...p, headline: e.target.value }))}
-                    />
-                    <p className="text-xs text-muted-foreground text-right">{formData.headline.length}/40</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="subtext">Subtexto (máx 90 caracteres)</Label>
-                    <Input
-                      id="subtext"
-                      placeholder="Ex: Happy Hour de terça a sexta até 20h"
-                      value={formData.subtext}
-                      maxLength={90}
-                      onChange={(e) => setFormData((p) => ({ ...p, subtext: e.target.value }))}
-                    />
-                    <p className="text-xs text-muted-foreground text-right">{formData.subtext.length}/90</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Format, Template, Duration */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Configurações</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Format */}
-                  <div className="space-y-2">
-                    <Label>Formato</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { value: "vertical" as const, label: "Vertical", desc: "1080×1920 (Reels/Stories)" },
-                        { value: "square" as const, label: "Quadrado", desc: "1080×1080 (Feed)" },
-                      ].map((f) => (
-                        <div
-                          key={f.value}
-                          onClick={() => setFormData((p) => ({ ...p, format: f.value }))}
-                          className={`p-3 border rounded-lg cursor-pointer transition-all text-center ${
-                            formData.format === f.value
-                              ? "border-primary bg-primary/5 ring-1 ring-primary"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <span className="font-medium text-sm">{f.label}</span>
-                          <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Template */}
-                  <div className="space-y-2">
-                    <Label>Template</Label>
-                    <div className="grid gap-2">
-                      {TEMPLATES.map((t) => (
-                        <div
-                          key={t.id}
-                          onClick={() => setFormData((p) => ({ ...p, templateId: t.id }))}
-                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                            formData.templateId === t.id
-                              ? "border-primary bg-primary/5 ring-1 ring-primary"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <span className="font-medium text-sm">{t.name}</span>
-                          <p className="text-xs text-muted-foreground">{t.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Duration */}
-                  <div className="space-y-2">
-                    <Label>Duração</Label>
-                    <Select
-                      value={formData.duration.toString()}
-                      onValueChange={(v) => setFormData((p) => ({ ...p, duration: parseInt(v) as 7 | 15 | 30 }))}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">7 segundos</SelectItem>
-                        <SelectItem value="15">15 segundos</SelectItem>
-                        <SelectItem value="30">30 segundos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="space-y-2">
-                    <Label>CTA Final</Label>
-                    <Select
-                      value={formData.cta || "none"}
-                      onValueChange={(v) => setFormData((p) => ({ ...p, cta: v === "none" ? "" : v }))}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Sem CTA" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem CTA</SelectItem>
-                        {CTA_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Music */}
-                  <div className="space-y-2">
-                    <Label>Música de fundo</Label>
-                    <Select
-                      value={formData.musicId}
-                      onValueChange={(v) => setFormData((p) => ({ ...p, musicId: v }))}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {MUSIC_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right: Images + Submit */}
-            <div className="space-y-6">
-              {/* Images upload */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5" />
-                    Imagens * (3 a 8)
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-primary" />
+                    Imagens do Vídeo
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {selectedImages.length}/8
+                    </Badge>
                   </CardTitle>
-                  <CardDescription>
-                    Envie fotos do restaurante, pratos, ambiente. Arraste para reordenar.
+                  <CardDescription className="text-xs">
+                    Envie de 3 a 8 fotos. Pratos, ambiente, fachada — o que quiser destacar.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
                     {imagePreviewUrls.map((url, index) => (
                       <div
                         key={url}
-                        className={`relative rounded-lg overflow-hidden bg-muted border-2 border-transparent hover:border-primary/30 transition-colors ${
-                          formData.format === "vertical" ? "aspect-[9/16]" : "aspect-square"
-                        }`}
+                        className="relative rounded-lg overflow-hidden bg-muted aspect-square group border-2 border-transparent hover:border-primary/40 transition-all"
                       >
                         <img src={url} alt={`${index + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
                         <button
                           onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
+                          className="absolute top-1 right-1 p-1 bg-destructive/90 text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
-                        <div className="absolute bottom-1 left-1 flex gap-0.5">
+                        <div className="absolute bottom-0.5 left-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => moveImage(index, index - 1)}
                             disabled={index === 0}
-                            className="bg-black/70 text-white text-xs px-1.5 py-0.5 rounded disabled:opacity-30"
+                            className="bg-black/70 text-white text-[10px] px-1 py-0.5 rounded disabled:opacity-30"
                           >
                             ←
                           </button>
-                          <span className="bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-                            {index + 1}
-                          </span>
                           <button
                             onClick={() => moveImage(index, index + 1)}
                             disabled={index === selectedImages.length - 1}
-                            className="bg-black/70 text-white text-xs px-1.5 py-0.5 rounded disabled:opacity-30"
+                            className="bg-black/70 text-white text-[10px] px-1 py-0.5 rounded disabled:opacity-30"
                           >
                             →
                           </button>
                         </div>
+                        <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                          {index + 1}
+                        </span>
                       </div>
                     ))}
                     {selectedImages.length < 8 && (
-                      <label
-                        className={`rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors ${
-                          formData.format === "vertical" ? "aspect-[9/16]" : "aspect-square"
-                        }`}
-                      >
-                        <Upload className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Adicionar</span>
+                      <label className="rounded-lg border-2 border-dashed border-muted-foreground/20 aspect-square flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
+                        <Plus className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground">Adicionar</span>
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -444,52 +300,181 @@ export default function VideoGenerator() {
                       </label>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    {selectedImages.length}/8 imagens
-                    {selectedImages.length < 3 && " (mínimo 3)"}
-                  </p>
+                  {selectedImages.length > 0 && selectedImages.length < 3 && (
+                    <p className="text-xs text-amber-500 mt-2">
+                      Adicione mais {3 - selectedImages.length} imagem(ns) para habilitar a geração
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Logo */}
+              {/* Texts + Settings */}
+              <div className="grid gap-5 sm:grid-cols-2">
+                {/* Texts */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Textos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="headline" className="text-xs">Headline * <span className="text-muted-foreground">(máx 40)</span></Label>
+                      <Input
+                        id="headline"
+                        placeholder="Ex: Sabor que marca presença"
+                        value={formData.headline}
+                        maxLength={40}
+                        onChange={(e) => setFormData((p) => ({ ...p, headline: e.target.value }))}
+                        className="h-9"
+                      />
+                      <div className="flex justify-end">
+                        <span className={`text-[10px] ${formData.headline.length > 35 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                          {formData.headline.length}/40
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="subtext" className="text-xs">Subtexto <span className="text-muted-foreground">(máx 90)</span></Label>
+                      <Input
+                        id="subtext"
+                        placeholder="Ex: Happy Hour terça a sexta"
+                        value={formData.subtext}
+                        maxLength={90}
+                        onChange={(e) => setFormData((p) => ({ ...p, subtext: e.target.value }))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">CTA Final</Label>
+                      <Select
+                        value={formData.cta || "none"}
+                        onValueChange={(v) => setFormData((p) => ({ ...p, cta: v === "none" ? "" : v }))}
+                      >
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Sem CTA" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem CTA</SelectItem>
+                          {CTA_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Settings */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Configurações</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Format */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Formato</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { value: "vertical" as const, label: "Vertical", desc: "9:16" },
+                          { value: "square" as const, label: "Quadrado", desc: "1:1" },
+                        ].map((f) => (
+                          <button
+                            key={f.value}
+                            onClick={() => setFormData((p) => ({ ...p, format: f.value }))}
+                            className={`p-2.5 border rounded-lg transition-all text-center ${
+                              formData.format === f.value
+                                ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
+                                : "border-border hover:border-primary/40"
+                            }`}
+                          >
+                            <span className="font-medium text-xs">{f.label}</span>
+                            <p className="text-[10px] text-muted-foreground">{f.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Duração</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([7, 15, 30] as const).map((d) => (
+                          <button
+                            key={d}
+                            onClick={() => setFormData((p) => ({ ...p, duration: d }))}
+                            className={`p-2 border rounded-lg transition-all text-center ${
+                              formData.duration === d
+                                ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
+                                : "border-border hover:border-primary/40"
+                            }`}
+                          >
+                            <span className="font-medium text-xs">{d}s</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Logo */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Logo (opcional)</Label>
+                      {logoPreview ? (
+                        <div className="flex items-center gap-2">
+                          <img src={logoPreview} alt="Logo" className="h-10 w-10 object-contain rounded border" />
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setLogoFile(null); setLogoPreview(null); }}>
+                            <Trash2 className="h-3 w-3 mr-1" /> Remover
+                          </Button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-2 p-2.5 border border-dashed rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all">
+                          <Upload className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Enviar PNG</span>
+                          <input type="file" accept="image/png" onChange={handleLogoSelect} className="hidden" />
+                        </label>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Template Selection */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Logo (opcional)</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Template</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {logoPreview ? (
-                    <div className="flex items-center gap-4">
-                      <img src={logoPreview} alt="Logo" className="h-16 w-16 object-contain rounded" />
-                      <Button variant="outline" size="sm" onClick={() => { setLogoFile(null); setLogoPreview(null); }}>
-                        <Trash2 className="h-4 w-4 mr-2" /> Remover
-                      </Button>
-                    </div>
-                  ) : (
-                    <label className="flex items-center gap-3 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors">
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Adicionar logo (PNG)</span>
-                      <input type="file" accept="image/png" onChange={handleLogoSelect} className="hidden" />
-                    </label>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                    {TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setFormData((p) => ({ ...p, templateId: t.id }))}
+                        className={`p-3 border rounded-lg transition-all text-left ${
+                          formData.templateId === t.id
+                            ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
+                            : "border-border hover:border-primary/40 hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="text-lg mb-1">{t.emoji}</div>
+                        <span className="font-medium text-xs block">{t.name}</span>
+                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{t.description}</p>
+                      </button>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
 
               {/* Progress */}
               {isBusy && (
-                <Card>
-                  <CardContent className="pt-6 space-y-3">
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="pt-5 pb-4 space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span>
+                      <span className="font-medium">
                         {uploadProgress > 0 && renderProgress === 0
-                          ? "Enviando imagens..."
-                          : "Gerando vídeo..."}
+                          ? "📤 Enviando imagens..."
+                          : "🎬 Renderizando vídeo..."}
                       </span>
-                      <span>{Math.round(overallProgress)}%</span>
+                      <span className="font-bold text-primary">{Math.round(overallProgress)}%</span>
                     </div>
-                    <Progress value={overallProgress} />
+                    <Progress value={overallProgress} className="h-2" />
                     {isRendering && (
                       <p className="text-xs text-muted-foreground">
-                        Renderizando frames... Não feche esta aba.
+                        Gerando frames em alta qualidade. Não feche esta aba.
                       </p>
                     )}
                   </CardContent>
@@ -500,27 +485,48 @@ export default function VideoGenerator() {
               <Button
                 onClick={handleSubmit}
                 disabled={isBusy || selectedImages.length < 3 || !formData.headline.trim()}
-                className="w-full h-12 text-lg gap-2"
+                className="w-full h-12 text-base gap-2 shadow-lg"
+                size="lg"
               >
                 {isBusy ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    Gerando vídeo...
+                    Gerando vídeo premium...
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-5 w-5" />
-                    Gerar Vídeo
+                    Gerar Vídeo Premium
                   </>
                 )}
               </Button>
               {!isBusy && (selectedImages.length < 3 || !formData.headline.trim()) && (
-                <p className="text-sm text-destructive text-center">
+                <p className="text-xs text-muted-foreground text-center">
                   {selectedImages.length < 3
-                    ? `Adicione pelo menos 3 imagens (${selectedImages.length}/3)`
-                    : "Preencha o campo Headline"}
+                    ? `Adicione pelo menos 3 imagens (faltam ${3 - selectedImages.length})`
+                    : "Preencha o campo Headline para continuar"}
                 </p>
               )}
+            </div>
+
+            {/* Right: Live Preview */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <h3 className="text-sm font-semibold">Preview ao vivo</h3>
+              </div>
+              <div className="sticky top-4">
+                <LivePreview
+                  imageUrls={imagePreviewUrls}
+                  format={formData.format}
+                  duration={formData.duration}
+                  templateId={formData.templateId}
+                  headline={formData.headline}
+                  subtext={formData.subtext || undefined}
+                  cta={formData.cta || undefined}
+                  restaurantName={restaurantName || "Restaurante"}
+                />
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -532,57 +538,59 @@ export default function VideoGenerator() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : !videoJobs?.length ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Video className="h-12 w-12 text-muted-foreground mb-4" />
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="p-4 rounded-full bg-muted mb-4">
+                  <Film className="h-8 w-8 text-muted-foreground" />
+                </div>
                 <h3 className="text-lg font-medium">Nenhum vídeo criado ainda</h3>
-                <p className="text-muted-foreground">Crie seu primeiro vídeo na aba "Criar Vídeo"</p>
+                <p className="text-muted-foreground text-sm mt-1">Crie seu primeiro vídeo premium na aba "Criar Vídeo"</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {videoJobs.map((job) => (
-                <Card key={job.id} className="overflow-hidden">
-                  <div className={`bg-muted relative ${job.format === "square" ? "aspect-square" : "aspect-[9/16]"}`}>
+                <Card key={job.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
+                  <div className={`bg-muted relative ${job.format === "square" ? "aspect-square" : "aspect-[9/16]"} max-h-64 overflow-hidden`}>
                     {job.thumbnail_url ? (
                       <img src={job.thumbnail_url} alt="Thumb" className="w-full h-full object-cover" />
                     ) : job.image_urls?.[0] ? (
                       <img src={job.image_urls[0]} alt="Preview" className="w-full h-full object-cover opacity-60" />
                     ) : (
                       <div className="flex items-center justify-center h-full">
-                        <Video className="h-12 w-12 text-muted-foreground" />
+                        <Video className="h-10 w-10 text-muted-foreground" />
                       </div>
                     )}
                     <div className="absolute top-2 right-2">{getStatusBadge(job.status)}</div>
                     <div className="absolute bottom-2 left-2 flex gap-1">
-                      <Badge variant="secondary" className="text-xs">{job.template_id}</Badge>
-                      <Badge variant="secondary" className="text-xs">{job.duration_seconds}s</Badge>
-                      <Badge variant="secondary" className="text-xs">{job.format === "vertical" ? "9:16" : "1:1"}</Badge>
+                      <Badge variant="secondary" className="text-[10px]">{job.template_id}</Badge>
+                      <Badge variant="secondary" className="text-[10px]">{job.duration_seconds}s</Badge>
+                      <Badge variant="secondary" className="text-[10px]">{job.format === "vertical" ? "9:16" : "1:1"}</Badge>
                     </div>
                   </div>
-                  <CardContent className="p-4 space-y-3">
+                  <CardContent className="p-3 space-y-2">
                     <div>
-                      <h4 className="font-medium truncate">{job.headline}</h4>
-                      <p className="text-xs text-muted-foreground">
+                      <h4 className="font-medium text-sm truncate">{job.headline}</h4>
+                      <p className="text-[10px] text-muted-foreground">
                         {format(new Date(job.created_at), "dd MMM yyyy, HH:mm", { locale: ptBR })}
                       </p>
                     </div>
                     {job.error_message && (
-                      <p className="text-xs text-destructive">{job.error_message}</p>
+                      <p className="text-[10px] text-destructive">{job.error_message}</p>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {job.status === "done" && (
                         <>
-                          <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => setPreviewVideo(job)}>
-                            <Eye className="h-4 w-4" /> Ver
+                          <Button variant="outline" size="sm" className="flex-1 gap-1 h-8 text-xs" onClick={() => setPreviewVideo(job)}>
+                            <Eye className="h-3.5 w-3.5" /> Ver
                           </Button>
                           {job.video_url && (
                             <>
-                              <Button variant="outline" size="sm" asChild>
-                                <a href={job.video_url} download><Download className="h-4 w-4" /></a>
+                              <Button variant="outline" size="sm" className="h-8" asChild>
+                                <a href={job.video_url} download><Download className="h-3.5 w-3.5" /></a>
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => copyVideoLink(job.video_url!)}>
-                                <Copy className="h-4 w-4" />
+                              <Button variant="outline" size="sm" className="h-8" onClick={() => copyVideoLink(job.video_url!)}>
+                                <Copy className="h-3.5 w-3.5" />
                               </Button>
                             </>
                           )}
@@ -591,11 +599,11 @@ export default function VideoGenerator() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-8 text-destructive hover:text-destructive"
                         onClick={() => deleteVideo(job.id)}
                         disabled={isDeleting}
-                        className="text-destructive hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -610,7 +618,7 @@ export default function VideoGenerator() {
       <Dialog open={!!previewVideo} onOpenChange={() => setPreviewVideo(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{previewVideo?.headline}</DialogTitle>
+            <DialogTitle className="text-base">{previewVideo?.headline}</DialogTitle>
           </DialogHeader>
           {previewVideo?.video_url ? (
             <video
