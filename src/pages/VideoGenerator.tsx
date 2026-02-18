@@ -143,10 +143,6 @@ export default function VideoGenerator() {
       toast.error("Selecione pelo menos 3 imagens");
       return;
     }
-    if (usage && usage.videos_generated >= usage.limit) {
-      toast.error(`Limite mensal atingido (${usage.limit} vídeos)`);
-      return;
-    }
 
     const params: CreateVideoParams = {
       headline: formData.headline.trim(),
@@ -217,17 +213,6 @@ export default function VideoGenerator() {
             Gere vídeos cinematográficos para Reels e Stories em segundos
           </p>
         </div>
-        {usage && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="px-4 py-3">
-              <div className="text-xs text-muted-foreground font-medium">Vídeos este mês</div>
-              <div className="text-2xl font-bold text-primary">
-                {usage.videos_generated}
-                <span className="text-sm font-normal text-muted-foreground"> / {usage.limit}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <Tabs defaultValue="create" className="space-y-6">

@@ -47,7 +47,7 @@ export interface CreateVideoParams {
   restaurantName: string;
 }
 
-const MONTHLY_LIMIT = 5;
+const MONTHLY_LIMIT = Infinity;
 
 export function useVideoGenerator() {
   const { restaurantId, restaurant } = useRestaurant();
@@ -111,10 +111,6 @@ export function useVideoGenerator() {
     mutationFn: async (params: CreateVideoParams) => {
       if (!restaurantId) throw new Error("Restaurant não encontrado");
 
-      // Check usage
-      if (usageData && usageData.videos_generated >= MONTHLY_LIMIT) {
-        throw new Error(`Limite mensal atingido (${MONTHLY_LIMIT} vídeos). Aguarde o próximo mês.`);
-      }
 
       // 1. Upload images
       setUploadProgress(0);
