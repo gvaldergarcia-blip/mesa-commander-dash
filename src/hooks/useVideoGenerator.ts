@@ -5,6 +5,7 @@ import { useRestaurant } from "@/contexts/RestaurantContext";
 import { toast } from "sonner";
 import { renderVideo, generateThumbnail, type RenderOptions } from "@/lib/video/videoRenderer";
 import type { MusicTheme } from "@/lib/video/audioGenerator";
+import type { NarrationScript } from "@/lib/video/ttsNarrator";
 
 export interface VideoJob {
   id: string;
@@ -47,6 +48,8 @@ export interface CreateVideoParams {
   imageFiles: File[];
   logoFile?: File;
   restaurantName: string;
+  narrationScript?: NarrationScript;
+  enableNarration?: boolean;
 }
 
 const MONTHLY_LIMIT = Infinity;
@@ -165,6 +168,8 @@ export function useVideoGenerator() {
         restaurantName: params.restaurantName,
         logoUrl,
         musicTheme: params.musicTheme,
+        narrationScript: params.narrationScript,
+        enableNarration: params.enableNarration,
         onProgress: (p) => setRenderProgress(p),
       };
 

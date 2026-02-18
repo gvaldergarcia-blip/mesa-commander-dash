@@ -4,6 +4,7 @@
  */
 
 import type { MusicTheme } from './audioGenerator';
+import type { NarrationScript, NarrationSegment } from './ttsNarrator';
 
 export interface RenderOptions {
   images: string[];
@@ -16,6 +17,8 @@ export interface RenderOptions {
   restaurantName: string;
   logoUrl?: string;
   musicTheme?: Exclude<MusicTheme, 'auto'>;
+  narrationScript?: NarrationScript;
+  enableNarration?: boolean;
   onProgress?: (progress: number) => void;
 }
 
@@ -606,6 +609,67 @@ export function getTemplateList() {
   }));
 }
 
+// ─── Subtitle renderer ─────────────────────────────────────
+function drawSubtitle(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  w: number, h: number,
+  alpha: number
+) {
+  if (!text || alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, alpha);
+
+  // Glassmorphism bar
+  const barH = h * 0.08;
+  const barY = h * 0.82;
+  const barX = w * 0.06;
+  const barW = w * 0.88;
+  const r = barH * 0.35;
+
+  drawRoundedRect(ctx, barX, barY, barW, barH, r);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill();
+
+  // Subtle border
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Text
+  const fontSize = w * 0.028;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `500 ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+
+  // Word-wrap
+  const maxTextW = barW * 0.9;
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  for (const word of words) {
+    const test = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(test).width > maxTextW && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = test;
+    }
+  }
+  lines.push(currentLine);
+
+  const lineH = fontSize * 1.3;
+  const startY = barY + barH / 2 - ((lines.length - 1) * lineH) / 2;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], w / 2, startY + i * lineH);
+  }
+
+  ctx.restore();
+}
+
 // ─── Main render function ──────────────────────────────────
 export async function renderVideo(options: RenderOptions): Promise<Blob> {
   const { format, duration, templateId } = options;
@@ -639,6 +703,21 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
     console.warn('Audio generation failed, rendering without audio:', e);
   }
 
+  // Setup TTS narration (plays through speakers during rendering)
+  let narrationController: ReturnType<typeof import('./ttsNarrator').createNarrationController> | null = null;
+  if (options.enableNarration && options.narrationScript && options.narrationScript.segments.length > 0) {
+    try {
+      const { createNarrationController, ensureVoicesLoaded } = await import('./ttsNarrator');
+      await ensureVoicesLoaded();
+      narrationController = createNarrationController(options.narrationScript, {
+        rate: 0.92,
+        volume: 1.0,
+      });
+    } catch (e) {
+      console.warn('TTS narration setup failed:', e);
+    }
+  }
+
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
     ? 'video/webm;codecs=vp9'
     : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
@@ -658,12 +737,14 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     recorder.onstop = () => {
       audioCleanup?.();
+      narrationController?.stop();
       const blob = new Blob(chunks, { type: 'video/webm' });
       resolve(blob);
     };
 
     recorder.onerror = (e) => {
       audioCleanup?.();
+      narrationController?.stop();
       reject(new Error('MediaRecorder error: ' + ((e as any).error?.message || 'unknown')));
     };
 
@@ -682,6 +763,29 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
       ctx.fillRect(0, 0, width, height);
 
       template.render(ctx, loadedImages, t, options, width, height);
+
+      // Render subtitles + trigger TTS
+      if (options.narrationScript && options.narrationScript.segments.length > 0) {
+        const activeSegment = options.narrationScript.segments.find(
+          (s) => t >= s.startPercent && t <= s.endPercent
+        );
+        
+        if (activeSegment) {
+          // Fade in/out for subtitle
+          const segDuration = activeSegment.endPercent - activeSegment.startPercent;
+          const segProgress = (t - activeSegment.startPercent) / segDuration;
+          const fadeIn = Math.min(segProgress / 0.15, 1);
+          const fadeOut = Math.min((1 - segProgress) / 0.15, 1);
+          const alpha = Math.min(fadeIn, fadeOut);
+          
+          drawSubtitle(ctx, activeSegment.text, width, height, alpha);
+
+          // Trigger TTS speech
+          if (narrationController) {
+            narrationController.speakSegment(activeSegment);
+          }
+        }
+      }
 
       const progress = Math.round(t * 100);
       if (progress !== lastProgress) {
