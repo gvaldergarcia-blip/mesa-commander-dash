@@ -50,6 +50,7 @@ export interface CreateVideoParams {
   restaurantName: string;
   narrationScript?: NarrationScript;
   enableNarration?: boolean;
+  customMusicFile?: File;
 }
 
 const MONTHLY_LIMIT = Infinity;
@@ -131,6 +132,11 @@ export function useVideoGenerator() {
         logoUrl = await uploadImage(params.logoFile);
       }
 
+      let customMusicUrl: string | undefined;
+      if (params.customMusicFile) {
+        customMusicUrl = await uploadImage(params.customMusicFile);
+      }
+
       // 2. Create DB record
       const { data: job, error: insertError } = await (supabase as any)
         .from("video_jobs")
@@ -168,6 +174,7 @@ export function useVideoGenerator() {
         restaurantName: params.restaurantName,
         logoUrl,
         musicTheme: params.musicTheme,
+        customMusicUrl,
         narrationScript: params.narrationScript,
         enableNarration: params.enableNarration,
         onProgress: (p) => setRenderProgress(p),

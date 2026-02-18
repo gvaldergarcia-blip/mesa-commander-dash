@@ -18,6 +18,7 @@ export interface RenderOptions {
   restaurantName: string;
   logoUrl?: string;
   musicTheme?: Exclude<MusicTheme, 'auto'>;
+  customMusicUrl?: string;
   narrationScript?: NarrationScript;
   enableNarration?: boolean;
   onProgress?: (progress: number) => void;
@@ -629,43 +630,73 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const stream = canvas.captureStream(30);
 
-  // Add ambient background music with ducking support
+  // ─── Audio setup: music + real TTS narration ───
   let audioCleanup: (() => void) | null = null;
-  try {
-    const { createAmbientMusic, getThemeForTemplate } = await import('./audioGenerator');
-    const resolvedTheme = options.musicTheme || getThemeForTemplate(templateId);
+  let musicCtx: { audioCtx: AudioContext; destination: MediaStreamAudioDestinationNode; start: () => void; stop: () => void } | null = null;
 
-    // Pass narration segments for automatic ducking
+  try {
     const duckingSegments = options.narrationScript?.segments?.map(s => ({
       startPercent: s.startPercent,
       endPercent: s.endPercent,
     }));
 
-    const music = createAmbientMusic(duration, resolvedTheme, duckingSegments);
-    const audioTrack = music.destination.stream.getAudioTracks()[0];
+    // Create music source (custom MP3 or procedural)
+    if (options.customMusicUrl) {
+      const { createMusicFromUrl } = await import('./audioGenerator');
+      musicCtx = await createMusicFromUrl(options.customMusicUrl, duration, duckingSegments);
+    } else {
+      const { createAmbientMusic, getThemeForTemplate } = await import('./audioGenerator');
+      const resolvedTheme = options.musicTheme || getThemeForTemplate(templateId);
+      musicCtx = createAmbientMusic(duration, resolvedTheme, duckingSegments);
+    }
+
+    const audioTrack = musicCtx.destination.stream.getAudioTracks()[0];
     if (audioTrack) {
       stream.addTrack(audioTrack);
     }
-    music.start();
-    audioCleanup = () => music.stop();
+
+    // Fetch real TTS audio and schedule it through the same AudioContext
+    if (options.enableNarration && options.narrationScript?.segments?.length) {
+      try {
+        const { fetchTTSAudio } = await import('./ttsNarrator');
+        const segments = options.narrationScript.segments;
+
+        // Fetch all TTS segments in parallel
+        const ttsResults = await Promise.all(
+          segments.map(async (seg) => {
+            const audioData = await fetchTTSAudio(seg.text);
+            // slice(0) to avoid detached ArrayBuffer issues
+            const audioBuffer = await musicCtx!.audioCtx.decodeAudioData(audioData.slice(0));
+            return { buffer: audioBuffer, startPercent: seg.startPercent };
+          })
+        );
+
+        // Start music, then schedule TTS at correct timeline offsets
+        musicCtx.start();
+        const baseTime = musicCtx.audioCtx.currentTime;
+
+        for (const { buffer, startPercent } of ttsResults) {
+          const source = musicCtx.audioCtx.createBufferSource();
+          source.buffer = buffer;
+          const ttsGain = musicCtx.audioCtx.createGain();
+          ttsGain.gain.value = 1.0;
+          source.connect(ttsGain);
+          ttsGain.connect(musicCtx.destination);
+          source.start(baseTime + startPercent * duration);
+        }
+
+        console.log(`TTS: ${ttsResults.length} segments scheduled for playback`);
+      } catch (e) {
+        console.warn('TTS audio failed, rendering with subtitles only:', e);
+        musicCtx.start();
+      }
+    } else {
+      musicCtx.start();
+    }
+
+    audioCleanup = () => musicCtx!.stop();
   } catch (e) {
     console.warn('Audio generation failed, rendering without audio:', e);
-  }
-
-  // Setup TTS narration (plays through speakers during rendering — not captured in file)
-  let narrationController: ReturnType<typeof import('./ttsNarrator').createNarrationController> | null = null;
-  if (options.enableNarration && options.narrationScript && options.narrationScript.segments.length > 0) {
-    try {
-      const { createNarrationController, ensureVoicesLoaded } = await import('./ttsNarrator');
-      await ensureVoicesLoaded();
-      narrationController = createNarrationController(options.narrationScript, {
-        rate: 0.9,
-        pitch: 1.0,
-        volume: 1.0,
-      });
-    } catch (e) {
-      console.warn('TTS narration setup failed:', e);
-    }
   }
 
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
@@ -687,7 +718,6 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     recorder.onstop = () => {
       audioCleanup?.();
-      narrationController?.stop();
       const blob = new Blob(chunks, { type: 'video/webm' });
       resolve(blob);
     };
@@ -728,10 +758,6 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
             subtitleState.alpha
           );
 
-          // Trigger TTS speech (plays through speakers during rendering)
-          if (narrationController) {
-            narrationController.speakSegment(subtitleState.segment);
-          }
         }
       }
 

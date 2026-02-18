@@ -381,3 +381,77 @@ export function createAmbientMusic(
 
   return { audioCtx, destination, start, stop };
 }
+
+/**
+ * Load custom MP3 from URL and create audio playback with ducking support
+ */
+export async function createMusicFromUrl(
+  url: string,
+  durationSeconds: number,
+  narrationSegments?: Array<{ startPercent: number; endPercent: number }>
+): Promise<{
+  audioCtx: AudioContext;
+  destination: MediaStreamAudioDestinationNode;
+  start: () => void;
+  stop: () => void;
+}> {
+  const audioCtx = new AudioContext({ sampleRate: 44100 });
+  const destination = audioCtx.createMediaStreamDestination();
+
+  // Fetch and decode the MP3
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+  let sourceNode: AudioBufferSourceNode | null = null;
+
+  const masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.65;
+
+  const compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.value = -24;
+  compressor.knee.value = 12;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.25;
+
+  masterGain.connect(compressor);
+  compressor.connect(destination);
+
+  function start() {
+    const now = audioCtx.currentTime;
+
+    sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.loop = audioBuffer.duration < durationSeconds;
+    sourceNode.connect(masterGain);
+
+    // Fade in/out
+    masterGain.gain.setValueAtTime(0, now);
+    masterGain.gain.linearRampToValueAtTime(0.65, now + 1.5);
+    masterGain.gain.setValueAtTime(0.65, now + durationSeconds - 1.5);
+    masterGain.gain.linearRampToValueAtTime(0, now + durationSeconds);
+
+    // Ducking during narration
+    if (narrationSegments && narrationSegments.length > 0) {
+      for (const seg of narrationSegments) {
+        const segStart = now + seg.startPercent * durationSeconds;
+        const segEnd = now + seg.endPercent * durationSeconds;
+        masterGain.gain.setValueAtTime(0.65, segStart - 0.3);
+        masterGain.gain.linearRampToValueAtTime(0.2, segStart);
+        masterGain.gain.setValueAtTime(0.2, segEnd - 0.1);
+        masterGain.gain.linearRampToValueAtTime(0.65, segEnd + 0.5);
+      }
+    }
+
+    sourceNode.start(now);
+    sourceNode.stop(now + durationSeconds + 0.5);
+  }
+
+  function stop() {
+    try { sourceNode?.stop(); } catch { /* already stopped */ }
+    audioCtx.close().catch(() => {});
+  }
+
+  return { audioCtx, destination, start, stop };
+}

@@ -1,8 +1,9 @@
 /**
- * TTS Narrator using Web Speech API
- * Generates pt-BR voice narration synced with video timeline
- * Voice plays during real-time rendering and gets captured by MediaRecorder
+ * TTS Narrator — fetches real audio from edge function
+ * Generates pt-BR voice narration that gets mixed into the video file
  */
+
+import { supabase } from '@/integrations/supabase/client';
 
 export interface NarrationSegment {
   type: string;
@@ -50,123 +51,28 @@ export function buildNarrationTimeline(
 }
 
 /**
- * Get the best available pt-BR voice
+ * Fetch TTS audio from the edge function (Google Translate TTS — free, no API key)
+ * Returns raw MP3 audio as ArrayBuffer ready for Web Audio API decoding
  */
-function getBestPtBRVoice(): SpeechSynthesisVoice | null {
-  const voices = speechSynthesis.getVoices();
-  
-  // Priority: pt-BR > pt > any Portuguese
-  const ptBR = voices.find(v => v.lang === 'pt-BR' && !v.localService);
-  if (ptBR) return ptBR;
-  
-  const ptBRLocal = voices.find(v => v.lang === 'pt-BR');
-  if (ptBRLocal) return ptBRLocal;
-  
-  const pt = voices.find(v => v.lang.startsWith('pt'));
-  if (pt) return pt;
-  
-  return null;
-}
+export async function fetchTTSAudio(text: string): Promise<ArrayBuffer> {
+  // Use the supabase client's internal URL and key for the edge function call
+  const supabaseUrl = (supabase as any).supabaseUrl as string;
+  const supabaseKey = (supabase as any).supabaseKey as string;
 
-/**
- * Ensure voices are loaded (they load async in some browsers)
- */
-export function ensureVoicesLoaded(): Promise<void> {
-  return new Promise((resolve) => {
-    const voices = speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      resolve();
-      return;
-    }
-    speechSynthesis.onvoiceschanged = () => resolve();
-    // Fallback timeout
-    setTimeout(resolve, 2000);
+  const response = await fetch(`${supabaseUrl}/functions/v1/text-to-speech`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseKey}`,
+      'apikey': supabaseKey,
+    },
+    body: JSON.stringify({ text, lang: 'pt-BR' }),
   });
-}
 
-export interface NarrationController {
-  /** Get the active segment for a given timeline position (0–1) */
-  getActiveSegment: (t: number) => NarrationSegment | null;
-  /** Speak a segment (call once when segment starts) */
-  speakSegment: (segment: NarrationSegment) => void;
-  /** Stop all speech */
-  stop: () => void;
-  /** Whether TTS is currently speaking */
-  isSpeaking: () => boolean;
-}
-
-/**
- * Create a narration controller for real-time playback during video rendering
- */
-export function createNarrationController(
-  script: NarrationScript,
-  options?: { rate?: number; pitch?: number; volume?: number }
-): NarrationController {
-  const spokenSegments = new Set<number>();
-  const rate = options?.rate ?? 0.95;
-  const pitch = options?.pitch ?? 1.0;
-  const volume = options?.volume ?? 1.0;
-
-  function getActiveSegment(t: number): NarrationSegment | null {
-    return script.segments.find(
-      (s) => t >= s.startPercent && t <= s.endPercent
-    ) || null;
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`TTS failed (${response.status}): ${errorText}`);
   }
 
-  function speakSegment(segment: NarrationSegment) {
-    const index = script.segments.indexOf(segment);
-    if (index === -1 || spokenSegments.has(index)) return;
-    spokenSegments.add(index);
-
-    // Cancel any ongoing speech first
-    speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(segment.text);
-    utterance.lang = 'pt-BR';
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-
-    const voice = getBestPtBRVoice();
-    if (voice) utterance.voice = voice;
-
-    speechSynthesis.speak(utterance);
-  }
-
-  function stop() {
-    speechSynthesis.cancel();
-    spokenSegments.clear();
-  }
-
-  function isSpeaking() {
-    return speechSynthesis.speaking;
-  }
-
-  return { getActiveSegment, speakSegment, stop, isSpeaking };
-}
-
-/**
- * Pre-generate TTS audio as an AudioBuffer for mixing into the video
- * Uses MediaStream capture from SpeechSynthesis (where supported)
- */
-export async function generateTTSAudioBuffer(
-  text: string,
-  durationSeconds: number
-): Promise<AudioBuffer | null> {
-  try {
-    await ensureVoicesLoaded();
-    
-    const audioCtx = new AudioContext({ sampleRate: 44100 });
-    const sampleRate = audioCtx.sampleRate;
-    const totalSamples = sampleRate * durationSeconds;
-    
-    // Create a silent buffer as fallback
-    // The actual TTS plays through speakers during recording
-    const buffer = audioCtx.createBuffer(1, totalSamples, sampleRate);
-    
-    await audioCtx.close();
-    return buffer;
-  } catch {
-    return null;
-  }
+  return response.arrayBuffer();
 }
