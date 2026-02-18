@@ -1,6 +1,6 @@
 /**
- * Presenter Video Renderer
- * Canvas-based animated avatar with subtitles, background music, and TTS narration
+ * Premium Commercial Video Renderer
+ * Cinematic photo transitions, animated text, subtitles, music — no avatar
  */
 
 import { createAmbientMusic } from './audioGenerator';
@@ -37,148 +37,329 @@ function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
-// ─── Tone colors ──────────────────────────────────────────
-const TONE_THEMES: Record<string, { primary: string; accent: string; bg: string; avatarGradient: string[] }> = {
-  sofisticado: { primary: '#c9a96e', accent: '#8b7355', bg: '#1a1a2e', avatarGradient: ['#c9a96e', '#8b7355'] },
-  jovem: { primary: '#ff6b6b', accent: '#ffa94d', bg: '#1a1a2e', avatarGradient: ['#ff6b6b', '#ffa94d'] },
-  familiar: { primary: '#51cf66', accent: '#69db7c', bg: '#1a2e1a', avatarGradient: ['#51cf66', '#339958'] },
-  gourmet: { primary: '#e64980', accent: '#be4bdb', bg: '#2e1a2e', avatarGradient: ['#e64980', '#be4bdb'] },
+function easeInOutQuart(t: number): number {
+  return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+}
+
+// ─── Tone themes ──────────────────────────────────────────
+const TONE_THEMES: Record<string, {
+  primary: string; accent: string; bg: string;
+  gradientStart: string; gradientEnd: string;
+  textAccent: string;
+}> = {
+  sofisticado: {
+    primary: '#c9a96e', accent: '#8b7355', bg: '#0d0d14',
+    gradientStart: '#c9a96e', gradientEnd: '#8b7355',
+    textAccent: '#e8d5b0',
+  },
+  jovem: {
+    primary: '#ff6b6b', accent: '#ffa94d', bg: '#0d0d14',
+    gradientStart: '#ff6b6b', gradientEnd: '#ffa94d',
+    textAccent: '#ffd4a8',
+  },
+  familiar: {
+    primary: '#51cf66', accent: '#339958', bg: '#0a130a',
+    gradientStart: '#51cf66', gradientEnd: '#339958',
+    textAccent: '#a8e6b0',
+  },
+  gourmet: {
+    primary: '#e64980', accent: '#be4bdb', bg: '#140a14',
+    gradientStart: '#e64980', gradientEnd: '#be4bdb',
+    textAccent: '#f0b0d0',
+  },
 };
 
-// ─── Draw avatar (animated silhouette) ────────────────────
-function drawAvatar(
+type Theme = typeof TONE_THEMES.sofisticado;
+
+// ─── Draw cover image with Ken Burns ─────────────────────
+function drawCover(
   ctx: CanvasRenderingContext2D,
-  w: number, h: number,
-  t: number, isSpeaking: boolean,
-  theme: typeof TONE_THEMES.sofisticado
+  img: HTMLImageElement,
+  x: number, y: number, w: number, h: number,
+  scale = 1, panX = 0, panY = 0
 ) {
-  const cx = w * 0.5;
-  const cy = h * 0.42;
-  const headR = w * 0.08;
+  const imgRatio = img.width / img.height;
+  const areaRatio = w / h;
+  let sw: number, sh: number, sx: number, sy: number;
 
-  // Subtle breathing/speaking animation
-  const breathe = Math.sin(t * 4) * 2;
-  const speakPulse = isSpeaking ? Math.sin(t * 25) * 3 : 0;
-
-  // Glow behind avatar
-  ctx.save();
-  const glow = ctx.createRadialGradient(cx, cy, headR, cx, cy, headR * 4);
-  glow.addColorStop(0, theme.primary + '30');
-  glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-  ctx.restore();
-
-  // Body
-  ctx.save();
-  ctx.translate(0, breathe);
-  const bodyGrad = ctx.createLinearGradient(cx - w * 0.12, cy + headR, cx + w * 0.12, cy + h * 0.25);
-  bodyGrad.addColorStop(0, theme.avatarGradient[0]);
-  bodyGrad.addColorStop(1, theme.avatarGradient[1]);
-
-  ctx.fillStyle = bodyGrad;
-  ctx.beginPath();
-  ctx.moveTo(cx - w * 0.1, cy + headR * 1.5);
-  ctx.quadraticCurveTo(cx - w * 0.15, cy + h * 0.22, cx - w * 0.12, cy + h * 0.3);
-  ctx.lineTo(cx + w * 0.12, cy + h * 0.3);
-  ctx.quadraticCurveTo(cx + w * 0.15, cy + h * 0.22, cx + w * 0.1, cy + headR * 1.5);
-  ctx.closePath();
-  ctx.fill();
-
-  // Head
-  ctx.fillStyle = '#e8d5c4';
-  ctx.beginPath();
-  ctx.arc(cx, cy, headR + speakPulse * 0.3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Hair
-  ctx.fillStyle = '#2c2c2c';
-  ctx.beginPath();
-  ctx.arc(cx, cy - headR * 0.2, headR * 1.05, Math.PI, 0);
-  ctx.fill();
-
-  // Eyes
-  const eyeY = cy - headR * 0.1;
-  const blinkProgress = (Math.sin(t * 0.8) + 1) / 2;
-  const eyeH = blinkProgress > 0.95 ? 1 : headR * 0.12;
-  ctx.fillStyle = '#2c2c2c';
-  ctx.beginPath();
-  ctx.ellipse(cx - headR * 0.3, eyeY, headR * 0.08, eyeH, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + headR * 0.3, eyeY, headR * 0.08, eyeH, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Mouth (animated when speaking)
-  const mouthY = cy + headR * 0.35;
-  const mouthOpen = isSpeaking ? Math.abs(Math.sin(t * 20)) * headR * 0.15 : headR * 0.03;
-  ctx.fillStyle = '#c4736e';
-  ctx.beginPath();
-  ctx.ellipse(cx, mouthY, headR * 0.2, mouthOpen, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Smile line
-  if (!isSpeaking) {
-    ctx.strokeStyle = '#b0736e';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, mouthY - headR * 0.05, headR * 0.18, 0.2, Math.PI - 0.2);
-    ctx.stroke();
+  if (imgRatio > areaRatio) {
+    sh = img.height;
+    sw = sh * areaRatio;
+    sx = (img.width - sw) / 2;
+    sy = 0;
+  } else {
+    sw = img.width;
+    sh = sw / areaRatio;
+    sx = 0;
+    sy = (img.height - sh) / 2;
   }
 
+  ctx.save();
+  ctx.translate(x + w / 2 + panX, y + h / 2 + panY);
+  ctx.scale(scale, scale);
+  ctx.translate(-(x + w / 2), -(y + h / 2));
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
   ctx.restore();
 }
 
-// ─── Draw subtitle bar ───────────────────────────────────
+// ─── Rounded rect helper ─────────────────────────────────
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ─── Text with word wrap ─────────────────────────────────
+function drawText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number, y: number,
+  fontSize: number,
+  color: string,
+  alpha: number,
+  fontWeight = 'bold',
+  maxWidth?: number,
+  align: CanvasTextAlign = 'center'
+) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.fillStyle = color;
+  ctx.font = `${fontWeight} ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.7)';
+  ctx.shadowBlur = fontSize * 0.35;
+
+  if (maxWidth) {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+    const lineH = fontSize * 1.4;
+    const startY = y - ((lines.length - 1) * lineH) / 2;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, startY + i * lineH);
+    }
+  } else {
+    ctx.fillText(text, x, y);
+  }
+  ctx.restore();
+}
+
+// ─── Cinematic gradient overlays ─────────────────────────
+function drawGradientOverlay(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  topAlpha: number, bottomAlpha: number
+) {
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, `rgba(0,0,0,${topAlpha})`);
+  grad.addColorStop(0.35, 'rgba(0,0,0,0.05)');
+  grad.addColorStop(0.65, 'rgba(0,0,0,0.05)');
+  grad.addColorStop(1, `rgba(0,0,0,${bottomAlpha})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+// ─── Light particles ─────────────────────────────────────
+function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, theme: Theme) {
+  ctx.save();
+  for (let i = 0; i < 18; i++) {
+    const seed = i * 137.508;
+    const px = ((seed * 7.31 + t * 50 * (0.4 + (i % 3) * 0.25)) % (w + 30)) - 15;
+    const py = ((seed * 3.17 + t * 25 * (0.3 + (i % 4) * 0.2)) % (h + 30)) - 15;
+    const size = 1.2 + (i % 4) * 0.6;
+    ctx.globalAlpha = 0.1 + Math.sin(t * 3 + seed) * 0.06;
+    ctx.fillStyle = theme.primary;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ─── Cinematic light leak ────────────────────────────────
+function drawLightLeak(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, theme: Theme) {
+  ctx.save();
+  const cx = w * (0.7 + Math.sin(t * 1.8) * 0.2);
+  const cy = h * (0.2 + Math.cos(t * 1.3) * 0.12);
+  const r = w * 0.5;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, theme.primary + '18');
+  grad.addColorStop(0.5, theme.accent + '08');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+// ─── Accent line animation ───────────────────────────────
+function drawAccentLine(
+  ctx: CanvasRenderingContext2D,
+  x1: number, y: number, x2: number,
+  progress: number, theme: Theme
+) {
+  const p = easeInOut(Math.min(progress, 1));
+  const currentX2 = x1 + (x2 - x1) * p;
+  ctx.save();
+  const grad = ctx.createLinearGradient(x1, y, x2, y);
+  grad.addColorStop(0, theme.gradientStart);
+  grad.addColorStop(1, theme.gradientEnd);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = theme.primary + '60';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.lineTo(currentX2, y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ─── Ken Burns directions ────────────────────────────────
+const KB_DIRS = [
+  { px: -30, py: -20 }, { px: 30, py: -15 },
+  { px: -20, py: 25 }, { px: 25, py: 20 },
+  { px: -15, py: -30 }, { px: 28, py: 10 },
+];
+
+// ─── Draw cinematic slide with Ken Burns ─────────────────
+function drawSlide(
+  ctx: CanvasRenderingContext2D,
+  images: HTMLImageElement[],
+  w: number, h: number,
+  t: number, theme: Theme
+) {
+  // Dark base
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, w, h);
+
+  if (images.length === 0) return;
+
+  const slideTime = 1 / images.length;
+  const idx = Math.min(Math.floor(t / slideTime), images.length - 1);
+  const slideT = (t - idx * slideTime) / slideTime;
+  const prevIdx = idx > 0 ? idx - 1 : images.length - 1;
+
+  const transThreshold = 0.18;
+  const dir = KB_DIRS[idx % KB_DIRS.length];
+  const prevDir = KB_DIRS[prevIdx % KB_DIRS.length];
+
+  // Ken Burns zoom/pan
+  const zoomStart = 1.0;
+  const zoomEnd = 1.15;
+
+  // Previous slide fading out
+  if (slideT < transThreshold && idx > 0) {
+    const fadeT = slideT / transThreshold;
+    drawCover(ctx, images[prevIdx], 0, 0, w, h, zoomEnd, prevDir.px, prevDir.py);
+    ctx.globalAlpha = easeInOutQuart(fadeT);
+  }
+
+  // Current slide with zoom/pan
+  const zoom = zoomStart + (zoomEnd - zoomStart) * easeInOut(slideT);
+  const px = dir.px * slideT;
+  const py = dir.py * slideT;
+  drawCover(ctx, images[idx], 0, 0, w, h, zoom, px, py);
+  ctx.globalAlpha = 1;
+
+  // Cinematic overlays
+  drawGradientOverlay(ctx, w, h, 0.55, 0.75);
+  drawLightLeak(ctx, w, h, t, theme);
+  drawParticles(ctx, w, h, t, theme);
+}
+
+// ─── Draw header (restaurant name + dish) ────────────────
+function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  restaurantName: string,
+  dishName: string,
+  w: number, h: number,
+  t: number, theme: Theme
+) {
+  // Restaurant name - elegant entrance
+  const nameAlpha = t < 0.06 ? t / 0.06 : t > 0.92 ? (1 - t) / 0.08 : 1;
+  const nameY = h * 0.06 + (1 - easeOut(Math.min(t / 0.1, 1))) * 30;
+
+  ctx.save();
+  ctx.globalAlpha = nameAlpha * 0.85;
+  ctx.font = `300 ${w * 0.02}px "Inter", system-ui, sans-serif`;
+  ctx.fillStyle = theme.textAccent;
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '4px';
+  ctx.fillText(restaurantName.toUpperCase(), w / 2, nameY);
+  ctx.restore();
+
+  // Accent line below name
+  drawAccentLine(ctx, w * 0.35, nameY + w * 0.018, w * 0.65, t * 6, theme);
+
+  // Dish name - appears after intro
+  if (t > 0.08 && t < 0.88) {
+    const dishAlpha = t < 0.14 ? (t - 0.08) / 0.06 : t > 0.82 ? (0.88 - t) / 0.06 : 1;
+    const dishY = h * 0.12 + (1 - easeOut(Math.min((t - 0.08) / 0.08, 1))) * 25;
+    drawText(ctx, dishName, w / 2, dishY, w * 0.04, '#ffffff', dishAlpha, '600', w * 0.8);
+  }
+}
+
+// ─── Draw subtitle bar (frosted glass) ───────────────────
 function drawSubtitle(
   ctx: CanvasRenderingContext2D,
   text: string,
   w: number, h: number,
-  alpha: number,
-  theme: typeof TONE_THEMES.sofisticado
+  alpha: number, theme: Theme
 ) {
   if (!text || alpha <= 0) return;
 
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  const barY = h * 0.78;
-  const barH = h * 0.12;
-  const padding = w * 0.06;
-
-  // Frosted glass bar
-  ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  const r = 16;
+  const barY = h * 0.72;
+  const barH = h * 0.1;
+  const padding = w * 0.05;
   const bx = padding;
   const bw = w - padding * 2;
-  ctx.beginPath();
-  ctx.moveTo(bx + r, barY);
-  ctx.lineTo(bx + bw - r, barY);
-  ctx.quadraticCurveTo(bx + bw, barY, bx + bw, barY + r);
-  ctx.lineTo(bx + bw, barY + barH - r);
-  ctx.quadraticCurveTo(bx + bw, barY + barH, bx + bw - r, barY + barH);
-  ctx.lineTo(bx + r, barY + barH);
-  ctx.quadraticCurveTo(bx, barY + barH, bx, barY + barH - r);
-  ctx.lineTo(bx, barY + r);
-  ctx.quadraticCurveTo(bx, barY, bx + r, barY);
-  ctx.closePath();
+  const r = 14;
+
+  // Frosted glass background
+  drawRoundedRect(ctx, bx, barY, bw, barH, r);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fill();
 
-  // Border accent
-  ctx.strokeStyle = theme.primary + '60';
-  ctx.lineWidth = 1.5;
+  // Subtle border
+  ctx.strokeStyle = theme.primary + '30';
+  ctx.lineWidth = 1;
   ctx.stroke();
 
   // Text
-  const fontSize = w * 0.032;
-  ctx.font = `600 ${fontSize}px "Inter", system-ui, sans-serif`;
+  const fontSize = w * 0.03;
+  ctx.font = `500 ${fontSize}px "Inter", system-ui, sans-serif`;
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = 6;
 
-  // Word wrap
   const maxW = bw - w * 0.06;
   const words = text.split(' ');
   const lines: string[] = [];
@@ -194,7 +375,7 @@ function drawSubtitle(
   }
   lines.push(line);
 
-  const lineH = fontSize * 1.4;
+  const lineH = fontSize * 1.35;
   const startY = barY + barH / 2 - ((lines.length - 1) * lineH) / 2;
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i], w / 2, startY + i * lineH);
@@ -203,120 +384,11 @@ function drawSubtitle(
   ctx.restore();
 }
 
-// ─── Draw background with images ─────────────────────────
-function drawBackground(
-  ctx: CanvasRenderingContext2D,
-  images: HTMLImageElement[],
-  w: number, h: number,
-  t: number,
-  theme: typeof TONE_THEMES.sofisticado
-) {
-  // Dark background
-  ctx.fillStyle = theme.bg;
-  ctx.fillRect(0, 0, w, h);
-
-  if (images.length > 0) {
-    const slideTime = 1 / Math.max(images.length, 1);
-    const idx = Math.min(Math.floor(t / slideTime), images.length - 1);
-    const img = images[idx];
-
-    // Draw blurred background image
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    const imgRatio = img.width / img.height;
-    const areaRatio = w / h;
-    let sw, sh, sx, sy;
-    if (imgRatio > areaRatio) {
-      sh = img.height;
-      sw = sh * areaRatio;
-      sx = (img.width - sw) / 2;
-      sy = 0;
-    } else {
-      sw = img.width;
-      sh = sw / areaRatio;
-      sx = 0;
-      sy = (img.height - sh) / 2;
-    }
-    const scale = 1.1 + Math.sin(t * 2) * 0.02;
-    ctx.translate(w / 2, h / 2);
-    ctx.scale(scale, scale);
-    ctx.translate(-w / 2, -h / 2);
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-    ctx.restore();
-
-    // Overlay gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, theme.bg + 'dd');
-    grad.addColorStop(0.3, theme.bg + '99');
-    grad.addColorStop(0.7, theme.bg + '99');
-    grad.addColorStop(1, theme.bg + 'ee');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  // Subtle particles
-  ctx.save();
-  for (let i = 0; i < 12; i++) {
-    const seed = i * 137.508;
-    const px = ((seed * 7.31 + t * 40) % (w + 20)) - 10;
-    const py = ((seed * 3.17 + t * 20) % (h + 20)) - 10;
-    ctx.globalAlpha = 0.08 + Math.sin(t * 3 + seed) * 0.04;
-    ctx.fillStyle = theme.primary;
-    ctx.beginPath();
-    ctx.arc(px, py, 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-// ─── Draw header ─────────────────────────────────────────
-function drawHeader(
-  ctx: CanvasRenderingContext2D,
-  restaurantName: string,
-  dishName: string,
-  w: number, h: number,
-  t: number,
-  theme: typeof TONE_THEMES.sofisticado
-) {
-  const alpha = t < 0.05 ? t / 0.05 : 1;
-
-  // Restaurant name
-  ctx.save();
-  ctx.globalAlpha = alpha * 0.9;
-  ctx.font = `700 ${w * 0.028}px "Inter", system-ui, sans-serif`;
-  ctx.fillStyle = theme.primary;
-  ctx.textAlign = 'center';
-  ctx.fillText(restaurantName.toUpperCase(), w / 2, h * 0.06);
-
-  // Accent line
-  const lineW = ctx.measureText(restaurantName.toUpperCase()).width;
-  ctx.strokeStyle = theme.primary + '60';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(w / 2 - lineW / 2, h * 0.075);
-  ctx.lineTo(w / 2 + lineW / 2, h * 0.075);
-  ctx.stroke();
-  ctx.restore();
-
-  // Dish name (if in PRATO section)
-  if (t > 0.2 && t < 0.8) {
-    const dishAlpha = t < 0.25 ? (t - 0.2) / 0.05 : t > 0.75 ? (0.8 - t) / 0.05 : 1;
-    ctx.save();
-    ctx.globalAlpha = dishAlpha * 0.7;
-    ctx.font = `500 ${w * 0.022}px "Inter", system-ui, sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.fillText(`✦ ${dishName} ✦`, w / 2, h * 0.1);
-    ctx.restore();
-  }
-}
-
-// ─── Draw CTA ────────────────────────────────────────────
+// ─── Draw CTA button ─────────────────────────────────────
 function drawCTA(
   ctx: CanvasRenderingContext2D,
   w: number, h: number,
-  t: number,
-  theme: typeof TONE_THEMES.sofisticado
+  t: number, theme: Theme
 ) {
   if (t < 0.82) return;
   const alpha = easeOut((t - 0.82) / 0.12);
@@ -324,35 +396,27 @@ function drawCTA(
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  const bw = w * 0.7;
-  const bh = w * 0.065;
+  const bw = w * 0.72;
+  const bh = w * 0.07;
   const bx = (w - bw) / 2;
-  const by = h * 0.92;
+  const by = h * 0.88;
   const r = bh / 2;
 
-  // Button
+  // Button with gradient
   const grad = ctx.createLinearGradient(bx, by, bx + bw, by);
-  grad.addColorStop(0, theme.primary);
-  grad.addColorStop(1, theme.accent);
-  ctx.fillStyle = grad;
-  ctx.shadowColor = theme.primary + '80';
-  ctx.shadowBlur = 20;
+  grad.addColorStop(0, theme.gradientStart);
+  grad.addColorStop(1, theme.gradientEnd);
 
-  ctx.beginPath();
-  ctx.moveTo(bx + r, by);
-  ctx.lineTo(bx + bw - r, by);
-  ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
-  ctx.lineTo(bx + bw, by + bh - r);
-  ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
-  ctx.lineTo(bx + r, by + bh);
-  ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
-  ctx.lineTo(bx, by + r);
-  ctx.quadraticCurveTo(bx, by, bx + r, by);
-  ctx.closePath();
+  drawRoundedRect(ctx, bx, by, bw, bh, r);
+  ctx.fillStyle = grad;
+  ctx.shadowColor = theme.primary + '70';
+  ctx.shadowBlur = 25;
   ctx.fill();
 
+  // Button text
   ctx.shadowColor = 'transparent';
-  ctx.font = `700 ${w * 0.026}px "Inter", system-ui, sans-serif`;
+  ctx.shadowBlur = 0;
+  ctx.font = `700 ${w * 0.028}px "Inter", system-ui, sans-serif`;
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -361,12 +425,49 @@ function drawCTA(
   ctx.restore();
 }
 
+// ─── Section tag badge ───────────────────────────────────
+function drawSectionBadge(
+  ctx: CanvasRenderingContext2D,
+  tag: string,
+  w: number, h: number,
+  alpha: number, theme: Theme
+) {
+  if (alpha <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.7;
+
+  const text = tag.replace(/[\[\]]/g, '').toUpperCase();
+  const fontSize = w * 0.016;
+  ctx.font = `600 ${fontSize}px "Inter", system-ui, sans-serif`;
+  const textW = ctx.measureText(text).width;
+
+  const bx = w / 2 - (textW + w * 0.03) / 2;
+  const by = h * 0.67;
+  const bw = textW + w * 0.03;
+  const bh = fontSize * 2;
+
+  drawRoundedRect(ctx, bx, by, bw, bh, bh / 2);
+  ctx.fillStyle = theme.primary + '25';
+  ctx.fill();
+  ctx.strokeStyle = theme.primary + '50';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = theme.textAccent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, w / 2, by + bh / 2);
+
+  ctx.restore();
+}
+
 // ─── Get current subtitle text ───────────────────────────
-function getCurrentSubtitle(
+function getCurrentSection(
   sections: { tag: string; text: string }[],
   t: number
-): string {
-  if (sections.length === 0) return '';
+): { tag: string; text: string; localT: number } | null {
+  if (sections.length === 0) return null;
   const sectionTime = 1 / sections.length;
   const idx = Math.min(Math.floor(t / sectionTime), sections.length - 1);
   const section = sections[idx];
@@ -375,16 +476,17 @@ function getCurrentSubtitle(
   // Progressive word reveal
   const words = section.text.split(' ');
   const visibleWords = Math.ceil(words.length * Math.min(localT * 1.5, 1));
-  return words.slice(0, visibleWords).join(' ');
+  return {
+    tag: section.tag,
+    text: words.slice(0, visibleWords).join(' '),
+    localT,
+  };
 }
 
 // ─── TTS using Web Speech API ────────────────────────────
 function speakSection(text: string): Promise<void> {
   return new Promise((resolve) => {
-    if (!window.speechSynthesis) {
-      resolve();
-      return;
-    }
+    if (!window.speechSynthesis) { resolve(); return; }
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'pt-BR';
     utterance.rate = 1.0;
@@ -402,13 +504,13 @@ function speakSection(text: string): Promise<void> {
   });
 }
 
-// ─── Main presenter render ──────────────────────────────
+// ─── Main render function ────────────────────────────────
 export async function renderPresenterVideo(
   options: PresenterRenderOptions
 ): Promise<Blob> {
   const { sections, restaurantName, dishName, tone, duration, images } = options;
   const w = 1080;
-  const h = 1920; // Always vertical 9:16
+  const h = 1920;
 
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -423,7 +525,7 @@ export async function renderPresenterVideo(
 
   const stream = canvas.captureStream(30);
 
-  // Add background music
+  // Background music
   let audioCleanup: (() => void) | null = null;
   try {
     const moodMap: Record<string, 'elegant' | 'upbeat' | 'chill' | 'dramatic'> = {
@@ -437,20 +539,11 @@ export async function renderPresenterVideo(
     if (audioTrack) stream.addTrack(audioTrack);
     music.start();
     audioCleanup = () => music.stop();
-  } catch {
-    // Music is optional
-  }
+  } catch { /* music optional */ }
 
-  // Add TTS audio - capture via AudioContext destination
-  let ttsDestination: MediaStreamAudioDestinationNode | null = null;
-  try {
-    const ttsCtx = new AudioContext();
-    ttsDestination = ttsCtx.createMediaStreamDestination();
-    const ttsTrack = ttsDestination.stream.getAudioTracks()[0];
-    if (ttsTrack) stream.addTrack(ttsTrack);
-  } catch {
-    // TTS audio capture optional
-  }
+  // TTS narration
+  const fullText = sections.map((s) => s.text).join('. ');
+  setTimeout(() => { speakSection(fullText).catch(() => {}); }, 500);
 
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
     ? 'video/webm;codecs=vp9'
@@ -466,12 +559,6 @@ export async function renderPresenterVideo(
     if (e.data.size > 0) chunks.push(e.data);
   };
 
-  // Start TTS narration async
-  const fullText = sections.map((s) => s.text).join('. ');
-  setTimeout(() => {
-    speakSection(fullText).catch(() => {});
-  }, 500);
-
   return new Promise<Blob>((resolve, reject) => {
     recorder.onstop = () => {
       audioCleanup?.();
@@ -479,7 +566,7 @@ export async function renderPresenterVideo(
       resolve(new Blob(chunks, { type: 'video/webm' }));
     };
 
-    recorder.onerror = (e) => {
+    recorder.onerror = () => {
       audioCleanup?.();
       window.speechSynthesis?.cancel();
       reject(new Error('MediaRecorder error'));
@@ -495,28 +582,30 @@ export async function renderPresenterVideo(
       const elapsed = performance.now() - startTime;
       const t = Math.min(elapsed / totalMs, 1);
 
-      // Is TTS currently speaking?
-      const isSpeaking = window.speechSynthesis?.speaking || false;
-
-      // Clear
       ctx.clearRect(0, 0, w, h);
 
-      // Background with images
-      drawBackground(ctx, loadedImages, w, h, t, theme);
+      // 1. Cinematic slide with Ken Burns
+      drawSlide(ctx, loadedImages, w, h, t, theme);
 
-      // Header
+      // 2. Header (restaurant + dish)
       drawHeader(ctx, restaurantName, dishName, w, h, t, theme);
 
-      // Avatar
-      drawAvatar(ctx, w, h, t * duration, isSpeaking, theme);
+      // 3. Section badge + subtitle
+      const current = getCurrentSection(sections, t);
+      if (current) {
+        const subAlpha = t < 0.04 ? t / 0.04 : t > 0.94 ? (1 - t) / 0.06 : 1;
+        drawSectionBadge(ctx, current.tag, w, h, subAlpha, theme);
+        drawSubtitle(ctx, current.text, w, h, subAlpha, theme);
+      }
 
-      // Subtitle
-      const subtitle = getCurrentSubtitle(sections, t);
-      const subAlpha = t < 0.03 ? t / 0.03 : t > 0.95 ? (1 - t) / 0.05 : 1;
-      drawSubtitle(ctx, subtitle, w, h, subAlpha, theme);
-
-      // CTA
+      // 4. CTA final
       drawCTA(ctx, w, h, t, theme);
+
+      // 5. Cinematic letterbox bars
+      const barH = h * 0.025;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(0, 0, w, barH);
+      ctx.fillRect(0, h - barH, w, barH);
 
       // Progress
       const progress = Math.round(t * 100);
