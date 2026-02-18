@@ -1,6 +1,6 @@
 /**
  * Client-side video renderer using Canvas API + MediaRecorder
- * Generates WebM videos directly in the browser — no external API costs
+ * Premium templates with cinematic effects — no external API costs
  */
 
 export interface RenderOptions {
@@ -25,6 +25,19 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
     img.src = url;
   });
+}
+
+// ─── Easing functions ─────────────────────────────────────
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function easeOut(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOutQuart(t: number): number {
+  return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
 }
 
 // ─── Draw helpers ─────────────────────────────────────────
@@ -58,14 +71,6 @@ function drawCover(
   ctx.restore();
 }
 
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-}
-
-function easeOut(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
-
 function drawText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -75,25 +80,30 @@ function drawText(
   alpha: number,
   font = 'bold',
   maxWidth?: number,
-  align: CanvasTextAlign = 'center'
+  align: CanvasTextAlign = 'center',
+  shadow = true
 ) {
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.fillStyle = color;
-  ctx.font = `${font} ${fontSize}px "Inter", "Segoe UI", sans-serif`;
+  ctx.font = `${font} ${fontSize}px "Inter", "Segoe UI", system-ui, sans-serif`;
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
 
+  if (shadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = fontSize * 0.3;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = fontSize * 0.05;
+  }
+
   if (maxWidth) {
-    // Word wrap
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
-
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && currentLine) {
+      if (ctx.measureText(testLine).width > maxWidth && currentLine) {
         lines.push(currentLine);
         currentLine = word;
       } else {
@@ -101,8 +111,7 @@ function drawText(
       }
     }
     lines.push(currentLine);
-
-    const lineHeight = fontSize * 1.3;
+    const lineHeight = fontSize * 1.35;
     const startY = y - ((lines.length - 1) * lineHeight) / 2;
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], x, startY + i * lineHeight);
@@ -116,12 +125,13 @@ function drawText(
 function drawGradientOverlay(
   ctx: CanvasRenderingContext2D,
   w: number, h: number,
-  topAlpha: number, bottomAlpha: number
+  topAlpha: number, bottomAlpha: number,
+  midStop = 0.4
 ) {
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, `rgba(0,0,0,${topAlpha})`);
-  grad.addColorStop(0.35, 'rgba(0,0,0,0)');
-  grad.addColorStop(0.65, 'rgba(0,0,0,0)');
+  grad.addColorStop(midStop, 'rgba(0,0,0,0)');
+  grad.addColorStop(1 - midStop + 0.2, 'rgba(0,0,0,0)');
   grad.addColorStop(1, `rgba(0,0,0,${bottomAlpha})`);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
@@ -144,203 +154,308 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
+// ─── Premium effects ──────────────────────────────────────
+
+/** Floating light particles */
+function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, count = 20) {
+  ctx.save();
+  for (let i = 0; i < count; i++) {
+    const seed = i * 137.508;
+    const px = ((seed * 7.31 + t * 80 * (0.5 + (i % 3) * 0.3)) % (w + 40)) - 20;
+    const py = ((seed * 3.17 + t * 30 * (0.3 + (i % 4) * 0.2)) % (h + 40)) - 20;
+    const size = 1.5 + (i % 5) * 0.8;
+    const alpha = 0.15 + Math.sin(t * 3 + seed) * 0.1;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Cinematic light leak / lens flare */
+function drawLightLeak(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  ctx.save();
+  const cx = w * (0.7 + Math.sin(t * 2) * 0.2);
+  const cy = h * (0.2 + Math.cos(t * 1.5) * 0.15);
+  const r = w * 0.6;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, 'rgba(255,200,100,0.12)');
+  grad.addColorStop(0.4, 'rgba(255,150,50,0.05)');
+  grad.addColorStop(1, 'rgba(255,100,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Animated accent line */
+function drawAccentLine(
+  ctx: CanvasRenderingContext2D,
+  x1: number, y: number, x2: number,
+  t: number, color = '#e11d48', lineW = 3
+) {
+  const progress = easeInOut(Math.min(t * 4, 1));
+  const currentX2 = x1 + (x2 - x1) * progress;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineW;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.lineTo(currentX2, y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Premium CTA button with glow */
+function drawCTAButton(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number, y: number, w: number, h: number,
+  alpha: number, fontSize: number,
+  style: 'filled' | 'outlined' | 'glass' = 'filled'
+) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  const r = h / 2;
+  drawRoundedRect(ctx, x, y, w, h, r);
+
+  if (style === 'filled') {
+    const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, '#e11d48');
+    grad.addColorStop(1, '#be123c');
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(225,29,72,0.5)';
+    ctx.shadowBlur = 20;
+    ctx.fill();
+  } else if (style === 'glass') {
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Inner glow
+    const gGrad = ctx.createLinearGradient(x, y, x, y + h);
+    gGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
+    gGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    drawRoundedRect(ctx, x, y, w, h, r);
+    ctx.fillStyle = gGrad;
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  drawText(ctx, text, x + w / 2, y + h / 2, fontSize, '#ffffff', 1, 'bold', undefined, 'center', false);
+  ctx.restore();
+}
+
 // ─── Template definitions ──────────────────────────────────
 
 interface TemplateRenderFn {
-  (
-    ctx: CanvasRenderingContext2D,
-    images: HTMLImageElement[],
-    t: number,
-    opts: RenderOptions,
-    w: number, h: number
-  ): void;
+  (ctx: CanvasRenderingContext2D, images: HTMLImageElement[], t: number, opts: RenderOptions, w: number, h: number): void;
 }
 
 function getSlideIndex(t: number, count: number): { index: number; slideT: number; transitionT: number } {
   const slideTime = 1 / count;
   const index = Math.min(Math.floor(t / slideTime), count - 1);
   const slideT = (t - index * slideTime) / slideTime;
-  const transitionDuration = 0.15;
+  const transitionDuration = 0.18;
   const transitionT = slideT < transitionDuration ? slideT / transitionDuration : 1;
   return { index, slideT, transitionT };
 }
 
-// Template 1: Elegante — smooth crossfade, centered text
+// ═══ Template 1: Elegante — Cinematic crossfade, particles, centered text ═══
 const templateElegante: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   const { index, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Draw previous image
+  // Slow Ken Burns on each slide
+  const kbScale = 1.02 + Math.sin(t * 1.5) * 0.02;
+
   if (transitionT < 1) {
-    drawCover(ctx, images[prevIndex], 0, 0, w, h);
+    drawCover(ctx, images[prevIndex], 0, 0, w, h, kbScale);
   }
-  // Draw current image with fade
-  ctx.globalAlpha = easeInOut(transitionT);
-  drawCover(ctx, images[index], 0, 0, w, h);
+  ctx.globalAlpha = easeInOutQuart(transitionT);
+  drawCover(ctx, images[index], 0, 0, w, h, kbScale);
   ctx.globalAlpha = 1;
 
-  // Gradient overlay
-  drawGradientOverlay(ctx, w, h, 0.4, 0.7);
+  // Cinematic overlay
+  drawGradientOverlay(ctx, w, h, 0.5, 0.75, 0.35);
+  drawLightLeak(ctx, w, h, t);
+  drawParticles(ctx, w, h, t, 15);
 
-  // Headline — appears in first 30% then stays
-  const headlineAlpha = t < 0.05 ? t / 0.05 : t > 0.85 ? (1 - t) / 0.15 : 1;
-  const headlineY = h * 0.15 + (1 - easeOut(Math.min(t / 0.1, 1))) * 30;
-  drawText(ctx, opts.headline, w / 2, headlineY, w * 0.045, '#ffffff', headlineAlpha, 'bold', w * 0.8);
+  // Top accent line
+  drawAccentLine(ctx, w * 0.35, h * 0.08, w * 0.65, t);
 
-  // Subtext
+  // Headline with entrance
+  const headAlpha = t < 0.06 ? t / 0.06 : t > 0.85 ? (1 - t) / 0.15 : 1;
+  const headY = h * 0.14 + (1 - easeOut(Math.min(t / 0.12, 1))) * 40;
+  drawText(ctx, opts.headline, w / 2, headY, w * 0.046, '#ffffff', headAlpha, 'bold', w * 0.78);
+
+  // Subtext with delay
   if (opts.subtext) {
-    const subAlpha = t < 0.1 ? 0 : t < 0.2 ? (t - 0.1) / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1;
-    drawText(ctx, opts.subtext, w / 2, h * 0.82, w * 0.032, '#ffffff', subAlpha, '500', w * 0.75);
+    const subAlpha = t < 0.12 ? 0 : t < 0.22 ? (t - 0.12) / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1;
+    drawText(ctx, opts.subtext, w / 2, h * 0.82, w * 0.03, 'rgba(255,255,255,0.9)', subAlpha, '500', w * 0.72);
   }
 
-  // Restaurant name — subtle at bottom
-  drawText(ctx, opts.restaurantName, w / 2, h * 0.93, w * 0.025, 'rgba(255,255,255,0.7)', 0.8, '600');
+  // Restaurant name with line
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.32, h * 0.925);
+  ctx.lineTo(w * 0.68, h * 0.925);
+  ctx.stroke();
+  ctx.restore();
+  drawText(ctx, opts.restaurantName, w / 2, h * 0.95, w * 0.022, 'rgba(255,255,255,0.7)', 0.8, '600');
 
-  // CTA — last 20%
-  if (opts.cta && t > 0.8) {
-    const ctaAlpha = easeOut((t - 0.8) / 0.15);
-    const ctaY = h * 0.75;
-    ctx.save();
-    ctx.globalAlpha = ctaAlpha;
-    drawRoundedRect(ctx, w * 0.15, ctaY - w * 0.035, w * 0.7, w * 0.07, w * 0.015);
-    ctx.fillStyle = '#e11d48';
-    ctx.fill();
-    drawText(ctx, opts.cta, w / 2, ctaY, w * 0.03, '#ffffff', 1, 'bold');
-    ctx.restore();
+  // CTA
+  if (opts.cta && t > 0.78) {
+    const ctaAlpha = easeOut((t - 0.78) / 0.15);
+    const bw = w * 0.6;
+    const bh = w * 0.065;
+    drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.72 - bh / 2, bw, bh, ctaAlpha, w * 0.026, 'filled');
   }
 };
 
-// Template 2: Dinâmico — slide transitions, bottom bar
+// ═══ Template 2: Dinâmico — Slide transitions, modern bar, energetic ═══
 const templateDinamico: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   const { index, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Slide transition
-  const offset = (1 - easeInOut(transitionT)) * w;
+  // Slide with parallax
+  const offset = (1 - easeInOutQuart(transitionT)) * w;
   if (transitionT < 1) {
     ctx.save();
-    ctx.translate(-offset * 0.3, 0);
-    drawCover(ctx, images[prevIndex], 0, 0, w, h);
+    ctx.translate(-offset * 0.4, 0);
+    drawCover(ctx, images[prevIndex], 0, 0, w, h, 1.05);
     ctx.restore();
   }
   ctx.save();
   ctx.translate(transitionT < 1 ? w - offset : 0, 0);
-  drawCover(ctx, images[index], 0, 0, w, h);
+  drawCover(ctx, images[index], 0, 0, w, h, 1.02);
   ctx.restore();
 
-  // Bottom bar
-  const barH = h * 0.22;
+  // Bottom gradient bar
+  const barH = h * 0.25;
   const barGrad = ctx.createLinearGradient(0, h - barH, 0, h);
   barGrad.addColorStop(0, 'rgba(0,0,0,0)');
-  barGrad.addColorStop(0.3, 'rgba(0,0,0,0.85)');
+  barGrad.addColorStop(0.25, 'rgba(0,0,0,0.7)');
   barGrad.addColorStop(1, 'rgba(0,0,0,0.95)');
   ctx.fillStyle = barGrad;
   ctx.fillRect(0, h - barH, w, barH);
 
-  // Headline from bottom
-  const headlineAlpha = t < 0.08 ? t / 0.08 : 1;
-  const slideUp = (1 - easeOut(Math.min(t / 0.12, 1))) * 40;
-  drawText(ctx, opts.headline, w * 0.08, h - barH * 0.55 + slideUp, w * 0.042, '#ffffff', headlineAlpha, 'bold', w * 0.84, 'left');
+  // Top gradient
+  const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.15);
+  topGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
+  topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, w, h * 0.15);
 
-  if (opts.subtext) {
-    const subAlpha = t < 0.15 ? 0 : t < 0.25 ? (t - 0.15) / 0.1 : 1;
-    drawText(ctx, opts.subtext, w * 0.08, h - barH * 0.25, w * 0.028, 'rgba(255,255,255,0.8)', subAlpha, '400', w * 0.84, 'left');
-  }
-
-  // Top accent line
-  ctx.fillStyle = '#e11d48';
-  ctx.fillRect(0, 0, w, h * 0.005);
+  // Accent stripe top
+  const stripeGrad = ctx.createLinearGradient(0, 0, w, 0);
+  stripeGrad.addColorStop(0, '#e11d48');
+  stripeGrad.addColorStop(1, '#f97316');
+  ctx.fillStyle = stripeGrad;
+  ctx.fillRect(0, 0, w, h * 0.006);
 
   // Restaurant name top-left
-  drawText(ctx, opts.restaurantName, w * 0.08, h * 0.05, w * 0.028, '#ffffff', 0.9, '700', undefined, 'left');
+  drawText(ctx, opts.restaurantName, w * 0.07, h * 0.045, w * 0.026, '#ffffff', 0.95, '700', undefined, 'left');
+
+  // Headline from bottom
+  const headAlpha = t < 0.08 ? t / 0.08 : 1;
+  const slideUp = (1 - easeOut(Math.min(t / 0.14, 1))) * 50;
+  drawText(ctx, opts.headline, w * 0.07, h - barH * 0.6 + slideUp, w * 0.042, '#ffffff', headAlpha, 'bold', w * 0.82, 'left');
+
+  if (opts.subtext) {
+    const subAlpha = t < 0.16 ? 0 : t < 0.26 ? (t - 0.16) / 0.1 : 1;
+    drawText(ctx, opts.subtext, w * 0.07, h - barH * 0.28, w * 0.026, 'rgba(255,255,255,0.8)', subAlpha, '400', w * 0.82, 'left');
+  }
+
+  drawParticles(ctx, w, h, t, 10);
 
   // CTA
   if (opts.cta && t > 0.75) {
     const ctaAlpha = easeOut((t - 0.75) / 0.15);
-    ctx.save();
-    ctx.globalAlpha = ctaAlpha;
-    const ctaW = w * 0.55;
-    const ctaH = w * 0.065;
-    const ctaX = w * 0.08;
-    const ctaY = h - barH * 0.55;
-    drawRoundedRect(ctx, ctaX, ctaY - ctaH / 2, ctaW, ctaH, ctaH / 2);
-    ctx.fillStyle = '#e11d48';
-    ctx.fill();
-    drawText(ctx, opts.cta, ctaX + ctaW / 2, ctaY, w * 0.026, '#ffffff', 1, 'bold');
-    ctx.restore();
+    const bw = w * 0.5;
+    const bh = w * 0.06;
+    drawCTAButton(ctx, opts.cta, w * 0.07, h - barH * 0.6 - bh / 2, bw, bh, ctaAlpha, w * 0.024, 'filled');
   }
 };
 
-// Template 3: Ken Burns — slow zoom/pan
+// ═══ Template 3: Ken Burns — Cinematic zoom/pan, film look ═══
 const templateKenBurns: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   const { index, slideT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Ken Burns effect: slow zoom + pan
   const zoomStart = 1.0;
-  const zoomEnd = 1.18;
+  const zoomEnd = 1.2;
   const directions = [
-    { px: -30, py: -20 }, { px: 30, py: -15 },
-    { px: -20, py: 25 }, { px: 25, py: 20 },
-    { px: -15, py: -30 }, { px: 30, py: 10 },
-    { px: -25, py: 15 }, { px: 20, py: -25 },
+    { px: -35, py: -25 }, { px: 35, py: -18 },
+    { px: -25, py: 30 }, { px: 28, py: 22 },
+    { px: -18, py: -35 }, { px: 32, py: 12 },
+    { px: -28, py: 18 }, { px: 22, py: -28 },
   ];
 
-  const transThreshold = 0.12;
+  const transThreshold = 0.15;
   if (slideT < transThreshold && index > 0) {
     const fadeT = slideT / transThreshold;
     const prevDir = directions[prevIndex % directions.length];
     drawCover(ctx, images[prevIndex], 0, 0, w, h, zoomEnd, prevDir.px, prevDir.py);
-    ctx.globalAlpha = easeInOut(fadeT);
+    ctx.globalAlpha = easeInOutQuart(fadeT);
   }
 
   const dir = directions[index % directions.length];
-  const zoom = zoomStart + (zoomEnd - zoomStart) * slideT;
+  const zoom = zoomStart + (zoomEnd - zoomStart) * easeInOut(slideT);
   const px = dir.px * slideT;
   const py = dir.py * slideT;
   drawCover(ctx, images[index], 0, 0, w, h, zoom, px, py);
   ctx.globalAlpha = 1;
 
-  // Cinematic bars
-  drawGradientOverlay(ctx, w, h, 0.5, 0.65);
+  // Cinematic bars (letterbox effect)
+  const barSize = h * 0.04;
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, w, barSize);
+  ctx.fillRect(0, h - barSize, w, barSize);
+
+  drawGradientOverlay(ctx, w, h, 0.45, 0.65, 0.3);
+  drawLightLeak(ctx, w, h, t);
 
   // Headline
-  const headAlpha = t < 0.08 ? t / 0.08 : t > 0.88 ? (1 - t) / 0.12 : 1;
-  drawText(ctx, opts.headline, w / 2, h * 0.12, w * 0.048, '#ffffff', headAlpha, 'bold', w * 0.8);
+  const headAlpha = t < 0.08 ? t / 0.08 : t > 0.86 ? (1 - t) / 0.14 : 1;
+  const headY = h * 0.12 + (1 - easeOut(Math.min(t / 0.12, 1))) * 30;
+  drawText(ctx, opts.headline, w / 2, headY, w * 0.048, '#ffffff', headAlpha, 'bold', w * 0.78);
 
-  // Subtext
   if (opts.subtext) {
-    const sa = t < 0.12 ? 0 : t < 0.22 ? (t - 0.12) / 0.1 : t > 0.88 ? (1 - t) / 0.12 : 1;
-    drawText(ctx, opts.subtext, w / 2, h * 0.85, w * 0.03, '#ffffff', sa, '500', w * 0.75);
+    const sa = t < 0.12 ? 0 : t < 0.22 ? (t - 0.12) / 0.1 : t > 0.86 ? (1 - t) / 0.14 : 1;
+    drawText(ctx, opts.subtext, w / 2, h * 0.84, w * 0.028, 'rgba(255,255,255,0.9)', sa, '500', w * 0.72);
   }
 
-  // Restaurant signature line
-  ctx.save();
-  ctx.globalAlpha = 0.6;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.3, h * 0.92);
-  ctx.lineTo(w * 0.7, h * 0.92);
-  ctx.stroke();
-  ctx.restore();
-  drawText(ctx, opts.restaurantName, w / 2, h * 0.95, w * 0.022, 'rgba(255,255,255,0.7)', 0.7, '500');
+  // Signature
+  drawAccentLine(ctx, w * 0.35, h * 0.91, w * 0.65, t, 'rgba(255,255,255,0.3)', 1);
+  drawText(ctx, opts.restaurantName, w / 2, h * 0.94, w * 0.02, 'rgba(255,255,255,0.65)', 0.7, '500');
+
+  drawParticles(ctx, w, h, t, 12);
 
   // CTA
   if (opts.cta && t > 0.78) {
-    const ctaA = easeOut((t - 0.78) / 0.12);
-    const ctaY = h * 0.72;
-    ctx.save();
-    ctx.globalAlpha = ctaA;
-    drawRoundedRect(ctx, w * 0.18, ctaY - w * 0.03, w * 0.64, w * 0.06, w * 0.01);
-    ctx.fillStyle = 'rgba(225,29,72,0.9)';
-    ctx.fill();
-    drawText(ctx, opts.cta, w / 2, ctaY, w * 0.028, '#ffffff', 1, 'bold');
-    ctx.restore();
+    const ctaA = easeOut((t - 0.78) / 0.14);
+    const bw = w * 0.58;
+    const bh = w * 0.06;
+    drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.73 - bh / 2, bw, bh, ctaA, w * 0.026, 'glass');
   }
 };
 
-// Template 4: Moderno — zoom scale transitions, geometric
+// ═══ Template 4: Moderno — Bold typography, geometric, high contrast ═══
 const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   const { index, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
@@ -348,128 +463,135 @@ const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   // Scale zoom transition
   if (transitionT < 1) {
     ctx.save();
-    const s = 1 + (1 - transitionT) * 0.05;
+    const s = 1 + (1 - transitionT) * 0.06;
     ctx.translate(w / 2, h / 2);
     ctx.scale(s, s);
     ctx.translate(-w / 2, -h / 2);
-    ctx.globalAlpha = 1 - easeInOut(transitionT);
+    ctx.globalAlpha = 1 - easeInOutQuart(transitionT);
     drawCover(ctx, images[prevIndex], 0, 0, w, h);
     ctx.restore();
   }
 
-  const scale = 0.95 + easeOut(transitionT) * 0.05;
+  const scale = 0.94 + easeOut(transitionT) * 0.06;
   ctx.save();
   ctx.translate(w / 2, h / 2);
   ctx.scale(scale, scale);
   ctx.translate(-w / 2, -h / 2);
-  ctx.globalAlpha = easeInOut(transitionT);
+  ctx.globalAlpha = easeInOutQuart(transitionT);
   drawCover(ctx, images[index], 0, 0, w, h);
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // Geometric accent
-  ctx.save();
-  ctx.fillStyle = 'rgba(225,29,72,0.85)';
+  // Geometric accents — top corners
+  const accentGrad = ctx.createLinearGradient(0, 0, w * 0.15, 0);
+  accentGrad.addColorStop(0, '#e11d48');
+  accentGrad.addColorStop(1, '#f97316');
+  ctx.fillStyle = accentGrad;
   ctx.fillRect(0, h * 0.02, w * 0.12, h * 0.005);
+  
+  const accentGrad2 = ctx.createLinearGradient(w * 0.88, 0, w, 0);
+  accentGrad2.addColorStop(0, '#f97316');
+  accentGrad2.addColorStop(1, '#e11d48');
+  ctx.fillStyle = accentGrad2;
   ctx.fillRect(w * 0.88, h * 0.02, w * 0.12, h * 0.005);
-  ctx.restore();
 
-  // Gradient for text area
-  const tGrad = ctx.createLinearGradient(0, h * 0.6, 0, h);
+  // Bottom gradient
+  const tGrad = ctx.createLinearGradient(0, h * 0.55, 0, h);
   tGrad.addColorStop(0, 'rgba(0,0,0,0)');
-  tGrad.addColorStop(0.4, 'rgba(0,0,0,0.7)');
-  tGrad.addColorStop(1, 'rgba(0,0,0,0.9)');
+  tGrad.addColorStop(0.3, 'rgba(0,0,0,0.6)');
+  tGrad.addColorStop(1, 'rgba(0,0,0,0.92)');
   ctx.fillStyle = tGrad;
-  ctx.fillRect(0, h * 0.6, w, h * 0.4);
+  ctx.fillRect(0, h * 0.55, w, h * 0.45);
+
+  // Restaurant name top
+  drawText(ctx, opts.restaurantName.toUpperCase(), w / 2, h * 0.055, w * 0.02, 'rgba(255,255,255,0.85)', 0.9, '700', undefined, 'center', true);
 
   // Headline
-  const ha = t < 0.06 ? t / 0.06 : t > 0.9 ? (1 - t) / 0.1 : 1;
-  drawText(ctx, opts.headline.toUpperCase(), w / 2, h * 0.78, w * 0.04, '#ffffff', ha, '900', w * 0.85);
+  const ha = t < 0.06 ? t / 0.06 : t > 0.88 ? (1 - t) / 0.12 : 1;
+  const headSlide = (1 - easeOut(Math.min(t / 0.1, 1))) * 35;
+  drawText(ctx, opts.headline.toUpperCase(), w / 2, h * 0.77 + headSlide, w * 0.042, '#ffffff', ha, '900', w * 0.82);
 
-  if (opts.subtext) {
-    const sa = t < 0.15 ? 0 : t < 0.25 ? (t - 0.15) / 0.1 : t > 0.9 ? (1 - t) / 0.1 : 1;
-    drawText(ctx, opts.subtext, w / 2, h * 0.86, w * 0.028, 'rgba(255,255,255,0.85)', sa, '400', w * 0.8);
+  // Accent under headline
+  if (ha > 0.5) {
+    drawAccentLine(ctx, w * 0.3, h * 0.82 + headSlide, w * 0.7, t * 1.2, '#e11d48', 2.5);
   }
 
-  // Restaurant name
-  drawText(ctx, opts.restaurantName.toUpperCase(), w / 2, h * 0.05, w * 0.022, 'rgba(255,255,255,0.9)', 0.9, '700');
+  if (opts.subtext) {
+    const sa = t < 0.15 ? 0 : t < 0.25 ? (t - 0.15) / 0.1 : t > 0.88 ? (1 - t) / 0.12 : 1;
+    drawText(ctx, opts.subtext, w / 2, h * 0.87, w * 0.026, 'rgba(255,255,255,0.85)', sa, '400', w * 0.78);
+  }
 
   // CTA
   if (opts.cta && t > 0.8) {
     const ctaA = easeOut((t - 0.8) / 0.12);
-    ctx.save();
-    ctx.globalAlpha = ctaA;
-    const bw = w * 0.6;
-    const bh = w * 0.07;
-    const bx = (w - bw) / 2;
-    const by = h * 0.7 - bh / 2;
-    drawRoundedRect(ctx, bx, by, bw, bh, bh / 2);
-    ctx.fillStyle = '#e11d48';
-    ctx.fill();
-    drawText(ctx, opts.cta.toUpperCase(), w / 2, h * 0.7, w * 0.025, '#ffffff', 1, '800');
-    ctx.restore();
+    const bw = w * 0.55;
+    const bh = w * 0.065;
+    drawCTAButton(ctx, opts.cta.toUpperCase(), (w - bw) / 2, h * 0.68 - bh / 2, bw, bh, ctaA, w * 0.022, 'filled');
   }
 };
 
-// Template 5: Minimalista — clean crossfade, minimal text
+// ═══ Template 5: Minimalista — Clean, refined, editorial ═══
 const templateMinimalista: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   const { index, transitionT } = getSlideIndex(t, images.length);
   const prevIndex = index > 0 ? index - 1 : images.length - 1;
 
-  // Simple crossfade
-  drawCover(ctx, images[prevIndex], 0, 0, w, h);
-  ctx.globalAlpha = easeInOut(transitionT);
-  drawCover(ctx, images[index], 0, 0, w, h);
+  // Smooth crossfade with subtle zoom
+  const zoomCurrent = 1 + (1 - easeInOut(transitionT)) * 0.02;
+  drawCover(ctx, images[prevIndex], 0, 0, w, h, 1.02);
+  ctx.globalAlpha = easeInOutQuart(transitionT);
+  drawCover(ctx, images[index], 0, 0, w, h, zoomCurrent);
   ctx.globalAlpha = 1;
 
-  // Subtle vignette
-  const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.9);
+  // Soft vignette
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.95);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.45)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
 
-  // Headline — center, clean
-  const ha = t < 0.08 ? t / 0.08 : t > 0.88 ? (1 - t) / 0.12 : 1;
-  const yOff = (1 - easeOut(Math.min(t / 0.15, 1))) * 20;
-  drawText(ctx, opts.headline, w / 2, h * 0.48 + yOff, w * 0.05, '#ffffff', ha, '300', w * 0.8);
+  // Headline centered
+  const ha = t < 0.08 ? t / 0.08 : t > 0.86 ? (1 - t) / 0.14 : 1;
+  const yOff = (1 - easeOut(Math.min(t / 0.15, 1))) * 25;
+  drawText(ctx, opts.headline, w / 2, h * 0.47 + yOff, w * 0.048, '#ffffff', ha, '300', w * 0.78);
 
-  // Thin divider
+  // Thin divider line
   if (opts.subtext) {
+    const lineAlpha = ha * 0.4;
     ctx.save();
-    ctx.globalAlpha = ha * 0.4;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(w * 0.4, h * 0.54, w * 0.2, 1);
+    ctx.globalAlpha = lineAlpha;
+    const lineGrad = ctx.createLinearGradient(w * 0.35, 0, w * 0.65, 0);
+    lineGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    lineGrad.addColorStop(0.2, 'rgba(255,255,255,1)');
+    lineGrad.addColorStop(0.8, 'rgba(255,255,255,1)');
+    lineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(w * 0.35, h * 0.535, w * 0.3, 1);
     ctx.restore();
-    const sa = t < 0.12 ? 0 : t < 0.22 ? (t - 0.12) / 0.1 : t > 0.88 ? (1 - t) / 0.12 : 1;
-    drawText(ctx, opts.subtext, w / 2, h * 0.58, w * 0.025, 'rgba(255,255,255,0.85)', sa, '300', w * 0.7);
+    
+    const sa = t < 0.12 ? 0 : t < 0.22 ? (t - 0.12) / 0.1 : t > 0.86 ? (1 - t) / 0.14 : 1;
+    drawText(ctx, opts.subtext, w / 2, h * 0.575, w * 0.024, 'rgba(255,255,255,0.85)', sa, '300', w * 0.68);
   }
 
   // Restaurant name
-  drawText(ctx, opts.restaurantName, w / 2, h * 0.93, w * 0.02, 'rgba(255,255,255,0.5)', 0.6, '400');
+  drawText(ctx, opts.restaurantName, w / 2, h * 0.935, w * 0.018, 'rgba(255,255,255,0.5)', 0.6, '400');
+
+  drawParticles(ctx, w, h, t, 8);
 
   // CTA
   if (opts.cta && t > 0.82) {
     const ctaA = easeOut((t - 0.82) / 0.12);
-    ctx.save();
-    ctx.globalAlpha = ctaA;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    const bw = w * 0.5;
-    const bh = w * 0.06;
-    drawRoundedRect(ctx, (w - bw) / 2, h * 0.68 - bh / 2, bw, bh, bh / 2);
-    ctx.stroke();
-    drawText(ctx, opts.cta, w / 2, h * 0.68, w * 0.024, '#ffffff', 1, '400');
-    ctx.restore();
+    const bw = w * 0.48;
+    const bh = w * 0.055;
+    drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.67 - bh / 2, bw, bh, ctaA, w * 0.022, 'glass');
   }
 };
 
-const TEMPLATES: Record<string, { name: string; description: string; render: TemplateRenderFn }> = {
-  elegante: { name: 'Elegante', description: 'Fade suave, texto centralizado', render: templateElegante },
-  dinamico: { name: 'Dinâmico', description: 'Transições deslizantes, barra inferior', render: templateDinamico },
-  kenburns: { name: 'Ken Burns', description: 'Zoom lento panorâmico, cinema', render: templateKenBurns },
-  moderno: { name: 'Moderno', description: 'Zoom geométrico, texto bold', render: templateModerno },
-  minimalista: { name: 'Minimalista', description: 'Crossfade limpo, tipografia clean', render: templateMinimalista },
+const TEMPLATES: Record<string, { name: string; description: string; emoji: string; render: TemplateRenderFn }> = {
+  elegante: { name: 'Elegante', description: 'Crossfade cinematográfico com partículas e luz', emoji: '✨', render: templateElegante },
+  dinamico: { name: 'Dinâmico', description: 'Transições rápidas, barra moderna, energia', emoji: '⚡', render: templateDinamico },
+  kenburns: { name: 'Ken Burns', description: 'Zoom panorâmico, letterbox, cinema', emoji: '🎬', render: templateKenBurns },
+  moderno: { name: 'Moderno', description: 'Tipografia bold, geométrico, alto contraste', emoji: '💎', render: templateModerno },
+  minimalista: { name: 'Minimalista', description: 'Editorial limpo, vinheta suave, refinado', emoji: '🤍', render: templateMinimalista },
 };
 
 export function getTemplateList() {
@@ -477,6 +599,7 @@ export function getTemplateList() {
     id,
     name: t.name,
     description: t.description,
+    emoji: t.emoji,
   }));
 }
 
@@ -492,16 +615,10 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
 
-  // Load all images
   const loadedImages = await Promise.all(options.images.map(loadImage));
-
-  // Determine template
   const template = TEMPLATES[templateId] || TEMPLATES.elegante;
 
-  // Setup MediaRecorder
   const stream = canvas.captureStream(30);
-
-  // Check supported mimeTypes
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
     ? 'video/webm;codecs=vp9'
     : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
@@ -525,10 +642,10 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
     };
 
     recorder.onerror = (e) => {
-      reject(new Error('MediaRecorder error: ' + (e as any).error?.message || 'unknown'));
+      reject(new Error('MediaRecorder error: ' + ((e as any).error?.message || 'unknown')));
     };
 
-    recorder.start(100); // Collect data every 100ms
+    recorder.start(100);
 
     const totalMs = duration * 1000;
     const startTime = performance.now();
@@ -538,15 +655,12 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
       const elapsed = performance.now() - startTime;
       const t = Math.min(elapsed / totalMs, 1);
 
-      // Clear
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, width, height);
 
-      // Render template
       template.render(ctx, loadedImages, t, options, width, height);
 
-      // Progress callback
       const progress = Math.round(t * 100);
       if (progress !== lastProgress) {
         lastProgress = progress;
@@ -554,10 +668,7 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
       }
 
       if (t >= 1) {
-        // Render a few more frames to ensure recorder captures the last frame
-        setTimeout(() => {
-          recorder.stop();
-        }, 200);
+        setTimeout(() => recorder.stop(), 200);
         return;
       }
 
@@ -568,7 +679,28 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
   });
 }
 
-// ─── Generate thumbnail from first frame ───────────────────
+// ─── Preview render (single frame) ─────────────────────────
+export function renderPreviewFrame(
+  canvas: HTMLCanvasElement,
+  images: HTMLImageElement[],
+  t: number,
+  opts: RenderOptions
+) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx || images.length === 0) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, w, h);
+
+  const template = TEMPLATES[opts.templateId] || TEMPLATES.elegante;
+  template.render(ctx, images, t, opts, w, h);
+}
+
+// ─── Generate thumbnail ───────────────────────────────────
 export async function generateThumbnail(options: RenderOptions): Promise<string> {
   const width = 540;
   const height = options.format === 'vertical' ? 960 : 540;
