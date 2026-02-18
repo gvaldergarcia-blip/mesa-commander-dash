@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,14 @@ import {
   Image as ImageIcon,
   Sparkles,
   Film,
+  MessageCircle,
 } from "lucide-react";
 import { useVideoGenerator, type VideoJob, type CreateVideoParams } from "@/hooks/useVideoGenerator";
 import { LivePreview } from "@/components/video/LivePreview";
 import { SlideshowPreview } from "@/components/video/SlideshowPreview";
+import { VoiceDictateButton } from "@/components/video/VoiceDictateButton";
+import { VoiceChatPanel } from "@/components/video/VoiceChatPanel";
+import { useVoiceChat } from "@/hooks/useVoiceChat";
 import { getTemplateList } from "@/lib/video/videoRenderer";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -61,6 +65,7 @@ export default function VideoGenerator() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [previewVideo, setPreviewVideo] = useState<VideoJob | null>(null);
+  const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -71,6 +76,12 @@ export default function VideoGenerator() {
     templateId: "elegante",
     cta: "",
   });
+
+  const handleFormUpdate = useCallback((updates: Partial<typeof formData>) => {
+    setFormData((p) => ({ ...p, ...updates }));
+  }, []);
+
+  const voiceChat = useVoiceChat(formData, handleFormUpdate);
 
   const isBusy = isCreating || isRendering;
 
@@ -318,14 +329,19 @@ export default function VideoGenerator() {
                   <CardContent className="space-y-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="headline" className="text-xs">Headline * <span className="text-muted-foreground">(máx 40)</span></Label>
-                      <Input
-                        id="headline"
-                        placeholder="Ex: Sabor que marca presença"
-                        value={formData.headline}
-                        maxLength={40}
-                        onChange={(e) => setFormData((p) => ({ ...p, headline: e.target.value }))}
-                        className="h-9"
-                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          id="headline"
+                          placeholder="Ex: Sabor que marca presença"
+                          value={formData.headline}
+                          maxLength={40}
+                          onChange={(e) => setFormData((p) => ({ ...p, headline: e.target.value }))}
+                          className="h-9"
+                        />
+                        <VoiceDictateButton
+                          onResult={(text) => setFormData((p) => ({ ...p, headline: (p.headline + " " + text).trim().slice(0, 40) }))}
+                        />
+                      </div>
                       <div className="flex justify-end">
                         <span className={`text-[10px] ${formData.headline.length > 35 ? 'text-amber-500' : 'text-muted-foreground'}`}>
                           {formData.headline.length}/40
@@ -334,14 +350,19 @@ export default function VideoGenerator() {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="subtext" className="text-xs">Subtexto <span className="text-muted-foreground">(máx 90)</span></Label>
-                      <Input
-                        id="subtext"
-                        placeholder="Ex: Happy Hour terça a sexta"
-                        value={formData.subtext}
-                        maxLength={90}
-                        onChange={(e) => setFormData((p) => ({ ...p, subtext: e.target.value }))}
-                        className="h-9"
-                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          id="subtext"
+                          placeholder="Ex: Happy Hour terça a sexta"
+                          value={formData.subtext}
+                          maxLength={90}
+                          onChange={(e) => setFormData((p) => ({ ...p, subtext: e.target.value }))}
+                          className="h-9"
+                        />
+                        <VoiceDictateButton
+                          onResult={(text) => setFormData((p) => ({ ...p, subtext: (p.subtext + " " + text).trim().slice(0, 90) }))}
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">CTA Final</Label>
@@ -643,6 +664,32 @@ export default function VideoGenerator() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Voice Chat FAB */}
+      <Button
+        variant="default"
+        size="lg"
+        className="fixed bottom-4 right-4 h-14 w-14 rounded-full p-0 shadow-2xl z-40"
+        onClick={() => setVoicePanelOpen((p) => !p)}
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+
+      {/* Voice Chat Panel */}
+      <VoiceChatPanel
+        isOpen={voicePanelOpen}
+        onClose={() => setVoicePanelOpen(false)}
+        isSupported={voiceChat.isSupported}
+        isListening={voiceChat.isListening}
+        isSpeaking={voiceChat.isSpeaking}
+        interimText={voiceChat.interimText}
+        messages={voiceChat.messages}
+        onStartListening={voiceChat.startListening}
+        onStopListening={voiceChat.stopListening}
+        onStopSpeaking={voiceChat.stopSpeaking}
+        onClearMessages={voiceChat.clearMessages}
+        onSpeakText={voiceChat.speakText}
+      />
     </div>
   );
 }
