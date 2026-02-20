@@ -11,10 +11,13 @@ interface Restaurant {
   owner_id: string | null;
 }
 
+export type UserRole = 'admin' | 'operator' | null;
+
 interface RestaurantContextType {
   restaurant: Restaurant | null;
   restaurantId: string | null;
   user: User | null;
+  userRole: UserRole;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
@@ -33,6 +36,7 @@ interface RestaurantProviderProps {
 export function RestaurantProvider({ children }: RestaurantProviderProps) {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,13 +72,20 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       
       if (membership?.restaurant_id) {
         targetRestaurantId = membership.restaurant_id;
+        // Resolve user role from membership
+        const memberRole = (membership.role || 'operator').toLowerCase();
+        setUserRole(memberRole === 'admin' || memberRole === 'owner' ? 'admin' : 'operator');
       } else if (adminRole && DEFAULT_RESTAURANT_ID) {
         // Admin sem membership: usar restaurante padrão apenas em dev
         targetRestaurantId = DEFAULT_RESTAURANT_ID;
       }
       
+      // Check if admin via user_roles (global admin gets admin role)
+      if (adminRole) {
+        setUserRole('admin');
+      }
+
       if (!targetRestaurantId) {
-        // Usuário autenticado sem restaurante vinculado = erro
         setRestaurant(null);
         setError('Nenhum restaurante associado à sua conta. Verifique com o suporte.');
         return;
@@ -258,6 +269,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         restaurant,
         restaurantId: restaurant?.id ?? null,
         user,
+        userRole: userRole || (isPreviewEnvironment() ? 'admin' : null),
         isLoading,
         isAuthenticated: !!user || isPreviewEnvironment(),
         error,
@@ -273,11 +285,11 @@ export function useRestaurant() {
   const context = useContext(RestaurantContext);
   
   if (context === undefined) {
-    // Fallback seguro para evitar crash durante HMR ou ordem de montagem
     return {
       restaurant: null,
       restaurantId: null,
       user: null,
+      userRole: null,
       isLoading: true,
       isAuthenticated: false,
       error: null,

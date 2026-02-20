@@ -9,6 +9,7 @@ import { RestaurantProvider } from "@/contexts/RestaurantContext";
 import { ModulesProvider } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ModuleGuard } from "@/components/layout/ModuleGuard";
+import { RoleGuard } from "@/components/layout/RoleGuard";
 import Dashboard from "./pages/Dashboard";
 import Queue from "./pages/Queue";
 import Reservations from "./pages/Reservations";
@@ -135,27 +136,43 @@ const App = () => {
                     <Route path="/reservations" element={
                       <ModuleGuard module="reserva"><Reservations /></ModuleGuard>
                     } />
-                  <Route path="/customers" element={<CustomersPage />} />
-                  <Route path="/customers/:customerId" element={<CustomerProfile />} />
+                  <Route path="/customers" element={
+                    <RoleGuard><CustomersPage /></RoleGuard>
+                  } />
+                  <Route path="/customers/:customerId" element={
+                    <RoleGuard><CustomerProfile /></RoleGuard>
+                  } />
                   {/* Rotas protegidas por feature flag - Cupons/Promoções */}
                   <Route path="/promotions" element={
-                    <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
-                      <Promotions />
-                    </FeatureGuard>
+                    <RoleGuard>
+                      <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
+                        <Promotions />
+                      </FeatureGuard>
+                    </RoleGuard>
                   } />
                   <Route path="/cupons" element={
-                    <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
-                      <Coupons />
-                    </FeatureGuard>
+                    <RoleGuard>
+                      <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
+                        <Coupons />
+                      </FeatureGuard>
+                    </RoleGuard>
                   } />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/intelligence" element={<Intelligence />} />
+                  <Route path="/reports" element={
+                    <RoleGuard><Reports /></RoleGuard>
+                  } />
+                  <Route path="/intelligence" element={
+                    <RoleGuard><Intelligence /></RoleGuard>
+                  } />
                   <Route path="/marketing/video" element={
-                    <FeatureGuard feature="MARKETING_IA_ENABLED" featureName="Marketing IA">
-                      <VideoGenerator />
-                    </FeatureGuard>
+                    <RoleGuard>
+                      <FeatureGuard feature="MARKETING_IA_ENABLED" featureName="Marketing IA">
+                        <VideoGenerator />
+                      </FeatureGuard>
+                    </RoleGuard>
                   } />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/settings" element={
+                    <RoleGuard><Settings /></RoleGuard>
+                  } />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
