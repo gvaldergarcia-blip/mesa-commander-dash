@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.manage-team]
 verify_jwt = false
+
+[functions.loyalty-enroll]
+verify_jwt = false

@@ -236,6 +236,70 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_loyalty_status: {
+        Row: {
+          activation_email_sent: boolean
+          created_at: string
+          current_visits: number
+          customer_id: string
+          id: string
+          restaurant_id: string
+          reward_email_sent: boolean
+          reward_expires_at: string | null
+          reward_unlocked: boolean
+          reward_unlocked_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          activation_email_sent?: boolean
+          created_at?: string
+          current_visits?: number
+          customer_id: string
+          id?: string
+          restaurant_id: string
+          reward_email_sent?: boolean
+          reward_expires_at?: string | null
+          reward_unlocked?: boolean
+          reward_unlocked_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activation_email_sent?: boolean
+          created_at?: string
+          current_visits?: number
+          customer_id?: string
+          id?: string
+          restaurant_id?: string
+          reward_email_sent?: boolean
+          reward_expires_at?: string | null
+          reward_unlocked?: boolean
+          reward_unlocked_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_loyalty_status_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_loyalty_status_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_loyalty_status_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_metrics: {
         Row: {
           avg_wait_minutes: number | null
@@ -1457,6 +1521,63 @@ export type Database = {
           restaurant_id?: string | null
         }
         Relationships: []
+      }
+      restaurant_loyalty_program: {
+        Row: {
+          count_queue: boolean
+          count_reservations: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          program_name: string
+          required_visits: number
+          restaurant_id: string
+          reward_description: string
+          reward_validity_days: number
+          updated_at: string
+        }
+        Insert: {
+          count_queue?: boolean
+          count_reservations?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          program_name?: string
+          required_visits?: number
+          restaurant_id: string
+          reward_description?: string
+          reward_validity_days?: number
+          updated_at?: string
+        }
+        Update: {
+          count_queue?: boolean
+          count_reservations?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          program_name?: string
+          required_visits?: number
+          restaurant_id?: string
+          reward_description?: string
+          reward_validity_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_loyalty_program_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_loyalty_program_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurant_marketing_optins: {
         Row: {
