@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ import { HoursSettings } from "@/components/settings/HoursSettings";
 import { QueueSettings } from "@/components/settings/QueueSettings";
 import { ReservationSettings } from "@/components/settings/ReservationSettings";
 import { RestaurantLogo } from "@/components/common/RestaurantLogo";
+import { TeamSettings } from "@/components/settings/TeamSettings";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -350,7 +351,7 @@ function SettingsContent() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
@@ -371,6 +372,10 @@ function SettingsContent() {
               <span className="hidden sm:inline">Reservas</span>
             </TabsTrigger>
           )}
+          <TabsTrigger value="team" className="flex items-center gap-2">
+            <UsersRound className="h-4 w-4" />
+            <span className="hidden sm:inline">Equipe</span>
+          </TabsTrigger>
           <TabsTrigger value="billing" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Plano</span>
@@ -744,7 +749,12 @@ function SettingsContent() {
           <ReservationSettings restaurantId={restaurantId || ''} />
         </TabsContent>
 
-        {/* Tab 5: Plano & Pagamento */}
+        {/* Tab 5: Equipe */}
+        <TabsContent value="team">
+          <TeamSettings />
+        </TabsContent>
+
+        {/* Tab 6: Plano & Pagamento */}
         <TabsContent value="billing">
           <Card>
             <CardHeader>

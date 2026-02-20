@@ -24,30 +24,32 @@ import { useTheme } from "@/hooks/useTheme";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null, requiresModule: null },
-  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null, requiresModule: 'fila' as const },
-  { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null, requiresModule: 'reserva' as const },
-  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null, requiresModule: null },
-  { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null },
-  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null },
-  { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null },
-  { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null, requiresModule: null, adminOnly: false },
+  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null, requiresModule: 'fila' as const, adminOnly: false },
+  { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null, requiresModule: 'reserva' as const, adminOnly: false },
+  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null, requiresModule: null, adminOnly: true },
+  { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null, adminOnly: true },
+  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null, adminOnly: true },
+  { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null, adminOnly: true },
+  { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null, adminOnly: true },
 ];
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { hasModule } = useModules();
+  const { restaurant, userRole } = useRestaurant();
+  const isAdmin = userRole === 'admin';
   
-  // Filtra itens de navegação com base nas feature flags E módulos do plano
+  // Filtra itens de navegação com base nas feature flags, módulos e perfil
   const navigation = allNavigation.filter((item) => {
     if (item.requiresFeature !== null && !FEATURE_FLAGS[item.requiresFeature]) return false;
     if (item.requiresModule !== null && !hasModule(item.requiresModule)) return false;
+    if (item.adminOnly && !isAdmin) return false;
     return true;
   });
   
-  // Usar contexto dinâmico em vez de ID hardcoded
-  const { restaurant } = useRestaurant();
+  // Remove duplicate useRestaurant call — already destructured above
 
   // Obter inicial do nome do restaurante para fallback
   const restaurantInitial = restaurant?.name?.charAt(0)?.toUpperCase() || 'R';
@@ -203,7 +205,9 @@ export function Sidebar() {
             <p className="text-sm font-medium truncate text-sidebar-foreground">
               {restaurant?.name || 'Carregando...'}
             </p>
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Administrador</p>
+            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">
+              {isAdmin ? 'Administrador' : 'Operador'}
+            </p>
           </div>
         </div>
       </div>
