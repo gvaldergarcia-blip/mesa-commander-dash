@@ -32,6 +32,7 @@ import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { useModules } from "@/contexts/ModulesContext";
 
 import { HoursSettings } from "@/components/settings/HoursSettings";
 import { QueueSettings } from "@/components/settings/QueueSettings";
@@ -61,6 +62,7 @@ function SettingsContent() {
   const isAuthenticated = true;
   const { restaurantId } = useRestaurant();
   const { toast } = useToast();
+  const { hasModule } = useModules();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -357,14 +359,18 @@ function SettingsContent() {
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Horários</span>
           </TabsTrigger>
-          <TabsTrigger value="queue" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Fila</span>
-          </TabsTrigger>
-          <TabsTrigger value="reservation" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">Reservas</span>
-          </TabsTrigger>
+          {hasModule('fila') && (
+            <TabsTrigger value="queue" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Fila</span>
+            </TabsTrigger>
+          )}
+          {hasModule('reserva') && (
+            <TabsTrigger value="reservation" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <span className="hidden sm:inline">Reservas</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="billing" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
             <span className="hidden sm:inline">Plano</span>

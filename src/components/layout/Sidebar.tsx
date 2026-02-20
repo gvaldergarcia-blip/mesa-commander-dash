@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useModules } from "@/contexts/ModulesContext";
 import {
   LayoutDashboard,
   Users,
@@ -23,25 +24,27 @@ import { useTheme } from "@/hooks/useTheme";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null },
-  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null },
-  { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
-  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
-  { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
-  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const },
-  { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
-  { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null, requiresModule: null },
+  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null, requiresModule: 'fila' as const },
+  { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null, requiresModule: 'reserva' as const },
+  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null, requiresModule: null },
+  { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null },
+  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null },
+  { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null },
+  { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null },
 ];
-
-// Filtra itens de navegação com base nas feature flags
-const navigation = allNavigation.filter((item) => {
-  if (item.requiresFeature === null) return true;
-  return FEATURE_FLAGS[item.requiresFeature];
-});
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { hasModule } = useModules();
+  
+  // Filtra itens de navegação com base nas feature flags E módulos do plano
+  const navigation = allNavigation.filter((item) => {
+    if (item.requiresFeature !== null && !FEATURE_FLAGS[item.requiresFeature]) return false;
+    if (item.requiresModule !== null && !hasModule(item.requiresModule)) return false;
+    return true;
+  });
   
   // Usar contexto dinâmico em vez de ID hardcoded
   const { restaurant } = useRestaurant();
