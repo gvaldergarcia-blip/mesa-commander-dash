@@ -30,14 +30,15 @@ export type ReportMetrics = {
   queue: {
     avgWaitTime: number;        // Tempo médio entrada → seated_at (minutos)
     avgWaitTimePrevious: number;
-    conversionRate: number;     // % atendidos / total entradas
+    conversionRate: number;     // % atendidos / total entradas (TODOS os status)
     conversionRatePrevious: number;
-    totalEntries: number;
+    totalEntries: number;       // Total absoluto de entradas (soma de TODOS os status)
     seated: number;
     waiting: number;
     called: number;
     canceled: number;
     noShow: number;
+    cleared: number;
     avgQueueSize: number;       // Média diária
     hourlyDistribution: Array<{ hour: string; count: number }>;
     hasData: boolean;
@@ -161,12 +162,42 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const queueCalled = currentQueueData?.filter((e: any) => e.status === 'called').length || 0;
       const queueCanceled = currentQueueData?.filter((e: any) => e.status === 'canceled').length || 0;
       const queueNoShow = currentQueueData?.filter((e: any) => e.status === 'no_show').length || 0;
+      const queueCleared = currentQueueData?.filter((e: any) => e.status === 'cleared').length || 0;
       const totalQueueEntries = currentQueueData?.length || 0;
 
       const currentAvgWait = calcAvgWait(currentQueueData);
       const previousAvgWait = calcAvgWait(previousQueueData);
 
+      // DEFINIÇÃO ÚNICA: Conversão = Atendidos / Total Entradas (inclui TODOS os status)
       const currentQueueConv = totalQueueEntries > 0 ? Math.round((queueSeated / totalQueueEntries) * 100) : 0;
+
+      // === AUDIT LOG (dev only) ===
+      if (import.meta.env.DEV) {
+        const audit = {
+          period,
+          dateRange: { start: startDate.toISOString(), end: endDate.toISOString() },
+          queue: {
+            totalEntries: totalQueueEntries,
+            seated: queueSeated,
+            waiting: queueWaiting,
+            called: queueCalled,
+            canceled: queueCanceled,
+            noShow: queueNoShow,
+            cleared: queueCleared,
+            sumCheck: queueSeated + queueWaiting + queueCalled + queueCanceled + queueNoShow + queueCleared,
+            sumMatchesTotal: (queueSeated + queueWaiting + queueCalled + queueCanceled + queueNoShow + queueCleared) === totalQueueEntries,
+            conversionFormula: `${queueSeated} / ${totalQueueEntries} = ${currentQueueConv}%`,
+          },
+          reservations: {
+            total: currentReservations?.length || 0,
+          }
+        };
+        console.log('[MesaClik Audit] Métricas calculadas:', audit);
+        if (!audit.queue.sumMatchesTotal) {
+          console.warn('[MesaClik Audit] ⚠️ INCONSISTÊNCIA: soma dos status da fila não bate com total!', 
+            `Soma: ${audit.queue.sumCheck}, Total: ${totalQueueEntries}`);
+        }
+      }
       const prevQueueSeated = previousQueueData?.filter((e: any) => ['seated', 'served'].includes(e.status)).length || 0;
       const prevQueueTotal = previousQueueData?.length || 0;
       const previousQueueConv = prevQueueTotal > 0 ? Math.round((prevQueueSeated / prevQueueTotal) * 100) : 0;
@@ -206,6 +237,23 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
       const successRate = totalReservations > 0 
         ? Math.round(((resCompleted + resConfirmed) / totalReservations) * 100) 
         : 0;
+
+      // === AUDIT LOG RESERVAS (dev only) ===
+      if (import.meta.env.DEV) {
+        const resAudit = {
+          totalReservations,
+          completed: resCompleted,
+          confirmed: resConfirmed,
+          pending: resPending,
+          canceled: resCanceled,
+          noShow: resNoShow,
+          sumCheck: resCompleted + resConfirmed + resPending + resCanceled + resNoShow,
+          sumMatchesTotal: (resCompleted + resConfirmed + resPending + resCanceled + resNoShow) === totalReservations,
+          noShowFormula: `${resNoShow} / ${resFinalized} (finalizadas) = ${noShowRate}%`,
+          successFormula: `(${resCompleted} + ${resConfirmed}) / ${totalReservations} = ${successRate}%`,
+        };
+        console.log('[MesaClik Audit] Reservas:', resAudit);
+      }
 
       // ============================================
       // 3. MÉTRICAS COMBINADAS
@@ -294,6 +342,7 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
           called: queueCalled,
           canceled: queueCanceled,
           noShow: queueNoShow,
+          cleared: queueCleared,
           avgQueueSize: Math.round(totalQueueEntries / Math.max(days, 1)),
           hourlyDistribution,
           hasData: totalQueueEntries > 0,

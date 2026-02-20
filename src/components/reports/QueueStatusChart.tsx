@@ -5,27 +5,52 @@ import { Users } from "lucide-react";
 interface QueueStatusChartProps {
   seated: number;
   waiting: number;
+  called: number;
   canceled: number;
   noShow: number;
+  cleared: number;
+  totalEntries: number;
 }
 
 // Cores fixas para status de fila - paleta única MesaClik
 const COLORS = {
   seated: '#22c55e',    // green-500 - Atendidos
   waiting: '#f59e0b',   // amber-500 - Aguardando
+  called: '#3b82f6',    // blue-500 - Chamados
   canceled: '#ef4444',  // red-500 - Cancelados
   noShow: '#8b5cf6',    // violet-500 - Não compareceram
+  cleared: '#6b7280',   // gray-500 - Limpos
 };
 
-export function QueueStatusChart({ seated, waiting, canceled, noShow }: QueueStatusChartProps) {
+/**
+ * Gráfico de Status da Fila
+ * 
+ * REGRA DE CONSISTÊNCIA:
+ * - Recebe TODOS os status individuais + totalEntries do hook central
+ * - O total do gráfico DEVE ser = totalEntries
+ * - As porcentagens são calculadas sobre totalEntries (mesma base da conversão)
+ */
+export function QueueStatusChart({ seated, waiting, called, canceled, noShow, cleared, totalEntries }: QueueStatusChartProps) {
   const data = [
     { name: 'Atendidos', value: seated, color: COLORS.seated },
     { name: 'Aguardando', value: waiting, color: COLORS.waiting },
+    { name: 'Chamados', value: called, color: COLORS.called },
     { name: 'Cancelados', value: canceled, color: COLORS.canceled },
     { name: 'Não Compareceram', value: noShow, color: COLORS.noShow },
+    { name: 'Limpos', value: cleared, color: COLORS.cleared },
   ].filter(item => item.value > 0);
 
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  // Usar totalEntries como denominador (mesma base de cálculo da conversão)
+  const total = totalEntries;
+
+  // Audit em dev
+  if (import.meta.env.DEV) {
+    const sumChart = data.reduce((s, d) => s + d.value, 0);
+    if (sumChart !== totalEntries) {
+      console.warn('[MesaClik Audit] QueueStatusChart: soma dos status no gráfico não bate com totalEntries!',
+        `Soma gráfico: ${sumChart}, totalEntries: ${totalEntries}`);
+    }
+  }
 
   if (total === 0) {
     return (
@@ -115,7 +140,7 @@ export function QueueStatusChart({ seated, waiting, canceled, noShow }: QueueSta
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               }}
               formatter={(value: number, name: string) => [
-                `${value} (${((value / total) * 100).toFixed(1)}%)`,
+                `${value} (${total > 0 ? ((value / total) * 100).toFixed(1) : 0}%)`,
                 name
               ]}
             />
