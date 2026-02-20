@@ -39,6 +39,7 @@ import { QueueSettings } from "@/components/settings/QueueSettings";
 import { ReservationSettings } from "@/components/settings/ReservationSettings";
 import { RestaurantLogo } from "@/components/common/RestaurantLogo";
 import { TeamSettings } from "@/components/settings/TeamSettings";
+import { PlanSettings } from "@/components/settings/PlanSettings";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -756,55 +757,7 @@ function SettingsContent() {
 
         {/* Tab 6: Plano & Pagamento */}
         <TabsContent value="billing">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                Plano & Pagamento
-              </CardTitle>
-              <CardDescription>
-                Gerencie sua assinatura e método de pagamento
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="p-6 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 opacity-50">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">Plano Profissional</h3>
-                    <p className="text-sm text-muted-foreground">Ativo desde 01/01/2025</p>
-                  </div>
-                  <Badge className="bg-primary">Ativo</Badge>
-                </div>
-                <Separator className="my-4" />
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Valor mensal</span>
-                    <span className="font-medium">R$ 99,90</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Próxima renovação</span>
-                    <span className="font-medium">01/02/2025</span>
-                  </div>
-                </div>
-                <Button variant="outline" className="w-full mt-4" disabled>
-                  Alterar Plano
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <PlanSettings />
         </TabsContent>
 
         {/* Tab 9: Privacidade & Segurança */}
