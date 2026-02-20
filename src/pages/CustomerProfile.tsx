@@ -23,6 +23,7 @@ import { CustomerActivityChart } from "@/components/customers/CustomerActivityCh
 import { CustomerTrend } from "@/components/customers/CustomerTrend";
 import { CustomerTimeline } from "@/components/customers/CustomerTimeline";
 import { CustomerInsights } from "@/components/customers/CustomerInsightsCard";
+import { CustomerAIAnalysis } from "@/components/customers/CustomerAIAnalysis";
 
 type CustomerStatus = 'vip' | 'frequent' | 'new' | 'at_risk' | 'active';
 
@@ -325,6 +326,35 @@ export default function CustomerProfile() {
 
         {isAdmin && (
           <TabsContent value="insights">
+            {/* AI Analysis */}
+            <div className="mb-4">
+              <CustomerAIAnalysis
+                customerId={customer.id}
+                customerData={{
+                  name: customer.name,
+                  vip_status: customer.vip_status,
+                  marketing_opt_in: customer.marketing_opt_in,
+                  created_at: customer.created_at,
+                  days_since_last_visit: customer.days_since_last_visit,
+                }}
+                metrics={{
+                  total_visits: customer.total_visits || 0,
+                  queue_completed: customer.queue_completed || 0,
+                  reservations_completed: customer.reservations_completed || 0,
+                  canceled_count: metrics?.cancel_count || 0,
+                  no_show_count: metrics?.no_show_count || 0,
+                  show_rate: metrics?.show_rate,
+                  avg_party_size: metrics?.avg_party_size,
+                  preferred_time: metrics?.preferred_time,
+                  preferred_channel: metrics?.preferred_channel,
+                  promotions_sent: metrics?.promotions_sent || 0,
+                }}
+                historyData={{
+                  queue_count: historyData?.queue_history?.length || 0,
+                  reservation_count: historyData?.reservation_history?.length || 0,
+                }}
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <CustomerInsights
                 preferredTime={metrics?.preferred_time}
