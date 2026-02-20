@@ -2066,6 +2066,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      has_active_subscription: {
+        Args: { _restaurant_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
