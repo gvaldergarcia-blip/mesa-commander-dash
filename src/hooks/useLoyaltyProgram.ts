@@ -1,162 +1,194 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export interface LoyaltyProgram {
+  id: string;
   restaurant_id: string;
-  enabled: boolean;
-  reward_description: string | null;
-  expires_at: string | null;
-  rules: string | null;
+  is_active: boolean;
+  program_name: string;
+  required_visits: number;
+  count_queue: boolean;
+  count_reservations: boolean;
+  reward_description: string;
+  reward_validity_days: number;
   created_at: string;
   updated_at: string;
 }
 
-export interface LoyaltyPoint {
+export interface CustomerLoyaltyStatus {
+  id: string;
   restaurant_id: string;
   customer_id: string;
-  points: number;
-  last_earned_at: string | null;
+  current_visits: number;
+  reward_unlocked: boolean;
+  reward_unlocked_at: string | null;
+  reward_expires_at: string | null;
+  activation_email_sent: boolean;
+  reward_email_sent: boolean;
   customer_name?: string;
   customer_email?: string;
-  customer_phone?: string;
 }
 
 export const useLoyaltyProgram = (restaurantId: string) => {
   const [program, setProgram] = useState<LoyaltyProgram | null>(null);
-  const [points, setPoints] = useState<LoyaltyPoint[]>([]);
+  const [statuses, setStatuses] = useState<CustomerLoyaltyStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const fetchProgram = async () => {
+    if (!restaurantId) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('loyalty_programs')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
+        .from("restaurant_loyalty_program" as any)
+        .select("*")
+        .eq("restaurant_id", restaurantId)
         .maybeSingle();
 
       if (error) throw error;
-      setProgram(data);
-    } catch (err) {
-      const error = err as Error;
-      console.error("Error fetching loyalty program:", error);
-      toast({
-        title: "Erro ao carregar programa",
-        description: error.message,
-        variant: "destructive",
-      });
+      setProgram(data as any);
+    } catch (err: any) {
+      console.error("Error fetching loyalty program:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPoints = async () => {
+  const fetchStatuses = async () => {
+    if (!restaurantId) return;
     try {
       const { data, error } = await supabase
-        .schema('mesaclik')
-        .from('loyalty_points')
-        .select(`
-          *,
-          customers:customer_id (
-            full_name,
-            email,
-            phone
-          )
-        `)
-        .eq('restaurant_id', restaurantId)
-        .order('points', { ascending: false });
+        .from("customer_loyalty_status" as any)
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .order("current_visits", { ascending: false });
 
       if (error) throw error;
 
-      const formatted = (data || []).map((item: any) => ({
-        ...item,
-        customer_name: item.customers?.full_name || 'N/A',
-        customer_email: item.customers?.email || 'N/A',
-        customer_phone: item.customers?.phone || 'N/A',
-      }));
+      // Enrich with customer names
+      const customerIds = (data || []).map((s: any) => s.customer_id);
+      if (customerIds.length > 0) {
+        const { data: customers } = await supabase
+          .from("restaurant_customers")
+          .select("id, customer_name, customer_email")
+          .in("id", customerIds);
 
-      setPoints(formatted);
-    } catch (err) {
-      const error = err as Error;
-      console.error("Error fetching loyalty points:", error);
+        const customerMap = new Map((customers || []).map((c) => [c.id, c]));
+        const enriched = (data || []).map((s: any) => ({
+          ...s,
+          customer_name: (customerMap.get(s.customer_id) as any)?.customer_name || 'N/A',
+          customer_email: (customerMap.get(s.customer_id) as any)?.customer_email || 'N/A',
+        }));
+        setStatuses(enriched);
+      } else {
+        setStatuses([]);
+      }
+    } catch (err: any) {
+      console.error("Error fetching loyalty statuses:", err);
     }
   };
 
   const saveProgram = async (data: Partial<LoyaltyProgram>) => {
+    if (!restaurantId) return;
+    setSaving(true);
     try {
+      const payload = {
+        restaurant_id: restaurantId,
+        ...data,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error } = await supabase
-        .schema('mesaclik')
-        .from('loyalty_programs')
-        .upsert({
-          restaurant_id: restaurantId,
-          ...data,
-          updated_at: new Date().toISOString(),
-        });
+        .from("restaurant_loyalty_program" as any)
+        .upsert(payload as any, { onConflict: "restaurant_id" });
 
       if (error) throw error;
 
-      toast({
-        title: "Programa salvo",
-        description: "Configurações do programa 10 Cliks atualizadas",
-      });
+      // If program is active, enroll all customers via edge function
+      if (data.is_active) {
+        const { error: fnError } = await supabase.functions.invoke("loyalty-enroll", {
+          body: { restaurant_id: restaurantId, action: "save_program" },
+        });
+        if (fnError) console.error("Enrollment error:", fnError);
+      }
 
+      toast({ title: "✅ Programa salvo", description: "Configurações atualizadas com sucesso" });
       await fetchProgram();
-    } catch (err) {
-      const error = err as Error;
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
+      await fetchStatuses();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+      throw err;
+    } finally {
+      setSaving(false);
     }
   };
 
-  const resetPoints = async (customerId: string) => {
+  const resetCustomer = async (customerId: string) => {
+    if (!restaurantId) return;
     try {
-      const { error } = await supabase.rpc('reset_customer_loyalty_points', {
-        p_restaurant_id: restaurantId,
-        p_customer_id: customerId,
-      });
+      const { error } = await supabase
+        .from("customer_loyalty_status" as any)
+        .update({
+          current_visits: 0,
+          reward_unlocked: false,
+          reward_unlocked_at: null,
+          reward_expires_at: null,
+          reward_email_sent: false,
+        } as any)
+        .eq("restaurant_id", restaurantId)
+        .eq("customer_id", customerId);
 
       if (error) throw error;
+      toast({ title: "✅ Pontos resetados" });
+      await fetchStatuses();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
 
-      toast({
-        title: "Pontos resetados",
-        description: "Os pontos do cliente foram resetados para 0",
-      });
+  // Fetch loyalty status for a single customer (used in profile)
+  const fetchCustomerLoyalty = async (customerId: string): Promise<{ program: LoyaltyProgram | null; status: CustomerLoyaltyStatus | null }> => {
+    if (!restaurantId) return { program: null, status: null };
+    try {
+      const { data: prog } = await supabase
+        .from("restaurant_loyalty_program" as any)
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .eq("is_active", true)
+        .maybeSingle();
 
-      await fetchPoints();
-    } catch (err) {
-      const error = err as Error;
-      toast({
-        title: "Erro ao resetar pontos",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
+      if (!prog) return { program: null, status: null };
+
+      const { data: stat } = await supabase
+        .from("customer_loyalty_status" as any)
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .eq("customer_id", customerId)
+        .maybeSingle();
+
+      return { program: prog as any, status: stat as any };
+    } catch {
+      return { program: null, status: null };
     }
   };
 
   useEffect(() => {
     if (restaurantId) {
       fetchProgram();
-      fetchPoints();
+      fetchStatuses();
     }
   }, [restaurantId]);
 
   return {
     program,
-    points,
+    statuses,
     loading,
+    saving,
     saveProgram,
-    resetPoints,
-    refetch: () => {
-      fetchProgram();
-      fetchPoints();
-    },
+    resetCustomer,
+    fetchCustomerLoyalty,
+    refetch: () => { fetchProgram(); fetchStatuses(); },
   };
 };

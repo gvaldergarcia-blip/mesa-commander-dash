@@ -24,6 +24,7 @@ import { CustomerTrend } from "@/components/customers/CustomerTrend";
 import { CustomerTimeline } from "@/components/customers/CustomerTimeline";
 import { CustomerInsights } from "@/components/customers/CustomerInsightsCard";
 import { CustomerAIAnalysis } from "@/components/customers/CustomerAIAnalysis";
+import { CustomerLoyaltyCard } from "@/components/customers/CustomerLoyaltyCard";
 
 type CustomerStatus = 'vip' | 'frequent' | 'new' | 'at_risk' | 'active';
 
@@ -298,6 +299,11 @@ export default function CustomerProfile() {
           </Card>
         ))}
       </div>
+
+      {/* Loyalty Card */}
+      {restaurantId && customerId && (
+        <CustomerLoyaltyCard customerId={customerId} restaurantId={restaurantId} />
+      )}
 
       {/* Activity Chart - Admin only */}
       {isAdmin && metrics?.monthly_evolution && (
