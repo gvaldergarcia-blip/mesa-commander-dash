@@ -143,7 +143,11 @@ const App = () => {
                   } />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/intelligence" element={<Intelligence />} />
-                  <Route path="/marketing/video" element={<VideoGenerator />} />
+                  <Route path="/marketing/video" element={
+                    <FeatureGuard feature="MARKETING_IA_ENABLED" featureName="Marketing IA">
+                      <VideoGenerator />
+                    </FeatureGuard>
+                  } />
                   <Route path="/settings" element={<Settings />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />

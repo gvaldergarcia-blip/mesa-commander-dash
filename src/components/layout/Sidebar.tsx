@@ -28,7 +28,7 @@ const allNavigation = [
   { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null },
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null },
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const },
-  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: null },
+  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null },
 ];

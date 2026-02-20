@@ -24,6 +24,7 @@ export const FEATURE_FLAGS = {
    * Para REATIVAR: Altere para `true`
    */
   CUPONS_ENABLED: false,
+  MARKETING_IA_ENABLED: false,
 } as const;
 
 /**
