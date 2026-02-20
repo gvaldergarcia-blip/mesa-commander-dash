@@ -711,50 +711,60 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const stream = canvas.captureStream(FPS);
 
-  // ─── Audio setup: music + real TTS narration ───
+  // ─── Audio setup: music + per-segment TTS narration ───
   let audioCleanup: (() => void) | null = null;
   let musicCtx: { audioCtx: AudioContext; destination: MediaStreamAudioDestinationNode; start: () => void; stop: () => void } | null = null;
 
   try {
-    // First, fetch TTS audio if narration is enabled (we need its duration for ducking)
-    let ttsAudioBuffer: AudioBuffer | null = null;
+    // Fetch per-segment TTS audio for perfect subtitle sync
+    let segmentBuffers: (AudioBuffer | null)[] = [];
     let ttsDuckingSegments: Array<{ startPercent: number; endPercent: number }> | undefined;
 
-    if (options.enableNarration && options.narrationScript?.fullText) {
+    if (options.enableNarration && options.narrationScript && options.narrationScript.segments.length > 0) {
       try {
-        const { fetchTTSAudio } = await import('./ttsNarrator');
+        const { fetchTTSSegments } = await import('./ttsNarrator');
+        const segments = options.narrationScript.segments;
+        const rawAudios = await fetchTTSSegments(segments);
+        
+        // Decode each segment's audio
         const tempCtx = new AudioContext({ sampleRate: 44100 });
-        const audioData = await fetchTTSAudio(options.narrationScript.fullText);
-        ttsAudioBuffer = await tempCtx.decodeAudioData(audioData.slice(0));
+        segmentBuffers = await Promise.all(
+          rawAudios.map(async (ab) => {
+            if (!ab || ab.byteLength === 0) return null;
+            try {
+              return await tempCtx.decodeAudioData(ab.slice(0));
+            } catch { return null; }
+          })
+        );
         await tempCtx.close();
 
-        // Calculate precise ducking window based on actual TTS audio duration
-        const narrationStartPct = 0.06;
-        const narrationEndPct = Math.min(narrationStartPct + ttsAudioBuffer.duration / duration, 0.95);
-        ttsDuckingSegments = [{ startPercent: narrationStartPct, endPercent: narrationEndPct }];
-
-        // ── CRITICAL: Recalculate subtitle segment timings to match actual audio ──
-        // The TTS plays the full text as one continuous track. Each segment's subtitle
-        // timing must be proportional to its character count within the audio window.
-        const segments = options.narrationScript.segments;
-        const totalChars = segments.reduce((sum, s) => sum + s.text.length, 0);
-        const audioWindow = narrationEndPct - narrationStartPct;
-        let cursor = narrationStartPct;
-        for (const seg of segments) {
-          const proportion = seg.text.length / totalChars;
-          const segDuration = audioWindow * proportion;
-          seg.startPercent = cursor;
-          seg.endPercent = cursor + segDuration;
-          cursor += segDuration;
+        // Recalculate segment timings based on actual audio durations
+        // Each segment starts after the previous one ends, with a small gap
+        const GAP_PCT = 0.02; // 2% gap between segments
+        let cursor = 0.06; // Start at 6%
+        for (let i = 0; i < segments.length; i++) {
+          const buf = segmentBuffers[i];
+          const audioDur = buf ? buf.duration : 2; // fallback 2s
+          const segPct = audioDur / duration;
+          segments[i].startPercent = cursor;
+          segments[i].endPercent = Math.min(cursor + segPct, 0.95);
+          cursor = segments[i].endPercent + GAP_PCT;
         }
 
-        console.log(`TTS: audio decoded (${ttsAudioBuffer.duration.toFixed(1)}s), ducking ${(narrationStartPct * 100).toFixed(0)}%-${(narrationEndPct * 100).toFixed(0)}%, segments synced`);
+        // Build ducking segments from the actual segment windows
+        ttsDuckingSegments = segments
+          .filter((_, i) => segmentBuffers[i] !== null)
+          .map(s => ({ startPercent: s.startPercent, endPercent: s.endPercent }));
+
+        const totalAudioDur = segmentBuffers.reduce((sum, b) => sum + (b?.duration || 0), 0);
+        console.log(`TTS: ${segmentBuffers.filter(Boolean).length}/${segments.length} segments decoded (${totalAudioDur.toFixed(1)}s total), synced to subtitles`);
       } catch (e) {
-        console.warn('TTS audio failed, rendering with subtitles only:', e);
+        console.warn('TTS segment fetch failed, rendering with subtitles only:', e);
+        segmentBuffers = [];
       }
     }
 
-    // Create music source with precise ducking based on actual TTS duration
+    // Create music source with ducking windows matching each segment
     if (options.customMusicUrl) {
       const { createMusicFromUrl } = await import('./audioGenerator');
       musicCtx = await createMusicFromUrl(options.customMusicUrl, duration, ttsDuckingSegments);
@@ -769,40 +779,41 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
       stream.addTrack(audioTrack);
     }
 
-    // Schedule the single TTS narration through the music AudioContext
     musicCtx.start();
 
-    if (ttsAudioBuffer) {
+    // Schedule each segment's audio at its exact subtitle time
+    if (segmentBuffers.length > 0 && options.narrationScript) {
       const baseTime = musicCtx.audioCtx.currentTime;
-      const source = musicCtx.audioCtx.createBufferSource();
-      source.buffer = ttsAudioBuffer;
-
-      // Voice processing chain: gain → compressor → destination
-      const ttsGain = musicCtx.audioCtx.createGain();
-      ttsGain.gain.value = 1.4; // Voice prominence
-
       const voiceCompressor = musicCtx.audioCtx.createDynamicsCompressor();
       voiceCompressor.threshold.value = -18;
       voiceCompressor.knee.value = 8;
       voiceCompressor.ratio.value = 3;
       voiceCompressor.attack.value = 0.005;
       voiceCompressor.release.value = 0.15;
-
-      source.connect(ttsGain);
-      ttsGain.connect(voiceCompressor);
       voiceCompressor.connect(musicCtx.destination);
 
-      // Smooth voice fade in/out
-      ttsGain.gain.setValueAtTime(0, baseTime + 0.06 * duration);
-      ttsGain.gain.linearRampToValueAtTime(1.4, baseTime + 0.06 * duration + 0.3);
-      const narrationEnd = 0.06 * duration + ttsAudioBuffer.duration;
-      if (narrationEnd > 0.8) {
-        ttsGain.gain.setValueAtTime(1.4, baseTime + narrationEnd - 0.5);
-        ttsGain.gain.linearRampToValueAtTime(0, baseTime + narrationEnd);
-      }
+      for (let i = 0; i < segmentBuffers.length; i++) {
+        const buf = segmentBuffers[i];
+        if (!buf) continue;
+        const seg = options.narrationScript.segments[i];
+        const startTime = baseTime + seg.startPercent * duration;
 
-      source.start(baseTime + 0.06 * duration);
-      console.log(`TTS: single narration scheduled at ${(0.06 * duration).toFixed(1)}s`);
+        const source = musicCtx.audioCtx.createBufferSource();
+        source.buffer = buf;
+
+        const ttsGain = musicCtx.audioCtx.createGain();
+        ttsGain.gain.value = 1.5;
+        // Fade in/out for each segment
+        ttsGain.gain.setValueAtTime(0, startTime);
+        ttsGain.gain.linearRampToValueAtTime(1.5, startTime + 0.15);
+        ttsGain.gain.setValueAtTime(1.5, startTime + buf.duration - 0.15);
+        ttsGain.gain.linearRampToValueAtTime(0, startTime + buf.duration);
+
+        source.connect(ttsGain);
+        ttsGain.connect(voiceCompressor);
+        source.start(startTime);
+        console.log(`TTS segment ${i}: "${seg.text.substring(0, 30)}..." at ${(seg.startPercent * 100).toFixed(0)}%`);
+      }
     }
 
     audioCleanup = () => musicCtx!.stop();
