@@ -1,4 +1,4 @@
-import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail, MailPlus } from "lucide-react";
+import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail, MailPlus, Clock, XCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,23 @@ import {
 } from "@/components/ui/tooltip";
 import { RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
 import { cn } from "@/lib/utils";
+
+// Alert badges for customer list
+function getCustomerAlertBadges(customer: RestaurantCustomer): { label: string; className: string; icon: typeof AlertTriangle }[] {
+  const badges: { label: string; className: string; icon: typeof AlertTriangle }[] = [];
+  const lastSeen = new Date(customer.last_seen_at);
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  // Churn risk
+  if (lastSeen < sixtyDaysAgo) {
+    badges.push({ label: 'Em risco', className: 'bg-destructive/15 text-destructive border-destructive/30', icon: AlertTriangle });
+  } else if (lastSeen < thirtyDaysAgo) {
+    badges.push({ label: 'Inativo', className: 'bg-warning/15 text-warning border-warning/30', icon: Clock });
+  }
+
+  return badges;
+}
 
 type CustomerStatus = 'frequent' | 'new' | 'vip' | 'at_risk' | 'promoter' | 'active';
 
@@ -183,12 +200,18 @@ function CustomerRow({
             </div>
           </div>
 
-          {/* Status Badge */}
-          <div className="hidden md:flex items-center min-w-[120px]">
+          {/* Status Badge + Alert Badges */}
+          <div className="hidden md:flex items-center gap-1.5 min-w-[120px] flex-wrap">
             <Badge variant="outline" className={cn("gap-1.5", config.className)}>
               <Icon className="w-3.5 h-3.5" />
               {config.label}
             </Badge>
+            {getCustomerAlertBadges(customer).map((alert, idx) => (
+              <Badge key={idx} variant="outline" className={cn("gap-1 text-[10px]", alert.className)}>
+                <alert.icon className="w-3 h-3" />
+                {alert.label}
+              </Badge>
+            ))}
           </div>
 
           {/* Insight - only show if has message */}
