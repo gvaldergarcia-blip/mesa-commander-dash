@@ -7,12 +7,17 @@ interface ReservationPerformanceCardProps {
   pending: number;
   noShow: number;
   canceled: number;
+  noShowRate: number;    // Pré-calculado pelo hook central
+  successRate: number;   // Pré-calculado pelo hook central
   hasData: boolean;
 }
 
 /**
  * Card de desempenho EXCLUSIVO para reservas
- * NÃO exibe tempo de espera (não existe esse cálculo para reservas)
+ * 
+ * REGRA DE CONSISTÊNCIA:
+ * - noShowRate e successRate são recebidos do hook central (useReportsReal)
+ * - NÃO recalcular localmente para evitar divergência
  */
 export function ReservationPerformanceCard({
   confirmed,
@@ -20,11 +25,10 @@ export function ReservationPerformanceCard({
   pending,
   noShow,
   canceled,
+  noShowRate,
+  successRate,
   hasData,
 }: ReservationPerformanceCardProps) {
-  const total = confirmed + completed + pending + noShow + canceled;
-  const successRate = total > 0 ? Math.round(((confirmed + completed) / total) * 100) : 0;
-  const noShowRate = total > 0 ? Math.round((noShow / total) * 100) : 0;
 
   return (
     <Card>

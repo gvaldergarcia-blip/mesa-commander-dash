@@ -60,8 +60,8 @@ type SourceType = 'all' | 'queue' | 'reservations';
  */
 const TOOLTIP_FORMULAS = {
   avgWaitTime: "Média de (seated_at − created_at) para entradas com status 'seated'. APENAS fila.",
-  conversionRate: "(Atendidos ÷ Total entradas na fila) × 100. Taxa de clientes que foram efetivamente atendidos.",
-  noShowRate: "(No-shows ÷ Reservas finalizadas) × 100. APENAS reservas com status 'no_show'.",
+  conversionRate: "(Atendidos ÷ Total entradas na fila) × 100. Inclui TODOS os status no denominador (waiting, called, seated, canceled, no_show, cleared).",
+  noShowRate: "(No-shows ÷ Reservas finalizadas) × 100. Finalizadas = concluídas + no-show + canceladas. APENAS reservas.",
   avgPartySize: "Média de pessoas por grupo (party_size) dos atendidos.",
 };
 
@@ -500,9 +500,12 @@ function ReportsContent() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <QueueStatusChart
               seated={metrics.queue.seated}
-              waiting={metrics.queue.waiting + metrics.queue.called}
+              waiting={metrics.queue.waiting}
+              called={metrics.queue.called}
               canceled={metrics.queue.canceled}
               noShow={metrics.queue.noShow}
+              cleared={metrics.queue.cleared}
+              totalEntries={metrics.queue.totalEntries}
             />
             <ReservationStatusChart
               completed={metrics.reservations.completed}
@@ -536,9 +539,12 @@ function ReportsContent() {
             <QueueHourlyChart data={metrics.queue.hourlyDistribution} />
             <QueueStatusChart
               seated={metrics.queue.seated}
-              waiting={metrics.queue.waiting + metrics.queue.called}
+              waiting={metrics.queue.waiting}
+              called={metrics.queue.called}
               canceled={metrics.queue.canceled}
               noShow={metrics.queue.noShow}
+              cleared={metrics.queue.cleared}
+              totalEntries={metrics.queue.totalEntries}
             />
           </div>
         </TabsContent>
@@ -553,6 +559,8 @@ function ReportsContent() {
             pending={metrics.reservations.pending}
             noShow={metrics.reservations.noShow}
             canceled={metrics.reservations.canceled}
+            noShowRate={metrics.reservations.noShowRate}
+            successRate={metrics.reservations.successRate}
             hasData={metrics.reservations.hasData}
           />
 
