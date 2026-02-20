@@ -39,6 +39,7 @@ import { useReportsReal } from "@/hooks/useReportsReal";
 import { useExportData } from "@/hooks/useExportData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 // Componentes de gráfico
@@ -72,6 +73,7 @@ function ReportsContent() {
   const { metrics, loading, refetch } = useReportsReal(period, sourceType);
   const { exportQueueData, exportReservationsData, exportKPIsData } = useExportData();
   const { toast } = useToast();
+  const { hasModule } = useModules();
 
   const getPeriodDates = () => {
     const endDate = new Date();
@@ -336,20 +338,26 @@ function ReportsContent() {
       {/* ============================================ */}
       {/* SEÇÕES SEPARADAS: FILA vs RESERVA */}
       {/* ============================================ */}
-      <Tabs defaultValue="all" className="space-y-6">
+      <Tabs defaultValue={hasModule('fila') ? (hasModule('reserva') ? 'all' : 'queue') : 'reservations'} className="space-y-6">
         <TabsList className="bg-muted/50">
-          <TabsTrigger value="all" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Visão Geral
-          </TabsTrigger>
-          <TabsTrigger value="queue" className="gap-2">
-            <Users className="w-4 h-4" />
-            Fila
-          </TabsTrigger>
-          <TabsTrigger value="reservations" className="gap-2">
-            <CalendarCheck className="w-4 h-4" />
-            Reservas
-          </TabsTrigger>
+          {hasModule('fila') && hasModule('reserva') && (
+            <TabsTrigger value="all" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Visão Geral
+            </TabsTrigger>
+          )}
+          {hasModule('fila') && (
+            <TabsTrigger value="queue" className="gap-2">
+              <Users className="w-4 h-4" />
+              Fila
+            </TabsTrigger>
+          )}
+          {hasModule('reserva') && (
+            <TabsTrigger value="reservations" className="gap-2">
+              <CalendarCheck className="w-4 h-4" />
+              Reservas
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ============================================ */}

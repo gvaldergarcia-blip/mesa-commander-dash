@@ -6,7 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { RestaurantProvider } from "@/contexts/RestaurantContext";
+import { ModulesProvider } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { ModuleGuard } from "@/components/layout/ModuleGuard";
 import Dashboard from "./pages/Dashboard";
 import Queue from "./pages/Queue";
 import Reservations from "./pages/Reservations";
@@ -121,13 +123,18 @@ const App = () => {
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={
           <RestaurantProvider>
-            <ProtectedRoute>
-              <DashboardLayout>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/queue" element={<Queue />} />
-                  <Route path="/reservations" element={<Reservations />} />
+            <ModulesProvider>
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/queue" element={
+                      <ModuleGuard module="fila"><Queue /></ModuleGuard>
+                    } />
+                    <Route path="/reservations" element={
+                      <ModuleGuard module="reserva"><Reservations /></ModuleGuard>
+                    } />
                   <Route path="/customers" element={<CustomersPage />} />
                   <Route path="/customers/:customerId" element={<CustomerProfile />} />
                   {/* Rotas protegidas por feature flag - Cupons/Promoções */}
@@ -150,10 +157,11 @@ const App = () => {
                   } />
                   <Route path="/settings" element={<Settings />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </DashboardLayout>
-            </ProtectedRoute>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </DashboardLayout>
+              </ProtectedRoute>
+            </ModulesProvider>
           </RestaurantProvider>
         } />
       </Routes>

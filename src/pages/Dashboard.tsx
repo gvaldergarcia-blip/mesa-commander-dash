@@ -11,6 +11,7 @@ import { useQueue } from "@/hooks/useQueue";
 import mesaclikLogo from "@/assets/mesaclik-logo.png";
 import { useReservations } from "@/hooks/useReservations";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
+import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { 
   Dialog,
@@ -34,6 +35,7 @@ function DashboardContent() {
   const { addToQueue } = useQueue();
   const { createReservation } = useReservations();
   const navigate = useNavigate();
+  const { hasModule } = useModules();
   
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
@@ -125,25 +127,31 @@ function DashboardContent() {
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Grupos na Fila"
-          value={metrics.groupsInQueue.toString()}
-          description="Total aguardando"
-          icon={Users}
-        />
-        <MetricCard
-          title="Pessoas na Fila"
-          value={metrics.peopleInQueue.toString()}
-          description="Total de pessoas"
-          icon={Users}
-        />
-        <MetricCard
-          title="Reservas Hoje"
-          value={metrics.reservationsToday.toString()}
-          description="Agendamentos do dia"
-          icon={Calendar}
-          trend={{ value: Math.abs(metrics.weeklyGrowth), isPositive: metrics.weeklyGrowth > 0 }}
-        />
+        {hasModule('fila') && (
+          <>
+            <MetricCard
+              title="Grupos na Fila"
+              value={metrics.groupsInQueue.toString()}
+              description="Total aguardando"
+              icon={Users}
+            />
+            <MetricCard
+              title="Pessoas na Fila"
+              value={metrics.peopleInQueue.toString()}
+              description="Total de pessoas"
+              icon={Users}
+            />
+          </>
+        )}
+        {hasModule('reserva') && (
+          <MetricCard
+            title="Reservas Hoje"
+            value={metrics.reservationsToday.toString()}
+            description="Agendamentos do dia"
+            icon={Calendar}
+            trend={{ value: Math.abs(metrics.weeklyGrowth), isPositive: metrics.weeklyGrowth > 0 }}
+          />
+        )}
         <MetricCard
           title="Atendidos Hoje"
           value={metrics.servedToday.toString()}
@@ -198,115 +206,119 @@ function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Dialog open={isQueueDialogOpen} onOpenChange={setIsQueueDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full justify-start" variant="outline">
-                  <Users className="w-4 h-4 mr-2" />
-                  Adicionar à Fila
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Input 
-                    placeholder="Nome do cliente"
-                    value={queueName}
-                    onChange={(e) => setQueueName(e.target.value)}
-                  />
-                  <Input 
-                    type="email"
-                    placeholder="Email do cliente"
-                    value={queueEmail}
-                    onChange={(e) => setQueueEmail(e.target.value)}
-                  />
-                  <Select value={queuePeople} onValueChange={setQueuePeople}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pessoas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1,2,3,4,5,6,7,8].map(n => (
-                        <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input 
-                    placeholder="Observações (opcional)"
-                    value={queueNotes}
-                    onChange={(e) => setQueueNotes(e.target.value)}
-                  />
-                  <Button 
-                    className="w-full"
-                    onClick={handleAddQueue}
-                    disabled={!queueName || !queueEmail}
-                  >
-                    Adicionar
+            {hasModule('fila') && (
+              <Dialog open={isQueueDialogOpen} onOpenChange={setIsQueueDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Users className="w-4 h-4 mr-2" />
+                    Adicionar à Fila
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            
-            <Dialog open={isReservationDialogOpen} onOpenChange={setIsReservationDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full justify-start" variant="outline">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Nova Reserva
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Criar Nova Reserva</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Input 
-                    placeholder="Nome do cliente"
-                    value={resName}
-                    onChange={(e) => setResName(e.target.value)}
-                  />
-                  <Input 
-                    type="email"
-                    placeholder="E-mail do cliente"
-                    value={resEmail}
-                    onChange={(e) => setResEmail(e.target.value)}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
                     <Input 
-                      type="date"
-                      value={resDate}
-                      onChange={(e) => setResDate(e.target.value)}
+                      placeholder="Nome do cliente"
+                      value={queueName}
+                      onChange={(e) => setQueueName(e.target.value)}
                     />
                     <Input 
-                      type="time"
-                      value={resTime}
-                      onChange={(e) => setResTime(e.target.value)}
+                      type="email"
+                      placeholder="Email do cliente"
+                      value={queueEmail}
+                      onChange={(e) => setQueueEmail(e.target.value)}
                     />
+                    <Select value={queuePeople} onValueChange={setQueuePeople}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pessoas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1,2,3,4,5,6,7,8].map(n => (
+                          <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input 
+                      placeholder="Observações (opcional)"
+                      value={queueNotes}
+                      onChange={(e) => setQueueNotes(e.target.value)}
+                    />
+                    <Button 
+                      className="w-full"
+                      onClick={handleAddQueue}
+                      disabled={!queueName || !queueEmail}
+                    >
+                      Adicionar
+                    </Button>
                   </div>
-                  <Select value={resPeople} onValueChange={setResPeople}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pessoas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1,2,3,4,5,6].map(n => (
-                        <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input 
-                    placeholder="Observações especiais (opcional)"
-                    value={resNotes}
-                    onChange={(e) => setResNotes(e.target.value)}
-                  />
-                  <Button 
-                    className="w-full"
-                    onClick={handleAddReservation}
-                    disabled={!resName || !resEmail || !resDate || !resTime}
-                  >
-                    Criar Reserva
+                </DialogContent>
+              </Dialog>
+            )}
+            
+            {hasModule('reserva') && (
+              <Dialog open={isReservationDialogOpen} onOpenChange={setIsReservationDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full justify-start" variant="outline">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Nova Reserva
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Reserva</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Input 
+                      placeholder="Nome do cliente"
+                      value={resName}
+                      onChange={(e) => setResName(e.target.value)}
+                    />
+                    <Input 
+                      type="email"
+                      placeholder="E-mail do cliente"
+                      value={resEmail}
+                      onChange={(e) => setResEmail(e.target.value)}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        type="date"
+                        value={resDate}
+                        onChange={(e) => setResDate(e.target.value)}
+                      />
+                      <Input 
+                        type="time"
+                        value={resTime}
+                        onChange={(e) => setResTime(e.target.value)}
+                      />
+                    </div>
+                    <Select value={resPeople} onValueChange={setResPeople}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pessoas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1,2,3,4,5,6].map(n => (
+                          <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input 
+                      placeholder="Observações especiais (opcional)"
+                      value={resNotes}
+                      onChange={(e) => setResNotes(e.target.value)}
+                    />
+                    <Button 
+                      className="w-full"
+                      onClick={handleAddReservation}
+                      disabled={!resName || !resEmail || !resDate || !resTime}
+                    >
+                      Criar Reserva
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             
             <Button 
               className="w-full justify-start" 
@@ -332,32 +344,34 @@ function DashboardContent() {
         </Card>
       </div>
 
-      {/* Queue Status Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Status da Fila Atual</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-              <div className="text-2xl font-bold text-warning">{metrics.groupsInQueue}</div>
-              <div className="text-sm text-muted-foreground">Aguardando</div>
+      {/* Queue Status Overview — only if has fila module */}
+      {hasModule('fila') && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Status da Fila Atual</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
+                <div className="text-2xl font-bold text-warning">{metrics.groupsInQueue}</div>
+                <div className="text-sm text-muted-foreground">Aguardando</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/20">
+                <div className="text-2xl font-bold text-accent">{metrics.calledToday}</div>
+                <div className="text-sm text-muted-foreground">Chamados</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
+                <div className="text-2xl font-bold text-success">{metrics.servedToday}</div>
+                <div className="text-sm text-muted-foreground">Atendidos Hoje</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-muted/50">
+                <div className="text-2xl font-bold text-muted-foreground">{metrics.canceledToday}</div>
+                <div className="text-sm text-muted-foreground">Cancelados</div>
+              </div>
             </div>
-            <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/20">
-              <div className="text-2xl font-bold text-accent">{metrics.calledToday}</div>
-              <div className="text-sm text-muted-foreground">Chamados</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-              <div className="text-2xl font-bold text-success">{metrics.servedToday}</div>
-              <div className="text-sm text-muted-foreground">Atendidos Hoje</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-muted-foreground">{metrics.canceledToday}</div>
-              <div className="text-sm text-muted-foreground">Cancelados</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

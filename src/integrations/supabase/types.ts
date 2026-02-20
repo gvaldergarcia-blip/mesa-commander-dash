@@ -1581,6 +1581,7 @@ export type Database = {
           menu_url: string | null
           name: string
           owner_id: string | null
+          plan_modules: string
           status: string
           updated_at: string
         }
@@ -1604,6 +1605,7 @@ export type Database = {
           menu_url?: string | null
           name: string
           owner_id?: string | null
+          plan_modules?: string
           status?: string
           updated_at?: string
         }
@@ -1627,6 +1629,7 @@ export type Database = {
           menu_url?: string | null
           name?: string
           owner_id?: string | null
+          plan_modules?: string
           status?: string
           updated_at?: string
         }
