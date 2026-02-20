@@ -169,27 +169,29 @@ function drawParticles(ctx: CanvasRenderingContext2D, w: number, h: number, t: n
   ctx.save();
   for (let i = 0; i < count; i++) {
     const seed = i * 137.508;
-    const speed = 0.3 + (i % 5) * 0.15;
-    const px = ((seed * 7.31 + t * 60 * speed) % (w + 80)) - 40;
-    const py = ((seed * 3.17 + t * 25 * (0.3 + (i % 4) * 0.15) + Math.sin(t * 2 + seed) * 30) % (h + 80)) - 40;
-    const baseSize = 1.2 + (i % 6) * 0.6;
-    const breathe = Math.sin(t * 2.5 + seed * 0.7) * 0.5 + 0.5;
-    const size = baseSize * (0.7 + breathe * 0.6);
-    const alpha = (0.08 + breathe * 0.12) * (py < h * 0.3 ? 0.7 : 1);
+    const speed = 0.15 + (i % 5) * 0.08;
+    const phase = seed * 0.01;
+    const px = w * (0.5 + 0.52 * Math.sin(t * speed * 1.7 + phase * 7));
+    const py = h * (0.5 + 0.48 * Math.cos(t * speed * 1.3 + phase * 5));
+    const baseSize = 1.0 + (i % 7) * 0.5;
+    const breathe = Math.sin(t * 1.8 + seed * 0.5) * 0.5 + 0.5;
+    const size = baseSize * (0.6 + breathe * 0.7);
+    const alpha = (0.04 + breathe * 0.09);
     ctx.globalAlpha = alpha;
     
-    // Soft glow halo
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, size * 3);
-    glow.addColorStop(0, 'rgba(255,245,230,0.3)');
-    glow.addColorStop(0.5, 'rgba(255,220,180,0.08)');
+    // Multi-layer glow halo
+    const glow = ctx.createRadialGradient(px, py, 0, px, py, size * 4);
+    glow.addColorStop(0, 'rgba(255,248,240,0.4)');
+    glow.addColorStop(0.3, 'rgba(255,230,200,0.12)');
+    glow.addColorStop(0.6, 'rgba(255,210,170,0.03)');
     glow.addColorStop(1, 'rgba(255,200,150,0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(px - size * 3, py - size * 3, size * 6, size * 6);
+    ctx.fillRect(px - size * 4, py - size * 4, size * 8, size * 8);
     
-    // Core dot
-    ctx.fillStyle = 'rgba(255,250,240,0.9)';
+    // Bright core
+    ctx.fillStyle = 'rgba(255,252,248,0.95)';
     ctx.beginPath();
-    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.arc(px, py, size * 0.6, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -222,22 +224,53 @@ function drawLightLeak(ctx: CanvasRenderingContext2D, w: number, h: number, t: n
   ctx.restore();
 }
 
-/** Subtle film grain for cinematic texture */
+/** Cinematic film grain — lightweight noise overlay (no getImageData for performance) */
 function drawFilmGrain(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, intensity = 0.03) {
   ctx.save();
   ctx.globalAlpha = intensity;
-  const imageData = ctx.getImageData(0, 0, Math.min(w, 540), Math.min(h, 540));
-  const data = imageData.data;
-  const seed = Math.floor(t * 24) * 1000;
-  for (let i = 0; i < data.length; i += 16) {
-    const noise = ((seed + i * 9301 + 49297) % 233280) / 233280 * 2 - 1;
-    const val = noise * 40;
-    data[i] += val;
-    data[i + 1] += val;
-    data[i + 2] += val;
+  // Use random semi-transparent dots for grain without expensive pixel manipulation
+  const step = 6;
+  const seed = Math.floor(t * 60);
+  for (let x = 0; x < w; x += step) {
+    for (let y = 0; y < h; y += step) {
+      const hash = ((x * 374761393 + y * 668265263 + seed * 1274126177) >>> 0) / 4294967296;
+      if (hash > 0.5) {
+        ctx.fillStyle = hash > 0.75 ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x, y, step * 0.6, step * 0.6);
+      }
+    }
   }
-  ctx.putImageData(imageData, 0, 0);
   ctx.restore();
+}
+
+/** Cinematic color grading — warm highlights, cool shadows */
+function drawColorGrading(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.save();
+  // Warm highlights — golden overlay on bright areas
+  ctx.globalCompositeOperation = 'soft-light';
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = '#f5d0a9';
+  ctx.fillRect(0, 0, w, h);
+  // Cool shadow tint
+  ctx.globalAlpha = 0.05;
+  ctx.fillStyle = '#6b7db3';
+  ctx.fillRect(0, 0, w, h);
+  // Contrast boost via overlay
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.04;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Cinematic vignette — smooth radial darkening */
+function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number, strength = 0.45) {
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w * 0.85);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(0.6, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, `rgba(0,0,0,${strength})`);
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
 }
 
 /** Animated accent line with glow */
@@ -388,8 +421,9 @@ const templateElegante: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.72 - bh / 2, bw, bh, ctaAlpha, w * 0.026, 'filled');
   }
 
-  // Film grain
-  drawFilmGrain(ctx, w, h, t, 0.02);
+  drawColorGrading(ctx, w, h);
+  drawVignette(ctx, w, h, 0.4);
+  drawFilmGrain(ctx, w, h, t, 0.015);
 };
 
 // ═══ Template 2: Dinâmico — Slide transitions, modern bar, energetic ═══
@@ -458,7 +492,9 @@ const templateDinamico: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     drawCTAButton(ctx, opts.cta, w * 0.07, h - barH * 0.6 - bh / 2, bw, bh, ctaAlpha, w * 0.024, 'filled');
   }
 
-  drawFilmGrain(ctx, w, h, t, 0.015);
+  drawColorGrading(ctx, w, h);
+  drawVignette(ctx, w, h, 0.35);
+  drawFilmGrain(ctx, w, h, t, 0.012);
 };
 
 // ═══ Template 3: Ken Burns — Deep cinematic zoom/pan, film look ═══
@@ -525,7 +561,9 @@ const templateKenBurns: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
   }
 
   // Film grain for cinema feel
-  drawFilmGrain(ctx, w, h, t, 0.025);
+  drawColorGrading(ctx, w, h);
+  drawVignette(ctx, w, h, 0.45);
+  drawFilmGrain(ctx, w, h, t, 0.02);
 };
 
 // ═══ Template 4: Moderno — Bold typography, geometric, high contrast ═══
@@ -605,7 +643,9 @@ const templateModerno: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     drawCTAButton(ctx, opts.cta.toUpperCase(), (w - bw) / 2, h * 0.68 - bh / 2, bw, bh, ctaA, w * 0.022, 'filled');
   }
 
-  drawFilmGrain(ctx, w, h, t, 0.015);
+  drawColorGrading(ctx, w, h);
+  drawVignette(ctx, w, h, 0.35);
+  drawFilmGrain(ctx, w, h, t, 0.012);
 };
 
 // ═══ Template 5: Minimalista — Clean, refined, editorial ═══
@@ -666,7 +706,9 @@ const templateMinimalista: TemplateRenderFn = (ctx, images, t, opts, w, h) => {
     drawCTAButton(ctx, opts.cta, (w - bw) / 2, h * 0.67 - bh / 2, bw, bh, ctaA, w * 0.022, 'glass');
   }
 
-  drawFilmGrain(ctx, w, h, t, 0.018);
+  drawColorGrading(ctx, w, h);
+  drawVignette(ctx, w, h, 0.5);
+  drawFilmGrain(ctx, w, h, t, 0.015);
 };
 
 const TEMPLATES: Record<string, { name: string; description: string; emoji: string; render: TemplateRenderFn }> = {
@@ -699,12 +741,15 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const width = 1080;
   const height = format === 'vertical' ? 1920 : 1080;
-  const FPS = 30;
+  const FPS = 60;
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
+  // Ultra-quality rendering settings
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   const loadedImages = await Promise.all(options.images.map(loadImage));
   const template = TEMPLATES[templateId] || TEMPLATES.elegante;
@@ -818,7 +863,7 @@ export async function renderVideo(options: RenderOptions): Promise<Blob> {
 
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 16_000_000,
+    videoBitsPerSecond: 24_000_000,
   });
 
   const chunks: Blob[] = [];
