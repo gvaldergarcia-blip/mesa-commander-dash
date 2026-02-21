@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import mesaclikLogo from "@/assets/mesaclik-logo-oficial.png";
 import { useModules } from "@/contexts/ModulesContext";
 import {
   LayoutDashboard,
@@ -68,11 +69,8 @@ export function Sidebar() {
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">
-                <span className="text-sidebar-foreground">MESA</span>
-                <span className="text-primary">CLIK</span>
-              </h1>
-              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Painel</p>
+              <img src={mesaclikLogo} alt="MesaClik" className="h-10 w-auto" />
+              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider mt-0.5">Painel</p>
             </div>
           </div>
           <Button
