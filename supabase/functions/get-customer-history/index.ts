@@ -190,8 +190,8 @@ Deno.serve(async (req) => {
     const mostFrequentHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
     const preferredTime = mostFrequentHour ? `${mostFrequentHour[0]}:00` : null;
 
-    // Show rate
-    const totalWithOutcome = completedVisits.length + noShowVisits.length;
+    // Show rate: completed vs (completed + no_show + canceled)
+    const totalWithOutcome = completedVisits.length + noShowVisits.length + canceledVisits.length;
     const showRate = totalWithOutcome > 0
       ? Math.round((completedVisits.length / totalWithOutcome) * 100)
       : 100;

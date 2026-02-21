@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import { ReservationSettings } from "@/components/settings/ReservationSettings";
 import { RestaurantLogo } from "@/components/common/RestaurantLogo";
 import { TeamSettings } from "@/components/settings/TeamSettings";
 import { PlanSettings } from "@/components/settings/PlanSettings";
+import { LoyaltySettings } from "@/components/settings/LoyaltySettings";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -352,7 +353,7 @@ function SettingsContent() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
@@ -373,6 +374,10 @@ function SettingsContent() {
               <span className="hidden sm:inline">Reservas</span>
             </TabsTrigger>
           )}
+          <TabsTrigger value="loyalty" className="flex items-center gap-2">
+            <Trophy className="h-4 w-4" />
+            <span className="hidden sm:inline">Programa Clique</span>
+          </TabsTrigger>
           <TabsTrigger value="team" className="flex items-center gap-2">
             <UsersRound className="h-4 w-4" />
             <span className="hidden sm:inline">Equipe</span>
@@ -760,7 +765,12 @@ function SettingsContent() {
           <PlanSettings />
         </TabsContent>
 
-        {/* Tab 9: Privacidade & Segurança */}
+        {/* Tab: Programa Clique (Fidelidade) */}
+        <TabsContent value="loyalty">
+          <LoyaltySettings restaurantId={restaurantId || ''} />
+        </TabsContent>
+
+
         <TabsContent value="privacy">
           <Card>
             <CardHeader>
