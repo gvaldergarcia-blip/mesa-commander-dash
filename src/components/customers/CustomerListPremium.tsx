@@ -235,11 +235,16 @@ function CustomerRow({
             <p className="text-xs text-muted-foreground">visitas</p>
           </div>
 
-          {/* Origin */}
-          <div className="hidden xl:block min-w-[70px]">
+          {/* Origin + Loyalty */}
+          <div className="hidden xl:flex items-center gap-1.5 min-w-[140px] flex-wrap">
             <Badge variant="secondary" className="text-xs">
               {origin === 'Fila' ? '🎫' : '📅'} {origin}
             </Badge>
+            {customer.loyalty_program_active && (
+              <Badge variant="outline" className="text-xs gap-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                🎯 Clique
+              </Badge>
+            )}
           </div>
 
           {/* Actions */}

@@ -25,6 +25,7 @@ export type RestaurantCustomer = {
   terms_accepted_at: string | null;
   tags: string[];
   internal_notes: string | null;
+  loyalty_program_active: boolean;
 };
 
 export type CustomerFilter = 'all' | 'active' | 'inactive' | 'vip' | 'new';
