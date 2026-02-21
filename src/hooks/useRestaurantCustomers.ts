@@ -67,7 +67,12 @@ export function useRestaurantCustomers(overrideRestaurantId?: string) {
 
       if (fetchError) throw fetchError;
       
-      setCustomers(data || []);
+      // Cast to include loyalty_program_active which exists in DB but not in generated types
+      const enriched = (data || []).map((c: any) => ({
+        ...c,
+        loyalty_program_active: c.loyalty_program_active ?? false,
+      })) as RestaurantCustomer[];
+      setCustomers(enriched);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar clientes';
       setError(message);
