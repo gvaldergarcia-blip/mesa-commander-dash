@@ -11,8 +11,8 @@ const corsHeaders = {
 
 interface EnrollRequest {
   restaurant_id: string;
-  action: "save_program" | "check_reward";
-  customer_id?: string; // for check_reward
+  action: "save_program" | "check_reward" | "activate_customer" | "deactivate_customer";
+  customer_id?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -52,8 +52,134 @@ const handler = async (req: Request): Promise<Response> => {
 
     const restaurantName = restaurant?.name || "Restaurante";
 
+    // ─── ACTIVATE CUSTOMER ───────────────────────────────────────
+    if (action === "activate_customer" && body.customer_id) {
+      const { data: cust } = await supabase
+        .from("restaurant_customers")
+        .select("id, customer_name, customer_email, total_queue_visits, total_reservation_visits, marketing_optin")
+        .eq("id", body.customer_id)
+        .single();
+
+      if (!cust) {
+        return new Response(JSON.stringify({ error: "Customer not found" }), {
+          status: 404, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      if (!cust.marketing_optin) {
+        return new Response(JSON.stringify({ error: "Customer has not opted in to marketing" }), {
+          status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      // Mark customer as loyalty active
+      await supabase
+        .from("restaurant_customers")
+        .update({ loyalty_program_active: true })
+        .eq("id", cust.id);
+
+      // Calculate visits
+      let visits = 0;
+      if (program.count_queue) visits += (cust.total_queue_visits || 0);
+      if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
+
+      const rewardUnlocked = visits >= program.required_visits;
+      const now = new Date();
+      const rewardExpiresAt = rewardUnlocked
+        ? new Date(now.getTime() + program.reward_validity_days * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      // Upsert loyalty status
+      const { data: existing } = await supabase
+        .from("customer_loyalty_status")
+        .select("id, activation_email_sent, reward_email_sent, reward_unlocked")
+        .eq("restaurant_id", restaurant_id)
+        .eq("customer_id", cust.id)
+        .maybeSingle();
+
+      let emailsSent = 0;
+
+      if (existing) {
+        await supabase
+          .from("customer_loyalty_status")
+          .update({
+            current_visits: visits,
+            reward_unlocked: rewardUnlocked,
+            reward_unlocked_at: rewardUnlocked && !existing.reward_unlocked ? now.toISOString() : undefined,
+            reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
+          })
+          .eq("id", existing.id);
+
+        // Send activation email if not sent yet
+        if (!existing.activation_email_sent && cust.customer_email) {
+          const visitsRemaining = Math.max(0, program.required_visits - visits);
+          await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
+          await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("id", existing.id);
+          emailsSent++;
+        }
+
+        // Send reward email if just unlocked
+        if (rewardUnlocked && !existing.reward_email_sent && cust.customer_email) {
+          await sendRewardEmail(cust, program, restaurantName);
+          await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
+          emailsSent++;
+        }
+      } else {
+        await supabase.from("customer_loyalty_status").insert({
+          restaurant_id,
+          customer_id: cust.id,
+          current_visits: visits,
+          reward_unlocked: rewardUnlocked,
+          reward_unlocked_at: rewardUnlocked ? now.toISOString() : null,
+          reward_expires_at: rewardExpiresAt,
+          activation_email_sent: false,
+          reward_email_sent: false,
+        });
+
+        // Send activation email
+        if (cust.customer_email) {
+          const visitsRemaining = Math.max(0, program.required_visits - visits);
+          await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
+          await supabase
+            .from("customer_loyalty_status")
+            .update({ activation_email_sent: true })
+            .eq("restaurant_id", restaurant_id)
+            .eq("customer_id", cust.id);
+          emailsSent++;
+
+          if (rewardUnlocked) {
+            await sendRewardEmail(cust, program, restaurantName);
+            await supabase
+              .from("customer_loyalty_status")
+              .update({ reward_email_sent: true })
+              .eq("restaurant_id", restaurant_id)
+              .eq("customer_id", cust.id);
+            emailsSent++;
+          }
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, visits, rewardUnlocked, emailsSent }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // ─── DEACTIVATE CUSTOMER ─────────────────────────────────────
+    if (action === "deactivate_customer" && body.customer_id) {
+      await supabase
+        .from("restaurant_customers")
+        .update({ loyalty_program_active: false })
+        .eq("id", body.customer_id);
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // ─── SAVE PROGRAM (bulk enroll) ──────────────────────────────
     if (action === "save_program") {
-      // Enroll all eligible customers
       const { data: customers, error: custError } = await supabase
         .from("restaurant_customers")
         .select("id, customer_name, customer_email, total_queue_visits, total_reservation_visits, marketing_optin")
@@ -65,7 +191,6 @@ const handler = async (req: Request): Promise<Response> => {
       let emailsSent = 0;
 
       for (const cust of customers || []) {
-        // Calculate current visits based on program config
         let visits = 0;
         if (program.count_queue) visits += (cust.total_queue_visits || 0);
         if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
@@ -76,7 +201,6 @@ const handler = async (req: Request): Promise<Response> => {
           ? new Date(now.getTime() + program.reward_validity_days * 24 * 60 * 60 * 1000).toISOString()
           : null;
 
-        // Upsert loyalty status
         const { data: existing } = await supabase
           .from("customer_loyalty_status")
           .select("id, activation_email_sent, reward_email_sent, reward_unlocked")
@@ -95,7 +219,6 @@ const handler = async (req: Request): Promise<Response> => {
             })
             .eq("id", existing.id);
 
-          // Send reward email if just unlocked
           if (rewardUnlocked && !existing.reward_email_sent && cust.marketing_optin && cust.customer_email) {
             await sendRewardEmail(cust, program, restaurantName);
             await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
@@ -113,7 +236,6 @@ const handler = async (req: Request): Promise<Response> => {
             reward_email_sent: false,
           });
 
-          // Send activation email
           if (cust.marketing_optin && cust.customer_email) {
             const visitsRemaining = Math.max(0, program.required_visits - visits);
             await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
@@ -124,7 +246,6 @@ const handler = async (req: Request): Promise<Response> => {
               .eq("customer_id", cust.id);
             emailsSent++;
 
-            // If already unlocked, also send reward email
             if (rewardUnlocked) {
               await sendRewardEmail(cust, program, restaurantName);
               await supabase
@@ -145,17 +266,24 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // check_reward: update a single customer's visits
+    // ─── CHECK REWARD (single customer) ──────────────────────────
     if (action === "check_reward" && body.customer_id) {
       const { data: cust } = await supabase
         .from("restaurant_customers")
-        .select("id, customer_name, customer_email, total_queue_visits, total_reservation_visits, marketing_optin")
+        .select("id, customer_name, customer_email, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
         .eq("id", body.customer_id)
         .single();
 
       if (!cust) {
         return new Response(JSON.stringify({ message: "Customer not found" }), {
           status: 404, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      // Only count if individually activated
+      if (!cust.loyalty_program_active) {
+        return new Response(JSON.stringify({ message: "Customer not enrolled in loyalty program" }), {
+          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       }
 
@@ -186,13 +314,11 @@ const handler = async (req: Request): Promise<Response> => {
           })
           .eq("id", status.id);
 
-        // Send reward email if just unlocked
         if (rewardUnlocked && !status.reward_email_sent && cust.marketing_optin && cust.customer_email) {
           await sendRewardEmail(cust, program, restaurantName);
           await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", status.id);
         }
       } else {
-        // Create new status
         const rewardExpiresAt = rewardUnlocked
           ? new Date(now.getTime() + program.reward_validity_days * 24 * 60 * 60 * 1000).toISOString()
           : null;

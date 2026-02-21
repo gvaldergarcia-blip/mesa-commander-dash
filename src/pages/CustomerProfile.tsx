@@ -302,7 +302,7 @@ export default function CustomerProfile() {
 
       {/* Loyalty Card */}
       {restaurantId && customerId && (
-        <CustomerLoyaltyCard customerId={customerId} restaurantId={restaurantId} />
+        <CustomerLoyaltyCard customerId={customerId} restaurantId={restaurantId} marketingOptIn={customer.marketing_opt_in} />
       )}
 
       {/* AI Analysis - always visible for admins */}

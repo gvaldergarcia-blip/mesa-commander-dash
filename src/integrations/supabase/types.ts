@@ -1432,6 +1432,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           last_seen_at: string
+          loyalty_program_active: boolean
           marketing_optin: boolean
           marketing_optin_at: string | null
           opt_in_source: string | null
@@ -1456,6 +1457,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           last_seen_at?: string
+          loyalty_program_active?: boolean
           marketing_optin?: boolean
           marketing_optin_at?: string | null
           opt_in_source?: string | null
@@ -1480,6 +1482,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           last_seen_at?: string
+          loyalty_program_active?: boolean
           marketing_optin?: boolean
           marketing_optin_at?: string | null
           opt_in_source?: string | null
