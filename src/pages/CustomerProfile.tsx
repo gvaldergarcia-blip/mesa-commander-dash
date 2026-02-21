@@ -275,13 +275,13 @@ export default function CustomerProfile() {
         )}
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - uses edge function metrics as single source of truth */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { icon: Star, label: 'Visitas totais', value: customer.total_visits, color: 'bg-primary/10 text-primary' },
-          { icon: Users, label: 'Filas concluídas', value: customer.queue_completed, color: 'bg-success/10 text-success' },
-          { icon: Calendar, label: 'Reservas concluídas', value: customer.reservations_completed, color: 'bg-accent/10 text-accent' },
-          { icon: Clock, label: 'Última visita', value: customer.days_since_last_visit === 0 ? 'Hoje' : customer.days_since_last_visit != null ? `${customer.days_since_last_visit}d` : 'N/A', color: 'bg-muted text-muted-foreground' },
+          { icon: Star, label: 'Visitas totais', value: metrics?.total_visits ?? customer.total_visits, color: 'bg-primary/10 text-primary' },
+          { icon: Users, label: 'Filas concluídas', value: metrics?.queue_completed ?? customer.queue_completed, color: 'bg-success/10 text-success' },
+          { icon: Calendar, label: 'Reservas concluídas', value: metrics?.reservations_completed ?? customer.reservations_completed, color: 'bg-accent/10 text-accent' },
+          { icon: Clock, label: 'Última visita', value: (metrics?.days_since_last_visit ?? customer.days_since_last_visit) === 0 ? 'Hoje' : (metrics?.days_since_last_visit ?? customer.days_since_last_visit) != null ? `${metrics?.days_since_last_visit ?? customer.days_since_last_visit}d` : 'N/A', color: 'bg-muted text-muted-foreground' },
           { icon: CheckCircle2, label: 'Comparecimento', value: metrics?.show_rate != null ? `${metrics.show_rate}%` : 'N/A', color: metrics?.show_rate >= 80 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning' },
         ].map((stat, i) => (
           <Card key={i}>
@@ -303,6 +303,36 @@ export default function CustomerProfile() {
       {/* Loyalty Card */}
       {restaurantId && customerId && (
         <CustomerLoyaltyCard customerId={customerId} restaurantId={restaurantId} />
+      )}
+
+      {/* AI Analysis - always visible for admins */}
+      {isAdmin && (
+        <CustomerAIAnalysis
+          customerId={customer.id}
+          customerData={{
+            name: customer.name,
+            vip_status: customer.vip_status,
+            marketing_opt_in: customer.marketing_opt_in,
+            created_at: customer.created_at,
+            days_since_last_visit: metrics?.days_since_last_visit ?? customer.days_since_last_visit,
+          }}
+          metrics={{
+            total_visits: metrics?.total_visits ?? customer.total_visits ?? 0,
+            queue_completed: metrics?.queue_completed ?? customer.queue_completed ?? 0,
+            reservations_completed: metrics?.reservations_completed ?? customer.reservations_completed ?? 0,
+            canceled_count: metrics?.canceled_count || 0,
+            no_show_count: metrics?.no_show_count || 0,
+            show_rate: metrics?.show_rate,
+            avg_party_size: metrics?.avg_party_size,
+            preferred_time: metrics?.preferred_time,
+            preferred_channel: metrics?.preferred_channel,
+            promotions_sent: metrics?.promotions_sent || 0,
+          }}
+          historyData={{
+            queue_count: historyData?.queue_history?.length || 0,
+            reservation_count: historyData?.reservation_history?.length || 0,
+          }}
+        />
       )}
 
       {/* Activity Chart - Admin only */}
@@ -332,35 +362,6 @@ export default function CustomerProfile() {
 
         {isAdmin && (
           <TabsContent value="insights">
-            {/* AI Analysis */}
-            <div className="mb-4">
-              <CustomerAIAnalysis
-                customerId={customer.id}
-                customerData={{
-                  name: customer.name,
-                  vip_status: customer.vip_status,
-                  marketing_opt_in: customer.marketing_opt_in,
-                  created_at: customer.created_at,
-                  days_since_last_visit: customer.days_since_last_visit,
-                }}
-                metrics={{
-                  total_visits: customer.total_visits || 0,
-                  queue_completed: customer.queue_completed || 0,
-                  reservations_completed: customer.reservations_completed || 0,
-                  canceled_count: metrics?.cancel_count || 0,
-                  no_show_count: metrics?.no_show_count || 0,
-                  show_rate: metrics?.show_rate,
-                  avg_party_size: metrics?.avg_party_size,
-                  preferred_time: metrics?.preferred_time,
-                  preferred_channel: metrics?.preferred_channel,
-                  promotions_sent: metrics?.promotions_sent || 0,
-                }}
-                historyData={{
-                  queue_count: historyData?.queue_history?.length || 0,
-                  reservation_count: historyData?.reservation_history?.length || 0,
-                }}
-              />
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <CustomerInsights
                 preferredTime={metrics?.preferred_time}
