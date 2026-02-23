@@ -261,52 +261,6 @@ function ReportsContent() {
               <SelectItem value="90days">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
-          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="w-4 h-4" />
-                Exportar
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Exportar Dados</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm text-muted-foreground">Escolha o que exportar:</h4>
-                  <div className="grid gap-2">
-                    <Button variant="outline" className="w-full justify-start" onClick={() => handleExport('queue')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Dados da Fila (CSV)
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start" onClick={() => handleExport('reservations')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Dados de Reservas (CSV)
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start" onClick={() => handleExport('kpis')}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Indicadores Consolidados (CSV)
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm text-muted-foreground">Compartilhar:</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={() => handleShare('email')}>
-                      <Mail className="w-4 h-4 mr-2" />
-                      E-mail
-                    </Button>
-                    <Button variant="outline" onClick={() => handleShare('whatsapp')}>
-                      <Share2 className="w-4 h-4 mr-2" />
-                      WhatsApp
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
