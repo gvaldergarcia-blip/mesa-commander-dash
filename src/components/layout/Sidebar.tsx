@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import mesaclikLogoFull from "@/assets/mesaclik-logo-full.png";
+import mesaclikLogo from "@/assets/mesaclik-logo-oficial.png";
 import { useModules } from "@/contexts/ModulesContext";
 import {
   LayoutDashboard,
@@ -63,12 +63,21 @@ export function Sidebar() {
       {/* Top Section: Header + Navigation */}
       <div>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 pb-3 border-b border-sidebar-border/50">
+        <div className="flex items-center justify-between p-5 pb-4 border-b border-sidebar-border/50">
           <div className={cn(
-            "transition-all duration-200",
+            "flex items-center gap-3 transition-all duration-200",
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
-            <img src={mesaclikLogoFull} alt="MesaClik" className="h-9 w-auto object-contain" />
+            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shadow-sm">
+              <img src={mesaclikLogo} alt="MesaClik" className="w-7 h-7 object-contain" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold tracking-tight leading-none">
+                <span className="text-sidebar-foreground">MESA</span>
+                <span className="text-primary">CLIK</span>
+              </h1>
+              <p className="text-[10px] text-sidebar-foreground/40 uppercase tracking-[0.15em] mt-0.5">Painel</p>
+            </div>
           </div>
           <Button
             variant="ghost"
