@@ -176,7 +176,7 @@ export function PlanSettings() {
             <Separator />
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button className="flex-1">
+              <Button className="flex-1" onClick={() => window.open("https://id-preview--36a563c3-f325-404f-b526-7bebdeabb664.lovable.app/#pricing", "_blank")}>
                 <Sparkles className="h-4 w-4 mr-2" />
                 Escolher plano
               </Button>
@@ -211,7 +211,7 @@ export function PlanSettings() {
                 </span>
               </div>
             )}
-            <Button className="w-full">
+            <Button className="w-full" onClick={() => window.open("https://id-preview--36a563c3-f325-404f-b526-7bebdeabb664.lovable.app/#pricing", "_blank")}>
               <Sparkles className="h-4 w-4 mr-2" />
               Escolher plano
             </Button>
