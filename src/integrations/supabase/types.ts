@@ -1436,11 +1436,13 @@ export type Database = {
           marketing_optin: boolean
           marketing_optin_at: string | null
           opt_in_source: string | null
+          privacy_version: string | null
           restaurant_id: string
           status: string
           tags: string[] | null
           terms_accepted: boolean
           terms_accepted_at: string | null
+          terms_version: string | null
           total_queue_visits: number
           total_reservation_visits: number
           total_visits: number | null
@@ -1461,11 +1463,13 @@ export type Database = {
           marketing_optin?: boolean
           marketing_optin_at?: string | null
           opt_in_source?: string | null
+          privacy_version?: string | null
           restaurant_id: string
           status?: string
           tags?: string[] | null
           terms_accepted?: boolean
           terms_accepted_at?: string | null
+          terms_version?: string | null
           total_queue_visits?: number
           total_reservation_visits?: number
           total_visits?: number | null
@@ -1486,11 +1490,13 @@ export type Database = {
           marketing_optin?: boolean
           marketing_optin_at?: string | null
           opt_in_source?: string | null
+          privacy_version?: string | null
           restaurant_id?: string
           status?: string
           tags?: string[] | null
           terms_accepted?: boolean
           terms_accepted_at?: string | null
+          terms_version?: string | null
           total_queue_visits?: number
           total_reservation_visits?: number
           total_visits?: number | null
@@ -2250,6 +2256,20 @@ export type Database = {
         Returns: string
       }
       upsert_restaurant_customer:
+        | {
+            Args: {
+              p_email: string
+              p_marketing_optin?: boolean
+              p_name?: string
+              p_phone?: string
+              p_privacy_version?: string
+              p_restaurant_id: string
+              p_source?: string
+              p_terms_accepted?: boolean
+              p_terms_version?: string
+            }
+            Returns: string
+          }
         | {
             Args: {
               p_email: string
