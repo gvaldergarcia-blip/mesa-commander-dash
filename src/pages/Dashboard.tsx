@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useDashboardMetricsReal } from "@/hooks/useDashboardMetricsReal";
 import { useQueue } from "@/hooks/useQueue";
-import mesaclikLogo from "@/assets/mesaclik-logo.png";
+
 import { useReservations } from "@/hooks/useReservations";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useModules } from "@/contexts/ModulesContext";
@@ -100,18 +100,11 @@ function DashboardContent() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <img 
-            src={mesaclikLogo} 
-            alt="MesaClik Logo" 
-            className="h-14 w-14 object-contain"
-          />
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Painel</h1>
-            <p className="text-muted-foreground">
-              {loadingRestaurants ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Painel</h1>
+          <p className="text-muted-foreground">
+            {loadingRestaurants ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
+          </p>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline">
