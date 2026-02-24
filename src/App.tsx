@@ -21,6 +21,7 @@ import Settings from "./pages/Settings";
 import Coupons from "./pages/Coupons";
 import Intelligence from "./pages/Intelligence";
 import VideoGenerator from "./pages/VideoGenerator";
+import IACreatorMarketing from "./pages/IACreatorMarketing";
 
 import NotFound from "./pages/NotFound";
 import { FeatureDisabled } from "./components/common/FeatureDisabled";
@@ -168,6 +169,11 @@ const App = () => {
                       <FeatureGuard feature="MARKETING_IA_ENABLED" featureName="Marketing IA">
                         <VideoGenerator />
                       </FeatureGuard>
+                    </RoleGuard>
+                  } />
+                  <Route path="/marketing/creator" element={
+                    <RoleGuard>
+                      <IACreatorMarketing />
                     </RoleGuard>
                   } />
                   <Route path="/settings" element={
