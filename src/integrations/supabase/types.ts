@@ -14,6 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_acquisition: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          marketing_spend: number
+          month_year: string
+          new_customers: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          marketing_spend?: number
+          month_year: string
+          new_customers?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          marketing_spend?: number
+          month_year?: string
+          new_customers?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_finances: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          month_year: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          month_year: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          month_year?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_pipeline: {
+        Row: {
+          application_id: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          converted_at: string | null
+          created_at: string
+          created_by: string | null
+          estimated_mrr: number | null
+          estimated_plan: string | null
+          id: string
+          lost_reason: string | null
+          notes: string | null
+          restaurant_name: string
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          estimated_mrr?: number | null
+          estimated_plan?: string | null
+          id?: string
+          lost_reason?: string | null
+          notes?: string | null
+          restaurant_name: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          estimated_mrr?: number | null
+          estimated_plan?: string | null
+          id?: string
+          lost_reason?: string | null
+          notes?: string | null
+          restaurant_name?: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_revenue_override: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          month_year: string
+          notes: string | null
+          total_mrr: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month_year: string
+          notes?: string | null
+          total_mrr?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month_year?: string
+          notes?: string | null
+          total_mrr?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_palpites: {
         Row: {
           action_allowed: boolean
