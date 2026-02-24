@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import mesaclikLogo from "@/assets/mesaclik-logo-oficial.png";
+
 import { useModules } from "@/contexts/ModulesContext";
 import {
   LayoutDashboard,
@@ -68,9 +68,6 @@ export function Sidebar() {
             "flex items-center gap-3 transition-all duration-200",
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
-            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shadow-sm">
-              <img src={mesaclikLogo} alt="MesaClik" className="w-7 h-7 object-contain" />
-            </div>
             <div>
               <h1 className="text-base font-bold tracking-tight leading-none">
                 <span className="text-sidebar-foreground">MESA</span>
