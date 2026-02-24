@@ -16,6 +16,8 @@ import {
   ImageIcon,
   Download,
   Loader2,
+  Upload,
+  X as XIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -199,6 +201,28 @@ export default function IACreatorMarketing() {
   const [showForm, setShowForm] = useState(true);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande. Máximo 5MB.");
+      return;
+    }
+    setReferenceFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReferenceImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeReferenceImage = () => {
+    setReferenceImage(null);
+    setReferenceFileName(null);
+  };
 
   const update = (field: keyof CampaignForm, value: string) =>
     setForm((prev) => {
@@ -252,6 +276,7 @@ export default function IACreatorMarketing() {
           brandTone: form.tomVoz,
           campaignDay: form.diaSemana,
           objective: form.objetivo,
+          referenceImage: referenceImage || undefined,
         },
       });
 
@@ -407,6 +432,47 @@ export default function IACreatorMarketing() {
                       </SelectContent>
                     </Select>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Reference Image Upload */}
+              <Card className="border-dashed">
+                <CardContent className="p-4 space-y-3">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5" /> Imagem de referência (opcional)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Anexe uma foto do prato ou do ambiente. A IA usará como base para criar a arte promocional.
+                  </p>
+
+                  {referenceImage ? (
+                    <div className="relative">
+                      <img
+                        src={referenceImage}
+                        alt="Referência"
+                        className="w-full h-40 object-cover rounded-lg border"
+                      />
+                      <button
+                        onClick={removeReferenceImage}
+                        className="absolute top-2 right-2 p-1 rounded-full bg-background/80 hover:bg-background text-foreground border shadow-sm"
+                      >
+                        <XIcon className="w-3.5 h-3.5" />
+                      </button>
+                      <p className="text-xs text-muted-foreground mt-1.5 truncate">{referenceFileName}</p>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/30 transition-colors">
+                      <Upload className="w-5 h-5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Clique para anexar uma imagem</span>
+                      <span className="text-[10px] text-muted-foreground/60">JPG, PNG — máx 5MB</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  )}
                 </CardContent>
               </Card>
 

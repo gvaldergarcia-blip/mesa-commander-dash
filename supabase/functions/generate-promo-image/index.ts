@@ -28,10 +28,10 @@ serve(async (req) => {
       brandTone,
       campaignDay,
       objective,
+      referenceImage,
     } = await req.json();
 
-    // Build a detailed prompt for the image generation model
-    const prompt = `Create a professional Instagram promotional post image for a restaurant.
+    const promptText = `Create a professional Instagram promotional post image for a restaurant.
 
 RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
 DISH: "${dishName}"
@@ -52,10 +52,19 @@ DESIGN REQUIREMENTS:
 - Premium, magazine-quality look
 - No blurry text — all text must be sharp and readable
 - Dark or blurred background to make the dish pop
+${referenceImage ? "\nIMPORTANT: Use the attached reference image as the base/inspiration for the dish photo. Keep the food from the reference photo but enhance it with professional lighting, add the promotional text overlay, discount badge, and restaurant branding on top of it." : ""}
 
 DO NOT include any watermarks or logos other than the restaurant name.`;
 
-    console.log("Generating promo image for:", dishName, "at", restaurantName);
+    console.log("Generating promo image for:", dishName, "at", restaurantName, "with reference:", !!referenceImage);
+
+    // Build message content — text only or multimodal with reference image
+    const userContent: any = referenceImage
+      ? [
+          { type: "text", text: promptText },
+          { type: "image_url", image_url: { url: referenceImage } },
+        ]
+      : promptText;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -67,7 +76,7 @@ DO NOT include any watermarks or logos other than the restaurant name.`;
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-image",
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content: userContent }],
           modalities: ["image", "text"],
         }),
       }
