@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.loyalty-enroll]
 verify_jwt = false
+
+[functions.generate-promo-image]
+verify_jwt = false

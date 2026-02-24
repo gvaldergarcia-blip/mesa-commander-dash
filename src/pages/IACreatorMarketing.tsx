@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
   Copy,
@@ -12,6 +13,9 @@ import {
   Hash,
   MessageSquare,
   Smartphone,
+  ImageIcon,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -193,6 +197,8 @@ export default function IACreatorMarketing() {
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showForm, setShowForm] = useState(true);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const update = (field: keyof CampaignForm, value: string) =>
     setForm((prev) => {
@@ -213,8 +219,9 @@ export default function IACreatorMarketing() {
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    // Simulate brief processing delay for UX
-    await new Promise((r) => setTimeout(r, 1200));
+    setGeneratedImage(null);
+    // Generate text content locally
+    await new Promise((r) => setTimeout(r, 600));
     const content = generateContent(
       form,
       restaurant?.name || "Restaurante",
@@ -225,6 +232,53 @@ export default function IACreatorMarketing() {
     setIsGenerating(false);
     setShowForm(false);
     toast.success("Conteúdo gerado com sucesso!");
+
+    // Generate image via AI in background
+    generatePromoImage();
+  };
+
+  const generatePromoImage = async () => {
+    setIsGeneratingImage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-promo-image", {
+        body: {
+          restaurantName: restaurant?.name || "Restaurante",
+          cuisineType: (restaurant as any)?.cuisine || "Gastronomia",
+          dishName: form.nomePrato,
+          originalPrice: form.precoOriginal,
+          promoPrice: form.precoPromocional,
+          discount: form.desconto,
+          targetAudience: form.publicoAlvo,
+          brandTone: form.tomVoz,
+          campaignDay: form.diaSemana,
+          objective: form.objetivo,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.imageUrl) {
+        setGeneratedImage(data.imageUrl);
+        toast.success("Imagem promocional gerada!");
+      } else {
+        toast.error("Não foi possível gerar a imagem.");
+      }
+    } catch (err: any) {
+      console.error("Image generation error:", err);
+      toast.error(err.message || "Erro ao gerar imagem promocional.");
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  const handleDownloadImage = () => {
+    if (!generatedImage) return;
+    const link = document.createElement("a");
+    link.href = generatedImage;
+    link.download = `promo-${form.nomePrato.replace(/\s+/g, "-").toLowerCase()}.png`;
+    link.click();
+    toast.success("Download iniciado!");
   };
 
   const handleCopyAll = () => {
@@ -390,6 +444,50 @@ export default function IACreatorMarketing() {
                     <Copy className="w-3.5 h-3.5" /> Copiar tudo
                   </Button>
                 </div>
+
+                {/* AI Generated Image */}
+                <Card className="relative overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5" /> Imagem Promocional IA
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isGeneratingImage ? (
+                      <div className="flex flex-col items-center justify-center py-16 gap-3">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <p className="text-sm text-muted-foreground">Gerando imagem promocional com IA...</p>
+                        <p className="text-xs text-muted-foreground/60">Isso pode levar alguns segundos</p>
+                      </div>
+                    ) : generatedImage ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg overflow-hidden border bg-muted/20">
+                          <img
+                            src={generatedImage}
+                            alt={`Promoção ${form.nomePrato}`}
+                            className="w-full h-auto object-contain"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleDownloadImage} size="sm" className="gap-1.5 flex-1">
+                            <Download className="w-3.5 h-3.5" /> Baixar Imagem
+                          </Button>
+                          <Button onClick={generatePromoImage} variant="outline" size="sm" className="gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" /> Regenerar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 gap-2">
+                        <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground">Imagem não disponível</p>
+                        <Button onClick={generatePromoImage} variant="outline" size="sm" className="gap-1.5 mt-1">
+                          <Sparkles className="w-3.5 h-3.5" /> Gerar Imagem
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Headline */}
                 <Card className="relative group">
