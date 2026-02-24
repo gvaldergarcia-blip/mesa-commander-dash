@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { Sparkles } from "lucide-react";
 
 import { useModules } from "@/contexts/ModulesContext";
 import {
@@ -31,6 +32,7 @@ const allNavigation = [
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null, requiresModule: null, adminOnly: true },
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null, adminOnly: true },
   { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null, adminOnly: true },
+  { name: "IA Creator", href: "/marketing/creator", icon: Sparkles, requiresFeature: null, requiresModule: null, adminOnly: true },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null, adminOnly: true },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null, adminOnly: true },
 ];
