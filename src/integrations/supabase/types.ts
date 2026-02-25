@@ -1011,6 +1011,69 @@ export type Database = {
           },
         ]
       }
+      promotions_assets: {
+        Row: {
+          brand_tone: string | null
+          campaign_day: string | null
+          campaign_goal: string | null
+          campaign_type: string
+          caption_text: string | null
+          created_at: string
+          discount_percent: number | null
+          dish_name: string
+          id: string
+          image_url: string | null
+          include_address: boolean
+          include_logo: boolean
+          original_price: number | null
+          promo_price: number | null
+          reference_image_used: boolean
+          restaurant_id: string
+          status: string
+          target_audience: string | null
+        }
+        Insert: {
+          brand_tone?: string | null
+          campaign_day?: string | null
+          campaign_goal?: string | null
+          campaign_type?: string
+          caption_text?: string | null
+          created_at?: string
+          discount_percent?: number | null
+          dish_name: string
+          id?: string
+          image_url?: string | null
+          include_address?: boolean
+          include_logo?: boolean
+          original_price?: number | null
+          promo_price?: number | null
+          reference_image_used?: boolean
+          restaurant_id: string
+          status?: string
+          target_audience?: string | null
+        }
+        Update: {
+          brand_tone?: string | null
+          campaign_day?: string | null
+          campaign_goal?: string | null
+          campaign_type?: string
+          caption_text?: string | null
+          created_at?: string
+          discount_percent?: number | null
+          dish_name?: string
+          id?: string
+          image_url?: string | null
+          include_address?: boolean
+          include_logo?: boolean
+          original_price?: number | null
+          promo_price?: number | null
+          reference_image_used?: boolean
+          restaurant_id?: string
+          status?: string
+          target_audience?: string | null
+        }
+        Relationships: []
+      }
       queue_admin_logs: {
         Row: {
           action: string
