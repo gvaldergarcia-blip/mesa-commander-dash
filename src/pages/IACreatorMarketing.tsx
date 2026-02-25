@@ -21,12 +21,18 @@ import {
   Images,
   Trash2,
   Calendar,
+  ToggleLeft,
+  MapPin,
+  Eye,
+  RefreshCw,
+  Filter,
+  Settings,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -38,6 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRestaurant } from "@/contexts/RestaurantContext";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -52,6 +59,9 @@ interface CampaignForm {
   diaSemana: string;
   publicoAlvo: string;
   tomVoz: string;
+  hasDiscount: boolean;
+  includeLogo: boolean;
+  includeAddress: boolean;
 }
 
 interface GeneratedContent {
@@ -65,15 +75,23 @@ interface GeneratedContent {
   storyVariacao: string;
 }
 
-interface MarketingPost {
+interface PromotionAsset {
   id: string;
-  headline: string;
-  subtext: string | null;
-  cta: string | null;
+  dish_name: string;
+  campaign_type: string;
+  original_price: number | null;
+  promo_price: number | null;
+  discount_percent: number | null;
+  campaign_goal: string | null;
+  campaign_day: string | null;
+  target_audience: string | null;
+  brand_tone: string | null;
+  include_logo: boolean;
+  include_address: boolean;
   image_url: string | null;
+  caption_text: string | null;
+  status: string;
   created_at: string;
-  format: string;
-  type: string;
 }
 
 // ─── Content Generator (local, no API) ───────────────────────────
@@ -83,7 +101,7 @@ function generateContent(
   cuisineType: string,
   city: string
 ): GeneratedContent {
-  const { nomePrato, precoOriginal, precoPromocional, desconto, objetivo, diaSemana, publicoAlvo, tomVoz } = form;
+  const { nomePrato, precoOriginal, precoPromocional, desconto, objetivo, diaSemana, publicoAlvo, tomVoz, hasDiscount } = form;
 
   const headlines: Record<string, string[]> = {
     sofisticado: [
@@ -91,21 +109,17 @@ function generateContent(
       `Elegância no prato. ${nomePrato}.`,
       `Para paladares exigentes: ${nomePrato}.`,
     ],
-    divertido: [
-      `🔥 ${nomePrato} com desconto? SIM, POR FAVOR!`,
-      `Seu ${diaSemana} ficou MUITO melhor agora!`,
-      `Alerta de pecado: ${nomePrato} irresistível!`,
-    ],
+    divertido: hasDiscount
+      ? [`🔥 ${nomePrato} com desconto? SIM, POR FAVOR!`, `Seu ${diaSemana} ficou MUITO melhor agora!`, `Alerta de pecado: ${nomePrato} irresistível!`]
+      : [`🔥 ${nomePrato}? SIM, POR FAVOR!`, `Seu ${diaSemana} ficou MUITO melhor agora!`, `Alerta de pecado: ${nomePrato} irresistível!`],
     familiar: [
       `A família toda merece um ${nomePrato} especial!`,
       `Mesa posta, família reunida, ${nomePrato} servido. ❤️`,
       `${nomePrato}: feito com amor, servido com carinho.`,
     ],
-    jovem: [
-      `Bora de ${nomePrato}? 🚀 Preço insano!`,
-      `POV: Você descobriu ${nomePrato} com ${desconto}% OFF`,
-      `${nomePrato} + ${diaSemana} = combo perfeito 🤌`,
-    ],
+    jovem: hasDiscount
+      ? [`Bora de ${nomePrato}? 🚀 Preço insano!`, `POV: Você descobriu ${nomePrato} com ${desconto}% OFF`, `${nomePrato} + ${diaSemana} = combo perfeito 🤌`]
+      : [`Bora de ${nomePrato}? 🚀`, `POV: Você descobriu o ${nomePrato} 🤌`, `${nomePrato} + ${diaSemana} = combo perfeito 🤌`],
     tradicional: [
       `${nomePrato}: a receita que conquistou ${city}.`,
       `Tradição e sabor em cada garfada de ${nomePrato}.`,
@@ -113,27 +127,48 @@ function generateContent(
     ],
   };
 
-  const subheadlines: Record<string, string> = {
-    sofisticado: `De R$ ${precoOriginal} por apenas R$ ${precoPromocional}. Exclusivo para quem sabe apreciar.`,
-    divertido: `Era R$ ${precoOriginal}, agora é R$ ${precoPromocional}! Corre que é por tempo limitado! 🏃‍♂️`,
-    familiar: `De R$ ${precoOriginal} por R$ ${precoPromocional}. Porque momentos em família não têm preço — mas o desconto ajuda!`,
-    jovem: `De R$ ${precoOriginal} por R$ ${precoPromocional}. ${desconto}% OFF que você NÃO vai deixar passar.`,
-    tradicional: `Valor especial: de R$ ${precoOriginal} por R$ ${precoPromocional}. Tradição com economia.`,
-  };
+  const subheadlines: Record<string, string> = hasDiscount
+    ? {
+        sofisticado: `De R$ ${precoOriginal} por apenas R$ ${precoPromocional}. Exclusivo para quem sabe apreciar.`,
+        divertido: `Era R$ ${precoOriginal}, agora é R$ ${precoPromocional}! Corre que é por tempo limitado! 🏃‍♂️`,
+        familiar: `De R$ ${precoOriginal} por R$ ${precoPromocional}. Porque momentos em família não têm preço — mas o desconto ajuda!`,
+        jovem: `De R$ ${precoOriginal} por R$ ${precoPromocional}. ${desconto}% OFF que você NÃO vai deixar passar.`,
+        tradicional: `Valor especial: de R$ ${precoOriginal} por R$ ${precoPromocional}. Tradição com economia.`,
+      }
+    : {
+        sofisticado: `Uma experiência gastronômica exclusiva no ${restaurantName}.`,
+        divertido: `Vem provar esse prato incrível! Você não vai se arrepender! 🏃‍♂️`,
+        familiar: `Uma delícia para toda a família saborear junta.`,
+        jovem: `O prato que está bombando no ${restaurantName}! Vem conferir.`,
+        tradicional: `Sabor autêntico que só o ${restaurantName} tem.`,
+      };
 
   const ctas: Record<string, string> = {
     "atrair clientes em dia fraco": `📍 Garanta sua mesa neste ${diaSemana}! Reserve agora.`,
     "divulgar novidade": `🆕 Novidade no cardápio! Venha ser um dos primeiros a provar.`,
     "aumentar ticket médio": `🍷 Peça já o ${nomePrato} e complete sua experiência!`,
     "recuperar clientes": `💛 Faz tempo que não nos visita? Preparamos algo especial para você.`,
+    "evento especial": `🎉 Evento especial! Garanta sua presença.`,
+    "campanha institucional": `📍 Conheça o ${restaurantName} e viva essa experiência.`,
   };
 
-  const objetivoLegendas: Record<string, string> = {
-    "atrair clientes em dia fraco": `Seu ${diaSemana} merece ser especial. E a gente preparou o ${nomePrato} com um preço imperdível pra provar isso. De R$ ${precoOriginal} por apenas R$ ${precoPromocional} — são ${desconto}% de desconto! Aqui no ${restaurantName}, cada refeição é uma experiência. Não perca essa oportunidade.`,
-    "divulgar novidade": `Novidade fresquinha no ${restaurantName}! Apresentamos o ${nomePrato} — já disponível com preço especial de lançamento: R$ ${precoPromocional} (antes R$ ${precoOriginal}). Venha provar antes de todo mundo!`,
-    "aumentar ticket médio": `Que tal elevar sua experiência? O ${nomePrato} chegou para complementar sua refeição no ${restaurantName}. Por apenas R$ ${precoPromocional} (de R$ ${precoOriginal}), você adiciona ${desconto}% mais sabor à sua mesa.`,
-    "recuperar clientes": `Sentimos sua falta! ❤️ E preparamos algo especial: ${nomePrato} com ${desconto}% de desconto — de R$ ${precoOriginal} por R$ ${precoPromocional}. Sua mesa favorita no ${restaurantName} está esperando.`,
-  };
+  const objetivoLegendas: Record<string, string> = hasDiscount
+    ? {
+        "atrair clientes em dia fraco": `Seu ${diaSemana} merece ser especial. E a gente preparou o ${nomePrato} com um preço imperdível pra provar isso. De R$ ${precoOriginal} por apenas R$ ${precoPromocional} — são ${desconto}% de desconto! Aqui no ${restaurantName}, cada refeição é uma experiência.`,
+        "divulgar novidade": `Novidade fresquinha no ${restaurantName}! Apresentamos o ${nomePrato} — já disponível com preço especial de lançamento: R$ ${precoPromocional} (antes R$ ${precoOriginal}). Venha provar antes de todo mundo!`,
+        "aumentar ticket médio": `Que tal elevar sua experiência? O ${nomePrato} chegou para complementar sua refeição no ${restaurantName}. Por apenas R$ ${precoPromocional} (de R$ ${precoOriginal}), você adiciona ${desconto}% mais sabor à sua mesa.`,
+        "recuperar clientes": `Sentimos sua falta! ❤️ E preparamos algo especial: ${nomePrato} com ${desconto}% de desconto — de R$ ${precoOriginal} por R$ ${precoPromocional}. Sua mesa favorita no ${restaurantName} está esperando.`,
+        "evento especial": `Evento especial no ${restaurantName}! ${nomePrato} com ${desconto}% de desconto — de R$ ${precoOriginal} por R$ ${precoPromocional}. Não perca!`,
+        "campanha institucional": `O ${restaurantName} apresenta: ${nomePrato}. De R$ ${precoOriginal} por R$ ${precoPromocional}. Venha conhecer!`,
+      }
+    : {
+        "atrair clientes em dia fraco": `Seu ${diaSemana} merece ser especial. Venha experimentar o ${nomePrato} aqui no ${restaurantName}. Cada refeição é uma experiência única.`,
+        "divulgar novidade": `Novidade fresquinha no ${restaurantName}! Apresentamos o ${nomePrato}. Venha provar essa delícia!`,
+        "aumentar ticket médio": `Que tal elevar sua experiência? O ${nomePrato} chegou para complementar sua refeição no ${restaurantName}.`,
+        "recuperar clientes": `Sentimos sua falta! ❤️ Preparamos algo especial: ${nomePrato}. Sua mesa favorita no ${restaurantName} está esperando.`,
+        "evento especial": `Evento especial no ${restaurantName}! Venha experimentar o ${nomePrato} em uma noite inesquecível.`,
+        "campanha institucional": `Conheça o ${restaurantName} e descubra o sabor do ${nomePrato}. Uma experiência gastronômica única.`,
+      };
 
   const publicoHashtags: Record<string, string[]> = {
     casal: [`#jantarromantico`, `#datenight${city.replace(/\s/g, "")}`, `#casalfoodie`],
@@ -156,21 +191,33 @@ function generateContent(
   const pubHashtags = publicoHashtags[publicoAlvo] || publicoHashtags.geral;
   const allHashtags = [...new Set([...baseHashtags, ...pubHashtags])].slice(0, 8);
 
-  const elementosVisuais = [
-    `🏷️ Selo circular com "-${desconto}%" em destaque`,
-    `📸 Foto do ${nomePrato} em close com fundo desfocado`,
-    `🎨 Contraste de cores quentes (dourado/vermelho) com fundo escuro`,
-    `✍️ Tipografia bold para headline + script para subheadline`,
-    `📍 Tag de localização: ${restaurantName}, ${city}`,
-    `💰 Preço original riscado + preço promocional grande`,
-  ];
+  const elementosVisuais = hasDiscount
+    ? [
+        `🏷️ Selo circular com "-${desconto}%" em destaque`,
+        `📸 Foto do ${nomePrato} em close com fundo desfocado`,
+        `🎨 Contraste de cores quentes (dourado/vermelho) com fundo escuro`,
+        `✍️ Tipografia bold para headline + script para subheadline`,
+        `📍 Tag de localização: ${restaurantName}, ${city}`,
+        `💰 Preço original riscado + preço promocional grande`,
+      ]
+    : [
+        `📸 Foto do ${nomePrato} em close com fundo desfocado`,
+        `🎨 Contraste de cores quentes (dourado/vermelho) com fundo escuro`,
+        `✍️ Tipografia bold para headline`,
+        `📍 Tag de localização: ${restaurantName}, ${city}`,
+        `🎯 CTA visível e chamativo`,
+      ];
 
-  const storyVariacao = `🎬 STORY:\n• Slide 1: Imagem full-bleed do ${nomePrato} com texto "NOVIDADE 🔥"\n• Slide 2: Preço original riscado → preço promocional com animação de shake\n• Slide 3: CTA com sticker de enquete "Quem vem?" + link para reserva\n• Elementos: Countdown sticker para ${diaSemana}, emoji slider de 🤤`;
+  const storyVariacao = hasDiscount
+    ? `🎬 STORY:\n• Slide 1: Imagem full-bleed do ${nomePrato} com texto "NOVIDADE 🔥"\n• Slide 2: Preço original riscado → preço promocional com animação de shake\n• Slide 3: CTA com sticker de enquete "Quem vem?" + link para reserva\n• Elementos: Countdown sticker para ${diaSemana}, emoji slider de 🤤`
+    : `🎬 STORY:\n• Slide 1: Imagem full-bleed do ${nomePrato} com texto "NOVIDADE 🔥"\n• Slide 2: Nome do prato em destaque com animação\n• Slide 3: CTA com sticker de enquete "Quem vem?" + link para reserva\n• Elementos: Countdown sticker para ${diaSemana}, emoji slider de 🤤`;
 
   return {
     headline,
     subheadline: subheadlines[tomVoz] || subheadlines.divertido,
-    precoDestaque: `De ~~R$ ${precoOriginal}~~ por **R$ ${precoPromocional}** (${desconto}% OFF)`,
+    precoDestaque: hasDiscount
+      ? `De ~~R$ ${precoOriginal}~~ por **R$ ${precoPromocional}** (${desconto}% OFF)`
+      : `${nomePrato} — Venha provar!`,
     cta: ctas[objetivo] || ctas["atrair clientes em dia fraco"],
     legenda: objetivoLegendas[objetivo] || objetivoLegendas["atrair clientes em dia fraco"],
     hashtags: allHashtags,
@@ -200,51 +247,66 @@ function CopyBlock({ text, label }: { text: string; label: string }) {
 }
 
 // ─── Gallery Component ──────────────────────────────────────────
-function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
-  const [posts, setPosts] = useState<MarketingPost[]>([]);
+function GalleryTab({
+  restaurantId,
+  onReuse,
+}: {
+  restaurantId: string | undefined;
+  onReuse: (asset: PromotionAsset) => void;
+}) {
+  const [assets, setAssets] = useState<PromotionAsset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterGoal, setFilterGoal] = useState<string>("all");
+  const [filterAudience, setFilterAudience] = useState<string>("all");
 
-  const fetchPosts = async () => {
+  const fetchAssets = async () => {
     if (!restaurantId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("marketing_posts")
-      .select("id, headline, subtext, cta, image_url, created_at, format, type")
+      .from("promotions_assets" as any)
+      .select("*")
       .eq("restaurant_id", restaurantId)
-      .eq("type", "promo_ia")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setPosts(data as MarketingPost[]);
+      setAssets(data as any as PromotionAsset[]);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchPosts();
+    fetchAssets();
   }, [restaurantId]);
 
-  const handleDownload = (imageUrl: string, headline: string) => {
+  const handleDownload = (imageUrl: string, dishName: string) => {
     const link = document.createElement("a");
     link.href = imageUrl;
-    link.download = `promo-${headline.replace(/\s+/g, "-").toLowerCase()}.png`;
+    link.download = `promo-${dishName.replace(/\s+/g, "-").toLowerCase()}.png`;
     link.target = "_blank";
     link.click();
     toast.success("Download iniciado!");
   };
 
-  const handleDelete = async (postId: string) => {
+  const handleDelete = async (id: string) => {
     const { error } = await supabase
-      .from("marketing_posts")
+      .from("promotions_assets" as any)
       .delete()
-      .eq("id", postId);
+      .eq("id", id);
     if (error) {
-      toast.error("Erro ao excluir imagem.");
+      toast.error("Erro ao excluir.");
     } else {
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-      toast.success("Imagem excluída!");
+      setAssets((prev) => prev.filter((a) => a.id !== id));
+      toast.success("Campanha excluída!");
     }
   };
+
+  const filtered = assets.filter((a) => {
+    if (filterType !== "all" && a.campaign_type !== filterType) return false;
+    if (filterGoal !== "all" && a.campaign_goal !== filterGoal) return false;
+    if (filterAudience !== "all" && a.target_audience !== filterAudience) return false;
+    return true;
+  });
 
   if (loading) {
     return (
@@ -255,7 +317,7 @@ function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
     );
   }
 
-  if (posts.length === 0) {
+  if (assets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
@@ -263,7 +325,7 @@ function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
         </div>
         <p className="text-sm text-muted-foreground font-medium mb-1">Nenhuma imagem gerada ainda</p>
         <p className="text-xs text-muted-foreground/70">
-          Crie sua primeira promoção na aba <strong>Criar</strong> e ela aparecerá aqui.
+          Crie sua primeira campanha na aba <strong>Criar</strong> e ela aparecerá aqui.
         </p>
       </div>
     );
@@ -271,23 +333,72 @@ function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
 
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <Card className="border-dashed">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filtros</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="com_desconto">Com desconto</SelectItem>
+                <SelectItem value="sem_desconto">Sem desconto</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterGoal} onValueChange={setFilterGoal}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Objetivo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os objetivos</SelectItem>
+                <SelectItem value="atrair clientes em dia fraco">Atrair clientes</SelectItem>
+                <SelectItem value="divulgar novidade">Divulgar novidade</SelectItem>
+                <SelectItem value="aumentar ticket médio">Aumentar ticket</SelectItem>
+                <SelectItem value="recuperar clientes">Recuperar clientes</SelectItem>
+                <SelectItem value="evento especial">Evento especial</SelectItem>
+                <SelectItem value="campanha institucional">Institucional</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterAudience} onValueChange={setFilterAudience}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Público" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os públicos</SelectItem>
+                <SelectItem value="casal">Casal</SelectItem>
+                <SelectItem value="família">Família</SelectItem>
+                <SelectItem value="amigos">Amigos</SelectItem>
+                <SelectItem value="happy hour">Happy hour</SelectItem>
+                <SelectItem value="geral">Geral</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {posts.length} {posts.length === 1 ? "imagem gerada" : "imagens geradas"}
+          {filtered.length} {filtered.length === 1 ? "campanha" : "campanhas"}
         </p>
-        <Button variant="outline" size="sm" onClick={fetchPosts} className="gap-1.5 text-xs">
-          <Loader2 className="w-3 h-3" /> Atualizar
+        <Button variant="outline" size="sm" onClick={fetchAssets} className="gap-1.5 text-xs">
+          <RefreshCw className="w-3 h-3" /> Atualizar
         </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {posts.map((post) => (
-          <Card key={post.id} className="overflow-hidden group">
-            {post.image_url ? (
+        {filtered.map((asset) => (
+          <Card key={asset.id} className="overflow-hidden group">
+            {asset.image_url ? (
               <div className="relative aspect-square bg-muted/20">
                 <img
-                  src={post.image_url}
-                  alt={post.headline}
+                  src={asset.image_url}
+                  alt={asset.dish_name}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
@@ -299,21 +410,37 @@ function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
             )}
             <CardContent className="p-4 space-y-3">
               <div>
-                <p className="text-sm font-semibold text-foreground truncate">{post.headline}</p>
-                {post.subtext && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{post.subtext}</p>
-                )}
+                <p className="text-sm font-semibold text-foreground truncate">{asset.dish_name}</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Badge
+                    variant="outline"
+                    className={
+                      asset.campaign_type === "com_desconto"
+                        ? "text-xs bg-green-500/10 text-green-600 border-green-500/20"
+                        : "text-xs bg-blue-500/10 text-blue-600 border-blue-500/20"
+                    }
+                  >
+                    {asset.campaign_type === "com_desconto"
+                      ? `${asset.discount_percent}% OFF`
+                      : "Sem desconto"}
+                  </Badge>
+                  {asset.campaign_goal && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {asset.campaign_goal}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
                 <Calendar className="w-3 h-3" />
-                {format(new Date(post.created_at), "dd MMM yyyy, HH:mm", { locale: ptBR })}
+                {format(new Date(asset.created_at), "dd MMM yyyy, HH:mm", { locale: ptBR })}
               </div>
               <div className="flex gap-2">
-                {post.image_url && (
+                {asset.image_url && (
                   <Button
                     size="sm"
                     className="flex-1 gap-1.5"
-                    onClick={() => handleDownload(post.image_url!, post.headline)}
+                    onClick={() => handleDownload(asset.image_url!, asset.dish_name)}
                   >
                     <Download className="w-3.5 h-3.5" /> Baixar Imagem
                   </Button>
@@ -321,8 +448,17 @@ function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="gap-1.5"
+                  onClick={() => onReuse(asset)}
+                  title="Reutilizar dados"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   className="gap-1.5 text-destructive hover:text-destructive"
-                  onClick={() => handleDelete(post.id)}
+                  onClick={() => handleDelete(asset.id)}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
@@ -338,6 +474,7 @@ function GalleryTab({ restaurantId }: { restaurantId: string | undefined }) {
 // ─── Main Page ───────────────────────────────────────────────────
 export default function IACreatorMarketing() {
   const { restaurant } = useRestaurant();
+  const navigate = useNavigate();
   const [form, setForm] = useState<CampaignForm>({
     nomePrato: "",
     precoOriginal: "",
@@ -347,6 +484,9 @@ export default function IACreatorMarketing() {
     diaSemana: "",
     publicoAlvo: "",
     tomVoz: "",
+    hasDiscount: false,
+    includeLogo: false,
+    includeAddress: false,
   });
   const [result, setResult] = useState<GeneratedContent | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -356,6 +496,9 @@ export default function IACreatorMarketing() {
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("criar");
+
+  const hasLogo = !!restaurant?.image_url;
+  const hasAddress = !!(restaurant?.address_line);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -377,7 +520,7 @@ export default function IACreatorMarketing() {
     setReferenceFileName(null);
   };
 
-  const update = (field: keyof CampaignForm, value: string) =>
+  const update = (field: keyof CampaignForm, value: string | boolean) =>
     setForm((prev) => {
       const next = { ...prev, [field]: value };
       if ((field === "precoOriginal" || field === "precoPromocional") && next.precoOriginal && next.precoPromocional) {
@@ -390,8 +533,26 @@ export default function IACreatorMarketing() {
       return next;
     });
 
-  const canGenerate =
-    form.nomePrato && form.precoOriginal && form.precoPromocional && form.objetivo && form.diaSemana && form.publicoAlvo && form.tomVoz;
+  const canGenerate = form.nomePrato && form.objetivo && form.diaSemana && form.publicoAlvo && form.tomVoz &&
+    (!form.hasDiscount || (form.precoOriginal && form.precoPromocional));
+
+  const handleReuse = (asset: PromotionAsset) => {
+    setForm({
+      nomePrato: asset.dish_name,
+      precoOriginal: asset.original_price?.toString() || "",
+      precoPromocional: asset.promo_price?.toString() || "",
+      desconto: asset.discount_percent?.toString() || "",
+      objetivo: asset.campaign_goal || "",
+      diaSemana: asset.campaign_day || "",
+      publicoAlvo: asset.target_audience || "",
+      tomVoz: asset.brand_tone || "",
+      hasDiscount: asset.campaign_type === "com_desconto",
+      includeLogo: asset.include_logo,
+      includeAddress: asset.include_address,
+    });
+    setActiveTab("criar");
+    toast.success("Dados preenchidos! Ajuste e gere novamente.");
+  };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -415,23 +576,31 @@ export default function IACreatorMarketing() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const { data, error } = await supabase.functions.invoke("generate-promo-image", {
-        body: {
-          restaurantName: restaurant?.name || "Restaurante",
-          cuisineType: (restaurant as any)?.cuisine || "Gastronomia",
-          dishName: form.nomePrato,
-          originalPrice: form.precoOriginal,
-          promoPrice: form.precoPromocional,
-          discount: form.desconto,
-          targetAudience: form.publicoAlvo,
-          brandTone: form.tomVoz,
-          campaignDay: form.diaSemana,
-          objective: form.objetivo,
-          referenceImage: referenceImage || undefined,
-          restaurantId: restaurant?.id || undefined,
-          userId: user?.id || undefined,
-        },
-      });
+      const body: any = {
+        restaurantName: restaurant?.name || "Restaurante",
+        cuisineType: (restaurant as any)?.cuisine || "Gastronomia",
+        dishName: form.nomePrato,
+        targetAudience: form.publicoAlvo,
+        brandTone: form.tomVoz,
+        campaignDay: form.diaSemana,
+        objective: form.objetivo,
+        hasDiscount: form.hasDiscount,
+        includeLogo: form.includeLogo && hasLogo,
+        includeAddress: form.includeAddress && hasAddress,
+        logoUrl: form.includeLogo && hasLogo ? restaurant?.image_url : undefined,
+        address: form.includeAddress && hasAddress ? restaurant?.address_line : undefined,
+        referenceImage: referenceImage || undefined,
+        restaurantId: restaurant?.id || undefined,
+        userId: user?.id || undefined,
+      };
+
+      if (form.hasDiscount) {
+        body.originalPrice = form.precoOriginal;
+        body.promoPrice = form.precoPromocional;
+        body.discount = form.desconto;
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-promo-image", { body });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -485,7 +654,7 @@ export default function IACreatorMarketing() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground max-w-xl mt-1">
-            Crie posts de Instagram profissionais e persuasivos em segundos. Preencha os dados da campanha e receba headlines, legendas, hashtags e direção visual.
+            Crie posts profissionais para Instagram — com ou sem desconto. Promoções, divulgações, eventos e campanhas institucionais.
           </p>
         </div>
       </div>
@@ -523,28 +692,43 @@ export default function IACreatorMarketing() {
                   <Card className="border-dashed">
                     <CardContent className="p-4 space-y-4">
                       <div className="space-y-1.5">
-                        <Label htmlFor="prato" className="text-xs">Nome do Prato</Label>
+                        <Label htmlFor="prato" className="text-xs">Nome do Prato / Item</Label>
                         <Input id="prato" placeholder="Ex: Risoto de Camarão" value={form.nomePrato} onChange={(e) => update("nomePrato", e.target.value)} />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Preço Original (R$)</Label>
-                          <Input type="number" placeholder="89.90" value={form.precoOriginal} onChange={(e) => update("precoOriginal", e.target.value)} />
+                      {/* Discount Toggle */}
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                        <div className="flex items-center gap-2">
+                          <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+                          <Label className="text-xs font-medium cursor-pointer">Esta campanha terá desconto</Label>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs">Preço Promocional (R$)</Label>
-                          <Input type="number" placeholder="59.90" value={form.precoPromocional} onChange={(e) => update("precoPromocional", e.target.value)} />
-                        </div>
+                        <Switch
+                          checked={form.hasDiscount}
+                          onCheckedChange={(v) => update("hasDiscount", v)}
+                        />
                       </div>
 
-                      {form.desconto && (
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
-                            {form.desconto}% OFF
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">calculado automaticamente</span>
-                        </div>
+                      {form.hasDiscount && (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Preço Original (R$)</Label>
+                              <Input type="number" placeholder="89.90" value={form.precoOriginal} onChange={(e) => update("precoOriginal", e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Preço Promocional (R$)</Label>
+                              <Input type="number" placeholder="59.90" value={form.precoPromocional} onChange={(e) => update("precoPromocional", e.target.value)} />
+                            </div>
+                          </div>
+                          {form.desconto && (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
+                                {form.desconto}% OFF
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">calculado automaticamente</span>
+                            </div>
+                          )}
+                        </>
                       )}
 
                       <Separator />
@@ -558,6 +742,8 @@ export default function IACreatorMarketing() {
                             <SelectItem value="divulgar novidade">Divulgar novidade</SelectItem>
                             <SelectItem value="aumentar ticket médio">Aumentar ticket médio</SelectItem>
                             <SelectItem value="recuperar clientes">Recuperar clientes</SelectItem>
+                            <SelectItem value="evento especial">Evento especial</SelectItem>
+                            <SelectItem value="campanha institucional">Campanha institucional</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -601,6 +787,71 @@ export default function IACreatorMarketing() {
                     </CardContent>
                   </Card>
 
+                  {/* Logo & Address toggles */}
+                  <Card className="border-dashed">
+                    <CardContent className="p-4 space-y-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Personalização da arte</p>
+
+                      {/* Logo toggle */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                            <Label className="text-xs cursor-pointer">Exibir logo na arte</Label>
+                          </div>
+                          <Switch
+                            checked={form.includeLogo}
+                            onCheckedChange={(v) => update("includeLogo", v)}
+                          />
+                        </div>
+                        {form.includeLogo && !hasLogo && (
+                          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-2">
+                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                              Para exibir a logo na arte, anexe a logo em Configurações.
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1.5"
+                              onClick={() => navigate("/settings")}
+                            >
+                              <Settings className="w-3 h-3" /> Ir para Configurações
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Address toggle */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            <Label className="text-xs cursor-pointer">Exibir endereço no rodapé</Label>
+                          </div>
+                          <Switch
+                            checked={form.includeAddress}
+                            onCheckedChange={(v) => update("includeAddress", v)}
+                          />
+                        </div>
+                        {form.includeAddress && !hasAddress && (
+                          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-2">
+                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                              Para exibir o endereço, preencha o endereço em Configurações.
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1.5"
+                              onClick={() => navigate("/settings")}
+                            >
+                              <Settings className="w-3 h-3" /> Ir para Configurações
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Reference Image Upload */}
                   <Card className="border-dashed">
                     <CardContent className="p-4 space-y-3">
@@ -608,7 +859,7 @@ export default function IACreatorMarketing() {
                         <ImageIcon className="w-3.5 h-3.5" /> Imagem de referência (opcional)
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Anexe uma foto do prato ou do ambiente. A IA usará como base para criar a arte promocional.
+                        Anexe uma foto do prato ou do ambiente. A IA usará como base para criar a arte.
                       </p>
 
                       {referenceImage ? (
@@ -649,7 +900,7 @@ export default function IACreatorMarketing() {
                     size="lg"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {isGenerating ? "Gerando conteúdo..." : "Gerar Post para Instagram"}
+                    {isGenerating ? "Gerando conteúdo..." : "Gerar Campanha"}
                   </Button>
                 </div>
               </div>
@@ -748,20 +999,22 @@ export default function IACreatorMarketing() {
                     </Card>
 
                     {/* Preço + CTA */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Card className="relative bg-green-500/5 border-green-500/20">
-                        <CopyBlock text={`De R$ ${form.precoOriginal} por R$ ${form.precoPromocional} (${form.desconto}% OFF)`} label="Preço" />
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-xs uppercase tracking-wider text-green-600 flex items-center gap-1.5">
-                            💰 Preço Destaque
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-xs text-muted-foreground line-through">R$ {form.precoOriginal}</p>
-                          <p className="text-2xl font-black text-green-600">R$ {form.precoPromocional}</p>
-                          <Badge className="mt-1 bg-green-500 text-white text-xs">{form.desconto}% OFF</Badge>
-                        </CardContent>
-                      </Card>
+                    <div className={`grid grid-cols-1 ${form.hasDiscount ? "sm:grid-cols-2" : ""} gap-4`}>
+                      {form.hasDiscount && (
+                        <Card className="relative bg-green-500/5 border-green-500/20">
+                          <CopyBlock text={`De R$ ${form.precoOriginal} por R$ ${form.precoPromocional} (${form.desconto}% OFF)`} label="Preço" />
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-xs uppercase tracking-wider text-green-600 flex items-center gap-1.5">
+                              💰 Preço Destaque
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-xs text-muted-foreground line-through">R$ {form.precoOriginal}</p>
+                            <p className="text-2xl font-black text-green-600">R$ {form.precoPromocional}</p>
+                            <Badge className="mt-1 bg-green-500 text-white text-xs">{form.desconto}% OFF</Badge>
+                          </CardContent>
+                        </Card>
+                      )}
 
                       <Card className="relative bg-primary/5 border-primary/20">
                         <CopyBlock text={result.cta} label="CTA" />
@@ -856,7 +1109,7 @@ export default function IACreatorMarketing() {
 
           {/* ── TAB: GALERIA ──────────────────────────── */}
           <TabsContent value="galeria">
-            <GalleryTab restaurantId={restaurant?.id} />
+            <GalleryTab restaurantId={restaurant?.id} onReuse={handleReuse} />
           </TabsContent>
         </Tabs>
       </div>
