@@ -52,6 +52,7 @@ import { ptBR } from "date-fns/locale";
 // ─── Types ───────────────────────────────────────────────────────
 interface CampaignForm {
   nomePrato: string;
+  fraseRestaurante: string;
   precoOriginal: string;
   precoPromocional: string;
   desconto: string;
@@ -477,6 +478,7 @@ export default function IACreatorMarketing() {
   const navigate = useNavigate();
   const [form, setForm] = useState<CampaignForm>({
     nomePrato: "",
+    fraseRestaurante: "",
     precoOriginal: "",
     precoPromocional: "",
     desconto: "",
@@ -539,6 +541,7 @@ export default function IACreatorMarketing() {
   const handleReuse = (asset: PromotionAsset) => {
     setForm({
       nomePrato: asset.dish_name,
+      fraseRestaurante: "",
       precoOriginal: asset.original_price?.toString() || "",
       precoPromocional: asset.promo_price?.toString() || "",
       desconto: asset.discount_percent?.toString() || "",
@@ -580,6 +583,7 @@ export default function IACreatorMarketing() {
         restaurantName: restaurant?.name || "Restaurante",
         cuisineType: (restaurant as any)?.cuisine || "Gastronomia",
         dishName: form.nomePrato,
+        restaurantPhrase: form.fraseRestaurante || undefined,
         targetAudience: form.publicoAlvo,
         brandTone: form.tomVoz,
         campaignDay: form.diaSemana,
@@ -694,6 +698,19 @@ export default function IACreatorMarketing() {
                       <div className="space-y-1.5">
                         <Label htmlFor="prato" className="text-xs">Nome do Prato / Item</Label>
                         <Input id="prato" placeholder="Ex: Risoto de Camarão" value={form.nomePrato} onChange={(e) => update("nomePrato", e.target.value)} />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="frase" className="text-xs">Frase do Restaurante <span className="text-muted-foreground">(opcional)</span></Label>
+                        <Input
+                          id="frase"
+                          placeholder='Ex: "Venha ser feliz", "Sabor que conecta"'
+                          value={form.fraseRestaurante}
+                          onChange={(e) => update("fraseRestaurante", e.target.value)}
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          A IA vai integrar essa frase de forma premium na arte gerada.
+                        </p>
                       </div>
 
                       {/* Discount Toggle */}

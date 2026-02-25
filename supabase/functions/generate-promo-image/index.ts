@@ -26,6 +26,7 @@ serve(async (req) => {
       restaurantName,
       cuisineType,
       dishName,
+      restaurantPhrase,
       originalPrice,
       promoPrice,
       discount,
@@ -51,6 +52,7 @@ serve(async (req) => {
 
 RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
 DISH: "${dishName}"
+${restaurantPhrase ? `RESTAURANT PHRASE: "${restaurantPhrase}" — This phrase MUST appear prominently in the image with elegant, premium typography. It should be a central visual element, styled beautifully (e.g., script or serif font, with decorative elements like quotation marks or subtle ornaments).` : ''}
 PROMOTION: From R$${originalPrice} to R$${promoPrice} (${discount}% OFF)
 DAY: ${campaignDay}
 TARGET: ${targetAudience}
@@ -60,6 +62,7 @@ OBJECTIVE: ${objective}
 DESIGN REQUIREMENTS:
 - Professional food photography style with the dish as hero element
 - Bold headline text overlaid: "${dishName}"
+${restaurantPhrase ? `- The phrase "${restaurantPhrase}" displayed with premium, elegant typography — make it visually striking and memorable` : ''}
 - Prominent price display: crossed out "R$${originalPrice}" and highlighted "R$${promoPrice}"
 - A circular discount badge showing "${discount}% OFF"
 - Restaurant name "${restaurantName}" at bottom
@@ -73,6 +76,7 @@ DESIGN REQUIREMENTS:
 
 RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
 DISH/ITEM: "${dishName}"
+${restaurantPhrase ? `RESTAURANT PHRASE: "${restaurantPhrase}" — This phrase MUST appear prominently in the image with elegant, premium typography. It should be THE central visual element, styled beautifully (e.g., script or serif font, with decorative elements like quotation marks or subtle ornaments). Make it the hero text of the design.` : ''}
 DAY: ${campaignDay}
 TARGET: ${targetAudience}
 TONE: ${brandTone}
@@ -81,6 +85,7 @@ OBJECTIVE: ${objective}
 DESIGN REQUIREMENTS:
 - Professional food photography style with the dish as hero element
 - Bold headline text overlaid: "${dishName}"
+${restaurantPhrase ? `- The phrase "${restaurantPhrase}" displayed with premium, elegant typography — make it the most visually striking text element` : ''}
 - NO prices or discount badges — this is NOT a promotional post with discount
 - Restaurant name "${restaurantName}" at bottom
 - Warm, appetizing color palette with rich contrast
