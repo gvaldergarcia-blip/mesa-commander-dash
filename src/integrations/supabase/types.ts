@@ -2075,6 +2075,172 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_interactions: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string
+          metadata: Json | null
+          type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_interactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_leads: {
+        Row: {
+          address: string | null
+          city: string | null
+          contact_name: string
+          converted_at: string | null
+          created_at: string
+          cuisine_type: string | null
+          id: string
+          instagram: string | null
+          interest_level: string | null
+          last_contact_at: string | null
+          lead_source: string | null
+          lost_reason: string | null
+          neighborhood: string | null
+          next_followup_at: string | null
+          next_followup_type: string | null
+          notes: string | null
+          phone: string
+          responsible_user_id: string | null
+          restaurant_name: string
+          size: string | null
+          status: string
+          updated_at: string
+          won_plan: string | null
+          won_start_date: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          contact_name: string
+          converted_at?: string | null
+          created_at?: string
+          cuisine_type?: string | null
+          id?: string
+          instagram?: string | null
+          interest_level?: string | null
+          last_contact_at?: string | null
+          lead_source?: string | null
+          lost_reason?: string | null
+          neighborhood?: string | null
+          next_followup_at?: string | null
+          next_followup_type?: string | null
+          notes?: string | null
+          phone: string
+          responsible_user_id?: string | null
+          restaurant_name: string
+          size?: string | null
+          status?: string
+          updated_at?: string
+          won_plan?: string | null
+          won_start_date?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          contact_name?: string
+          converted_at?: string | null
+          created_at?: string
+          cuisine_type?: string | null
+          id?: string
+          instagram?: string | null
+          interest_level?: string | null
+          last_contact_at?: string | null
+          lead_source?: string | null
+          lost_reason?: string | null
+          neighborhood?: string | null
+          next_followup_at?: string | null
+          next_followup_type?: string | null
+          notes?: string | null
+          phone?: string
+          responsible_user_id?: string | null
+          restaurant_name?: string
+          size?: string | null
+          status?: string
+          updated_at?: string
+          won_plan?: string | null
+          won_start_date?: string | null
+        }
+        Relationships: []
+      }
+      sales_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_at: string
+          id: string
+          lead_id: string
+          priority: string
+          status: string
+          task_type: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description: string
+          due_at: string
+          id?: string
+          lead_id: string
+          priority?: string
+          status?: string
+          task_type: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_at?: string
+          id?: string
+          lead_id?: string
+          priority?: string
+          status?: string
+          task_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           cancel_at: string | null

@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface ReservationInfoRequest {
   reservation_id: string;
+  action?: 'cancel';
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -16,7 +17,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { reservation_id }: ReservationInfoRequest = await req.json();
+    const { reservation_id, action }: ReservationInfoRequest = await req.json();
 
     if (!reservation_id) {
       return new Response(
@@ -25,17 +26,68 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Fetching reservation info:", reservation_id);
-
     // Use service role to bypass RLS
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") || "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
       { 
         auth: { persistSession: false },
-        db: { schema: 'mesaclik' }  // Use mesaclik schema
+        db: { schema: 'mesaclik' }
       }
     );
+
+    // Handle cancel action
+    if (action === 'cancel') {
+      console.log("Canceling reservation:", reservation_id);
+      
+      // Verify reservation exists and is cancelable
+      const { data: res, error: fetchErr } = await supabaseAdmin
+        .from("reservations")
+        .select("id, status")
+        .eq("id", reservation_id)
+        .single();
+
+      if (fetchErr || !res) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Reserva não encontrada" }),
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      if (!['pending', 'confirmed'].includes(res.status)) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Esta reserva não pode ser cancelada" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const { error: updateErr } = await supabaseAdmin
+        .from("reservations")
+        .update({
+          status: 'canceled',
+          canceled_at: new Date().toISOString(),
+          canceled_by: 'customer',
+          cancel_reason: 'Cancelado pelo cliente',
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", reservation_id);
+
+      if (updateErr) {
+        console.error("Cancel error:", updateErr);
+        return new Response(
+          JSON.stringify({ success: false, error: "Erro ao cancelar reserva" }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      console.log("Reservation canceled successfully:", reservation_id);
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log("Fetching reservation info:", reservation_id);
 
     // Fetch reservation from mesaclik.reservations
     const { data: reservation, error: reservationError } = await supabaseAdmin

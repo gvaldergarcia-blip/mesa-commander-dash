@@ -318,14 +318,15 @@ export default function ReservaFinal() {
     
     setCanceling(true);
     try {
-      // Usar a mesma RPC que o painel usa para garantir sincronização
-      const { data, error } = await supabase.rpc('update_reservation_status_panel', {
-        p_reservation_id: reservationInfo.reservation_id,
-        p_status: 'canceled',
-        p_cancel_reason: 'Cancelado pelo cliente'
+      // Usar edge function com SERVICE_ROLE para cancelar (cliente não tem permissão RPC)
+      const { data, error } = await supabase.functions.invoke('get-reservation-info', {
+        body: {
+          reservation_id: reservationInfo.reservation_id,
+          action: 'cancel',
+        },
       });
 
-      if (error) throw error;
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao cancelar');
 
       // Emitir Broadcast para notificar o painel em tempo real
       try {
