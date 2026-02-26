@@ -499,7 +499,7 @@ export default function FilaFinal() {
           {/* MesaClik footer logo */}
           <div className="pt-4 border-t border-border/50 flex justify-center">
             <img 
-              src="/images/mesaclik-logo.png" 
+              src="/images/mesaclik-logo-3d.png" 
               alt="MesaClik" 
               className="h-8 opacity-60"
             />

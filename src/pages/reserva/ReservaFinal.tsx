@@ -727,7 +727,7 @@ export default function ReservaFinal() {
             Reserva realizada com segurança
           </p>
           <img 
-            src="/images/mesaclik-logo.png" 
+            src="/images/mesaclik-logo-3d.png" 
             alt="MesaClik" 
             className="h-8 mx-auto opacity-60"
           />
