@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Users, UserPlus } from "lucide-react";
+import { Send, Users, UserPlus, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
@@ -16,6 +16,7 @@ import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClea
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
 import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
+import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 function CustomersPageContent() {
@@ -33,6 +34,7 @@ function CustomersPageContent() {
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [visitDialogOpen, setVisitDialogOpen] = useState(false);
   
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers();
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(restaurantId || '');
@@ -186,10 +188,16 @@ function CustomersPageContent() {
             CRM completo • {customers.length} clientes cadastrados
           </p>
         </div>
-        <Button onClick={() => setCreateCustomerOpen(true)} className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Cadastrar cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setVisitDialogOpen(true)} className="gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Registrar Visita
+          </Button>
+          <Button onClick={() => setCreateCustomerOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Cadastrar cliente
+          </Button>
+        </div>
       </div>
 
       {/* Strategic KPIs */}
@@ -307,6 +315,12 @@ function CustomersPageContent() {
       <CreateCustomerDialog
         open={createCustomerOpen}
         onOpenChange={setCreateCustomerOpen}
+        onSuccess={refetch}
+      />
+
+      <RegisterVisitDialog
+        open={visitDialogOpen}
+        onOpenChange={setVisitDialogOpen}
         onSuccess={refetch}
       />
     </div>

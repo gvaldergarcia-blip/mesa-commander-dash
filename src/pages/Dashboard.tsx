@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus } from "lucide-react";
+import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { useReservations } from "@/hooks/useReservations";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
 import { 
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ function DashboardContent() {
   
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
+  const [isVisitDialogOpen, setIsVisitDialogOpen] = useState(false);
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
@@ -107,6 +109,10 @@ function DashboardContent() {
           </p>
         </div>
         <div className="flex space-x-3">
+          <Button variant="outline" onClick={() => setIsVisitDialogOpen(true)} className="gap-2">
+            <ClipboardCheck className="w-4 h-4" />
+            Registrar Visita
+          </Button>
           <Button variant="outline">
             <Calendar className="w-4 h-4 mr-2" />
             Hoje
@@ -365,6 +371,11 @@ function DashboardContent() {
           </CardContent>
         </Card>
       )}
+
+      <RegisterVisitDialog
+        open={isVisitDialogOpen}
+        onOpenChange={setIsVisitDialogOpen}
+      />
     </div>
   );
 }
