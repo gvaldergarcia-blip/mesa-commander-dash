@@ -45,8 +45,9 @@ export function useQueueConsent() {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      // Buscar consentimento de termos para este ticket
-      const { data: termsData, error: termsError } = await supabase
+      // Primeiro: buscar consentimento de termos para este ticket específico
+      let termsData = null;
+      const { data: ticketTerms, error: termsError } = await supabase
         .from('queue_terms_consents')
         .select('terms_accepted, terms_accepted_at, terms_version, privacy_version')
         .eq('restaurant_id', restaurantId)
@@ -55,6 +56,25 @@ export function useQueueConsent() {
 
       if (termsError && termsError.code !== 'PGRST116') {
         throw termsError;
+      }
+      
+      termsData = ticketTerms;
+
+      // Se não encontrou para este ticket, buscar por email (consentimento anterior)
+      if (!termsData?.terms_accepted) {
+        const { data: emailTerms, error: emailTermsError } = await supabase
+          .from('queue_terms_consents')
+          .select('terms_accepted, terms_accepted_at, terms_version, privacy_version')
+          .eq('restaurant_id', restaurantId)
+          .eq('customer_email', customerEmail)
+          .eq('terms_accepted', true)
+          .order('terms_accepted_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!emailTermsError && emailTerms?.terms_accepted) {
+          termsData = emailTerms;
+        }
       }
 
       // Buscar opt-in de marketing para este cliente/restaurante

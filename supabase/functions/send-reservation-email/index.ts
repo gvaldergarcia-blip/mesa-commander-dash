@@ -69,7 +69,7 @@ const getEmailContent = (data: ReservationEmailRequest) => {
   const name = customer_name || 'Cliente';
   
   // Logo MESACLIK hospedada no projeto
-  const mesaclikLogoUrl = 'https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app/images/mesaclik-logo.png';
+  const mesaclikLogoUrl = 'https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app/images/mesaclik-logo-email.png';
 
   switch (type) {
     case 'confirmation':
