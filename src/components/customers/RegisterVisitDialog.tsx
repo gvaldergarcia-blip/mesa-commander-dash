@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, ClipboardCheck } from "lucide-react";
+import { Search, UserPlus, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/lib/supabase/client";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +26,7 @@ export function RegisterVisitDialog({
 }: RegisterVisitDialogProps) {
   const { restaurantId } = useRestaurant();
   const { toast } = useToast();
-  const [step, setStep] = useState<'search' | 'register'>('search');
+  const [step, setStep] = useState<'search' | 'register' | 'new_customer_warning'>('search');
   const [searchQuery, setSearchQuery] = useState("");
   const [foundCustomer, setFoundCustomer] = useState<any>(null);
   const [searching, setSearching] = useState(false);
@@ -82,12 +83,12 @@ export function RegisterVisitDialog({
         setPhone(data[0].customer_phone || "");
         setStep('register');
       } else {
-        // Not found - allow creating new
+        // Not found - show warning
         const isEmail = query.includes('@');
         setEmail(isEmail ? query : "");
         setPhone(!isEmail ? query : "");
         setFoundCustomer(null);
-        setStep('register');
+        setStep('new_customer_warning');
       }
     } catch {
       toast({ title: "Erro na busca", variant: "destructive" });
@@ -117,10 +118,10 @@ export function RegisterVisitDialog({
       if (!result?.success) throw new Error(result?.error || 'Erro ao registrar');
 
       toast({
-        title: "✅ Visita registrada!",
-        description: foundCustomer
-          ? `Visita de ${name || email} registrada com sucesso`
-          : `Novo cliente criado e visita registrada`,
+        title: result.is_new_customer ? "✅ Cliente cadastrado e visita registrada!" : "✅ Visita registrada!",
+        description: result.is_new_customer
+          ? `Novo cliente ${name || email} criado com sucesso`
+          : `Visita de ${name || email} registrada com sucesso`,
       });
       onOpenChange(false);
       onSuccess?.();
@@ -165,11 +166,73 @@ export function RegisterVisitDialog({
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => { setFoundCustomer(null); setStep('register'); }}
+              onClick={() => { setFoundCustomer(null); setStep('new_customer_warning'); }}
             >
               <UserPlus className="h-4 w-4" />
               Cadastrar novo cliente
             </Button>
+          </div>
+        )}
+
+        {step === 'new_customer_warning' && (
+          <div className="space-y-4">
+            <Alert variant="destructive" className="border-orange-300 bg-orange-50 text-orange-900 dark:bg-orange-950/30 dark:text-orange-200 dark:border-orange-800">
+              <AlertTriangle className="h-4 w-4 !text-orange-600" />
+              <AlertDescription className="text-sm">
+                <strong>Cliente não cadastrado.</strong> Para registrar uma visita, é necessário primeiro cadastrar o cliente com os dados abaixo. Ao confirmar, o cliente será criado automaticamente e a visita será registrada.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label>E-mail *</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="cliente@email.com"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cliente" />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-0000" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Origem da visita</Label>
+              <Select value={source} onValueChange={setSource}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="registro_manual">Registro manual</SelectItem>
+                  <SelectItem value="fila">Fila</SelectItem>
+                  <SelectItem value="reserva">Reserva</SelectItem>
+                  <SelectItem value="qr_checkin">QR Check-in</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observação (opcional)</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: mesa 5, aniversário..."
+                rows={2}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setStep('search')}>
+                Voltar
+              </Button>
+              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !email.trim() || !name.trim()}>
+                {submitting ? 'Cadastrando...' : 'Cadastrar e registrar visita'}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -197,19 +260,6 @@ export function RegisterVisitDialog({
                 disabled={!!foundCustomer}
               />
             </div>
-
-            {!foundCustomer && (
-              <>
-                <div className="space-y-2">
-                  <Label>Nome</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cliente" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-0000" />
-                </div>
-              </>
-            )}
 
             <div className="space-y-2">
               <Label>Origem da visita</Label>
