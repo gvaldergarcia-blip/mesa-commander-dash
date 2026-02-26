@@ -104,56 +104,112 @@ export function RegisterVisitDialog({
     return customers[0];
   };
 
+  const searchCustomers = async (rawQuery: string) => {
+    if (!restaurantId) return [] as any[];
+
+    const query = rawQuery.trim().toLowerCase();
+    const queryDigits = normalizePhone(rawQuery);
+
+    const { data } = await supabase
+      .from('restaurant_customers')
+      .select('id, customer_email, customer_name, customer_phone, total_visits, vip')
+      .eq('restaurant_id', restaurantId)
+      .or(`customer_email.ilike.%${query}%,customer_phone.ilike.%${query}%,customer_name.ilike.%${query}%`)
+      .limit(20);
+
+    let candidates = data || [];
+
+    // Fallback para telefone normalizado (evita falhas por máscara/formatação)
+    if (candidates.length === 0 && queryDigits.length >= 8) {
+      const { data: phoneFallbackData } = await supabase
+        .from('restaurant_customers')
+        .select('id, customer_email, customer_name, customer_phone, total_visits, vip')
+        .eq('restaurant_id', restaurantId)
+        .limit(200);
+
+      candidates = (phoneFallbackData || []).filter((customer) =>
+        normalizePhone(customer.customer_phone || '').includes(queryDigits),
+      );
+    }
+
+    return candidates;
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim() || !restaurantId) return;
     setSearching(true);
     try {
       const rawQuery = searchQuery.trim();
-      const query = rawQuery.toLowerCase();
+      const candidates = await searchCustomers(rawQuery);
       const queryDigits = normalizePhone(rawQuery);
-
-      const { data } = await supabase
-        .from('restaurant_customers')
-        .select('id, customer_email, customer_name, customer_phone, total_visits, vip')
-        .eq('restaurant_id', restaurantId)
-        .or(`customer_email.ilike.%${query}%,customer_phone.ilike.%${query}%,customer_name.ilike.%${query}%`)
-        .limit(20);
-
-      let candidates = data || [];
-
-      // Fallback para telefone normalizado (evita falhas por máscara/formatação)
-      if (candidates.length === 0 && queryDigits.length >= 8) {
-        const { data: phoneFallbackData } = await supabase
-          .from('restaurant_customers')
-          .select('id, customer_email, customer_name, customer_phone, total_visits, vip')
-          .eq('restaurant_id', restaurantId)
-          .limit(200);
-
-        candidates = (phoneFallbackData || []).filter((customer) =>
-          normalizePhone(customer.customer_phone || "").includes(queryDigits),
-        );
-      }
 
       if (candidates.length > 0) {
         const matchedCustomer = findBestCustomerMatch(candidates, rawQuery);
         setFoundCustomer(matchedCustomer);
         setEmail(matchedCustomer.customer_email);
-        setName(matchedCustomer.customer_name || "");
-        setPhone(matchedCustomer.customer_phone || "");
+        setName(matchedCustomer.customer_name || '');
+        setPhone(matchedCustomer.customer_phone || '');
         setStep('register');
       } else {
-        // Not found - show warning
-        const isEmail = query.includes('@');
+        const isEmail = rawQuery.includes('@');
         const isPhone = queryDigits.length >= 8;
 
-        setEmail(isEmail ? rawQuery : "");
-        setPhone(isPhone ? rawQuery : "");
-        setName(!isEmail && !isPhone ? rawQuery : "");
+        setEmail(isEmail ? rawQuery : '');
+        setPhone(isPhone ? rawQuery : '');
+        setName(!isEmail && !isPhone ? rawQuery : '');
         setFoundCustomer(null);
         setStep('new_customer_warning');
       }
     } catch (err) {
-      toast({ title: "Erro na busca", description: extractErrorMessage(err), variant: "destructive" });
+      toast({ title: 'Erro na busca', description: extractErrorMessage(err), variant: 'destructive' });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleStartNewCustomerRegistration = async () => {
+    if (!restaurantId) return;
+
+    const rawQuery = searchQuery.trim();
+
+    // Sem busca preenchida: segue para aviso de não cadastrado
+    if (!rawQuery) {
+      setFoundCustomer(null);
+      setStep('new_customer_warning');
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const candidates = await searchCustomers(rawQuery);
+      const queryDigits = normalizePhone(rawQuery);
+
+      if (candidates.length > 0) {
+        const matchedCustomer = findBestCustomerMatch(candidates, rawQuery);
+        setFoundCustomer(matchedCustomer);
+        setEmail(matchedCustomer.customer_email);
+        setName(matchedCustomer.customer_name || '');
+        setPhone(matchedCustomer.customer_phone || '');
+        setStep('register');
+
+        toast({
+          title: 'Cliente já cadastrado',
+          description: `O cliente ${matchedCustomer.customer_name || matchedCustomer.customer_email} já está cadastrado.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const isEmail = rawQuery.includes('@');
+      const isPhone = queryDigits.length >= 8;
+
+      setEmail(isEmail ? rawQuery : '');
+      setPhone(isPhone ? rawQuery : '');
+      setName(!isEmail && !isPhone ? rawQuery : '');
+      setFoundCustomer(null);
+      setStep('new_customer_warning');
+    } catch (err) {
+      toast({ title: 'Erro na validação', description: extractErrorMessage(err), variant: 'destructive' });
     } finally {
       setSearching(false);
     }
@@ -161,9 +217,20 @@ export function RegisterVisitDialog({
 
   const handleSubmit = async () => {
     if (!email.trim() || !restaurantId) {
-      toast({ title: "E-mail é obrigatório", variant: "destructive" });
+      toast({ title: 'E-mail é obrigatório', variant: 'destructive' });
       return;
     }
+
+    if (!foundCustomer) {
+      setStep('new_customer_warning');
+      toast({
+        title: 'Cliente não cadastrado',
+        description: `O cliente ${name || email || phone || searchQuery || 'informado'} não está cadastrado. Cadastre primeiro para depois registrar visita.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data, error } = await supabase.rpc('register_customer_visit', {
@@ -180,10 +247,8 @@ export function RegisterVisitDialog({
       if (!result?.success) throw new Error(result?.error || 'Erro ao registrar');
 
       toast({
-        title: result.is_new_customer ? "✅ Cliente cadastrado e visita registrada!" : "✅ Visita registrada!",
-        description: result.is_new_customer
-          ? `Novo cliente ${name || email} criado com sucesso`
-          : `Visita de ${name || email} registrada com sucesso`,
+        title: '✅ Visita registrada!',
+        description: `Visita de ${foundCustomer.customer_name || name || email} registrada com sucesso`,
       });
       onOpenChange(false);
       onSuccess?.();
@@ -228,7 +293,8 @@ export function RegisterVisitDialog({
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => { setFoundCustomer(null); setStep('new_customer_warning'); }}
+              onClick={handleStartNewCustomerRegistration}
+              disabled={searching}
             >
               <UserPlus className="h-4 w-4" />
               Cadastrar novo cliente
@@ -241,58 +307,16 @@ export function RegisterVisitDialog({
             <Alert variant="destructive" className="border-orange-300 bg-orange-50 text-orange-900 dark:bg-orange-950/30 dark:text-orange-200 dark:border-orange-800">
               <AlertTriangle className="h-4 w-4 !text-orange-600" />
               <AlertDescription className="text-sm">
-                <strong>Cliente não cadastrado.</strong> Para registrar uma visita, é necessário primeiro cadastrar o cliente com os dados abaixo. Ao confirmar, o cliente será criado automaticamente e a visita será registrada.
+                <strong>Cliente não cadastrado.</strong> O cliente <strong>{name || email || phone || searchQuery || 'informado'}</strong> não possui cadastro e não pode ter visita registrada agora. Primeiro faça o cadastro do cliente e só depois registre a visita.
               </AlertDescription>
             </Alert>
-
-            <div className="space-y-2">
-              <Label>E-mail *</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="cliente@email.com"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do cliente" />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-0000" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Origem da visita</Label>
-              <Select value={source} onValueChange={setSource}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="registro_manual">Registro manual</SelectItem>
-                  <SelectItem value="fila">Fila</SelectItem>
-                  <SelectItem value="reserva">Reserva</SelectItem>
-                  <SelectItem value="qr_checkin">QR Check-in</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Observação (opcional)</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: mesa 5, aniversário..."
-                rows={2}
-              />
-            </div>
 
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setStep('search')}>
                 Voltar
               </Button>
-              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !email.trim() || !name.trim()}>
-                {submitting ? 'Cadastrando...' : 'Cadastrar e registrar visita'}
+              <Button className="flex-1" onClick={() => onOpenChange(false)}>
+                Entendi
               </Button>
             </div>
           </div>
