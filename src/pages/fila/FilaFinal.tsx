@@ -389,6 +389,16 @@ export default function FilaFinal() {
                 Marque a caixa acima para continuar
               </p>
             )}
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                (Retornar para o site)
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>
