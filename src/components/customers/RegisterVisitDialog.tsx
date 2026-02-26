@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, UserPlus, ClipboardCheck, AlertTriangle } from "lucide-react";
+import { ArrowRight, UserPlus, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -287,7 +287,7 @@ export function RegisterVisitDialog({
                 autoFocus
               />
               <Button onClick={handleSearch} disabled={searching || !searchQuery.trim()}>
-                <Search className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
             <Button
