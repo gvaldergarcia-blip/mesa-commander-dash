@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       status: q.status, wait_time: q.wait_time_min,
       created_at: q.created_at, called_at: q.called_at,
       seated_at: q.seated_at, canceled_at: q.canceled_at,
-      cancel_actor: q.canceled_at ? 'cliente' : null, // queue cancels are always by client in current system
+      cancel_actor: q.cancel_actor || (q.canceled_at ? 'customer' : null),
     }));
 
     // 3. Fetch reservation history
@@ -155,12 +155,8 @@ Deno.serve(async (req) => {
       if (v.status !== 'canceled') return false;
       const cancelDate = new Date(v.canceled_at || v.date || v.created_at);
       if (cancelDate < thirtyDaysAgo) return false;
-      // For reservations, canceled_by contains the actor
-      if (v.type === 'reservation') {
-        const actor = (v.cancel_actor || '').toLowerCase();
-        return actor === 'restaurant' || actor === 'restaurante' || actor === 'admin' || actor === 'panel';
-      }
-      return false;
+      const actor = (v.cancel_actor || '').toLowerCase();
+      return actor === 'restaurant' || actor === 'restaurante' || actor === 'admin' || actor === 'panel';
     });
 
     // No-shows in last 60 days
@@ -233,7 +229,7 @@ Deno.serve(async (req) => {
       const d = new Date(v.canceled_at || v.date || v.created_at);
       if (d < ninetyDaysAgoDate) return false;
       const actor = (v.cancel_actor || '').toLowerCase();
-      return actor === 'cliente' || actor === 'customer' || actor === '' || v.type === 'queue';
+      return actor === 'customer' || actor === 'cliente' || actor === '';
     }).length;
     if (cancelByCustomer90d >= 2) score -= 10;
     if (daysSinceLastVisit !== null && daysSinceLastVisit > 45) score -= 10;

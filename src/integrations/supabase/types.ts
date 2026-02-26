@@ -522,6 +522,68 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_visits: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          notes: string | null
+          registered_by: string | null
+          restaurant_id: string
+          source: string
+          visit_date: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          notes?: string | null
+          registered_by?: string | null
+          restaurant_id: string
+          source?: string
+          visit_date?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          registered_by?: string | null
+          restaurant_id?: string
+          source?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_visits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_visits_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_visits_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_visits_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           created_at: string
@@ -1739,6 +1801,7 @@ export type Database = {
           terms_accepted: boolean
           terms_accepted_at: string | null
           terms_version: string | null
+          total_manual_visits: number
           total_queue_visits: number
           total_reservation_visits: number
           total_visits: number | null
@@ -1766,6 +1829,7 @@ export type Database = {
           terms_accepted?: boolean
           terms_accepted_at?: string | null
           terms_version?: string | null
+          total_manual_visits?: number
           total_queue_visits?: number
           total_reservation_visits?: number
           total_visits?: number | null
@@ -1793,6 +1857,7 @@ export type Database = {
           terms_accepted?: boolean
           terms_accepted_at?: string | null
           terms_version?: string | null
+          total_manual_visits?: number
           total_queue_visits?: number
           total_reservation_visits?: number
           total_visits?: number | null
@@ -2620,6 +2685,7 @@ export type Database = {
         Args: { p_email?: string; p_phone?: string; p_restaurant_id: string }
         Returns: {
           called_at: string
+          cancel_actor: string
           canceled_at: string
           created_at: string
           email: string
@@ -2746,6 +2812,18 @@ export type Database = {
         Returns: boolean
       }
       marketing_unsubscribe: { Args: { p_token: string }; Returns: Json }
+      register_customer_visit: {
+        Args: {
+          p_email: string
+          p_name?: string
+          p_notes?: string
+          p_phone?: string
+          p_restaurant_id: string
+          p_source?: string
+          p_visit_date?: string
+        }
+        Returns: Json
+      }
       rotate_customer_visits_monthly: { Args: never; Returns: undefined }
       toggle_restaurant_calendar_day: {
         Args: { p_day: string; p_is_open: boolean; p_restaurant_id: string }
