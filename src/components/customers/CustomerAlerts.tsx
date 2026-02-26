@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertCircle, Info, Send, Eye } from "lucide-react";
+import { AlertTriangle, AlertCircle, Info, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -68,12 +68,6 @@ export function CustomerAlerts({ alerts, onSendPromotion, onViewEvents }: Custom
                   <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onSendPromotion}>
                     <Send className="w-3 h-3" />
                     Enviar promoção
-                  </Button>
-                )}
-                {alert.cta === 'ver_eventos' && onViewEvents && (
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={onViewEvents}>
-                    <Eye className="w-3 h-3" />
-                    Ver eventos
                   </Button>
                 )}
               </div>
