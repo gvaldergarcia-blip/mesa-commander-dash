@@ -64,34 +64,96 @@ export function RegisterVisitDialog({
     setNotes("");
   };
 
+  const normalizePhone = (value: string) => value.replace(/\D/g, "");
+
+  const extractErrorMessage = (err: unknown) => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      const message = (err as { message?: unknown }).message;
+      if (typeof message === 'string') return message;
+    }
+    return "Erro ao registrar visita";
+  };
+
+  const findBestCustomerMatch = (customers: any[], rawQuery: string) => {
+    const query = rawQuery.trim().toLowerCase();
+    const queryDigits = normalizePhone(rawQuery);
+
+    const byExactEmail = customers.find(
+      (customer) => (customer.customer_email || "").toLowerCase() === query,
+    );
+    if (byExactEmail) return byExactEmail;
+
+    if (queryDigits.length >= 8) {
+      const byExactPhone = customers.find(
+        (customer) => normalizePhone(customer.customer_phone || "") === queryDigits,
+      );
+      if (byExactPhone) return byExactPhone;
+
+      const byPhoneIncludes = customers.find(
+        (customer) => normalizePhone(customer.customer_phone || "").includes(queryDigits),
+      );
+      if (byPhoneIncludes) return byPhoneIncludes;
+    }
+
+    const byExactName = customers.find(
+      (customer) => (customer.customer_name || "").toLowerCase() === query,
+    );
+    if (byExactName) return byExactName;
+
+    return customers[0];
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim() || !restaurantId) return;
     setSearching(true);
     try {
-      const query = searchQuery.trim().toLowerCase();
+      const rawQuery = searchQuery.trim();
+      const query = rawQuery.toLowerCase();
+      const queryDigits = normalizePhone(rawQuery);
+
       const { data } = await supabase
         .from('restaurant_customers')
         .select('id, customer_email, customer_name, customer_phone, total_visits, vip')
         .eq('restaurant_id', restaurantId)
         .or(`customer_email.ilike.%${query}%,customer_phone.ilike.%${query}%,customer_name.ilike.%${query}%`)
-        .limit(5);
+        .limit(20);
 
-      if (data && data.length > 0) {
-        setFoundCustomer(data[0]);
-        setEmail(data[0].customer_email);
-        setName(data[0].customer_name || "");
-        setPhone(data[0].customer_phone || "");
+      let candidates = data || [];
+
+      // Fallback para telefone normalizado (evita falhas por máscara/formatação)
+      if (candidates.length === 0 && queryDigits.length >= 8) {
+        const { data: phoneFallbackData } = await supabase
+          .from('restaurant_customers')
+          .select('id, customer_email, customer_name, customer_phone, total_visits, vip')
+          .eq('restaurant_id', restaurantId)
+          .limit(200);
+
+        candidates = (phoneFallbackData || []).filter((customer) =>
+          normalizePhone(customer.customer_phone || "").includes(queryDigits),
+        );
+      }
+
+      if (candidates.length > 0) {
+        const matchedCustomer = findBestCustomerMatch(candidates, rawQuery);
+        setFoundCustomer(matchedCustomer);
+        setEmail(matchedCustomer.customer_email);
+        setName(matchedCustomer.customer_name || "");
+        setPhone(matchedCustomer.customer_phone || "");
         setStep('register');
       } else {
         // Not found - show warning
         const isEmail = query.includes('@');
-        setEmail(isEmail ? query : "");
-        setPhone(!isEmail ? query : "");
+        const isPhone = queryDigits.length >= 8;
+
+        setEmail(isEmail ? rawQuery : "");
+        setPhone(isPhone ? rawQuery : "");
+        setName(!isEmail && !isPhone ? rawQuery : "");
         setFoundCustomer(null);
         setStep('new_customer_warning');
       }
-    } catch {
-      toast({ title: "Erro na busca", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Erro na busca", description: extractErrorMessage(err), variant: "destructive" });
     } finally {
       setSearching(false);
     }
@@ -128,7 +190,7 @@ export function RegisterVisitDialog({
     } catch (err) {
       toast({
         title: "Erro",
-        description: err instanceof Error ? err.message : "Erro ao registrar visita",
+        description: extractErrorMessage(err),
         variant: "destructive",
       });
     } finally {
