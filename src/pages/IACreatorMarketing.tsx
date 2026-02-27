@@ -652,7 +652,7 @@ export default function IACreatorMarketing() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                MESACLIK <span className="text-primary">IA Creator</span>
+                MESACLIK <span className="text-primary">Studio</span>
               </h1>
               <p className="text-xs text-muted-foreground uppercase tracking-widest">Marketing</p>
             </div>
