@@ -3,7 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Trophy, Gift, Target, AlertTriangle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Trophy, Gift, Target, AlertTriangle, Loader2, Settings, ChevronDown, ChevronUp, Save } from "lucide-react";
 import { useLoyaltyProgram, type LoyaltyProgram, type CustomerLoyaltyStatus } from "@/hooks/useLoyaltyProgram";
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,13 +20,21 @@ interface Props {
 }
 
 export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn = false }: Props) {
-  const { fetchCustomerLoyalty } = useLoyaltyProgram(restaurantId);
+  const { fetchCustomerLoyalty, saveProgram, saving } = useLoyaltyProgram(restaurantId);
   const { toast } = useToast();
   const [program, setProgram] = useState<LoyaltyProgram | null>(null);
   const [status, setStatus] = useState<CustomerLoyaltyStatus | null>(null);
   const [loyaltyActive, setLoyaltyActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+
+  // Editable fields
+  const [editVisits, setEditVisits] = useState(10);
+  const [editReward, setEditReward] = useState("");
+  const [editValidity, setEditValidity] = useState(30);
+  const [editCountQueue, setEditCountQueue] = useState(true);
+  const [editCountReservations, setEditCountReservations] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -30,7 +43,14 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
       setProgram(result.program);
       setStatus(result.status);
 
-      // Check if customer has loyalty_program_active
+      if (result.program) {
+        setEditVisits(result.program.required_visits);
+        setEditReward(result.program.reward_description);
+        setEditValidity(result.program.reward_validity_days);
+        setEditCountQueue(result.program.count_queue);
+        setEditCountReservations(result.program.count_reservations);
+      }
+
       const { data: custData } = await supabase
         .from("restaurant_customers")
         .select("loyalty_program_active")
@@ -58,7 +78,6 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
       setLoyaltyActive(enabled);
 
       if (enabled) {
-        // Refresh status after activation
         const result = await fetchCustomerLoyalty(customerId);
         setStatus(result.status);
         toast({
@@ -78,9 +97,30 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
     }
   };
 
+  const handleSaveConfig = async () => {
+    if (!program) return;
+    try {
+      await saveProgram({
+        is_active: program.is_active,
+        program_name: program.program_name,
+        required_visits: editVisits,
+        count_queue: editCountQueue,
+        count_reservations: editCountReservations,
+        reward_description: editReward,
+        reward_validity_days: editValidity,
+      });
+      // Refresh
+      const result = await fetchCustomerLoyalty(customerId);
+      setProgram(result.program);
+      setStatus(result.status);
+      setShowConfig(false);
+    } catch {
+      // toast already handled in hook
+    }
+  };
+
   if (loading) return null;
 
-  // Program not active globally
   if (!program) {
     return (
       <Card className="overflow-hidden">
@@ -99,7 +139,6 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
     );
   }
 
-  // Customer doesn't have marketing opt-in
   if (!marketingOptIn) {
     return (
       <Card className="overflow-hidden">
@@ -137,6 +176,16 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
             <CardTitle className="text-base">{program.program_name}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-xs text-muted-foreground"
+              onClick={() => setShowConfig(!showConfig)}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Configurar
+              {showConfig ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </Button>
             {toggling && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
             <Switch
               checked={loyaltyActive}
@@ -184,6 +233,68 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
             <p className="text-xs text-muted-foreground">
               🎁 Meta: {program.reward_description}
             </p>
+          </>
+        )}
+
+        {/* Inline config panel */}
+        {showConfig && (
+          <>
+            <Separator />
+            <div className="space-y-3 pt-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Configurações do Programa</p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Visitas necessárias</Label>
+                  <Input
+                    type="number"
+                    min={2}
+                    max={50}
+                    value={editVisits}
+                    onChange={(e) => setEditVisits(parseInt(e.target.value) || 10)}
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Validade (dias)</Label>
+                  <Input
+                    type="number"
+                    min={7}
+                    max={365}
+                    value={editValidity}
+                    onChange={(e) => setEditValidity(parseInt(e.target.value) || 30)}
+                    className="mt-1 h-8 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs">Descrição da recompensa</Label>
+                <Textarea
+                  value={editReward}
+                  onChange={(e) => setEditReward(e.target.value)}
+                  placeholder="Ex: 1 sobremesa grátis"
+                  className="mt-1 text-sm min-h-[60px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">O que conta como visita?</Label>
+                <div className="flex items-center gap-3">
+                  <Switch checked={editCountQueue} onCheckedChange={setEditCountQueue} id="cfg-queue" />
+                  <Label htmlFor="cfg-queue" className="text-xs cursor-pointer">Fila concluída</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={editCountReservations} onCheckedChange={setEditCountReservations} id="cfg-res" />
+                  <Label htmlFor="cfg-res" className="text-xs cursor-pointer">Reserva concluída</Label>
+                </div>
+              </div>
+
+              <Button onClick={handleSaveConfig} disabled={saving} size="sm" className="w-full gap-2">
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                Salvar Configurações
+              </Button>
+            </div>
           </>
         )}
       </CardContent>

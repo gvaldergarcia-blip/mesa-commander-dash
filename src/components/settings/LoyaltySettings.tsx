@@ -92,10 +92,11 @@ export function LoyaltySettings({ restaurantId }: Props) {
               <Label>Nome do Programa</Label>
               <Input
                 value={programName}
-                onChange={(e) => setProgramName(e.target.value)}
-                placeholder="Ex: Clube MesaClik"
-                className="mt-1.5"
+                disabled
+                readOnly
+                className="mt-1.5 bg-muted cursor-not-allowed"
               />
+              <p className="text-xs text-muted-foreground mt-1">O nome do programa não pode ser alterado.</p>
             </div>
 
             <div>
