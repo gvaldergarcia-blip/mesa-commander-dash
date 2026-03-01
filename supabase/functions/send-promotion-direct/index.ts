@@ -103,7 +103,6 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
   const name = to_name || 'Cliente';
   const baseUrl = site_url || 'https://mesaclik.com.br';
   const unsubscribeUrl = unsubscribe_token ? `${baseUrl}/marketing/unsubscribe?token=${unsubscribe_token}` : null;
-  const name = to_name || 'Cliente';
 
   // Formatar data de expiração
   const formattedExpiry = expires_at 
