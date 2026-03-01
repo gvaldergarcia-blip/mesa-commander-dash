@@ -121,7 +121,7 @@ export function ComposeEmailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Lançar promoção para {customer?.name}</DialogTitle>
         </DialogHeader>
