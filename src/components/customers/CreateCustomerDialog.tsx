@@ -88,7 +88,19 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
           .eq("restaurant_id", restaurantId);
       }
 
-      toast({ title: "Sucesso", description: "Cliente cadastrado com sucesso!" });
+      // Auto-create first visit for manually registered customers
+      if (data) {
+        await supabase.rpc('register_customer_visit', {
+          p_restaurant_id: restaurantId,
+          p_email: trimmedEmail,
+          p_name: trimmedName,
+          p_phone: phone.trim() || null,
+          p_source: 'registro_manual',
+          p_notes: 'Primeira visita (cadastro manual)',
+        }).catch((err: any) => console.warn('Auto-visit creation failed:', err));
+      }
+
+      toast({ title: "Sucesso", description: "Cliente cadastrado com visita registrada!" });
       resetForm();
       onOpenChange(false);
       onSuccess();

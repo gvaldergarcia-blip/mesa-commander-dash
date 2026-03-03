@@ -161,6 +161,24 @@ export default function CustomerProfile() {
       });
     });
 
+    // Manual/direct visits
+    (historyData.visit_history || []).forEach((v: any) => {
+      const sourceLabels: Record<string, string> = {
+        registro_manual: 'Registro manual',
+        fila: 'Via fila',
+        reserva: 'Via reserva',
+        promocao: 'Promoção',
+        evento: 'Evento',
+        qr_checkin: 'QR Check-in',
+      };
+      events.push({
+        id: v.id, type: 'visit', status: 'completed',
+        date: v.date, source: v.source,
+        sourceLabel: sourceLabels[v.source] || v.source,
+        notes: v.notes,
+      });
+    });
+
     (historyData.promotion_history || []).forEach((p: any) => {
       events.push({
         id: p.id, type: 'promotion', status: 'sent',

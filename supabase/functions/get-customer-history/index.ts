@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
     let customerData = null;
     let customerEmail = email;
     let customerPhone = phone;
+    let customerId = customer_id;
 
     if (customer_id) {
       const { data: rcData } = await supabase
@@ -43,7 +44,8 @@ Deno.serve(async (req) => {
     if (!customerEmail && !customerPhone) {
       return new Response(JSON.stringify({
         customer: null, queue_history: [], reservation_history: [],
-        promotion_history: [], metrics: null, alerts: [], score: null, trend: null,
+        visit_history: [], promotion_history: [], metrics: null,
+        alerts: [], score: null, trend: null,
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -81,7 +83,26 @@ Deno.serve(async (req) => {
       cancel_actor: r.canceled_by || (r.canceled_at ? 'desconhecido' : null),
     }));
 
-    // 4. Fetch promotion history
+    // 4. Fetch manual/direct visits from customer_visits table
+    let visitData: any[] = [];
+    if (customerId) {
+      const { data: visits } = await supabase
+        .from('customer_visits')
+        .select('id, customer_id, restaurant_id, visit_date, source, notes, created_at')
+        .eq('restaurant_id', restaurant_id)
+        .eq('customer_id', customerId)
+        .order('visit_date', { ascending: false })
+        .limit(200);
+
+      visitData = (visits || []).map((v: any) => ({
+        id: v.id, type: 'visit',
+        date: v.visit_date, source: v.source,
+        notes: v.notes, created_at: v.created_at,
+        status: 'completed',
+      }));
+    }
+
+    // 5. Fetch promotion history
     let promotionHistory: any[] = [];
     if (customerEmail) {
       const { data: emailLogs } = await supabase
@@ -100,13 +121,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Fetch restaurant average wait time for comparison
-    const { data: allQueueEntries } = await supabase.rpc('get_customer_queue_history', {
-      p_restaurant_id: restaurant_id,
-      p_email: '', p_phone: ''
-    }).limit(500);
-    
-    // Actually let's query queue_entries directly for restaurant avg
+    // 6. Fetch restaurant average wait time for comparison
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data: recentQueues } = await supabase
       .from('queue_entries')
@@ -115,7 +130,6 @@ Deno.serve(async (req) => {
       .gte('created_at', ninetyDaysAgo)
       .limit(1000);
     
-    // Filter by restaurant (queue_entries -> queues -> restaurant_id)
     const { data: restaurantQueues } = await supabase
       .from('queues')
       .select('id')
@@ -139,19 +153,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6. Calculate comprehensive metrics
+    // 7. Calculate comprehensive metrics — VISITS as primary entity
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const ninetyDaysAgoDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-    const allVisits = [...queueData, ...reservationData];
-    const completedVisits = allVisits.filter((v: any) => v.status === 'seated' || v.status === 'completed');
-    const canceledVisits = allVisits.filter((v: any) => v.status === 'canceled');
-    const noShowVisits = allVisits.filter((v: any) => v.status === 'no_show');
+    // Queue/reservation interactions (for show rate, cancellations etc)
+    const allInteractions = [...queueData, ...reservationData];
+    const completedInteractions = allInteractions.filter((v: any) => v.status === 'seated' || v.status === 'completed');
+    const canceledVisits = allInteractions.filter((v: any) => v.status === 'canceled');
+    const noShowVisits = allInteractions.filter((v: any) => v.status === 'no_show');
     
+    // TOTAL VISITS = customer_visits (manual/all sources) as primary source
+    // customer_visits already includes visits created by queue/reservation triggers
+    const totalVisitsFromTable = visitData.length;
+    // Fallback: if no customer_visits records, use completed interactions
+    const totalCompletedVisits = totalVisitsFromTable > 0 ? totalVisitsFromTable : completedInteractions.length;
+
     // Cancellations by restaurant in last 30 days
-    const recentCancelsByRestaurant = allVisits.filter((v: any) => {
+    const recentCancelsByRestaurant = allInteractions.filter((v: any) => {
       if (v.status !== 'canceled') return false;
       const cancelDate = new Date(v.canceled_at || v.date || v.created_at);
       if (cancelDate < thirtyDaysAgo) return false;
@@ -174,57 +195,82 @@ Deno.serve(async (req) => {
       ? Math.round(customerWaitTimes.reduce((acc: number, q: any) => acc + q.wait_time, 0) / customerWaitTimes.length)
       : null;
 
-    // Average party size
-    const avgPartySize = completedVisits.length > 0
-      ? Math.round(completedVisits.reduce((acc: number, v: any) => acc + (v.party_size || 0), 0) / completedVisits.length)
+    // Average party size (from interactions that have party_size)
+    const avgPartySize = completedInteractions.length > 0
+      ? Math.round(completedInteractions.reduce((acc: number, v: any) => acc + (v.party_size || 0), 0) / completedInteractions.length)
       : 0;
 
-    // Preferred time
-    const hours = completedVisits.filter((v: any) => v.date).map((v: any) => new Date(v.date).getHours());
+    // Preferred time — use ALL visit sources
+    const allCompletedDates = [
+      ...completedInteractions.filter((v: any) => v.date).map((v: any) => v.date),
+      ...visitData.filter((v: any) => v.date).map((v: any) => v.date),
+    ];
+    const hours = allCompletedDates.map((d: string) => new Date(d).getHours());
     const hourCounts: Record<number, number> = {};
     hours.forEach((h: number) => { hourCounts[h] = (hourCounts[h] || 0) + 1; });
     const mostFrequentHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
     const preferredTime = mostFrequentHour ? `${mostFrequentHour[0]}:00` : null;
 
-    // Show rate: completed vs (completed + no_show + canceled)
-    const totalWithOutcome = completedVisits.length + noShowVisits.length + canceledVisits.length;
+    // Show rate: completed vs (completed + no_show + canceled) — from interactions only
+    const totalWithOutcome = completedInteractions.length + noShowVisits.length + canceledVisits.length;
     const showRate = totalWithOutcome > 0
-      ? Math.round((completedVisits.length / totalWithOutcome) * 100)
+      ? Math.round((completedInteractions.length / totalWithOutcome) * 100)
       : 100;
 
-    // Preferred channel
+    // Preferred channel — includes manual visits
     const queueCompleted = queueData.filter((q: any) => q.status === 'seated').length;
     const reservationCompleted = reservationData.filter((r: any) => r.status === 'completed').length;
-    const preferredChannel = queueCompleted >= reservationCompleted ? 'queue' : 'reservation';
+    const manualVisits = visitData.filter((v: any) => 
+      v.source === 'registro_manual' || v.source === 'promocao' || v.source === 'evento'
+    ).length;
+    
+    let preferredChannel = 'queue';
+    if (manualVisits > queueCompleted && manualVisits > reservationCompleted) preferredChannel = 'direct';
+    else if (reservationCompleted > queueCompleted) preferredChannel = 'reservation';
 
-    // Trend: visits last 30d vs prev 30d
-    const visitsLast30d = completedVisits.filter((v: any) => new Date(v.date) >= thirtyDaysAgo).length;
-    const visitsPrev30d = completedVisits.filter((v: any) => {
-      const d = new Date(v.date);
-      return d >= sixtyDaysAgo && d < thirtyDaysAgo;
-    }).length;
+    // Trend: visits last 30d vs prev 30d — use customer_visits as primary
+    const visitsLast30d = totalVisitsFromTable > 0
+      ? visitData.filter((v: any) => new Date(v.date) >= thirtyDaysAgo).length
+      : completedInteractions.filter((v: any) => new Date(v.date) >= thirtyDaysAgo).length;
+    
+    const visitsPrev30d = totalVisitsFromTable > 0
+      ? visitData.filter((v: any) => {
+          const d = new Date(v.date);
+          return d >= sixtyDaysAgo && d < thirtyDaysAgo;
+        }).length
+      : completedInteractions.filter((v: any) => {
+          const d = new Date(v.date);
+          return d >= sixtyDaysAgo && d < thirtyDaysAgo;
+        }).length;
+
     const trendDiff = visitsLast30d - visitsPrev30d;
     let trendDirection: 'up' | 'down' | 'stable' = 'stable';
     if (trendDiff >= 2) trendDirection = 'up';
     else if (trendDiff <= -2) trendDirection = 'down';
 
-    // Last visit date
-    const lastCompletedVisit = completedVisits
-      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    const lastVisitAt = lastCompletedVisit ? lastCompletedVisit.date : null;
+    // Last visit date — from ALL sources
+    const allVisitDates = [
+      ...completedInteractions.map((v: any) => v.date),
+      ...visitData.map((v: any) => v.date),
+    ].filter(Boolean).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    const lastVisitAt = allVisitDates[0] || null;
     const daysSinceLastVisit = lastVisitAt
       ? Math.floor((now.getTime() - new Date(lastVisitAt).getTime()) / (1000 * 60 * 60 * 24))
       : null;
 
-    // 7. Score MesaClik (0-100)
+    // 8. Score MesaClik (0-100) — based on ALL visits
     let score = 50;
     if (visitsLast30d >= 2) score += 10;
-    const visitsLast90d = completedVisits.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length;
+    const visitsLast90d = totalVisitsFromTable > 0
+      ? visitData.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length
+      : completedInteractions.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length;
     if (visitsLast90d >= 5) score += 10;
+    if (totalCompletedVisits >= 10) score += 5; // Bonus for loyal customers
     const noShowCount90d = noShowVisits.filter((v: any) => new Date(v.date || v.created_at) >= ninetyDaysAgoDate).length;
     if (noShowCount90d === 0) score += 10;
     if (noShowCount90d >= 2) score -= 15;
-    const cancelByCustomer90d = allVisits.filter((v: any) => {
+    const cancelByCustomer90d = allInteractions.filter((v: any) => {
       if (v.status !== 'canceled') return false;
       const d = new Date(v.canceled_at || v.date || v.created_at);
       if (d < ninetyDaysAgoDate) return false;
@@ -233,20 +279,20 @@ Deno.serve(async (req) => {
     }).length;
     if (cancelByCustomer90d >= 2) score -= 10;
     if (daysSinceLastVisit !== null && daysSinceLastVisit > 45) score -= 10;
+    if (daysSinceLastVisit !== null && daysSinceLastVisit <= 7) score += 5; // Recent visitor bonus
     if (customerData?.marketing_optin) score += 10;
     score = Math.max(0, Math.min(100, score));
 
     // Auto tags
     const autoTags: string[] = [];
-    if (score >= 80 || completedVisits.length >= 10) autoTags.push('VIP');
+    if (score >= 80 || totalCompletedVisits >= 10) autoTags.push('VIP');
     if (visitsLast30d >= 2) autoTags.push('Frequente');
     if ((daysSinceLastVisit !== null && daysSinceLastVisit > 60) || score <= 40) autoTags.push('Em risco');
     if (noShowCount90d >= 2) autoTags.push('Instável');
 
-    // 8. Build Alerts
+    // 9. Build Alerts
     const alerts: any[] = [];
 
-    // Alert: Cancellation by restaurant
     if (recentCancelsByRestaurant.length > 0) {
       alerts.push({
         id: 'cancel_by_restaurant',
@@ -256,7 +302,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Alert: Wait time above average
     if (lastWaitTime && restaurantAvgWaitTime > 0 && lastWaitTime > restaurantAvgWaitTime * 1.3) {
       alerts.push({
         id: 'high_wait_time',
@@ -266,7 +311,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Alert: No-show
     if (recentNoShows.length >= 3) {
       alerts.push({
         id: 'no_show_critical',
@@ -283,7 +327,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Alert: Churn risk
     if (daysSinceLastVisit !== null && daysSinceLastVisit > 60) {
       alerts.push({
         id: 'churn_critical',
@@ -300,8 +343,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 9. Monthly evolution (last 12 months)
-    const monthlyEvolution: { month: string; queue: number; reservation: number }[] = [];
+    // 10. Monthly evolution (last 12 months) — includes manual visits
+    const monthlyEvolution: { month: string; queue: number; reservation: number; manual: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = monthDate.toISOString().slice(0, 7);
@@ -313,16 +356,21 @@ Deno.serve(async (req) => {
         if (!r.date) return false;
         return String(r.date).startsWith(monthKey) && r.status === 'completed';
       }).length;
+      const manualInMonth = visitData.filter((v: any) => {
+        if (!v.date) return false;
+        return String(v.date).startsWith(monthKey);
+      }).length;
       monthlyEvolution.push({
         month: monthDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
         queue: queueInMonth,
-        reservation: reservationInMonth
+        reservation: reservationInMonth,
+        manual: manualInMonth,
       });
     }
 
-    // 10. Preferred day of week
+    // 11. Preferred day of week — from ALL visits
     const dayOfWeekCounts: Record<number, number> = {};
-    completedVisits.forEach((v: any) => {
+    [...completedInteractions, ...visitData].forEach((v: any) => {
       if (!v.date) return;
       const dow = new Date(v.date).getDay();
       dayOfWeekCounts[dow] = (dayOfWeekCounts[dow] || 0) + 1;
@@ -331,10 +379,22 @@ Deno.serve(async (req) => {
     const preferredDay = Object.entries(dayOfWeekCounts).sort((a, b) => b[1] - a[1])[0];
     const preferredDayName = preferredDay ? dayNames[parseInt(preferredDay[0])] : null;
 
+    // Visit source breakdown
+    const visitSourceBreakdown = {
+      fila: queueCompleted,
+      reserva: reservationCompleted,
+      manual: visitData.filter((v: any) => v.source === 'registro_manual').length,
+      promocao: visitData.filter((v: any) => v.source === 'promocao').length,
+      evento: visitData.filter((v: any) => v.source === 'evento').length,
+      qr_checkin: visitData.filter((v: any) => v.source === 'qr_checkin').length,
+    };
+
     const metrics = {
-      total_visits: completedVisits.length,
+      total_visits: totalCompletedVisits,
       queue_completed: queueCompleted,
       reservations_completed: reservationCompleted,
+      manual_visits: manualVisits,
+      visit_source_breakdown: visitSourceBreakdown,
       canceled_count: canceledVisits.length,
       no_show_count: noShowVisits.length,
       no_show_count_60d: recentNoShows.length,
@@ -354,13 +414,14 @@ Deno.serve(async (req) => {
       days_since_last_visit: daysSinceLastVisit,
     };
 
-    const allHistory = [...queueData, ...reservationData, ...promotionHistory]
+    const allHistory = [...queueData, ...reservationData, ...visitData, ...promotionHistory]
       .sort((a, b) => new Date(b.date || b.created_at || 0).getTime() - new Date(a.date || a.created_at || 0).getTime());
 
     return new Response(JSON.stringify({
       customer: customerData,
       queue_history: queueData,
       reservation_history: reservationData,
+      visit_history: visitData,
       promotion_history: promotionHistory,
       all_history: allHistory,
       metrics,

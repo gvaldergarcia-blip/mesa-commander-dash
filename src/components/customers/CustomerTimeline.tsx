@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   CheckCircle2, XCircle, AlertTriangle, Send, Clock,
-  Calendar, Users as UsersIcon, Filter
+  Calendar, Users as UsersIcon, Filter, ClipboardCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 type TimelineEvent = {
   id: string;
-  type: string; // 'queue' | 'reservation' | 'promotion'
+  type: string; // 'queue' | 'reservation' | 'promotion' | 'visit'
   status: string;
   date: string;
   party_size?: number;
@@ -18,9 +18,11 @@ type TimelineEvent = {
   cancel_actor?: string;
   subject?: string;
   source?: string;
+  sourceLabel?: string;
+  notes?: string;
 };
 
-type FilterType = 'all' | 'queue' | 'reservation' | 'promotion' | 'canceled';
+type FilterType = 'all' | 'queue' | 'reservation' | 'promotion' | 'visit' | 'canceled';
 
 const eventConfig: Record<string, {
   icon: typeof CheckCircle2;
@@ -55,9 +57,13 @@ const eventConfig: Record<string, {
   promotion_sent: {
     icon: Send, color: 'text-purple-500', bgColor: 'bg-purple-500/10', label: 'Promoção enviada',
   },
+  visit_completed: {
+    icon: ClipboardCheck, color: 'text-primary', bgColor: 'bg-primary/10', label: 'Visita registrada',
+  },
 };
 
 function getEventKey(event: TimelineEvent): string {
+  if (event.type === 'visit') return 'visit_completed';
   if (event.type === 'promotion') return 'promotion_sent';
   if (event.status === 'no_show') return 'no_show';
   if (event.status === 'canceled') {
@@ -90,6 +96,7 @@ export function CustomerTimeline({ events }: CustomerTimelineProps) {
     if (filter === 'queue') return e.type === 'queue';
     if (filter === 'reservation') return e.type === 'reservation';
     if (filter === 'promotion') return e.type === 'promotion';
+    if (filter === 'visit') return e.type === 'visit';
     if (filter === 'canceled') return e.status === 'canceled' || e.status === 'no_show';
     return true;
   });
@@ -108,13 +115,14 @@ export function CustomerTimeline({ events }: CustomerTimelineProps) {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <CardTitle className="text-base">Histórico de Interações</CardTitle>
-            <CardDescription>Fila, reservas e promoções</CardDescription>
+            <CardDescription>Fila, reservas, visitas e promoções</CardDescription>
           </div>
           <div className="flex gap-1 flex-wrap">
             {([
               { key: 'all', label: 'Todos' },
               { key: 'queue', label: '🎫 Fila' },
               { key: 'reservation', label: '📅 Reserva' },
+              { key: 'visit', label: '📋 Visitas' },
               { key: 'promotion', label: '✉️ Promo' },
               { key: 'canceled', label: '❌ Cancelamentos' },
             ] as { key: FilterType; label: string }[]).map(f => (
@@ -160,7 +168,9 @@ export function CustomerTimeline({ events }: CustomerTimelineProps) {
                   )}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={cn("text-sm font-medium", config.color)}>
-                        {config.label}
+                        {event.type === 'visit' && event.sourceLabel
+                          ? `${config.label} — ${event.sourceLabel}`
+                          : config.label}
                       </span>
                       {event.party_size && (
                         <Badge variant="secondary" className="text-[10px] gap-1 h-5">
@@ -180,6 +190,11 @@ export function CustomerTimeline({ events }: CustomerTimelineProps) {
                         </span>
                       )}
                     </div>
+                    {event.notes && (
+                      <p className="text-xs text-muted-foreground mt-0.5 italic">
+                        {event.notes}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {formatDateTime(event.date)}
                     </p>

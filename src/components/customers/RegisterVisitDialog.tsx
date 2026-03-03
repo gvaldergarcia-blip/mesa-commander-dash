@@ -355,6 +355,8 @@ export function RegisterVisitDialog({
                   <SelectItem value="registro_manual">Registro manual</SelectItem>
                   <SelectItem value="fila">Fila</SelectItem>
                   <SelectItem value="reserva">Reserva</SelectItem>
+                  <SelectItem value="promocao">Promoção</SelectItem>
+                  <SelectItem value="evento">Evento</SelectItem>
                   <SelectItem value="qr_checkin">QR Check-in</SelectItem>
                 </SelectContent>
               </Select>
