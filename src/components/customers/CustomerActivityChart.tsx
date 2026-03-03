@@ -9,6 +9,7 @@ interface MonthData {
   month: string;
   queue: number;
   reservation: number;
+  manual?: number;
 }
 
 interface CustomerActivityChartProps {
@@ -21,13 +22,14 @@ export function CustomerActivityChart({ monthlyEvolution }: CustomerActivityChar
   const [period, setPeriod] = useState<PeriodFilter>('12m');
   const [showQueue, setShowQueue] = useState(true);
   const [showReservation, setShowReservation] = useState(true);
+  const [showManual, setShowManual] = useState(true);
 
   const filteredData = useMemo(() => {
     const sliceCount = period === '12m' ? 12 : period === '6m' ? 6 : 3;
     return monthlyEvolution.slice(-sliceCount);
   }, [monthlyEvolution, period]);
 
-  const hasData = filteredData.some(d => d.queue > 0 || d.reservation > 0);
+  const hasData = filteredData.some(d => d.queue > 0 || d.reservation > 0 || (d.manual || 0) > 0);
 
   if (!hasData) {
     return (
@@ -74,7 +76,7 @@ export function CustomerActivityChart({ monthlyEvolution }: CustomerActivityChar
               >
                 🎫 Fila
               </Badge>
-              <Badge
+               <Badge
                 variant="outline"
                 className={cn(
                   "cursor-pointer text-[10px]",
@@ -83,6 +85,16 @@ export function CustomerActivityChart({ monthlyEvolution }: CustomerActivityChar
                 onClick={() => setShowReservation(!showReservation)}
               >
                 📅 Reserva
+              </Badge>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "cursor-pointer text-[10px]",
+                  showManual ? "bg-[#10b981]/15 text-[#10b981] border-[#10b981]/30" : "opacity-50"
+                )}
+                onClick={() => setShowManual(!showManual)}
+              >
+                📋 Visitas
               </Badge>
             </div>
           </div>
@@ -104,6 +116,7 @@ export function CustomerActivityChart({ monthlyEvolution }: CustomerActivityChar
             />
             {showQueue && <Bar dataKey="queue" name="Fila" fill="#f97316" radius={[3, 3, 0, 0]} />}
             {showReservation && <Bar dataKey="reservation" name="Reserva" fill="#3b82f6" radius={[3, 3, 0, 0]} />}
+            {showManual && <Bar dataKey="manual" name="Visitas" fill="#10b981" radius={[3, 3, 0, 0]} />}
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

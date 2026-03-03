@@ -259,17 +259,15 @@ Deno.serve(async (req) => {
       ? Math.floor((now.getTime() - new Date(lastVisitAt).getTime()) / (1000 * 60 * 60 * 24))
       : null;
 
-    // 8. Score MesaClik (0-100) — based on ALL visits
-    let score = 50;
-    if (visitsLast30d >= 2) score += 10;
+    // 8. Score MesaClik (0-100) — REALISTIC scoring based on ALL visits
+    // Start at 30 (baseline for any known customer)
+    let score = 30;
+
     const visitsLast90d = totalVisitsFromTable > 0
       ? visitData.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length
       : completedInteractions.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length;
-    if (visitsLast90d >= 5) score += 10;
-    if (totalCompletedVisits >= 10) score += 5; // Bonus for loyal customers
+
     const noShowCount90d = noShowVisits.filter((v: any) => new Date(v.date || v.created_at) >= ninetyDaysAgoDate).length;
-    if (noShowCount90d === 0) score += 10;
-    if (noShowCount90d >= 2) score -= 15;
     const cancelByCustomer90d = allInteractions.filter((v: any) => {
       if (v.status !== 'canceled') return false;
       const d = new Date(v.canceled_at || v.date || v.created_at);
@@ -277,10 +275,64 @@ Deno.serve(async (req) => {
       const actor = (v.cancel_actor || '').toLowerCase();
       return actor === 'customer' || actor === 'cliente' || actor === '';
     }).length;
-    if (cancelByCustomer90d >= 2) score -= 10;
-    if (daysSinceLastVisit !== null && daysSinceLastVisit > 45) score -= 10;
-    if (daysSinceLastVisit !== null && daysSinceLastVisit <= 7) score += 5; // Recent visitor bonus
-    if (customerData?.marketing_optin) score += 10;
+
+    // === POSITIVE SIGNALS ===
+    // Recência (até +20pts)
+    if (daysSinceLastVisit !== null) {
+      if (daysSinceLastVisit <= 3) score += 20;
+      else if (daysSinceLastVisit <= 7) score += 15;
+      else if (daysSinceLastVisit <= 14) score += 10;
+      else if (daysSinceLastVisit <= 30) score += 5;
+    }
+
+    // Frequência recente (até +15pts)
+    if (visitsLast30d >= 4) score += 15;
+    else if (visitsLast30d >= 2) score += 10;
+    else if (visitsLast30d >= 1) score += 5;
+
+    // Frequência 90d (até +10pts)
+    if (visitsLast90d >= 8) score += 10;
+    else if (visitsLast90d >= 4) score += 7;
+    else if (visitsLast90d >= 2) score += 3;
+
+    // Fidelidade total (até +10pts)
+    if (totalCompletedVisits >= 20) score += 10;
+    else if (totalCompletedVisits >= 10) score += 7;
+    else if (totalCompletedVisits >= 5) score += 4;
+
+    // Comparecimento confiável (até +5pts)
+    if (showRate >= 95 && totalWithOutcome >= 3) score += 5;
+    else if (showRate >= 80 && totalWithOutcome >= 2) score += 3;
+
+    // Marketing opt-in (+5pts)
+    if (customerData?.marketing_optin) score += 5;
+
+    // Tendência positiva (+5pts)
+    if (trendDirection === 'up') score += 5;
+
+    // === NEGATIVE SIGNALS ===
+    // Inatividade (até -20pts)
+    if (daysSinceLastVisit !== null) {
+      if (daysSinceLastVisit > 90) score -= 20;
+      else if (daysSinceLastVisit > 60) score -= 15;
+      else if (daysSinceLastVisit > 45) score -= 10;
+    }
+
+    // No-shows (até -15pts)
+    if (noShowCount90d >= 3) score -= 15;
+    else if (noShowCount90d >= 2) score -= 10;
+    else if (noShowCount90d >= 1) score -= 5;
+
+    // Cancelamentos pelo cliente (até -10pts)
+    if (cancelByCustomer90d >= 3) score -= 10;
+    else if (cancelByCustomer90d >= 2) score -= 7;
+
+    // Tendência negativa (-5pts)
+    if (trendDirection === 'down') score -= 5;
+
+    // Cliente sem nenhuma visita completada
+    if (totalCompletedVisits === 0) score = Math.min(score, 20);
+
     score = Math.max(0, Math.min(100, score));
 
     // Auto tags
