@@ -1,4 +1,5 @@
-import { AlertTriangle, AlertCircle, Info, Send } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, AlertCircle, Info, Send, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,15 @@ interface CustomerAlertsProps {
 }
 
 export function CustomerAlerts({ alerts, onSendPromotion, onViewEvents }: CustomerAlertsProps) {
-  if (!alerts || alerts.length === 0) return null;
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+
+  const visibleAlerts = alerts.filter((a) => !dismissedIds.has(a.id));
+
+  if (!visibleAlerts || visibleAlerts.length === 0) return null;
+
+  const handleDismiss = (id: string) => {
+    setDismissedIds((prev) => new Set(prev).add(id));
+  };
 
   return (
     <div className="space-y-2">
@@ -46,7 +55,7 @@ export function CustomerAlerts({ alerts, onSendPromotion, onViewEvents }: Custom
         Alertas Importantes
       </h3>
       <div className="space-y-2">
-        {alerts.map((alert) => {
+        {visibleAlerts.map((alert) => {
           const config = severityConfig[alert.severity];
           const Icon = config.icon;
 
@@ -54,7 +63,7 @@ export function CustomerAlerts({ alerts, onSendPromotion, onViewEvents }: Custom
             <div
               key={alert.id}
               className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border",
+                "flex items-start gap-3 p-3 rounded-lg border transition-opacity",
                 config.className
               )}
             >
@@ -70,6 +79,15 @@ export function CustomerAlerts({ alerts, onSendPromotion, onViewEvents }: Custom
                     Enviar promoção
                   </Button>
                 )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 opacity-60 hover:opacity-100"
+                  onClick={() => handleDismiss(alert.id)}
+                  title="Dispensar alerta"
+                >
+                  <Check className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           );
