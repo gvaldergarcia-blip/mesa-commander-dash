@@ -779,42 +779,46 @@ function SettingsContent() {
                 Privacidade, LGPD e Segurança
               </CardTitle>
               <CardDescription>
-                Configurações de privacidade e proteção de dados
+                Documentos legais e configurações de proteção de dados
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Em desenvolvimento</p>
-                    <p className="text-sm text-muted-foreground">
-                      Esta funcionalidade estará disponível em breve
-                    </p>
+              <div className="space-y-4">
+                <div className="p-4 border border-border rounded-lg bg-background">
+                  <h4 className="font-medium mb-2">Termos de Uso</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Contrato de prestação de serviços SaaS, regras operacionais, SLA e limitação de responsabilidade.
+                  </p>
+                  <Button variant="link" className="p-0 h-auto" asChild>
+                    <a href="/legal/termos-de-uso" target="_blank" rel="noopener noreferrer">
+                      Ver Termos de Uso →
+                    </a>
+                  </Button>
+                </div>
+
+                <div className="p-4 border border-border rounded-lg bg-background">
+                  <h4 className="font-medium mb-2">Política de Privacidade (LGPD)</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Como o MESACLIK coleta, utiliza, armazena e protege dados pessoais em conformidade com a LGPD.
+                  </p>
+                  <Button variant="link" className="p-0 h-auto" asChild>
+                    <a href="/legal/politica-de-privacidade" target="_blank" rel="noopener noreferrer">
+                      Ver Política de Privacidade →
+                    </a>
+                  </Button>
+                </div>
+
+                <div className="p-4 border border-border rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <Info className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium text-sm">Conformidade LGPD</p>
+                      <p className="text-sm text-muted-foreground">
+                        O restaurante atua como <strong>Controlador</strong> dos dados e o MESACLIK como <strong>Operador</strong>.
+                        Comunicações de marketing exigem consentimento expresso do cliente.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <Badge variant="secondary">Em breve</Badge>
-              </div>
-
-              <div className="space-y-4 opacity-50">
-                <div className="p-4 border rounded-lg bg-background">
-                  <h4 className="font-medium mb-2">Proteção de Dados (LGPD)</h4>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Todos os dados dos seus clientes são protegidos conforme a Lei Geral de Proteção de Dados.
-                  </p>
-                  <Button variant="link" className="p-0 h-auto" disabled>
-                    Ver política de privacidade →
-                  </Button>
-                </div>
-
-                <div className="p-4 border rounded-lg bg-background">
-                  <h4 className="font-medium mb-2">Segurança</h4>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Suas informações são criptografadas e armazenadas com segurança.
-                  </p>
-                  <Button variant="link" className="p-0 h-auto" disabled>
-                    Ver documentação de segurança →
-                  </Button>
                 </div>
               </div>
             </CardContent>
