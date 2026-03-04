@@ -205,6 +205,54 @@ export function useFilaWeb() {
         });
       }
 
+      // Envio de email da fila para o fluxo web OTP (não bloqueia o fluxo principal)
+      if (result.success && !result.already_exists) {
+        try {
+          const [
+            { data: userData },
+            { data: restaurantData },
+            { data: queueStatusData },
+          ] = await Promise.all([
+            supabase.auth.getUser(),
+            supabase
+              .from('restaurants')
+              .select('name')
+              .eq('id', restauranteId)
+              .maybeSingle(),
+            supabase.rpc('get_my_queue_status', { p_restaurante_id: restauranteId }),
+          ]);
+
+          const userEmail = userData?.user?.email;
+          const restaurantName = restaurantData?.name;
+          const customerName =
+            (userData?.user?.user_metadata?.full_name as string | undefined) ||
+            (userData?.user?.user_metadata?.name as string | undefined);
+          const queueStatus = queueStatusData as QueueStatus | null;
+          const queueUrl = `${window.location.origin}/fila/final?restauranteId=${restauranteId}`;
+
+          if (userEmail && restaurantName) {
+            const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
+              body: {
+                email: userEmail,
+                customer_name: customerName,
+                restaurant_name: restaurantName,
+                position: queueStatus?.position ?? 0,
+                party_size: partySize,
+                size_group: `${partySize} ${partySize === 1 ? 'pessoa' : 'pessoas'}`,
+                type: 'entry',
+                queue_url: queueUrl,
+              },
+            });
+
+            if (emailError) {
+              console.warn('Erro ao enviar email da fila web (não crítico):', emailError);
+            }
+          }
+        } catch (emailError) {
+          console.warn('Falha no envio de email da fila web (não crítico):', emailError);
+        }
+      }
+
       setLoading(false);
       return result;
     } catch (error) {

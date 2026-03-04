@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface PromotionData {
   to_email: string;
@@ -27,13 +28,19 @@ interface SendPromotionResult {
 export function useSendPromotion() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
+  const { restaurant } = useRestaurant();
 
   const sendPromotion = useCallback(async (data: PromotionData): Promise<SendPromotionResult> => {
     setSending(true);
     
     try {
+      const normalizedData: PromotionData = {
+        ...data,
+        restaurant_name: data.restaurant_name?.trim() || restaurant?.name || 'MesaClik',
+      };
+
       const { data: response, error } = await supabase.functions.invoke('send-promotion-direct', {
-        body: data,
+        body: normalizedData,
       });
 
       if (error) {
@@ -69,7 +76,7 @@ export function useSendPromotion() {
     } finally {
       setSending(false);
     }
-  }, [toast]);
+  }, [toast, restaurant?.name]);
 
   const sendPromotionToMultiple = useCallback(async (
     recipients: { email: string; name?: string }[],
@@ -80,10 +87,15 @@ export function useSendPromotion() {
     let failed = 0;
 
     try {
+      const normalizedPromotionData = {
+        ...promotionData,
+        restaurant_name: promotionData.restaurant_name?.trim() || restaurant?.name || 'MesaClik',
+      };
+
       for (const recipient of recipients) {
         const result = await supabase.functions.invoke('send-promotion-direct', {
           body: {
-            ...promotionData,
+            ...normalizedPromotionData,
             to_email: recipient.email,
             to_name: recipient.name,
           },
@@ -114,7 +126,7 @@ export function useSendPromotion() {
     } finally {
       setSending(false);
     }
-  }, [toast]);
+  }, [toast, restaurant?.name]);
 
   return {
     sendPromotion,
