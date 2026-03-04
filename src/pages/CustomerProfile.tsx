@@ -514,6 +514,8 @@ export default function CustomerProfile() {
               cta_text: data.ctaText,
               cta_url: data.ctaUrl,
               image_url: data.imageUrl,
+              restaurant_name: restaurant?.name,
+              site_url: window.location.origin,
             });
             setPromotionDialogOpen(false);
           }}

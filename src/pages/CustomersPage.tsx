@@ -304,6 +304,7 @@ function CustomersPageContent() {
               cta_text: data.ctaText,
               cta_url: data.ctaUrl,
               image_url: data.imageUrl,
+              restaurant_name: restaurant?.name,
               unsubscribe_token: unsubToken,
               site_url: window.location.origin,
             });
