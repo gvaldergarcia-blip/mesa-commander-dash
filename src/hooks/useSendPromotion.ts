@@ -28,13 +28,19 @@ interface SendPromotionResult {
 export function useSendPromotion() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
+  const { restaurant } = useRestaurant();
 
   const sendPromotion = useCallback(async (data: PromotionData): Promise<SendPromotionResult> => {
     setSending(true);
     
     try {
+      const normalizedData: PromotionData = {
+        ...data,
+        restaurant_name: data.restaurant_name?.trim() || restaurant?.name || 'MesaClik',
+      };
+
       const { data: response, error } = await supabase.functions.invoke('send-promotion-direct', {
-        body: data,
+        body: normalizedData,
       });
 
       if (error) {
