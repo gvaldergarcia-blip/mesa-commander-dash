@@ -13,7 +13,9 @@ async function sendEmailViaResend(
   to: string,
   subject: string,
   html: string,
-  from: string
+  from: string,
+  text?: string,
+  headers?: Record<string, string>
 ): Promise<{ id?: string; error?: string }> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -26,6 +28,8 @@ async function sendEmailViaResend(
       to: [to],
       subject,
       html,
+      ...(text ? { text } : {}),
+      ...(headers ? { headers } : {}),
     }),
   });
 
@@ -315,12 +319,40 @@ const handler = async (req: Request): Promise<Response> => {
 
     const fromAddress = `${requestData.restaurant_name} <${RESEND_FROM_EMAIL}>`;
     console.log('Sending from:', fromAddress);
+
+    // Texto plano para evitar filtro de spam do Gmail
+    const textBody = [
+      requestData.type === 'entry'
+        ? `Você está na fila do ${requestData.restaurant_name}!`
+        : requestData.type === 'called'
+        ? `É a sua vez no ${requestData.restaurant_name}!`
+        : `Atualização da fila - ${requestData.restaurant_name}`,
+      '',
+      requestData.customer_name ? `Olá ${requestData.customer_name}!` : 'Olá!',
+      requestData.type === 'entry'
+        ? `Sua posição: ${requestData.position || '-'}`
+        : requestData.type === 'called'
+        ? 'Dirija-se ao balcão agora!'
+        : `Posição atualizada: ${requestData.position || '-'}`,
+      '',
+      requestData.queue_url ? `Acompanhe em tempo real: ${requestData.queue_url}` : '',
+      '',
+      `Este e-mail foi enviado pelo ${requestData.restaurant_name}`,
+    ].filter(Boolean).join('\n');
+
+    // Headers transacionais para evitar Spam (Gmail precisa disso)
+    const emailHeaders: Record<string, string> = {
+      "Reply-To": "suporte@mesaclik.com.br",
+      "X-Entity-Ref-ID": crypto.randomUUID(),
+    };
     
     const emailResponse = await sendEmailViaResend(
       requestData.email,
       subject,
       html,
-      fromAddress
+      fromAddress,
+      textBody,
+      emailHeaders
     );
 
     if (emailResponse.error) {

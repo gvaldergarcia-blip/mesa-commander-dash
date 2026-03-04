@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
+const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "noreply@mesaclik.com.br";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +26,9 @@ async function sendEmailViaResend(
   to: string,
   subject: string,
   html: string,
-  from: string
+  from: string,
+  text?: string,
+  headers?: Record<string, string>
 ): Promise<{ id?: string; error?: string }> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -39,6 +41,8 @@ async function sendEmailViaResend(
       to: [to],
       subject,
       html,
+      ...(text ? { text } : {}),
+      ...(headers ? { headers } : {}),
     }),
   });
 
@@ -301,11 +305,21 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = `${requestData.restaurant_name} <${RESEND_FROM_EMAIL}>`;
     console.log('Sending from:', fromAddress);
     
+    // Texto plano + headers transacionais para deliverability
+    const textBody = `Reserva ${requestData.type === 'confirmation' ? 'confirmada' : requestData.type === 'canceled' ? 'cancelada' : 'lembrete'} - ${requestData.restaurant_name}\n\n${requestData.customer_name ? `Olá ${requestData.customer_name}!` : 'Olá!'}\n\nData: ${requestData.reservation_date} às ${requestData.reservation_time}\nPessoas: ${requestData.party_size}\n\nAcompanhe: ${requestData.reservation_url}\n\nEste e-mail foi enviado pelo ${requestData.restaurant_name}`;
+
+    const emailHeaders: Record<string, string> = {
+      "Reply-To": "suporte@mesaclik.com.br",
+      "X-Entity-Ref-ID": crypto.randomUUID(),
+    };
+
     const emailResponse = await sendEmailViaResend(
       requestData.email,
       subject,
       html,
-      fromAddress
+      fromAddress,
+      textBody,
+      emailHeaders
     );
 
     if (emailResponse.error) {
