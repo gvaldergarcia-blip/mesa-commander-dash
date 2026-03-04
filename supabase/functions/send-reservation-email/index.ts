@@ -305,11 +305,21 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = `${requestData.restaurant_name} <${RESEND_FROM_EMAIL}>`;
     console.log('Sending from:', fromAddress);
     
+    // Texto plano + headers transacionais para deliverability
+    const textBody = `Reserva ${requestData.type === 'confirmation' ? 'confirmada' : requestData.type === 'canceled' ? 'cancelada' : 'lembrete'} - ${requestData.restaurant_name}\n\n${requestData.customer_name ? `Olá ${requestData.customer_name}!` : 'Olá!'}\n\nData: ${requestData.reservation_date} às ${requestData.reservation_time}\nPessoas: ${requestData.party_size}\n\nAcompanhe: ${requestData.reservation_url}\n\nEste e-mail foi enviado pelo ${requestData.restaurant_name}`;
+
+    const emailHeaders: Record<string, string> = {
+      "Reply-To": "suporte@mesaclik.com.br",
+      "X-Entity-Ref-ID": crypto.randomUUID(),
+    };
+
     const emailResponse = await sendEmailViaResend(
       requestData.email,
       subject,
       html,
-      fromAddress
+      fromAddress,
+      textBody,
+      emailHeaders
     );
 
     if (emailResponse.error) {
