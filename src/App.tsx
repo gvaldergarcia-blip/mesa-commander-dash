@@ -115,8 +115,11 @@ const App = () => {
         <Route path="/reserva/final" element={<ReservaFinal />} />
         
         {/* Rotas públicas legais (sem DashboardLayout) */}
-        <Route path="/termos" element={<TermosDeUso />} />
-        <Route path="/privacidade" element={<PoliticaPrivacidade />} />
+        <Route path="/legal/termos-de-uso" element={<TermosDeUso />} />
+        <Route path="/legal/politica-de-privacidade" element={<PoliticaPrivacidade />} />
+        {/* Redirect rotas antigas */}
+        <Route path="/termos" element={<Navigate to="/legal/termos-de-uso" replace />} />
+        <Route path="/privacidade" element={<Navigate to="/legal/politica-de-privacidade" replace />} />
 
         {/* Rotas públicas marketing (sem DashboardLayout) */}
         <Route path="/marketing/optin" element={<MarketingOptIn />} />
