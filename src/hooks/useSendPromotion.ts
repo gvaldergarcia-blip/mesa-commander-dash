@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface PromotionData {
   to_email: string;
