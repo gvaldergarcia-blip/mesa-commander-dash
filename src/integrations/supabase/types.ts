@@ -2936,13 +2936,15 @@ export type Database = {
         Args: { _restaurant_id: string }
         Returns: boolean
       }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_member_of: { Args: { p_restaurant_id: string }; Returns: boolean }
       is_member_or_admin: {
