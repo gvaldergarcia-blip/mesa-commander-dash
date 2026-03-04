@@ -260,7 +260,7 @@ export function useFilaWeb() {
       setLoading(false);
       return { success: false, error: 'Erro inesperado' };
     }
-  }, [toast, getRestaurantName]);
+  }, [toast]);
 
   /**
    * Busca status atual na fila
