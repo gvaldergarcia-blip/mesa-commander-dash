@@ -21,7 +21,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 function CustomersPageContent() {
   const navigate = useNavigate();
-  const { restaurantId } = useRestaurant();
+  const { restaurantId, restaurant } = useRestaurant();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
@@ -304,6 +304,7 @@ function CustomersPageContent() {
               cta_text: data.ctaText,
               cta_url: data.ctaUrl,
               image_url: data.imageUrl,
+              restaurant_name: restaurant?.name,
               unsubscribe_token: unsubToken,
               site_url: window.location.origin,
             });

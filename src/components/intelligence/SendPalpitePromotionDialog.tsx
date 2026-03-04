@@ -30,7 +30,7 @@ export function SendPalpitePromotionDialog({
   palpite,
   onSent,
 }: SendPalpitePromotionDialogProps) {
-  const { restaurantId } = useRestaurant();
+  const { restaurantId, restaurant } = useRestaurant();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [couponCode, setCouponCode] = useState('');
@@ -66,7 +66,7 @@ export function SendPalpitePromotionDialog({
           message,
           coupon_code: couponCode || undefined,
           expires_at: expiresAt.toISOString(),
-          restaurant_name: 'MesaClik',
+          restaurant_name: restaurant?.name || 'MesaClik',
         },
       });
 
