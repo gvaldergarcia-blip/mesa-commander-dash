@@ -76,7 +76,7 @@ export function useSendPromotion() {
     } finally {
       setSending(false);
     }
-  }, [toast]);
+  }, [toast, restaurant?.name]);
 
   const sendPromotionToMultiple = useCallback(async (
     recipients: { email: string; name?: string }[],
@@ -126,7 +126,7 @@ export function useSendPromotion() {
     } finally {
       setSending(false);
     }
-  }, [toast]);
+  }, [toast, restaurant?.name]);
 
   return {
     sendPromotion,
