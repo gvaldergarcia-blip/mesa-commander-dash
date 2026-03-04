@@ -13,7 +13,9 @@ async function sendEmailViaResend(
   to: string,
   subject: string,
   html: string,
-  from: string
+  from: string,
+  text?: string,
+  headers?: Record<string, string>
 ): Promise<{ id?: string; error?: string }> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -26,6 +28,8 @@ async function sendEmailViaResend(
       to: [to],
       subject,
       html,
+      ...(text ? { text } : {}),
+      ...(headers ? { headers } : {}),
     }),
   });
 
