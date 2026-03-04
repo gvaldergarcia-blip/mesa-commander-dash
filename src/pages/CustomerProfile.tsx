@@ -41,7 +41,7 @@ export default function CustomerProfile() {
   const { customerId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { restaurantId, userRole } = useRestaurant();
+  const { restaurantId, userRole, restaurant } = useRestaurant();
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
   const isAdmin = userRole === 'admin';
 

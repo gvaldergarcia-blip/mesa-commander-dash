@@ -21,7 +21,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 function CustomersPageContent() {
   const navigate = useNavigate();
-  const { restaurantId } = useRestaurant();
+  const { restaurantId, restaurant } = useRestaurant();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerFilter>("all");
