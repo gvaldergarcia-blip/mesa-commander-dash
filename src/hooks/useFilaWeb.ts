@@ -210,15 +210,20 @@ export function useFilaWeb() {
         try {
           const [
             { data: userData },
-            restaurantName,
+            { data: restaurantData },
             { data: queueStatusData },
           ] = await Promise.all([
             supabase.auth.getUser(),
-            getRestaurantName(restauranteId),
+            supabase
+              .from('restaurants')
+              .select('name')
+              .eq('id', restauranteId)
+              .maybeSingle(),
             supabase.rpc('get_my_queue_status', { p_restaurante_id: restauranteId }),
           ]);
 
           const userEmail = userData?.user?.email;
+          const restaurantName = restaurantData?.name;
           const customerName =
             (userData?.user?.user_metadata?.full_name as string | undefined) ||
             (userData?.user?.user_metadata?.name as string | undefined);
