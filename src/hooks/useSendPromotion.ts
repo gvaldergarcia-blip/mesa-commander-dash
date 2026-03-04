@@ -87,10 +87,15 @@ export function useSendPromotion() {
     let failed = 0;
 
     try {
+      const normalizedPromotionData = {
+        ...promotionData,
+        restaurant_name: promotionData.restaurant_name?.trim() || restaurant?.name || 'MesaClik',
+      };
+
       for (const recipient of recipients) {
         const result = await supabase.functions.invoke('send-promotion-direct', {
           body: {
-            ...promotionData,
+            ...normalizedPromotionData,
             to_email: recipient.email,
             to_name: recipient.name,
           },
