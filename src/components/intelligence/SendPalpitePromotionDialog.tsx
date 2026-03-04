@@ -66,7 +66,7 @@ export function SendPalpitePromotionDialog({
           message,
           coupon_code: couponCode || undefined,
           expires_at: expiresAt.toISOString(),
-          restaurant_name: 'MesaClik',
+          restaurant_name: restaurant?.name || 'MesaClik',
         },
       });
 
