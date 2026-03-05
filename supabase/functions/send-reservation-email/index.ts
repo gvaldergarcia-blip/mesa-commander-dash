@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const RESEND_FROM_TRANSACTIONAL = Deno.env.get("RESEND_FROM_TRANSACTIONAL") || "notify@mesaclik.com.br";
+const RESEND_FROM_TRANSACTIONAL =
+  Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
+  "notify@mesaclik.com.br";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -192,15 +195,13 @@ const handler = async (req: Request): Promise<Response> => {
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
     const senderName = getSafeSenderName(requestData.restaurant_name);
-    const fromAddress = `Notificacoes MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
+    const fromAddress = `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
 
-    // Headers estritamente transacionais (evita classificação de marketing)
+    // Headers transacionais enxutos (menos risco de junk no Hotmail)
     const emailHeaders: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
       "X-Entity-Ref-ID": crypto.randomUUID(),
-      "X-Priority": "1",
-      "X-MSMail-Priority": "High",
-      "Importance": "high",
+      "Auto-Submitted": "auto-generated",
       "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
 
