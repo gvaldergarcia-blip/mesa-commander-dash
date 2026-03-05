@@ -55,11 +55,7 @@ export function useSendPromotion() {
       const lastEvent = (response.last_event ?? null) as string | null;
 
       toast({
-        title: '✉️ Promoção enviada!',
-        description:
-          `E-mail enviado para ${data.to_name || data.to_email}` +
-          (messageId ? ` • ID: ${messageId}` : '') +
-          `\nDica: no Gmail, pode aparecer na aba “Promoções” ou “Spam”.`,
+        title: '✅ Promoção enviada com sucesso',
       });
 
       return { success: true, messageId, lastEvent };
@@ -111,7 +107,7 @@ export function useSendPromotion() {
 
       if (sent > 0) {
         toast({
-          title: '✉️ Promoções enviadas!',
+          title: '✅ Promoção enviada com sucesso',
           description: `${sent} e-mail(s) enviado(s)${failed > 0 ? `, ${failed} falhou(aram)` : ''}`,
         });
       } else {
