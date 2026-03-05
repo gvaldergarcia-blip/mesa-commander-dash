@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy, MessageCircle } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -353,7 +353,7 @@ function SettingsContent() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
@@ -389,6 +389,10 @@ function SettingsContent() {
           <TabsTrigger value="privacy" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Privacidade</span>
+          </TabsTrigger>
+          <TabsTrigger value="support" className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Suporte</span>
           </TabsTrigger>
         </TabsList>
 
@@ -820,6 +824,51 @@ function SettingsContent() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Suporte WhatsApp */}
+        <TabsContent value="support">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-green-500" />
+                Suporte via WhatsApp
+              </CardTitle>
+              <CardDescription>
+                Entre em contato diretamente com o suporte MesaClik pelo WhatsApp Business.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="p-6 border border-border rounded-lg bg-muted/30 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-green-500/15 flex items-center justify-center">
+                  <MessageCircle className="h-8 w-8 text-green-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Fale com o Suporte</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Tire dúvidas, solicite ajuda ou envie sugestões diretamente pelo WhatsApp.
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                  asChild
+                >
+                  <a
+                    href="https://wa.me/5511944684469"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                    (11) 94468-4469
+                  </a>
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Horário de atendimento: Seg-Sex, 9h às 18h
+                </p>
               </div>
             </CardContent>
           </Card>
