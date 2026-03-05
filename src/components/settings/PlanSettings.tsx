@@ -180,10 +180,9 @@ export function PlanSettings() {
                 <Sparkles className="h-4 w-4 mr-2" />
                 Escolher plano
               </Button>
-              <Button variant="outline" className="flex-1">
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Falar com suporte
-              </Button>
+              <p className="flex-1 text-sm text-muted-foreground text-center sm:text-right self-center">
+                Suporte: 11-944684469
+              </p>
             </div>
           </CardContent>
         </Card>
