@@ -32,13 +32,29 @@ async function sendEmailViaResend(
   from: string,
   text: string,
 ): Promise<{ id?: string; error?: string }> {
+  if (!RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY secret");
+    return { error: "Missing RESEND_API_KEY" };
+  }
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${RESEND_API_KEY}`,
     },
-    body: JSON.stringify({ from, to: [to], subject, html, text, reply_to: "suporte@mesaclik.com.br" }),
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      text,
+      reply_to: "suporte@mesaclik.com.br",
+      headers: {
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
+      },
+    }),
   });
 
   const data = await response.json();
@@ -193,7 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    const fromAddress = `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
+    const fromAddress = `Notificacoes MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
 
