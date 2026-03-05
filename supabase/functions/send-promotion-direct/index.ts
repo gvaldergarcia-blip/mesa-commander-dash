@@ -234,7 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const html = buildPromotionHtml(requestData);
-    const fromAddress = `${requestData.restaurant_name || 'MesaClik'} <${RESEND_FROM_EMAIL}>`;
+    const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
     const baseUrl = requestData.site_url || 'https://mesaclik.com.br';
     const unsubUrl = requestData.unsubscribe_token
       ? `${baseUrl}/marketing/unsubscribe?token=${requestData.unsubscribe_token}`
@@ -253,6 +253,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const headers: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
+      "Precedence": "bulk",
+      "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
     if (unsubUrl) {
       headers["List-Unsubscribe"] = `<${unsubUrl}>`;

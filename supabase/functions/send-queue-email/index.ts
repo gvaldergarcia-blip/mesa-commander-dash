@@ -226,7 +226,7 @@ const handler = async (req: Request): Promise<Response> => {
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
     const senderName = getSafeSenderName(requestData.restaurant_name);
-    const fromAddress = `MesaClik <${RESEND_FROM_EMAIL}>`;
+    const fromAddress = `Notificacoes MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
 
     // Headers estritamente transacionais (evita classificação de marketing)
     const emailHeaders: Record<string, string> = {
@@ -235,8 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
       "X-Priority": "1",
       "X-MSMail-Priority": "High",
       "Importance": "high",
-      "X-Auto-Response-Suppress": "All",
-      "Auto-Submitted": "auto-generated",
+      "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
 
     console.log('Sending from:', fromAddress, '| Sender:', senderName, '| Subject:', subject);
