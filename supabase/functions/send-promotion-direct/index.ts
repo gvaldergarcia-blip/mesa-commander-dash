@@ -281,7 +281,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     const emailResponse = await sendEmailViaResend(
       requestData.to_email,
-      requestData.subject,
+      safeSubject,
       html,
       fromAddress,
       textBody,
