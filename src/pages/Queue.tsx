@@ -430,7 +430,11 @@ function QueueContent() {
         {(() => {
           // Usar posições por grupo (filas paralelas)
           // Cada grupo tem sua própria sequência de posições (1, 2, 3...)
-          return filteredQueue.map((entry) => {
+          // Ordenar: posição 1 no topo (created_at ascending = quem chegou primeiro aparece primeiro)
+          const sorted = [...filteredQueue].sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          return sorted.map((entry) => {
             // Pegar posição do grupo específico deste entry
             const sizeGroup = getSizeGroup(entry.people);
             const position = entry.status === 'waiting' 
