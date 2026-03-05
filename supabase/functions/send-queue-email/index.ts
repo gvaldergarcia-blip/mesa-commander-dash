@@ -225,19 +225,21 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    const fromAddress = `${requestData.restaurant_name} <${RESEND_FROM_EMAIL}>`;
+    const senderName = getSafeSenderName(requestData.restaurant_name);
+    const fromAddress = `MesaClik <${RESEND_FROM_EMAIL}>`;
 
-    // Headers optimised for Hotmail/Outlook + Gmail deliverability
+    // Headers estritamente transacionais (evita classificação de marketing)
     const emailHeaders: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
       "X-Entity-Ref-ID": crypto.randomUUID(),
-      "X-Priority": "1",                        // marks as high-priority / transactional
-      "X-Mailer": "MesaClik Transactional",
-      "List-Unsubscribe": "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>",
-      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      "Importance": "high",
+      "X-Auto-Response-Suppress": "All",
+      "Auto-Submitted": "auto-generated",
     };
 
-    console.log('Sending from:', fromAddress, '| Subject:', subject);
+    console.log('Sending from:', fromAddress, '| Sender:', senderName, '| Subject:', subject);
 
     const emailResponse = await sendEmailViaResend(
       requestData.email,
