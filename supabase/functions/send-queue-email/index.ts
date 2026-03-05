@@ -54,6 +54,14 @@ interface QueueEmailRequest {
   queue_url?: string;
 }
 
+function getSafeSenderName(restaurantName: string): string {
+  const clean = (restaurantName || "MesaClik")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.length > 40 ? clean.slice(0, 40) : clean || "MesaClik";
+}
+
 // ── Plain-text builders ─────────────────────────────────────────────
 function buildPlainText(data: QueueEmailRequest): string {
   const name = data.customer_name || 'Cliente';

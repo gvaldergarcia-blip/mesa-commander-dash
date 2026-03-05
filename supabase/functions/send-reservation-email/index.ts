@@ -47,6 +47,14 @@ async function sendEmailViaResend(
   return { id: data.id };
 }
 
+function getSafeSenderName(restaurantName: string): string {
+  const clean = (restaurantName || "MesaClik")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.length > 40 ? clean.slice(0, 40) : clean || "MesaClik";
+}
+
 // ── Subject (NO emoji for Hotmail) ──────────────────────────────────
 function buildSubject(data: ReservationEmailRequest): string {
   switch (data.type) {
