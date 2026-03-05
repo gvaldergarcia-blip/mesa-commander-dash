@@ -257,6 +257,7 @@ const handler = async (req: Request): Promise<Response> => {
     const headers: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
       "Precedence": "bulk",
+      "X-Entity-Ref-ID": crypto.randomUUID(),
       "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
     if (unsubUrl) {
