@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-// Use o mesmo domínio verificado que a fila usa (mesaclik.com.br)
-const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "noreply@mesaclik.com.br";
-const FUNCTION_VERSION = "2026-01-26_v3_status_debug";
+// Marketing usa identidade separada da transacional para melhorar classificação por caixa
+const RESEND_FROM_MARKETING = Deno.env.get("RESEND_FROM_MARKETING") || "ofertas@mesaclik.com.br";
+const FUNCTION_VERSION = "2026-03-05_v4_delivery_segmentation";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -234,7 +234,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const html = buildPromotionHtml(requestData);
-    const fromAddress = `${requestData.restaurant_name || 'MesaClik'} <${RESEND_FROM_EMAIL}>`;
+    const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
     const baseUrl = requestData.site_url || 'https://mesaclik.com.br';
     const unsubUrl = requestData.unsubscribe_token
       ? `${baseUrl}/marketing/unsubscribe?token=${requestData.unsubscribe_token}`
@@ -253,6 +253,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const headers: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
+      "Precedence": "bulk",
+      "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
     if (unsubUrl) {
       headers["List-Unsubscribe"] = `<${unsubUrl}>`;
