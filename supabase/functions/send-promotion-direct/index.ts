@@ -213,6 +213,13 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
   `;
 };
 
+const sanitizeSubject = (subject: string): string =>
+  subject
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -237,6 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const html = buildPromotionHtml(requestData);
+    const safeSubject = sanitizeSubject(requestData.subject);
     const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
     const baseUrl = requestData.site_url || 'https://mesaclik.com.br';
     const unsubUrl = requestData.unsubscribe_token
@@ -257,7 +265,6 @@ const handler = async (req: Request): Promise<Response> => {
     const headers: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
       "Precedence": "bulk",
-      "X-Entity-Ref-ID": crypto.randomUUID(),
       "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
     if (unsubUrl) {
@@ -270,7 +277,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('Sending promotion email to:', requestData.to_email);
     console.log('Sending from:', fromAddress);
-    console.log('Sending subject:', requestData.subject);
+    console.log('Sending subject:', safeSubject);
     
     const emailResponse = await sendEmailViaResend(
       requestData.to_email,
