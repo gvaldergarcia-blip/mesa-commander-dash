@@ -858,7 +858,7 @@ function SettingsContent() {
                   asChild
                 >
                   <a
-                    href="https://wa.me/5511944684469"
+                    href="https://wa.me/5511944684469?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20MesaClik"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
