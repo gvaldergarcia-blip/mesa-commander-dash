@@ -27,8 +27,8 @@ async function sendEmailViaResend(
   subject: string,
   html: string,
   from: string,
-  text?: string,
-  headers?: Record<string, string>
+  text: string,
+  headers: Record<string, string>
 ): Promise<{ id?: string; error?: string }> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -36,245 +36,128 @@ async function sendEmailViaResend(
       "Content-Type": "application/json",
       "Authorization": `Bearer ${RESEND_API_KEY}`,
     },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject,
-      html,
-      ...(text ? { text } : {}),
-      ...(headers ? { headers } : {}),
-    }),
+    body: JSON.stringify({ from, to: [to], subject, html, text, headers }),
   });
 
   const data = await response.json();
-  
   if (!response.ok) {
     console.error("Resend API error:", data);
     return { error: data.message || "Failed to send email" };
   }
-  
   return { id: data.id };
 }
 
-const getEmailContent = (data: ReservationEmailRequest) => {
-  const { 
-    customer_name, 
-    restaurant_name, 
-    restaurant_address,
-    restaurant_cuisine,
-    reservation_date, 
-    reservation_time, 
-    party_size, 
-    notes,
-    reservation_url, 
-    type 
-  } = data;
-  
-  const name = customer_name || 'Cliente';
-  
-  // Logo MESACLIK hospedada no projeto
-  const mesaclikLogoUrl = 'https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app/images/mesaclik-logo-email.png';
-
-  switch (type) {
+// ── Subject (NO emoji for Hotmail) ──────────────────────────────────
+function buildSubject(data: ReservationEmailRequest): string {
+  switch (data.type) {
     case 'confirmation':
-      return {
-        subject: `🎉 Sua reserva foi confirmada - ${restaurant_name}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Reserva Confirmada</title>
-          </head>
-          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fff7ed;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; padding: 40px 20px;">
-              <tr>
-                <td align="center">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
-                    <!-- Header -->
-                    <tr>
-                      <td style="padding: 40px 32px 32px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
-                        <p style="margin: 0 0 12px; font-size: 56px;">🎉</p>
-                        <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Reserva Confirmada!</h1>
-                        <p style="margin: 12px 0 0; color: rgba(255, 255, 255, 0.95); font-size: 18px; font-weight: 500;">${restaurant_name}</p>
-                      </td>
-                    </tr>
-                    <!-- Body -->
-                    <tr>
-                      <td style="padding: 40px 32px; text-align: center;">
-                        ${customer_name ? `<p style="margin: 0 0 16px; color: #3f3f46; font-size: 18px; line-height: 1.6;">Olá <strong style="color: #f97316;">${customer_name}</strong>!</p>` : ''}
-                        
-                        <p style="margin: 0 0 32px; color: #52525b; font-size: 16px; line-height: 1.7;">
-                          Sua reserva foi confirmada com sucesso.<br/>
-                          <strong style="color: #f97316;">Estamos ansiosos para recebê-lo!</strong>
-                        </p>
-                        
-                        <!-- CTA Button -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                          <tr>
-                            <td align="center" style="padding: 8px 0 24px;">
-                              <a href="${reservation_url}" style="display: inline-block; padding: 18px 40px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);">
-                                📱 Ver minha reserva
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
-                        
-                        <p style="margin: 0; color: #a1a1aa; font-size: 13px; line-height: 1.6;">
-                          Clique no botão acima para ver os detalhes da sua reserva
-                        </p>
-                      </td>
-                    </tr>
-                    <!-- Footer with MesaClik logo -->
-                    <tr>
-                      <td style="padding: 24px 32px; background-color: #fff7ed; border-radius: 0 0 16px 16px; text-align: center;">
-                        <p style="margin: 0; color: #ea580c; font-size: 12px; font-weight: 500;">
-                          🔒 Reserva realizada com segurança
-                        </p>
-                        <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 16px auto 0;">
-                          <tr>
-                            <td style="text-align: center;">
-                              <img src="${mesaclikLogoUrl}" alt="MesaClik" width="100" style="display: inline-block; height: auto;" />
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-          </html>
-        `,
-      };
-
+      return `Reserva confirmada - ${data.restaurant_name}`;
     case 'canceled':
-      return {
-        subject: `❌ Reserva cancelada - ${restaurant_name}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Reserva Cancelada</title>
-          </head>
-          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef2f2;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef2f2; padding: 40px 20px;">
-              <tr>
-                <td align="center">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(220, 38, 38, 0.15);">
-                    <!-- Header -->
-                    <tr>
-                      <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); border-radius: 16px 16px 0 0;">
-                        <p style="margin: 0 0 8px; font-size: 48px;">❌</p>
-                        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Reserva Cancelada</h1>
-                        <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurant_name}</p>
-                      </td>
-                    </tr>
-                    <!-- Body -->
-                    <tr>
-                      <td style="padding: 32px; text-align: center;">
-                        <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          ${customer_name ? `Olá <strong>${customer_name}</strong>, ` : ''}Sua reserva para ${reservation_date} às ${reservation_time} foi cancelada.
-                        </p>
-                        <p style="margin: 0; color: #71717a; font-size: 14px; line-height: 1.6;">
-                          Se desejar, você pode fazer uma nova reserva a qualquer momento.
-                        </p>
-                      </td>
-                    </tr>
-                    <!-- Footer -->
-                    <tr>
-                      <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                        <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
-                          Este e-mail foi enviado pelo ${restaurant_name}
-                        </p>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-          </html>
-        `,
-      };
-
+      return `Reserva cancelada - ${data.restaurant_name}`;
     case 'reminder':
     default:
-      return {
-        subject: `⏰ Lembrete: Sua reserva é amanhã - ${restaurant_name}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Lembrete de Reserva</title>
-          </head>
-          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;">
-              <tr>
-                <td align="center">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);">
-                    <!-- Header -->
-                    <tr>
-                      <td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;">
-                        <p style="margin: 0 0 8px; font-size: 48px;">⏰</p>
-                        <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Lembrete de Reserva</h1>
-                        <p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurant_name}</p>
-                      </td>
-                    </tr>
-                    <!-- Body -->
-                    <tr>
-                      <td style="padding: 32px;">
-                        <p style="margin: 0 0 24px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                          ${customer_name ? `Olá <strong>${customer_name}</strong>! ` : ''}Não se esqueça da sua reserva amanhã!
-                        </p>
-                        
-                        <!-- Reservation Details -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 12px; margin-bottom: 24px;">
-                          <tr>
-                            <td style="padding: 24px; text-align: center;">
-                              <p style="margin: 0; color: #9a3412; font-size: 14px; font-weight: 600;">📅 ${reservation_date} às ${reservation_time}</p>
-                              <p style="margin: 8px 0 0; color: #3f3f46; font-size: 16px; font-weight: 700;">👥 ${party_size} ${party_size === 1 ? 'pessoa' : 'pessoas'}</p>
-                            </td>
-                          </tr>
-                        </table>
-                        
-                        <!-- CTA Button -->
-                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                          <tr>
-                            <td align="center" style="padding: 8px 0;">
-                              <a href="${reservation_url}" style="display: inline-block; padding: 18px 36px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);">
-                                📱 Ver minha reserva
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                    <!-- Footer -->
-                    <tr>
-                      <td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;">
-                        <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
-                          Este e-mail foi enviado pelo ${restaurant_name}
-                        </p>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-          </html>
-        `,
-      };
+      return `Lembrete de reserva - ${data.restaurant_name}`;
   }
-};
+}
 
+// ── Plain text ──────────────────────────────────────────────────────
+function buildPlainText(data: ReservationEmailRequest): string {
+  const name = data.customer_name || 'Cliente';
+  const base = [
+    data.type === 'confirmation' ? `Reserva confirmada - ${data.restaurant_name}` :
+    data.type === 'canceled'     ? `Reserva cancelada - ${data.restaurant_name}` :
+                                   `Lembrete de reserva - ${data.restaurant_name}`,
+    '',
+    `Ola ${name}!`,
+    `Data: ${data.reservation_date} as ${data.reservation_time}`,
+    `Pessoas: ${data.party_size}`,
+    '',
+    data.reservation_url ? `Acompanhe: ${data.reservation_url}` : '',
+    '',
+    `Este e-mail foi enviado pelo ${data.restaurant_name}`,
+  ];
+  return base.filter(Boolean).join('\n');
+}
+
+// ── Minimal HTML (Outlook-safe: no gradients, no box-shadow) ────────
+function buildHtml(data: ReservationEmailRequest): string {
+  const { customer_name, restaurant_name, reservation_date, reservation_time, party_size, reservation_url, type } = data;
+  const name = customer_name || 'Cliente';
+
+  const headerBg = type === 'canceled' ? '#dc2626' : '#ea580c';
+  const headerTitle =
+    type === 'confirmation' ? 'Reserva Confirmada!' :
+    type === 'canceled'     ? 'Reserva Cancelada' :
+                              'Lembrete de Reserva';
+
+  let bodyContent: string;
+
+  if (type === 'canceled') {
+    bodyContent = `
+      <p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">
+        ${customer_name ? `Ola <strong>${customer_name}</strong>, s` : 'S'}ua reserva para ${reservation_date} as ${reservation_time} foi cancelada.
+      </p>
+      <p style="margin:0;color:#6b7280;font-size:14px;">Se desejar, voce pode fazer uma nova reserva a qualquer momento.</p>`;
+  } else {
+    bodyContent = `
+      ${customer_name ? `<p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">Ola <strong>${customer_name}</strong>!</p>` : ''}
+      <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
+        ${type === 'confirmation' ? 'Sua reserva foi confirmada com sucesso.' : 'Nao se esqueca da sua reserva!'}
+      </p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td style="padding:16px;background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;text-align:center;">
+          <p style="margin:0;color:#9a3412;font-size:14px;font-weight:600;">${reservation_date} as ${reservation_time}</p>
+          <p style="margin:4px 0 0;color:#1f2937;font-size:16px;font-weight:700;">${party_size} ${party_size === 1 ? 'pessoa' : 'pessoas'}</p>
+        </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td align="center">
+          <a href="${reservation_url}" style="display:inline-block;padding:14px 32px;background-color:#ea580c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:8px;">
+            Ver minha reserva
+          </a>
+        </td></tr>
+      </table>`;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no">
+  <title>${headerTitle}</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f9fafb;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
+          <tr>
+            <td style="padding:28px 24px;text-align:center;background-color:${headerBg};border-radius:8px 8px 0 0;">
+              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${headerTitle}</h1>
+              <p style="margin:8px 0 0;color:#ffffff;font-size:15px;opacity:0.9;">${restaurant_name}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px;">
+              ${bodyContent}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 24px;background-color:#f9fafb;border-radius:0 0 8px 8px;text-align:center;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;color:#9ca3af;font-size:12px;">Este e-mail foi enviado pelo ${restaurant_name}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// ── Handler ──────────────────────────────────────────────────────────
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -282,8 +165,8 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const requestData: ReservationEmailRequest = await req.json();
-    
-    console.log('Received reservation email request:', JSON.stringify({
+
+    console.log('Reservation email request:', JSON.stringify({
       email: requestData.email,
       type: requestData.type,
       restaurant_name: requestData.restaurant_name,
@@ -291,35 +174,35 @@ const handler = async (req: Request): Promise<Response> => {
     }));
 
     if (!requestData.email || !requestData.restaurant_name || !requestData.type || !requestData.reservation_url) {
-      console.error('Missing required fields');
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: email, restaurant_name, type, reservation_url' }),
+        JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const { subject, html } = getEmailContent(requestData);
-
-    console.log('Sending email with subject:', subject);
-
+    const subject = buildSubject(requestData);
+    const html = buildHtml(requestData);
+    const text = buildPlainText(requestData);
     const fromAddress = `${requestData.restaurant_name} <${RESEND_FROM_EMAIL}>`;
-    console.log('Sending from:', fromAddress);
-    
-    // Texto plano + headers transacionais para deliverability
-    const textBody = `Reserva ${requestData.type === 'confirmation' ? 'confirmada' : requestData.type === 'canceled' ? 'cancelada' : 'lembrete'} - ${requestData.restaurant_name}\n\n${requestData.customer_name ? `Olá ${requestData.customer_name}!` : 'Olá!'}\n\nData: ${requestData.reservation_date} às ${requestData.reservation_time}\nPessoas: ${requestData.party_size}\n\nAcompanhe: ${requestData.reservation_url}\n\nEste e-mail foi enviado pelo ${requestData.restaurant_name}`;
 
     const emailHeaders: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
       "X-Entity-Ref-ID": crypto.randomUUID(),
+      "X-Priority": "1",
+      "X-Mailer": "MesaClik Transactional",
+      "List-Unsubscribe": "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     };
+
+    console.log('Sending from:', fromAddress, '| Subject:', subject);
 
     const emailResponse = await sendEmailViaResend(
       requestData.email,
       subject,
       html,
       fromAddress,
-      textBody,
-      emailHeaders
+      text,
+      emailHeaders,
     );
 
     if (emailResponse.error) {
