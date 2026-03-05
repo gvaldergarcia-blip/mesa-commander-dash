@@ -2,8 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Marketing usa identidade separada da transacional para melhorar classificação por caixa
-const RESEND_FROM_MARKETING = Deno.env.get("RESEND_FROM_MARKETING") || "ofertas@mesaclik.com.br";
-const FUNCTION_VERSION = "2026-03-05_v4_delivery_segmentation";
+const RESEND_FROM_MARKETING =
+  Deno.env.get("RESEND_FROM_MARKETING") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
+  "ofertas@mesaclik.com.br";
+const FUNCTION_VERSION = "2026-03-05_v5_sender_alignment";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -254,6 +257,7 @@ const handler = async (req: Request): Promise<Response> => {
     const headers: Record<string, string> = {
       "Reply-To": "suporte@mesaclik.com.br",
       "Precedence": "bulk",
+      "X-Entity-Ref-ID": crypto.randomUUID(),
       "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
     };
     if (unsubUrl) {
