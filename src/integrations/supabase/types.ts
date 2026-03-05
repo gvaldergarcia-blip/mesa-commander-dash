@@ -860,7 +860,11 @@ export type Database = {
           capacity_range: string
           cep: string
           cidade: string
+          cnae_principal: string | null
           cnpj: string
+          cnpj_source: string | null
+          cnpj_valid: boolean | null
+          cnpj_validated_at: string | null
           complemento: string | null
           created_at: string
           cuisine_type: string
@@ -872,6 +876,7 @@ export type Database = {
           marketing_consent: boolean
           marketing_consent_at: string | null
           modules_selected: string
+          nome_fantasia_oficial: string | null
           numero: string
           operational_contact_consent: boolean
           operational_contact_consent_at: string | null
@@ -879,11 +884,13 @@ export type Database = {
           owner_name: string
           owner_whatsapp: string
           razao_social: string
+          razao_social_oficial: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
           restaurant_name: string
           rua: string
+          situacao_cadastral: string | null
           status: string
           suggested_plan: string | null
           terms_accepted: boolean
@@ -902,7 +909,11 @@ export type Database = {
           capacity_range: string
           cep: string
           cidade: string
+          cnae_principal?: string | null
           cnpj: string
+          cnpj_source?: string | null
+          cnpj_valid?: boolean | null
+          cnpj_validated_at?: string | null
           complemento?: string | null
           created_at?: string
           cuisine_type: string
@@ -914,6 +925,7 @@ export type Database = {
           marketing_consent?: boolean
           marketing_consent_at?: string | null
           modules_selected: string
+          nome_fantasia_oficial?: string | null
           numero: string
           operational_contact_consent?: boolean
           operational_contact_consent_at?: string | null
@@ -921,11 +933,13 @@ export type Database = {
           owner_name: string
           owner_whatsapp: string
           razao_social: string
+          razao_social_oficial?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
           restaurant_name: string
           rua: string
+          situacao_cadastral?: string | null
           status?: string
           suggested_plan?: string | null
           terms_accepted?: boolean
@@ -944,7 +958,11 @@ export type Database = {
           capacity_range?: string
           cep?: string
           cidade?: string
+          cnae_principal?: string | null
           cnpj?: string
+          cnpj_source?: string | null
+          cnpj_valid?: boolean | null
+          cnpj_validated_at?: string | null
           complemento?: string | null
           created_at?: string
           cuisine_type?: string
@@ -956,6 +974,7 @@ export type Database = {
           marketing_consent?: boolean
           marketing_consent_at?: string | null
           modules_selected?: string
+          nome_fantasia_oficial?: string | null
           numero?: string
           operational_contact_consent?: boolean
           operational_contact_consent_at?: string | null
@@ -963,11 +982,13 @@ export type Database = {
           owner_name?: string
           owner_whatsapp?: string
           razao_social?: string
+          razao_social_oficial?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
           restaurant_name?: string
           rua?: string
+          situacao_cadastral?: string | null
           status?: string
           suggested_plan?: string | null
           terms_accepted?: boolean
