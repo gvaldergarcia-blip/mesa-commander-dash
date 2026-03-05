@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-// Use o mesmo domínio verificado que a fila usa (mesaclik.com.br)
-const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "noreply@mesaclik.com.br";
-const FUNCTION_VERSION = "2026-01-26_v3_status_debug";
+// Marketing usa identidade separada da transacional para melhorar classificação por caixa
+const RESEND_FROM_MARKETING = Deno.env.get("RESEND_FROM_MARKETING") || "ofertas@mesaclik.com.br";
+const FUNCTION_VERSION = "2026-03-05_v4_delivery_segmentation";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
