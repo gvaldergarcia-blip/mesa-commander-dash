@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Clock, Users, Mail, Edit2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Clock, Users, Mail, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
@@ -553,9 +553,6 @@ function QueueContent() {
                       Sentar
                     </Button>
                   )}
-                  <Button size="sm" variant="outline">
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
                   <Button 
                     size="sm" 
                     variant="destructive"

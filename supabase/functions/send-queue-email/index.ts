@@ -17,7 +17,6 @@ async function sendEmailViaResend(
   html: string,
   from: string,
   text: string,
-  headers: Record<string, string>
 ): Promise<{ id?: string; error?: string }> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -31,7 +30,7 @@ async function sendEmailViaResend(
       subject,
       html,
       text,
-      headers,
+      reply_to: "suporte@mesaclik.com.br",
     }),
   });
 
@@ -228,18 +227,9 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    const senderName = getSafeSenderName(requestData.restaurant_name);
     const fromAddress = `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
 
-    // Headers transacionais enxutos (menos sinais de spam para Hotmail)
-    const emailHeaders: Record<string, string> = {
-      "Reply-To": "suporte@mesaclik.com.br",
-      "X-Entity-Ref-ID": crypto.randomUUID(),
-      "Auto-Submitted": "auto-generated",
-      "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
-    };
-
-    console.log('Sending from:', fromAddress, '| Sender:', senderName, '| Subject:', subject);
+    console.log('Sending from:', fromAddress, '| Subject:', subject);
 
     const emailResponse = await sendEmailViaResend(
       requestData.email,
@@ -247,7 +237,6 @@ const handler = async (req: Request): Promise<Response> => {
       html,
       fromAddress,
       text,
-      emailHeaders,
     );
 
     if (emailResponse.error) {
