@@ -1,37 +1,145 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+// ── SECURITY FLAGS ──
+const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_ANALYZE_CUSTOMER") ?? "true") === "true";
+
+// ── CORS (restricted allowlist) ──
+const ALLOWED_ORIGINS = [
+  "https://mesaclik.com.br",
+  "https://www.mesaclik.com.br",
+  "https://app.mesaclik.com.br",
+  "https://painel.mesaclik.com.br",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:8080",
+];
+const PREVIEW_ORIGIN_RE = /^https:\/\/.*\.lovable\.app$/;
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_RE.test(origin);
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
+  };
+}
+
+// ── Auth helper ──
+async function authenticateRequest(
+  req: Request,
+  corsHeaders: Record<string, string>
+): Promise<{ userId: string | null; error: Response | null }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    if (REQUIRE_JWT) {
+      console.warn("[analyze-customer] Missing JWT — blocked");
+      return {
+        userId: null,
+        error: new Response(
+          JSON.stringify({ error: "Autenticação necessária" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        ),
+      };
+    }
+    console.warn("[analyze-customer] Missing JWT — allowed (compat mode)");
+    return { userId: null, error: null };
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) {
+    console.warn("[analyze-customer] Invalid JWT:", error?.message);
+    return {
+      userId: null,
+      error: new Response(
+        JSON.stringify({ error: "Sessão inválida" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      ),
+    };
+  }
+
+  return { userId: data.user.id, error: null };
+}
+
+// ── Ownership validation ──
+async function validateMembership(
+  userId: string,
+  restaurantId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response | null> {
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const { data: membership } = await supabaseAdmin
+    .from("restaurant_members")
+    .select("restaurant_id")
+    .eq("user_id", userId)
+    .eq("restaurant_id", restaurantId)
+    .maybeSingle();
+
+  if (!membership) {
+    // Check if admin
+    const { data: adminRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (!adminRole) {
+      console.warn(`[analyze-customer] User ${userId} not member of restaurant ${restaurantId}`);
+      return new Response(
+        JSON.stringify({ error: "Acesso negado ao restaurante" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  return null; // Access granted
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // ── AUTH ──
+    const auth = await authenticateRequest(req, corsHeaders);
+    if (auth.error) return auth.error;
+
     const { customer_id, restaurant_id, customer_data, history_data, metrics } = await req.json();
 
-    console.log('[analyze-customer] Request:', { customer_id, restaurant_id });
+    console.log('[analyze-customer] Request:', { customer_id, restaurant_id, userId: auth.userId });
+
+    // ── OWNERSHIP CHECK ──
+    if (auth.userId && restaurant_id) {
+      const ownershipError = await validateMembership(auth.userId, restaurant_id, corsHeaders);
+      if (ownershipError) return ownershipError;
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Verificar dados mínimos
     if (!customer_data || !metrics) {
       return new Response(
-        JSON.stringify({ 
-          error: 'Dados insuficientes para análise',
-          analysis: null 
-        }),
+        JSON.stringify({ error: 'Dados insuficientes para análise', analysis: null }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Preparar contexto para a IA
     const customerContext = `
 DADOS DO CLIENTE:
 - Nome: ${customer_data.name || 'Não informado'}
@@ -83,7 +191,7 @@ Se o cliente for saudável (visitas regulares, bom comparecimento, engajamento c
 Com base nos dados do cliente, gere uma análise estruturada em JSON com os seguintes campos:
 
 {
-  "resumo": "1-2 frases executivas sobre o perfil geral do cliente (interpretativo, não apenas repetir dados)",
+  "resumo": "1-2 frases executivas sobre o perfil geral do cliente",
   "perfil_comportamento": "Descrição do padrão de visitas, preferências, horários, tipo de grupo e hábitos identificados",
   "risco_perda": {
     "nivel": "baixo|medio|alto",
@@ -121,15 +229,6 @@ RETENÇÃO (30 DIAS):
 - Média: Padrão irregular mas ainda engajado, 10-21 dias sem visita
 - Baixa: Longo período sem visita (>21 dias), histórico negativo
 
-EXEMPLOS DE SAÍDA PARA CLIENTES SAUDÁVEIS:
-{
-  "sugestao_acao": {
-    "tipo": "nao_agir",
-    "descricao": "Nenhuma ação promocional recomendada no momento. Cliente apresenta padrão consistente de recorrência e bom engajamento orgânico.",
-    "momento_ideal": null
-  }
-}
-
 Responda APENAS com o JSON, sem explicações adicionais.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -151,7 +250,7 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[analyze-customer] AI Gateway error:', response.status, errorText);
-      
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.' }),
@@ -164,7 +263,7 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
@@ -177,15 +276,12 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
 
     console.log('[analyze-customer] AI raw response:', content.substring(0, 200));
 
-    // Tentar parsear o JSON da resposta
     let analysis;
     try {
-      // Remover possíveis backticks de markdown
       const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
       analysis = JSON.parse(cleanContent);
     } catch (parseError) {
       console.error('[analyze-customer] Parse error:', parseError);
-      // Tentar extrair JSON de dentro do texto
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         analysis = JSON.parse(jsonMatch[0]);
@@ -202,11 +298,12 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
     );
 
   } catch (error) {
+    const corsH = getCorsHeaders(req);
     console.error('[analyze-customer] Error:', error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsH, 'Content-Type': 'application/json' } }
     );
   }
 });
