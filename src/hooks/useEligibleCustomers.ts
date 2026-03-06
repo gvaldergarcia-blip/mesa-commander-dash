@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,66 +20,49 @@ export const useEligibleCustomers = (restaurantId: string) => {
   const [includeInactive, setIncludeInactive] = useState(false);
   const { toast } = useToast();
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
+    if (!restaurantId) {
+      setCustomers([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Query restaurant_customers com join em customers e loyalty_points
-      const { data: rcData, error: rcError } = await supabase
-        .schema('mesaclik')
-        .from('restaurant_customers')
+      let query = supabase
+        .from("restaurant_customers")
         .select(`
-          visits_count,
-          last_visit_at,
-          customer_id,
-          customers:customer_id (
-            id,
-            full_name,
-            email,
-            phone,
-            marketing_opt_in,
-            vip_status
-          )
+          id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          marketing_optin,
+          vip,
+          total_visits,
+          last_seen_at
         `)
-        .eq('restaurant_id', restaurantId);
+        .eq("restaurant_id", restaurantId)
+        .order("last_seen_at", { ascending: false });
 
-      if (rcError) throw rcError;
+      if (!includeInactive) {
+        query = query.eq("marketing_optin", true);
+      }
 
-      // Buscar loyalty points separadamente
-      const { data: lpData, error: lpError } = await supabase
-        .schema('mesaclik')
-        .from('loyalty_points')
-        .select('customer_id, points')
-        .eq('restaurant_id', restaurantId);
+      const { data, error } = await query;
+      if (error) throw error;
 
-      if (lpError) throw lpError;
-
-      // Map de pontos por customer_id
-      const pointsMap = new Map(
-        (lpData || []).map(lp => [lp.customer_id, lp.points])
-      );
-
-      // Combinar dados
-      // LGPD: Sempre filtrar por opt-in, independente de includeInactive
-      const formatted: EligibleCustomer[] = (rcData || [])
-        .filter((item: any) => {
-          if (!item.customers) return false;
-          // Sempre exigir opt-in para promoções
-          if (!item.customers.marketing_opt_in) return false;
-          return true;
-        })
-        .map((item: any) => ({
-          customer_id: item.customer_id,
-          full_name: item.customers.full_name,
-          email: item.customers.email,
-          phone: item.customers.phone,
-          marketing_opt_in: item.customers.marketing_opt_in,
-          vip_status: item.customers.vip_status,
-          visits_count: item.visits_count,
-          last_visit_at: item.last_visit_at,
-          loyalty_points: pointsMap.get(item.customer_id) || 0,
-        }))
-        .sort((a, b) => b.visits_count - a.visits_count);
+      const formatted: EligibleCustomer[] = (data || []).map((item) => ({
+        customer_id: item.id,
+        full_name: item.customer_name || "Cliente",
+        email: item.customer_email,
+        phone: item.customer_phone,
+        marketing_opt_in: item.marketing_optin || false,
+        vip_status: item.vip || false,
+        visits_count: item.total_visits || 0,
+        last_visit_at: item.last_seen_at,
+        loyalty_points: 0,
+      }));
 
       setCustomers(formatted);
     } catch (err) {
@@ -93,13 +76,11 @@ export const useEligibleCustomers = (restaurantId: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId, includeInactive, toast]);
 
   useEffect(() => {
-    if (restaurantId) {
-      fetchCustomers();
-    }
-  }, [restaurantId, includeInactive]);
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   return {
     customers,
