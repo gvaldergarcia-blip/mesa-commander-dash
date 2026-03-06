@@ -4,12 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 // ── Email sender addresses ──
-const RESEND_FROM_TRANSACTIONAL =
-  Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
-  Deno.env.get("RESEND_FROM_EMAIL") ||
-  "notify@mesaclik.com.br";
 const RESEND_FROM_MARKETING =
   Deno.env.get("RESEND_FROM_MARKETING") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
   "ofertas@mesaclik.com.br";
 
 function getRawEmailAddress(fromValue: string): string {
