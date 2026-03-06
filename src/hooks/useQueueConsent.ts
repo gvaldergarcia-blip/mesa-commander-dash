@@ -77,16 +77,18 @@ export function useQueueConsent() {
         }
       }
 
-      // Buscar opt-in de marketing para este cliente/restaurante
+      // Buscar opt-in de marketing do CRM consolidado (restaurant_customers)
+      // IMPORTANTE: Antes lia de restaurant_marketing_optins que nunca era atualizada,
+      // causando o bug de sobrescrever marketing_optin=true com false
       const { data: marketingData, error: marketingError } = await supabase
-        .from('restaurant_marketing_optins')
+        .from('restaurant_customers')
         .select('marketing_optin, marketing_optin_at')
         .eq('restaurant_id', restaurantId)
         .eq('customer_email', customerEmail)
         .maybeSingle();
 
       if (marketingError && marketingError.code !== 'PGRST116') {
-        throw marketingError;
+        console.warn('[useQueueConsent] Erro ao buscar marketing optin:', marketingError);
       }
 
       setState({
