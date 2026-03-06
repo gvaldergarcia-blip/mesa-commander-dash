@@ -229,7 +229,7 @@ function buildHtml(data: QueueEmailRequest): string {
 </html>`;
 }
 
-// ── Handler ──────────────────────────────────────────────────────────
+// ── Handler (SAME pattern as send-reservation-email) ────────────────
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -238,13 +238,20 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const requestData: QueueEmailRequest = await req.json();
 
-    console.log('Queue email request:', JSON.stringify({
+    console.log('[send-queue-email] Request received:', JSON.stringify({
       email: requestData.email,
       type: requestData.type,
       restaurant_name: requestData.restaurant_name,
+      party_size: requestData.party_size,
+      has_queue_url: !!requestData.queue_url,
     }));
 
     if (!requestData.email || !requestData.restaurant_name || !requestData.type) {
+      console.error('[send-queue-email] Missing required fields:', {
+        hasEmail: !!requestData.email,
+        hasRestaurantName: !!requestData.restaurant_name,
+        hasType: !!requestData.type,
+      });
       return new Response(
         JSON.stringify({ error: 'Missing required fields: email, restaurant_name, type' }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -256,7 +263,7 @@ const handler = async (req: Request): Promise<Response> => {
     const text = buildPlainText(requestData);
     const fromAddress = `MesaClik <${getRawEmailAddress(RESEND_FROM_TRANSACTIONAL)}>`;
 
-    console.log('Sending from:', fromAddress, '| Subject:', subject);
+    console.log('[send-queue-email] Sending:', { from: fromAddress, to: requestData.email, subject });
 
     const emailResponse = await sendEmailViaResend(
       requestData.email,
@@ -267,21 +274,25 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     if (emailResponse.error) {
-      console.error('Failed to send email:', emailResponse.error);
+      console.error('[send-queue-email] Failed:', emailResponse.error);
       return new Response(
         JSON.stringify({ error: emailResponse.error }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log('Email sent successfully:', JSON.stringify(emailResponse));
+    console.log('[send-queue-email] Success:', JSON.stringify({
+      messageId: emailResponse.id,
+      email: requestData.email,
+      type: requestData.type,
+    }));
 
     return new Response(
       JSON.stringify({ success: true, data: emailResponse }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
-    console.error('Error sending queue email:', error);
+    console.error('[send-queue-email] Unhandled error:', error?.message || error);
     return new Response(
       JSON.stringify({ error: error.message || 'Failed to send email' }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
