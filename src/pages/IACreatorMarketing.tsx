@@ -499,6 +499,13 @@ export default function IACreatorMarketing() {
   const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("criar");
 
+  // Editable text overrides — restaurant can customize before image generation
+  const [editableHeadline, setEditableHeadline] = useState("");
+  const [editableSubheadline, setEditableSubheadline] = useState("");
+  const [editableCta, setEditableCta] = useState("");
+  const [editableLegenda, setEditableLegenda] = useState("");
+  const [textConfirmed, setTextConfirmed] = useState(false);
+
   const hasLogo = !!restaurant?.image_url;
   const hasAddress = !!(restaurant?.address_line);
 
@@ -560,6 +567,7 @@ export default function IACreatorMarketing() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGeneratedImage(null);
+    setTextConfirmed(false);
     await new Promise((r) => setTimeout(r, 600));
     const content = generateContent(
       form,
@@ -568,14 +576,19 @@ export default function IACreatorMarketing() {
       (restaurant as any)?.city || "São Paulo"
     );
     setResult(content);
+    // Populate editable fields with generated text
+    setEditableHeadline(content.headline);
+    setEditableSubheadline(content.subheadline);
+    setEditableCta(content.cta);
+    setEditableLegenda(content.legenda);
     setIsGenerating(false);
     setShowForm(false);
-    toast.success("Conteúdo gerado com sucesso!");
-    generatePromoImage();
+    toast.success("Conteúdo gerado! Edite os textos e clique em Gerar Imagem.");
   };
 
   const generatePromoImage = async () => {
     setIsGeneratingImage(true);
+    setTextConfirmed(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -596,6 +609,10 @@ export default function IACreatorMarketing() {
         referenceImage: referenceImage || undefined,
         restaurantId: restaurant?.id || undefined,
         userId: user?.id || undefined,
+        // Custom text overrides from editable fields
+        customHeadline: editableHeadline || undefined,
+        customSubheadline: editableSubheadline || undefined,
+        customCta: editableCta || undefined,
       };
 
       if (form.hasDiscount) {
@@ -945,7 +962,75 @@ export default function IACreatorMarketing() {
                       </Button>
                     </div>
 
+                    {/* Editable Text Fields — Restaurant customizes before image gen */}
+                    {!textConfirmed && (
+                      <Card className="relative border-primary/30 bg-primary/5">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-primary">
+                            <Settings className="w-4 h-4" /> Edite os textos da imagem
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground">
+                            Ajuste os textos abaixo antes de gerar a imagem. A IA usará exatamente o que você escrever.
+                          </p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Título principal (headline)</Label>
+                            <Input
+                              value={editableHeadline}
+                              onChange={(e) => setEditableHeadline(e.target.value)}
+                              placeholder="Ex: Risoto de Camarão"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Subtítulo</Label>
+                            <Input
+                              value={editableSubheadline}
+                              onChange={(e) => setEditableSubheadline(e.target.value)}
+                              placeholder="Ex: Uma experiência gastronômica exclusiva"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Chamada para ação (CTA)</Label>
+                            <Input
+                              value={editableCta}
+                              onChange={(e) => setEditableCta(e.target.value)}
+                              placeholder="Ex: Garanta sua mesa agora!"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Legenda do Instagram</Label>
+                            <textarea
+                              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              value={editableLegenda}
+                              onChange={(e) => setEditableLegenda(e.target.value)}
+                              placeholder="Legenda completa para o post..."
+                            />
+                          </div>
+                          <Button
+                            onClick={generatePromoImage}
+                            disabled={isGeneratingImage}
+                            className="w-full gap-2 h-11"
+                            size="lg"
+                          >
+                            {isGeneratingImage ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Gerando imagem com IA...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" />
+                                Gerar Imagem com IA
+                              </>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     {/* AI Generated Image */}
+                    {(textConfirmed || generatedImage) && (
                     <Card className="relative overflow-hidden">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -972,6 +1057,9 @@ export default function IACreatorMarketing() {
                               <Button onClick={handleDownloadImage} size="sm" className="gap-1.5 flex-1">
                                 <Download className="w-3.5 h-3.5" /> Baixar Imagem
                               </Button>
+                              <Button onClick={() => { setTextConfirmed(false); }} variant="outline" size="sm" className="gap-1.5">
+                                <Settings className="w-3.5 h-3.5" /> Editar Textos
+                              </Button>
                               <Button onClick={generatePromoImage} variant="outline" size="sm" className="gap-1.5">
                                 <Sparkles className="w-3.5 h-3.5" /> Regenerar
                               </Button>
@@ -988,30 +1076,31 @@ export default function IACreatorMarketing() {
                         )}
                       </CardContent>
                     </Card>
+                    )}
 
                     {/* Headline */}
                     <Card className="relative group">
-                      <CopyBlock text={result.headline} label="Headline" />
+                      <CopyBlock text={editableHeadline || result.headline} label="Headline" />
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                           <Lightbulb className="w-3.5 h-3.5" /> Headline
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-lg font-bold text-foreground leading-tight">{result.headline}</p>
+                        <p className="text-lg font-bold text-foreground leading-tight">{editableHeadline || result.headline}</p>
                       </CardContent>
                     </Card>
 
                     {/* Subheadline */}
                     <Card className="relative group">
-                      <CopyBlock text={result.subheadline} label="Subheadline" />
+                      <CopyBlock text={editableSubheadline || result.subheadline} label="Subheadline" />
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                           <MessageSquare className="w-3.5 h-3.5" /> Subheadline
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-foreground/90">{result.subheadline}</p>
+                        <p className="text-sm text-foreground/90">{editableSubheadline || result.subheadline}</p>
                       </CardContent>
                     </Card>
 
@@ -1034,28 +1123,28 @@ export default function IACreatorMarketing() {
                       )}
 
                       <Card className="relative bg-primary/5 border-primary/20">
-                        <CopyBlock text={result.cta} label="CTA" />
+                        <CopyBlock text={editableCta || result.cta} label="CTA" />
                         <CardHeader className="pb-2">
                           <CardTitle className="text-xs uppercase tracking-wider text-primary flex items-center gap-1.5">
                             <Target className="w-3.5 h-3.5" /> CTA
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm font-semibold text-foreground">{result.cta}</p>
+                          <p className="text-sm font-semibold text-foreground">{editableCta || result.cta}</p>
                         </CardContent>
                       </Card>
                     </div>
 
                     {/* Legenda */}
                     <Card className="relative">
-                      <CopyBlock text={result.legenda} label="Legenda" />
+                      <CopyBlock text={editableLegenda || result.legenda} label="Legenda" />
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                           <Instagram className="w-3.5 h-3.5" /> Legenda Instagram
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">{result.legenda}</p>
+                        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">{editableLegenda || result.legenda}</p>
                       </CardContent>
                     </Card>
 

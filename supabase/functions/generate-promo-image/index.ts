@@ -42,17 +42,24 @@ serve(async (req) => {
       includeAddress = false,
       logoUrl,
       address,
+      customHeadline,
+      customSubheadline,
+      customCta,
     } = await req.json();
 
     // Build prompt based on whether discount exists
     let promptText: string;
+
+    const headlineText = customHeadline || dishName;
+    const subtitleText = customSubheadline || '';
+    const ctaText = customCta || '';
 
     if (hasDiscount && originalPrice && promoPrice) {
       promptText = `Create a professional Instagram promotional post image for a restaurant.
 
 RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
 DISH: "${dishName}"
-${restaurantPhrase ? `RESTAURANT PHRASE: "${restaurantPhrase}" — This phrase MUST appear prominently in the image with elegant, premium typography. It should be a central visual element, styled beautifully (e.g., script or serif font, with decorative elements like quotation marks or subtle ornaments).` : ''}
+${restaurantPhrase ? `RESTAURANT SLOGAN: "${restaurantPhrase}" — Display this as a subtle, elegant tagline. Use clean typography without quotation marks or decorative ornaments around it.` : ''}
 PROMOTION: From R$${originalPrice} to R$${promoPrice} (${discount}% OFF)
 DAY: ${campaignDay}
 TARGET: ${targetAudience}
@@ -61,8 +68,10 @@ OBJECTIVE: ${objective}
 
 DESIGN REQUIREMENTS:
 - Professional food photography style with the dish as hero element
-- Bold headline text overlaid: "${dishName}"
-${restaurantPhrase ? `- The phrase "${restaurantPhrase}" displayed with premium, elegant typography — make it visually striking and memorable` : ''}
+- Bold headline text overlaid: "${headlineText}"
+${restaurantPhrase ? `- The slogan "${restaurantPhrase}" in clean, premium typography — NO quotation marks, NO decorative quotes, NO ornamental punctuation` : ''}
+${subtitleText ? `- Subtitle text: "${subtitleText}" in smaller elegant font` : ''}
+${ctaText ? `- Call-to-action text: "${ctaText}"` : ''}
 - Prominent price display: crossed out "R$${originalPrice}" and highlighted "R$${promoPrice}"
 - A circular discount badge showing "${discount}% OFF"
 - Restaurant name "${restaurantName}" at bottom
@@ -70,13 +79,19 @@ ${restaurantPhrase ? `- The phrase "${restaurantPhrase}" displayed with premium,
 - Instagram square format (1:1 aspect ratio)
 - Premium, magazine-quality look
 - No blurry text — all text must be sharp and readable
-- Dark or blurred background to make the dish pop`;
+- Dark or blurred background to make the dish pop
+
+CRITICAL RULES:
+- Do NOT place random words, letters, or decorative text on top of the food/dish itself
+- Do NOT use quotation marks or typographic quotes around any text
+- Keep the dish photo clean and unobstructed — text goes around or above/below the dish, never covering it
+- All overlay text must be in designated text areas, not scattered over the food`;
     } else {
       promptText = `Create a professional Instagram post image for a restaurant.
 
 RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
 DISH/ITEM: "${dishName}"
-${restaurantPhrase ? `RESTAURANT PHRASE: "${restaurantPhrase}" — This phrase MUST appear prominently in the image with elegant, premium typography. It should be THE central visual element, styled beautifully (e.g., script or serif font, with decorative elements like quotation marks or subtle ornaments). Make it the hero text of the design.` : ''}
+${restaurantPhrase ? `RESTAURANT SLOGAN: "${restaurantPhrase}" — Display this as a subtle, elegant tagline. Use clean typography without quotation marks or decorative ornaments around it.` : ''}
 DAY: ${campaignDay}
 TARGET: ${targetAudience}
 TONE: ${brandTone}
@@ -84,8 +99,10 @@ OBJECTIVE: ${objective}
 
 DESIGN REQUIREMENTS:
 - Professional food photography style with the dish as hero element
-- Bold headline text overlaid: "${dishName}"
-${restaurantPhrase ? `- The phrase "${restaurantPhrase}" displayed with premium, elegant typography — make it the most visually striking text element` : ''}
+- Bold headline text overlaid: "${headlineText}"
+${restaurantPhrase ? `- The slogan "${restaurantPhrase}" in clean, premium typography — NO quotation marks, NO decorative quotes` : ''}
+${subtitleText ? `- Subtitle text: "${subtitleText}" in smaller elegant font` : ''}
+${ctaText ? `- Call-to-action text: "${ctaText}"` : ''}
 - NO prices or discount badges — this is NOT a promotional post with discount
 - Restaurant name "${restaurantName}" at bottom
 - Warm, appetizing color palette with rich contrast
@@ -93,9 +110,14 @@ ${restaurantPhrase ? `- The phrase "${restaurantPhrase}" displayed with premium,
 - Premium, magazine-quality look
 - No blurry text — all text must be sharp and readable
 - Dark or blurred background to make the dish pop
+
+CRITICAL RULES:
+- Do NOT place random words, letters, or decorative text on top of the food/dish itself
+- Do NOT use quotation marks or typographic quotes around any text
+- Keep the dish photo clean and unobstructed — text goes around or above/below the dish, never covering it
+- All overlay text must be in designated text areas, not scattered over the food
 - Focus on the dish name, headline, and a compelling CTA`;
     }
-
     if (includeLogo && logoUrl) {
       promptText += `\n- Include the restaurant logo in the top-left corner of the image (small and elegant).`;
     }
