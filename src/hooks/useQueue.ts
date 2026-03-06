@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueueRealtime } from './useQueueRealtime';
 import { useRestaurant } from '@/contexts/RestaurantContext';
-import { getSizeGroup, matchesSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
+import { getSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
 
 type QueueEntry = {
   entry_id: string;
