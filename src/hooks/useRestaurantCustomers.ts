@@ -90,6 +90,27 @@ export function useRestaurantCustomers(overrideRestaurantId?: string) {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  // Revalidar dados ao voltar para a aba/janela
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      fetchCustomers();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchCustomers();
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchCustomers]);
+
   // Calcular KPIs
   const getKPIs = useCallback((): CustomerKPIs => {
     const now = new Date();
