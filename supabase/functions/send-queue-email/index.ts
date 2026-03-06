@@ -209,6 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = `${senderName} <${rawEmail}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
+    console.log('Payload sizes:', JSON.stringify({ htmlLength: html.length, textLength: text.length, hasQueueUrl: !!requestData.queue_url }));
 
     const emailResponse = await sendEmailViaResend(
       requestData.email,
