@@ -160,7 +160,24 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { contact, purpose, preferredChannel, userId }: SendOtpRequest = await req.json();
+    const body = await req.json();
+    const { contact, purpose, preferredChannel, userId }: SendOtpRequest = body;
+
+    // Input validation
+    if (!contact || typeof contact !== 'string' || contact.length > 255) {
+      return new Response(JSON.stringify({ success: false, error: "INVALID_INPUT", message: "Contato inválido" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+    const isEmail = contact.includes('@');
+    if (isEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
+      return new Response(JSON.stringify({ success: false, error: "INVALID_INPUT", message: "Email inválido" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+    if (!isEmail && !/^[\d\s\-\+\(\)]{8,20}$/.test(contact.replace(/\D/g, '') ? contact : '')) {
+      return new Response(JSON.stringify({ success: false, error: "INVALID_INPUT", message: "Telefone inválido" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+    const validPurposes = ['login', 'queue', 'reservation', 'profile'];
+    if (!purpose || !validPurposes.includes(purpose)) {
+      return new Response(JSON.stringify({ success: false, error: "INVALID_INPUT", message: "Propósito inválido" }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
     
     console.log(`Sending OTP to ${contact} via ${preferredChannel || 'auto'}`);
 

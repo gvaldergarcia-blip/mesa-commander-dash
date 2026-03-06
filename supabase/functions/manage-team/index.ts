@@ -129,14 +129,24 @@ serve(async (req) => {
 
     // ── CREATE OPERATOR ──
     if (action === "create") {
-      const { name, email } = body;
+      const name = typeof body.name === 'string' ? body.name.trim().slice(0, 200) : '';
+      const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 255) : '';
       if (!name || !email) {
         return new Response(
           JSON.stringify({ error: "Nome e email são obrigatórios" }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return new Response(
+          JSON.stringify({ error: "Email inválido" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (name.length < 2) {
+        return new Response(
+          JSON.stringify({ error: "Nome deve ter pelo menos 2 caracteres" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
