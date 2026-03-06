@@ -222,8 +222,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── PII PROTECTION: never expose email/phone in public response ──
+    // ── PII PROTECTION ──
+    // When a specific ticket_id is provided, the caller owns that link (sent via email).
+    // We return their own email so the consent form can work, but never expose phone.
+    // For generic queries (no ticket_id), hide all PII.
     const shouldHidePII = HIDE_PII_QUEUE && !isAuthenticated;
+    const isOwnTicket = !!ticket_id && !!entryData;
 
     const response = {
       found: ticket_id ? !!entryData : true,
@@ -236,7 +240,8 @@ Deno.serve(async (req) => {
       party_size: entryData?.party_size ?? null,
       created_at: entryData?.created_at ?? null,
       customer_name: entryData?.name ?? null, // Kept for UX
-      customer_email: shouldHidePII ? null : (entryData?.email ?? null),
+      // Email: returned for own ticket (needed for consent flow), hidden otherwise
+      customer_email: (isOwnTicket || !shouldHidePII) ? (entryData?.email ?? null) : null,
       customer_phone: shouldHidePII ? null : (entryData?.phone ?? null),
       size_group: entryData ? getSizeBucketLabel(getSizeBucket(Number(entryData.party_size || 1))) : null,
       total_groups,
