@@ -567,6 +567,7 @@ export default function IACreatorMarketing() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGeneratedImage(null);
+    setTextConfirmed(false);
     await new Promise((r) => setTimeout(r, 600));
     const content = generateContent(
       form,
@@ -575,10 +576,14 @@ export default function IACreatorMarketing() {
       (restaurant as any)?.city || "São Paulo"
     );
     setResult(content);
+    // Populate editable fields with generated text
+    setEditableHeadline(content.headline);
+    setEditableSubheadline(content.subheadline);
+    setEditableCta(content.cta);
+    setEditableLegenda(content.legenda);
     setIsGenerating(false);
     setShowForm(false);
-    toast.success("Conteúdo gerado com sucesso!");
-    generatePromoImage();
+    toast.success("Conteúdo gerado! Edite os textos e clique em Gerar Imagem.");
   };
 
   const generatePromoImage = async () => {
