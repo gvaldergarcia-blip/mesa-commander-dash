@@ -8,6 +8,16 @@ const RESEND_FROM_TRANSACTIONAL =
   Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
   Deno.env.get("RESEND_FROM_EMAIL") ||
   "notify@mesaclik.com.br";
+const RESEND_FROM_MARKETING =
+  Deno.env.get("RESEND_FROM_MARKETING") ||
+  "ofertas@mesaclik.com.br";
+
+function getRawEmailAddress(fromValue: string): string {
+  return (fromValue || "notify@mesaclik.com.br")
+    .replace(/^.*</, "")
+    .replace(/>$/, "")
+    .trim();
+}
 
 // ── SECURITY FLAGS ──
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
