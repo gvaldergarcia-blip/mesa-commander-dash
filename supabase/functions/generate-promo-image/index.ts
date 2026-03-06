@@ -22,30 +22,39 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const {
-      restaurantName,
-      cuisineType,
-      dishName,
-      restaurantPhrase,
-      originalPrice,
-      promoPrice,
-      discount,
-      targetAudience,
-      brandTone,
-      campaignDay,
-      objective,
-      referenceImage,
-      restaurantId,
-      userId,
-      hasDiscount = true,
-      includeLogo = false,
-      includeAddress = false,
-      logoUrl,
-      address,
-      customHeadline,
-      customSubheadline,
-      customCta,
-    } = await req.json();
+    const body = await req.json();
+
+    // Input validation
+    const str = (v: any, max = 200) => typeof v === 'string' ? v.slice(0, max) : '';
+    const restaurantName = str(body.restaurantName, 100);
+    const cuisineType = str(body.cuisineType, 50);
+    const dishName = str(body.dishName, 100);
+    const restaurantPhrase = str(body.restaurantPhrase, 200);
+    const targetAudience = str(body.targetAudience, 100);
+    const brandTone = str(body.brandTone, 50);
+    const campaignDay = str(body.campaignDay, 50);
+    const objective = str(body.objective, 200);
+    const restaurantId = str(body.restaurantId, 36);
+    const userId = str(body.userId, 36);
+    const customHeadline = str(body.customHeadline, 200);
+    const customSubheadline = str(body.customSubheadline, 200);
+    const customCta = str(body.customCta, 100);
+    const address = str(body.address, 200);
+    const logoUrl = str(body.logoUrl, 500);
+    const referenceImage = body.referenceImage ? str(body.referenceImage, 50000) : null;
+    const originalPrice = body.originalPrice;
+    const promoPrice = body.promoPrice;
+    const discount = body.discount;
+    const hasDiscount = body.hasDiscount ?? true;
+    const includeLogo = body.includeLogo ?? false;
+    const includeAddress = body.includeAddress ?? false;
+
+    if (!dishName) {
+      return new Response(JSON.stringify({ error: "Nome do prato é obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!restaurantName) {
+      return new Response(JSON.stringify({ error: "Nome do restaurante é obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Build prompt based on whether discount exists
     let promptText: string;
