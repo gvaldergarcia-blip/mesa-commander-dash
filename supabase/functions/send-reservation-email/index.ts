@@ -8,7 +8,7 @@ const RESEND_FROM_TRANSACTIONAL =
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface ReservationEmailRequest {
@@ -71,6 +71,10 @@ function getSafeSenderName(restaurantName: string): string {
     .replace(/\s+/g, " ")
     .trim();
   return clean.length > 40 ? clean.slice(0, 40) : clean || "MesaClik";
+}
+
+function getRawEmailAddress(fromValue: string): string {
+  return (fromValue || "notify@mesaclik.com.br").replace(/^.*</, "").replace(/>$/, "").trim();
 }
 
 // ── Subject (NO emoji for Hotmail) ──────────────────────────────────
@@ -209,7 +213,8 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    const fromAddress = `Notificacoes MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
+    const senderName = getSafeSenderName(requestData.restaurant_name);
+    const fromAddress = `${senderName} <${getRawEmailAddress(RESEND_FROM_TRANSACTIONAL)}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
 
