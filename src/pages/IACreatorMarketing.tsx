@@ -1123,28 +1123,28 @@ export default function IACreatorMarketing() {
                       )}
 
                       <Card className="relative bg-primary/5 border-primary/20">
-                        <CopyBlock text={result.cta} label="CTA" />
+                        <CopyBlock text={editableCta || result.cta} label="CTA" />
                         <CardHeader className="pb-2">
                           <CardTitle className="text-xs uppercase tracking-wider text-primary flex items-center gap-1.5">
                             <Target className="w-3.5 h-3.5" /> CTA
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm font-semibold text-foreground">{result.cta}</p>
+                          <p className="text-sm font-semibold text-foreground">{editableCta || result.cta}</p>
                         </CardContent>
                       </Card>
                     </div>
 
                     {/* Legenda */}
                     <Card className="relative">
-                      <CopyBlock text={result.legenda} label="Legenda" />
+                      <CopyBlock text={editableLegenda || result.legenda} label="Legenda" />
                       <CardHeader className="pb-2">
                         <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                           <Instagram className="w-3.5 h-3.5" /> Legenda Instagram
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">{result.legenda}</p>
+                        <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">{editableLegenda || result.legenda}</p>
                       </CardContent>
                     </Card>
 
