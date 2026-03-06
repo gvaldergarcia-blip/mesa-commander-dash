@@ -236,7 +236,10 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    const fromAddress = `Notificacoes MesaClik <${RESEND_FROM_TRANSACTIONAL}>`;
+    // Use RESEND_FROM_EMAIL directly — it's already a valid email on the verified domain
+    const rawEmail = RESEND_FROM_TRANSACTIONAL.replace(/^.*</, '').replace(/>$/, '');
+    const senderName = getSafeSenderName(requestData.restaurant_name);
+    const fromAddress = `${senderName} <${rawEmail}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
 
