@@ -104,7 +104,7 @@ interface EnrollRequest {
 const VALID_ACTIONS = ["save_program", "check_reward", "activate_customer", "deactivate_customer"];
 
 const handler = async (req: Request): Promise<Response> => {
-  const cors = getCorsHeaders(req);
+  const cors = corsHeaders;
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
@@ -374,7 +374,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: { "Content-Type": "application/json", ...cors } });
   } catch (error: any) {
     console.error("Error in loyalty-enroll:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 };
 
