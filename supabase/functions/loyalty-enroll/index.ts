@@ -4,6 +4,12 @@ import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+// ── Email sender addresses (match other functions) ──
+const RESEND_FROM_TRANSACTIONAL =
+  Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
+  "notify@mesaclik.com.br";
+
 // ── SECURITY FLAGS ──
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
@@ -340,7 +346,7 @@ const handler = async (req: Request): Promise<Response> => {
 async function sendActivationEmail(customer: any, program: any, restaurantName: string, currentVisits: number, visitsRemaining: number) {
   const html = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Você entrou no ${program.program_name}!</h1>
+      <h1 style="color: white; margin: 0; font-size: 24px;">Voce entrou no ${program.program_name}!</h1>
     </div>
     <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
       <p style="color: #374151; font-size: 16px;">Olá, <strong>${customer.customer_name || 'Cliente'}</strong>!</p>
@@ -359,7 +365,7 @@ async function sendActivationEmail(customer: any, program: any, restaurantName: 
     </div>
   </div>`;
   try {
-    await resend.emails.send({ from: `MesaClik <noreply@mesaclik.com.br>`, to: [customer.customer_email], subject: `🎉 Você entrou no ${program.program_name} do ${restaurantName}!`, html });
+    await resend.emails.send({ from: `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`, to: [customer.customer_email], subject: `Voce entrou no ${program.program_name} do ${restaurantName}!`, html });
     console.log(`Activation email sent to ${customer.customer_email}`);
   } catch (err) {
     console.error(`Failed to send activation email to ${customer.customer_email}:`, err);
@@ -371,7 +377,7 @@ async function sendRewardEmail(customer: any, program: any, restaurantName: stri
   const formattedExpiry = expiresDate.toLocaleDateString("pt-BR");
   const html = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">🏆 Parabéns! Recompensa desbloqueada!</h1>
+      <h1 style="color: white; margin: 0; font-size: 24px;">Parabens! Recompensa desbloqueada!</h1>
     </div>
     <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
       <p style="color: #374151; font-size: 16px;">Olá, <strong>${customer.customer_name || 'Cliente'}</strong>!</p>
@@ -386,7 +392,7 @@ async function sendRewardEmail(customer: any, program: any, restaurantName: stri
     </div>
   </div>`;
   try {
-    await resend.emails.send({ from: `MesaClik <noreply@mesaclik.com.br>`, to: [customer.customer_email], subject: `🏆 Recompensa desbloqueada no ${restaurantName}!`, html });
+    await resend.emails.send({ from: `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`, to: [customer.customer_email], subject: `Recompensa desbloqueada no ${restaurantName}!`, html });
     console.log(`Reward email sent to ${customer.customer_email}`);
   } catch (err) {
     console.error(`Failed to send reward email to ${customer.customer_email}:`, err);
