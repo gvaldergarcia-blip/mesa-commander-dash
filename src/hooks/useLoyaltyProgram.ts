@@ -108,10 +108,15 @@ export const useLoyaltyProgram = (restaurantId: string) => {
 
       // If program is active, enroll all customers via edge function
       if (data.is_active) {
-        const { error: fnError } = await supabase.functions.invoke("loyalty-enroll", {
+        console.log("[useLoyaltyProgram] Invoking loyalty-enroll save_program for:", restaurantId);
+        const { data: fnData, error: fnError } = await supabase.functions.invoke("loyalty-enroll", {
           body: { restaurant_id: restaurantId, action: "save_program" },
         });
-        if (fnError) console.error("Enrollment error:", fnError);
+        if (fnError) {
+          console.error("[useLoyaltyProgram] loyalty-enroll error:", fnError);
+        } else {
+          console.log("[useLoyaltyProgram] loyalty-enroll response:", fnData);
+        }
       }
 
       toast({ title: "✅ Programa salvo", description: "Configurações atualizadas com sucesso" });
