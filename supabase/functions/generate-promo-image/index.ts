@@ -42,12 +42,10 @@ serve(async (req) => {
       includeAddress = false,
       logoUrl,
       address,
+      customHeadline,
+      customSubheadline,
+      customCta,
     } = await req.json();
-
-    // Custom text overrides from the restaurant owner
-    const customHeadline = body?.customHeadline as string | undefined;
-    const customSubheadline = body?.customSubheadline as string | undefined;
-    const customCta = body?.customCta as string | undefined;
 
     // Build prompt based on whether discount exists
     let promptText: string;
