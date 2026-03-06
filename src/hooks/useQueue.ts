@@ -81,7 +81,7 @@ export function useQueue() {
         throw new Error('Restaurant ID não configurado');
       }
       
-      // Buscar fila do restaurante no schema PUBLIC (onde as queues são gerenciadas)
+      // Buscar fila do restaurante
       const { data: activeQueue, error: queueError } = await supabase
         .schema('mesaclik')
         .from('queues')
@@ -95,7 +95,7 @@ export function useQueue() {
         throw new Error('Nenhuma fila encontrada para este restaurante');
       }
 
-      console.log('Adicionando à fila:', { restaurantId, queueId: activeQueue.id, entry });
+      console.log('[useQueue] Adicionando à fila:', { restaurantId, queueId: activeQueue.id, entry });
       
       // Usar RPC para adicionar à fila (bypassa RLS com SECURITY DEFINER)
       const { data: rpcResult, error: rpcError } = await supabase
@@ -110,11 +110,10 @@ export function useQueue() {
         });
       
       if (rpcError) {
-        console.error('Erro RPC add_customer_to_queue:', rpcError);
+        console.error('[useQueue] Erro RPC add_customer_to_queue:', rpcError);
         throw rpcError;
       }
 
-      
       const result = rpcResult as { success: boolean; entry_id?: string; error?: string };
       
       if (!result.success) {
@@ -123,30 +122,7 @@ export function useQueue() {
 
       const data = { id: result.entry_id };
 
-      // Calcular posição na fila por GRUPO (filas paralelas)
-      const last24Hours = new Date();
-      last24Hours.setHours(last24Hours.getHours() - 24);
-      const sizeGroup = getSizeGroup(entry.people);
-      
-      const { data: waitingEntries } = await supabase
-        .schema('mesaclik')
-        .from('queue_entries')
-        .select('id, created_at, party_size')
-        .eq('queue_id', activeQueue.id)
-        .eq('status', 'waiting')
-        .gte('created_at', last24Hours.toISOString())
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true });
-      
-      // Filtrar apenas entradas do MESMO grupo de tamanho
-      const sameGroupEntries = (waitingEntries || []).filter(e => 
-        matchesSizeGroup(e.party_size, sizeGroup)
-      );
-      
-      // Posição = total de entradas no grupo (a nova é a última)
-      const position = sameGroupEntries.length;
-
-      // Buscar nome do restaurante
+      // Buscar nome do restaurante para o email (mesmo padrão da reserva)
       const { data: restaurantData } = await supabase
         .schema('mesaclik')
         .from('restaurants')
@@ -156,17 +132,42 @@ export function useQueue() {
 
       const restaurantName = restaurantData?.name || 'Restaurante';
 
-      // Enviar email com link da fila (via edge function)
+      // Registrar cliente em restaurant_customers (mesmo padrão da reserva)
+      if (entry.email) {
+        try {
+          await supabase.rpc('upsert_restaurant_customer', {
+            p_restaurant_id: restaurantId,
+            p_email: entry.email,
+            p_name: entry.customer_name,
+            p_phone: null,
+            p_source: 'queue',
+            p_marketing_optin: null,
+            p_terms_accepted: null,
+          });
+          console.log('[useQueue] Cliente registrado em restaurant_customers');
+        } catch (customerError) {
+          console.warn('[useQueue] Erro ao registrar cliente (não crítico):', customerError);
+        }
+      }
+
+      // Enviar email com link da fila (MESMO PADRÃO da reserva: try-catch isolado)
       try {
         const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
-        console.log('Enviando email para:', entry.email, 'com link:', queueUrl, 'grupo:', getSizeGroupLabel(sizeGroup));
-        
-        const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
+        const sizeGroup = getSizeGroup(entry.people);
+
+        console.log('[useQueue] Enviando email:', {
+          email: entry.email,
+          restaurant_name: restaurantName,
+          type: 'entry',
+          queue_url: queueUrl,
+        });
+
+        const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-queue-email', {
           body: {
             email: entry.email,
             customer_name: entry.customer_name,
             restaurant_name: restaurantName,
-            position: position,
+            position: 0, // Posição será vista em tempo real na página
             party_size: entry.people,
             size_group: getSizeGroupLabel(sizeGroup),
             type: 'entry',
@@ -175,12 +176,12 @@ export function useQueue() {
         });
 
         if (emailError) {
-          console.warn('Erro ao enviar email (não crítico):', emailError);
+          console.warn('[useQueue] Erro ao enviar email (não crítico):', emailError);
         } else {
-          console.log('Email de posição na fila enviado com sucesso');
+          console.log('[useQueue] Email de entrada na fila enviado com sucesso:', emailResponse);
         }
       } catch (emailError) {
-        console.warn('Erro ao enviar email (não crítico):', emailError);
+        console.warn('[useQueue] Erro ao enviar email (não crítico):', emailError);
       }
 
       toast({
