@@ -146,47 +146,81 @@ function buildHtml(data: QueueEmailRequest): string {
   const customerName = escapeHtml(data.customer_name || "Cliente");
   const restaurantName = escapeHtml(data.restaurant_name || "MesaClik");
   const queueUrl = data.queue_url ? escapeHtml(data.queue_url) : "";
-  const positionLine = Number.isFinite(data.position)
-    ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Posicao atual:</strong> #${data.position}</p>`
-    : "";
+  const hasPosition = Number.isFinite(data.position);
 
-  let title = "Atualizacao da fila";
-  let intro = `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;">Ola <strong>${customerName}</strong>!</p>`;
-  let extra = "";
+  let heroTitle = "Atualização da fila";
+  let bodyIntro = `Olá <strong>${customerName}</strong>!`;
+  let infoBlock = "";
+  let ctaLabel = "Ver minha posição em tempo real";
+  let footerText = "Fique de olho! Avisaremos quando for a sua vez.";
 
   if (data.type === "entry") {
-    title = "Voce entrou na fila";
-    extra = `
-      ${positionLine}
-      ${data.party_size ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Pessoas:</strong> ${data.party_size}</p>` : ""}
-      ${data.estimated_wait_minutes ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Tempo estimado:</strong> ~${data.estimated_wait_minutes} min</p>` : ""}
-      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;">Avisaremos quando chegar sua vez.</p>
+    heroTitle = "Você está na fila!";
+    infoBlock = `
+      ${hasPosition ? `<p style="margin:0 0 8px;font-size:24px;line-height:1.2;font-weight:700;color:#1f2937;">Posição atual: #${data.position}</p>` : ""}
+      ${data.party_size ? `<p style="margin:0 0 8px;font-size:18px;line-height:1.4;color:#9a3412;"><strong>👥 ${data.party_size} pessoas</strong></p>` : ""}
+      ${data.size_group ? `<p style="margin:0;font-size:16px;line-height:1.5;color:#6b7280;">Fila de ${escapeHtml(data.size_group)}</p>` : ""}
+      ${data.estimated_wait_minutes ? `<p style="margin:10px 0 0;font-size:15px;line-height:1.5;color:#6b7280;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>` : ""}
     `;
   } else if (data.type === "called") {
-    title = "Sua vez chegou";
-    extra = `
-      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Dirija-se ao balcao agora.</strong></p>
-      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;">Sua mesa esta pronta.</p>
+    heroTitle = "Sua vez chegou!";
+    ctaLabel = "Ir para o acompanhamento";
+    footerText = "Dirija-se ao balcão o quanto antes para não perder sua vez.";
+    infoBlock = `
+      <p style="margin:0 0 8px;font-size:20px;line-height:1.3;font-weight:700;color:#9a3412;">🔔 Estamos te chamando agora</p>
+      <p style="margin:0;font-size:16px;line-height:1.5;color:#4b5563;">Sua mesa está pronta.</p>
     `;
   } else {
-    title = "Atualizacao da fila";
-    extra = `
-      ${positionLine}
-      ${data.estimated_wait_minutes ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Tempo estimado:</strong> ~${data.estimated_wait_minutes} min</p>` : ""}
+    heroTitle = "Atualização da fila";
+    infoBlock = `
+      ${hasPosition ? `<p style="margin:0 0 8px;font-size:24px;line-height:1.2;font-weight:700;color:#1f2937;">Posição atual: #${data.position}</p>` : ""}
+      ${data.estimated_wait_minutes ? `<p style="margin:0;font-size:15px;line-height:1.5;color:#6b7280;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>` : ""}
     `;
   }
 
   return `<!doctype html>
-<html>
-  <body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-    <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;padding:24px;">
-      <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#111111;">${title}</h1>
-      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Restaurante:</strong> ${restaurantName}</p>
-      ${intro}
-      ${extra}
-      ${queueUrl ? `<p style="margin:16px 0 0;color:#111111;font-size:16px;line-height:1.5;"><a href="${queueUrl}" style="color:#0a58ca;text-decoration:underline;">Clique aqui para acompanhar sua posicao</a></p>` : ""}
-      <p style="margin:24px 0 0;color:#666666;font-size:12px;line-height:1.5;">Enviado por ${restaurantName}</p>
-    </div>
+<html lang="pt-BR">
+  <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6;padding:0;margin:0;">
+      <tr>
+        <td align="center" style="padding:0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;">
+            <tr>
+              <td style="background:#f97316;padding:36px 24px;text-align:center;">
+                <p style="margin:0 0 10px;font-size:28px;line-height:1;">🎉</p>
+                <h1 style="margin:0 0 8px;font-size:40px;line-height:1.1;color:#ffffff;font-weight:800;">${heroTitle}</h1>
+                <p style="margin:0;font-size:20px;line-height:1.4;color:#fff7ed;">${restaurantName}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 24px 22px;">
+                <p style="margin:0 0 22px;font-size:30px;line-height:1.25;color:#111827;">${bodyIntro}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;">
+                  <tr>
+                    <td style="padding:18px 18px 16px;">
+                      ${infoBlock}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            ${queueUrl ? `
+            <tr>
+              <td align="center" style="padding:4px 24px 22px;">
+                <a href="${queueUrl}" style="display:inline-block;background:#f97316;color:#ffffff;font-size:20px;line-height:1.3;font-weight:700;text-decoration:none;padding:16px 22px;border-radius:14px;">📱 ${ctaLabel}</a>
+              </td>
+            </tr>
+            ` : ""}
+            <tr>
+              <td style="padding:0 24px 30px;text-align:center;">
+                <p style="margin:0;font-size:16px;line-height:1.5;color:#6b7280;">${footerText}</p>
+                <p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#9ca3af;">Enviado por ${restaurantName} • MesaClik</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>`;
 }
