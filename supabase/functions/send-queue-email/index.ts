@@ -127,6 +127,20 @@ function buildPlainText(data: QueueEmailRequest): string {
   }
 }
 
+// ── Subject builders ────────────────────────────────────────────────
+function buildSubject(data: QueueEmailRequest): string {
+  switch (data.type) {
+    case "entry":
+      return `Voce esta na fila - ${data.restaurant_name}`;
+    case "called":
+      return `Sua vez chegou - ${data.restaurant_name}`;
+    case "position_update":
+      return `Atualizacao da fila - ${data.restaurant_name}`;
+    default:
+      return `Fila - ${data.restaurant_name}`;
+  }
+}
+
 // ── Minimal HTML builder (super compatível anti-corpo-vazio) ───────
 function buildHtml(data: QueueEmailRequest): string {
   const customerName = escapeHtml(data.customer_name || "Cliente");
