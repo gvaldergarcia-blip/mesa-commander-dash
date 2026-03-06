@@ -499,6 +499,13 @@ export default function IACreatorMarketing() {
   const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("criar");
 
+  // Editable text overrides — restaurant can customize before image generation
+  const [editableHeadline, setEditableHeadline] = useState("");
+  const [editableSubheadline, setEditableSubheadline] = useState("");
+  const [editableCta, setEditableCta] = useState("");
+  const [editableLegenda, setEditableLegenda] = useState("");
+  const [textConfirmed, setTextConfirmed] = useState(false);
+
   const hasLogo = !!restaurant?.image_url;
   const hasAddress = !!(restaurant?.address_line);
 
