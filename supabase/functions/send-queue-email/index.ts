@@ -8,8 +8,20 @@ const RESEND_FROM_TRANSACTIONAL =
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+interface QueueEmailRequest {
+  email: string;
+  customer_name?: string;
+  restaurant_name: string;
+  position: number;
+  party_size?: number;
+  size_group?: string;
+  estimated_wait_minutes?: number;
+  type: 'entry' | 'called' | 'position_update';
+  queue_url?: string;
+}
 
 async function sendEmailViaResend(
   to: string,
@@ -44,90 +56,18 @@ async function sendEmailViaResend(
   });
 
   const data = await response.json();
-  
   if (!response.ok) {
     console.error("Resend API error:", data);
     return { error: data.message || "Failed to send email" };
   }
-  
   return { id: data.id };
 }
 
-interface QueueEmailRequest {
-  email: string;
-  customer_name?: string;
-  restaurant_name: string;
-  position: number;
-  party_size?: number;
-  size_group?: string;
-  estimated_wait_minutes?: number;
-  type: 'entry' | 'called' | 'position_update';
-  queue_url?: string;
+function getRawEmailAddress(fromValue: string): string {
+  return (fromValue || "notify@mesaclik.com.br").replace(/^.*</, "").replace(/>$/, "").trim();
 }
 
-function getSafeSenderName(restaurantName: string): string {
-  const clean = (restaurantName || "MesaClik")
-    .replace(/[^\p{L}\p{N}\s-]/gu, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return clean.length > 40 ? clean.slice(0, 40) : clean || "MesaClik";
-}
-
-// ── Escape helpers ─────────────────────────────────────────────────
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-// ── Plain-text builders ─────────────────────────────────────────────
-function buildPlainText(data: QueueEmailRequest): string {
-  const name = data.customer_name || "Cliente";
-  const positionLine = Number.isFinite(data.position) ? `Posicao atual: #${data.position}` : "";
-
-  switch (data.type) {
-    case "entry":
-      return [
-        `Voce entrou na fila do ${data.restaurant_name}.`,
-        "",
-        `Ola ${name}!`,
-        positionLine,
-        data.party_size ? `Pessoas: ${data.party_size}` : "",
-        data.estimated_wait_minutes ? `Tempo estimado: ~${data.estimated_wait_minutes} min` : "",
-        data.queue_url ? `Acompanhar fila: ${data.queue_url}` : "",
-        "",
-        `Enviado por ${data.restaurant_name}`,
-      ].filter(Boolean).join("\n");
-
-    case "called":
-      return [
-        `Sua vez chegou no ${data.restaurant_name}!`,
-        "",
-        `${name}, dirija-se ao balcao agora.`,
-        "Sua mesa esta pronta. Apresente-se ao atendente.",
-        "",
-        `Enviado por ${data.restaurant_name}`,
-      ].filter(Boolean).join("\n");
-
-    case "position_update":
-    default:
-      return [
-        `Atualizacao da fila - ${data.restaurant_name}`,
-        "",
-        `Ola ${name}!`,
-        positionLine,
-        data.estimated_wait_minutes ? `Tempo estimado: ~${data.estimated_wait_minutes} min` : "",
-        data.queue_url ? `Acompanhar fila: ${data.queue_url}` : "",
-        "",
-        `Enviado por ${data.restaurant_name}`,
-      ].filter(Boolean).join("\n");
-  }
-}
-
-// ── Subject builders ────────────────────────────────────────────────
+// ── Subject (NO emoji — same pattern as reservation) ────────────────
 function buildSubject(data: QueueEmailRequest): string {
   switch (data.type) {
     case "entry":
@@ -141,105 +81,151 @@ function buildSubject(data: QueueEmailRequest): string {
   }
 }
 
-// ── Minimal HTML builder (super compatível anti-corpo-vazio) ───────
+// ── Plain text ──────────────────────────────────────────────────────
+function buildPlainText(data: QueueEmailRequest): string {
+  const name = data.customer_name || "Cliente";
+
+  switch (data.type) {
+    case "entry":
+      return [
+        `Voce entrou na fila do ${data.restaurant_name}.`,
+        "",
+        `Ola ${name}!`,
+        data.party_size ? `Pessoas: ${data.party_size}` : "",
+        data.estimated_wait_minutes ? `Tempo estimado: ~${data.estimated_wait_minutes} min` : "",
+        data.queue_url ? `Acompanhar fila: ${data.queue_url}` : "",
+        "",
+        `Este e-mail foi enviado pelo ${data.restaurant_name}`,
+      ].filter(Boolean).join("\n");
+
+    case "called":
+      return [
+        `Sua vez chegou no ${data.restaurant_name}!`,
+        "",
+        `${name}, dirija-se ao balcao agora.`,
+        "Sua mesa esta pronta. Apresente-se ao atendente.",
+        "",
+        `Este e-mail foi enviado pelo ${data.restaurant_name}`,
+      ].filter(Boolean).join("\n");
+
+    case "position_update":
+    default:
+      return [
+        `Atualizacao da fila - ${data.restaurant_name}`,
+        "",
+        `Ola ${name}!`,
+        data.estimated_wait_minutes ? `Tempo estimado: ~${data.estimated_wait_minutes} min` : "",
+        data.queue_url ? `Acompanhar fila: ${data.queue_url}` : "",
+        "",
+        `Este e-mail foi enviado pelo ${data.restaurant_name}`,
+      ].filter(Boolean).join("\n");
+  }
+}
+
+// ── Minimal HTML (SAME structure as send-reservation-email) ─────────
 function buildHtml(data: QueueEmailRequest): string {
-  const customerName = escapeHtml(data.customer_name || "Cliente");
-  const restaurantName = escapeHtml(data.restaurant_name || "MesaClik");
-  const queueUrl = data.queue_url ? escapeHtml(data.queue_url) : "";
+  const name = data.customer_name || "Cliente";
+  const restaurantName = data.restaurant_name || "MesaClik";
+  const queueUrl = data.queue_url || "";
 
-  let heroTitle = "Atualização da fila";
-  let bodyIntro = `Olá <strong>${customerName}</strong>!`;
-  let infoBlock = "";
-  let ctaLabel = "Ver minha posição em tempo real";
-  let footerText = "Fique de olho! Avisaremos quando for a sua vez.";
+  const headerBg = data.type === "called" ? "#dc2626" : "#ea580c";
+  const headerTitle =
+    data.type === "entry"           ? "Voce esta na fila!" :
+    data.type === "called"          ? "Sua vez chegou!" :
+                                      "Atualizacao da fila";
 
-  if (data.type === "entry") {
-    heroTitle = "Você está na fila!";
-    infoBlock = `
-      ${data.party_size ? `<p style="margin:0 0 4px;font-size:18px;line-height:1.4;color:#9a3412;text-align:center;font-weight:700;">👥 ${data.party_size} pessoas</p>` : ""}
-      ${data.size_group ? `<p style="margin:0;font-size:14px;line-height:1.5;color:#6b7280;text-align:center;">Fila de ${escapeHtml(data.size_group)}</p>` : ""}
-    `;
-  } else if (data.type === "called") {
-    heroTitle = "Sua vez chegou!";
-    ctaLabel = "Ir para o acompanhamento";
-    footerText = "Dirija-se ao balcão o quanto antes para não perder sua vez.";
-    infoBlock = `
-      <p style="margin:0 0 4px;font-size:18px;line-height:1.3;font-weight:700;color:#9a3412;text-align:center;">🔔 Estamos te chamando agora</p>
-      <p style="margin:0;font-size:15px;line-height:1.5;color:#4b5563;text-align:center;">Sua mesa está pronta.</p>
-    `;
+  let bodyContent: string;
+
+  if (data.type === "called") {
+    bodyContent = `
+      ${data.customer_name ? `<p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">Ola <strong>${name}</strong>!</p>` : ""}
+      <p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">
+        Estamos chamando voce agora! Dirija-se ao balcao do <strong>${restaurantName}</strong>.
+      </p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td style="padding:16px;background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;text-align:center;">
+          <p style="margin:0;color:#991b1b;font-size:16px;font-weight:700;">Sua mesa esta pronta</p>
+          <p style="margin:4px 0 0;color:#4b5563;font-size:14px;">Apresente-se ao atendente o quanto antes</p>
+        </td></tr>
+      </table>`;
+  } else if (data.type === "entry") {
+    bodyContent = `
+      ${data.customer_name ? `<p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">Ola <strong>${name}</strong>!</p>` : ""}
+      <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
+        Voce entrou na fila do <strong>${restaurantName}</strong> com sucesso.
+      </p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td style="padding:16px;background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;text-align:center;">
+          ${data.party_size ? `<p style="margin:0;color:#9a3412;font-size:14px;font-weight:600;">${data.party_size} ${data.party_size === 1 ? "pessoa" : "pessoas"}</p>` : ""}
+          ${data.size_group ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">Fila de ${data.size_group}</p>` : ""}
+          ${data.estimated_wait_minutes ? `<p style="margin:4px 0 0;color:#1f2937;font-size:16px;font-weight:700;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>` : ""}
+        </td></tr>
+      </table>
+      ${queueUrl ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td align="center">
+          <a href="${queueUrl}" style="display:inline-block;padding:14px 32px;background-color:#ea580c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:8px;">
+            Ver minha posicao em tempo real
+          </a>
+        </td></tr>
+      </table>` : ""}`;
   } else {
-    heroTitle = "Atualização da fila";
-    infoBlock = `
-      ${data.estimated_wait_minutes ? `<p style="margin:0;font-size:14px;line-height:1.5;color:#6b7280;text-align:center;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>` : ""}
-    `;
+    bodyContent = `
+      ${data.customer_name ? `<p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">Ola <strong>${name}</strong>!</p>` : ""}
+      <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
+        Sua posicao na fila do <strong>${restaurantName}</strong> foi atualizada.
+      </p>
+      ${data.estimated_wait_minutes ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td style="padding:16px;background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;text-align:center;">
+          <p style="margin:0;color:#1f2937;font-size:16px;font-weight:700;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>
+        </td></tr>
+      </table>` : ""}
+      ${queueUrl ? `
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+        <tr><td align="center">
+          <a href="${queueUrl}" style="display:inline-block;padding:14px 32px;background-color:#ea580c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:8px;">
+            Ver minha posicao em tempo real
+          </a>
+        </td></tr>
+      </table>` : ""}`;
   }
 
-  // Logo hospedada no próprio site publicado
-  const logoUrl = "https://mesaclik.com.br/images/mesaclik-logo-email.png";
-
-  return `<!doctype html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
-  <body style="margin:0;padding:0;background:#fff7ed;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;padding:0;margin:0;">
-      <tr>
-        <td align="center" style="padding:40px 16px;">
-          <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:20px;overflow:hidden;">
-            <!-- HEADER LARANJA -->
-            <tr>
-              <td style="background:#f97316;padding:44px 32px 36px;text-align:center;">
-                <p style="margin:0 0 12px;font-size:32px;line-height:1;">🎉</p>
-                <h1 style="margin:0 0 8px;font-size:30px;line-height:1.2;color:#ffffff;font-weight:800;letter-spacing:-0.5px;">${heroTitle}</h1>
-                <p style="margin:0;font-size:16px;line-height:1.4;color:#fff7ed;opacity:0.9;">${restaurantName}</p>
-              </td>
-            </tr>
-            <!-- CORPO -->
-            <tr>
-              <td style="padding:32px 36px 24px;">
-                <p style="margin:0 0 24px;font-size:20px;line-height:1.3;color:#111827;">${bodyIntro}</p>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;">
-                  <tr>
-                    <td style="padding:20px 24px;">
-                      ${infoBlock}
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <!-- BOTÃO CTA -->
-            ${queueUrl ? `
-            <tr>
-              <td align="center" style="padding:4px 36px 28px;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
-                  <tr>
-                    <td align="center" style="background:#f97316;border-radius:14px;text-align:center;">
-                      <a href="${queueUrl}" style="display:block;color:#ffffff;font-size:17px;line-height:1.3;font-weight:700;text-decoration:none;padding:18px 24px;">📱 ${ctaLabel}</a>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            ` : ""}
-            <!-- RODAPÉ -->
-            <tr>
-              <td style="padding:0 36px 32px;text-align:center;">
-                <p style="margin:0;font-size:14px;line-height:1.6;color:#9ca3af;">${footerText}</p>
-              </td>
-            </tr>
-          </table>
-          <!-- LOGO MESACLIK -->
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
-            <tr>
-              <td align="center" style="padding:28px 0 8px;">
-                <img src="${logoUrl}" alt="MesaClik" width="140" height="auto" style="display:block;border:0;outline:none;max-width:140px;" />
-              </td>
-            </tr>
-          </table>
-          <!--[if mso]></td></tr></table><![endif]-->
-        </td>
-      </tr>
-    </table>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no">
+  <title>${headerTitle}</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f9fafb;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
+          <tr>
+            <td style="padding:28px 24px;text-align:center;background-color:${headerBg};border-radius:8px 8px 0 0;">
+              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${headerTitle}</h1>
+              <p style="margin:8px 0 0;color:#ffffff;font-size:15px;opacity:0.9;">${restaurantName}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px;">
+              ${bodyContent}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 24px;background-color:#f9fafb;border-radius:0 0 8px 8px;text-align:center;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;color:#9ca3af;font-size:12px;">Este e-mail foi enviado pelo ${restaurantName}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
 </html>`;
 }
 
@@ -256,7 +242,6 @@ const handler = async (req: Request): Promise<Response> => {
       email: requestData.email,
       type: requestData.type,
       restaurant_name: requestData.restaurant_name,
-      position: requestData.position,
     }));
 
     if (!requestData.email || !requestData.restaurant_name || !requestData.type) {
@@ -269,12 +254,9 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    // Use RESEND_FROM_EMAIL directly — it's already a valid email on the verified domain
-    const rawEmail = RESEND_FROM_TRANSACTIONAL.replace(/^.*</, '').replace(/>$/, '').trim();
-    const fromAddress = `MesaClik <${rawEmail}>`;
+    const fromAddress = `MesaClik <${getRawEmailAddress(RESEND_FROM_TRANSACTIONAL)}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
-    console.log('Payload sizes:', JSON.stringify({ htmlLength: html.length, textLength: text.length, hasQueueUrl: !!requestData.queue_url }));
 
     const emailResponse = await sendEmailViaResend(
       requestData.email,
