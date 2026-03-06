@@ -44,9 +44,14 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     );
   }
 
-  const isPreview = import.meta.env.DEV || 
-    window.location.hostname.includes('lovable.app') || 
-    window.location.hostname === 'localhost';
+  const isPreview = (() => {
+    const explicitBypass = import.meta.env.VITE_PREVIEW_BYPASS;
+    if (explicitBypass !== undefined) return explicitBypass === 'true';
+    // Fallback (deprecated)
+    return import.meta.env.DEV || 
+      window.location.hostname.includes('lovable.app') || 
+      window.location.hostname === 'localhost';
+  })();
 
   // Sem restaurante vinculado — bloqueia apenas em produção
   if (!restaurantId && !isPreview) {

@@ -40,10 +40,24 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * SECURITY: Preview bypass é controlado por env var explícita (VITE_PREVIEW_BYPASS).
+   * Em produção, NUNCA deve estar setada. Em dev/lovable.app, é true por padrão.
+   * Fallback: se a env var não existir, usa detecção de hostname (backward-compat).
+   */
   const isPreviewEnvironment = () => {
-    return import.meta.env.DEV || 
+    const explicitBypass = import.meta.env.VITE_PREVIEW_BYPASS;
+    if (explicitBypass !== undefined) {
+      return explicitBypass === 'true';
+    }
+    // Fallback: hostname-based (será removido em versão futura)
+    const isFallback = import.meta.env.DEV || 
            window.location.hostname.includes('lovable.app') ||
            window.location.hostname === 'localhost';
+    if (isFallback) {
+      console.warn('[RestaurantContext] ⚠️ Preview bypass via hostname (deprecated). Set VITE_PREVIEW_BYPASS=true explicitly.');
+    }
+    return isFallback;
   };
 
   const fetchRestaurantForUser = async (userId: string) => {
@@ -157,7 +171,16 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-        window.history.replaceState({}, '', window.location.pathname);
+        // SECURITY: Remove tokens from URL immediately to reduce exposure
+        try {
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch (e) {
+          console.warn('[RestaurantContext] ⚠️ Failed to clean tokens from URL:', e);
+        }
+        // Double-check tokens are gone
+        if (window.location.search.includes('access_token') || window.location.hash.includes('access_token')) {
+          console.error('[RestaurantContext] ⚠️ SECURITY: Tokens still in URL after cleanup!');
+        }
         if (error) {
           console.error('[RestaurantContext] Erro ao restaurar sessão via URL:', error);
           return false;

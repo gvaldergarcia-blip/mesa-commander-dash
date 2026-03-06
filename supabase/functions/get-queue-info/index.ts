@@ -1,12 +1,30 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// ── SECURITY FLAGS ──
+// If true, email/phone are NEVER returned in public responses
+const HIDE_PII_QUEUE = (Deno.env.get("HIDE_PII_QUEUE") ?? "true") === "true";
+
+// ── CORS (restricted allowlist) ──
+const ALLOWED_ORIGINS = [
+  "https://mesaclik.com.br", "https://www.mesaclik.com.br",
+  "https://app.mesaclik.com.br", "https://painel.mesaclik.com.br",
+  "http://localhost:5173", "http://localhost:3000", "http://localhost:8080",
+];
+const PREVIEW_ORIGIN_RE = /^https:\/\/.*\.lovable\.app$/;
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_RE.test(origin);
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
+  };
+}
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,7 +38,20 @@ Deno.serve(async (req) => {
     const ticket_id = body?.ticket_id as string | undefined;
     let restaurant_id = body?.restaurant_id as string | undefined;
 
-    console.log('Request received:', { ticket_id, restaurant_id });
+    // Check if caller is authenticated (panel user) — for private mode
+    let isAuthenticated = false;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data } = await callerClient.auth.getUser();
+      if (data?.user) {
+        isAuthenticated = true;
+      }
+    }
+
+    console.log('Request received:', { ticket_id, restaurant_id, isAuthenticated, hide_pii: HIDE_PII_QUEUE });
 
     if (!ticket_id && !restaurant_id) {
       return new Response(
@@ -29,24 +60,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // IMPORTANT: alinhar com o painel (Tela Comando)
-    // O painel considera apenas registros das últimas 24 horas.
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    // Se veio ticket_id, buscar a entrada (independente do status), e derivar restaurant_id/queue_id
-    let entryData:
-      | {
-          id: string;
-          queue_id: string;
-          restaurant_id: string;
-          status: string;
-          party_size: number;
-          created_at: string;
-          name: string | null;
-          email: string | null;
-          phone: string | null;
-        }
-      | null = null;
+    let entryData: {
+      id: string;
+      queue_id: string;
+      restaurant_id: string;
+      status: string;
+      party_size: number;
+      created_at: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+    } | null = null;
 
     if (ticket_id) {
       const { data: entry, error: entryError } = await supabase
@@ -71,7 +97,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Expirar links antigos (mesma janela do painel)
       if (entry.created_at < cutoff) {
         return new Response(
           JSON.stringify({ found: false }),
@@ -101,33 +126,22 @@ Deno.serve(async (req) => {
 
     const getSizeBucketLabel = (bucket: string): string => {
       switch (bucket) {
-        case '1-2':
-          return '1–2 pessoas';
-        case '3-4':
-          return '3–4 pessoas';
-        case '5-6':
-          return '5–6 pessoas';
-        case '7-8':
-          return '7–8 pessoas';
-        case '9-10':
-          return '9–10 pessoas';
-        case '10+':
-          return '10+ pessoas';
-        default:
-          return bucket;
+        case '1-2': return '1–2 pessoas';
+        case '3-4': return '3–4 pessoas';
+        case '5-6': return '5–6 pessoas';
+        case '7-8': return '7–8 pessoas';
+        case '9-10': return '9–10 pessoas';
+        case '10+': return '10+ pessoas';
+        default: return bucket;
       }
     };
 
-    // Buscar configurações da FILA (queue_settings) - NÃO reservation_settings!
     const { data: queueSettings, error: settingsError } = await supabase
       .from('queue_settings')
       .select('tolerance_minutes, max_party_size, queue_capacity')
       .eq('restaurant_id', restaurant_id)
       .maybeSingle();
 
-    console.log('Queue settings:', { queueSettings, settingsError });
-
-    // Buscar nome e logo do restaurante (preferir mesaclik.restaurants)
     const { data: restaurantMesaclik } = await supabase
       .schema('mesaclik')
       .from('restaurants')
@@ -146,8 +160,6 @@ Deno.serve(async (req) => {
     const restaurant_name = restaurantMesaclik?.name || restaurantPublic?.name || 'Restaurante';
     const restaurant_logo_url = restaurantMesaclik?.logo_url || null;
 
-    // Buscar todas as entradas aguardando no restaurante (últimas 24h), ordenadas por created_at ASC, id ASC
-    // Para calcular posição, preferimos filtrar por queue_id quando possível (evita misturar filas do mesmo restaurante).
     let waitingQuery = supabase
       .schema('mesaclik')
       .from('queue_entries')
@@ -164,8 +176,6 @@ Deno.serve(async (req) => {
 
     const { data: waitingEntries, error: entriesError } = await waitingQuery;
 
-    console.log('Waiting entries:', { cutoff, count: waitingEntries?.length, entriesError });
-
     if (entriesError) {
       console.error('Erro ao buscar entradas da fila:', entriesError);
       return new Response(
@@ -175,12 +185,9 @@ Deno.serve(async (req) => {
     }
 
     const entries = waitingEntries || [];
-
-    // Calcular totais
     const total_groups = entries.length;
     const total_people = entries.reduce((sum, entry) => sum + (entry.party_size || 0), 0);
 
-    // Posição do usuário (por grupo) no recorte das últimas 24h
     let position: number | null = null;
     let user_entry: {
       id: string;
@@ -192,12 +199,16 @@ Deno.serve(async (req) => {
     } | null = null;
 
     if (ticket_id && entryData) {
+      // ── PII PROTECTION ──
+      // Only include PII if caller is authenticated OR HIDE_PII_QUEUE is disabled
+      const shouldHidePII = HIDE_PII_QUEUE && !isAuthenticated;
+
       user_entry = {
         id: entryData.id,
         queue_id: entryData.queue_id,
         party_size: entryData.party_size,
-        customer_name: entryData.name,
-        phone: entryData.phone,
+        customer_name: entryData.name, // Name kept for UX (first name only display)
+        phone: shouldHidePII ? null : entryData.phone,
         created_at: entryData.created_at,
       };
 
@@ -206,10 +217,13 @@ Deno.serve(async (req) => {
         const sameBucket = entries.filter((e) => getSizeBucket(Number(e.party_size || 1)) === bucket);
         const index = sameBucket.findIndex((e) => e.id === ticket_id);
         if (index !== -1) {
-          position = index + 1; // 1-indexed dentro do bucket
+          position = index + 1;
         }
       }
     }
+
+    // ── PII PROTECTION: never expose email/phone in public response ──
+    const shouldHidePII = HIDE_PII_QUEUE && !isAuthenticated;
 
     const response = {
       found: ticket_id ? !!entryData : true,
@@ -221,33 +235,30 @@ Deno.serve(async (req) => {
       status: entryData?.status ?? null,
       party_size: entryData?.party_size ?? null,
       created_at: entryData?.created_at ?? null,
-      customer_name: entryData?.name ?? null,
-      customer_email: entryData?.email ?? null,
-      customer_phone: entryData?.phone ?? null,
+      customer_name: entryData?.name ?? null, // Kept for UX
+      customer_email: shouldHidePII ? null : (entryData?.email ?? null),
+      customer_phone: shouldHidePII ? null : (entryData?.phone ?? null),
       size_group: entryData ? getSizeBucketLabel(getSizeBucket(Number(entryData.party_size || 1))) : null,
       total_groups,
       total_people,
       position,
       user_entry,
-      // Configurações da FILA (queue_settings)
       tolerance_minutes: queueSettings?.tolerance_minutes ?? 10,
       max_party_size: queueSettings?.max_party_size ?? 8,
       queue_capacity: queueSettings?.queue_capacity ?? 50,
-      // para debug/auditoria (não expõe dados sensíveis)
       cutoff,
     };
-
-    console.log('Queue info response:', response);
 
     return new Response(
       JSON.stringify(response),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    const corsH = getCorsHeaders(req);
     console.error('Erro na função get-queue-info:', error);
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsH, 'Content-Type': 'application/json' } }
     );
   }
 });
