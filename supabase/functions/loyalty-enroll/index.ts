@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@4.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-// ── Email sender addresses (match other functions) ──
+// ── Email sender addresses ──
 const RESEND_FROM_TRANSACTIONAL =
   Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
   Deno.env.get("RESEND_FROM_EMAIL") ||
@@ -29,6 +28,54 @@ function getCorsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Vary": "Origin",
   };
+}
+
+// ── Resend via raw fetch (reliable in Deno edge runtime) ──
+async function sendEmailViaResend(params: {
+  to: string;
+  subject: string;
+  html: string;
+  from: string;
+  text?: string;
+}): Promise<{ id?: string; error?: string }> {
+  if (!RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY secret");
+    return { error: "Missing RESEND_API_KEY" };
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: params.from,
+        to: [params.to],
+        subject: params.subject,
+        html: params.html,
+        text: params.text || undefined,
+        reply_to: "suporte@mesaclik.com.br",
+        headers: {
+          "Auto-Submitted": "auto-generated",
+          "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Resend API error:", JSON.stringify(data));
+      return { error: data.message || "Failed to send email" };
+    }
+
+    return { id: data.id };
+  } catch (err: any) {
+    console.error("Resend fetch error:", err);
+    return { error: err.message || "Network error sending email" };
+  }
 }
 
 // ── Auth helper ──
@@ -339,63 +386,105 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: { "Content-Type": "application/json", ...cors } });
   } catch (error: any) {
     console.error("Error in loyalty-enroll:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...getCorsHeaders(req) } });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
   }
 };
 
+// ── Email builders (plain HTML, no gradients for Outlook compat) ──
+
 async function sendActivationEmail(customer: any, program: any, restaurantName: string, currentVisits: number, visitsRemaining: number) {
-  const html = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">Voce entrou no ${program.program_name}!</h1>
-    </div>
-    <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-      <p style="color: #374151; font-size: 16px;">Olá, <strong>${customer.customer_name || 'Cliente'}</strong>!</p>
-      <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">Você agora faz parte do <strong>${program.program_name}</strong> do <strong>${restaurantName}</strong> 🍽️</p>
-      <p style="color: #6b7280; font-size: 16px;">Funciona assim:</p>
-      <ul style="color: #6b7280; font-size: 15px; line-height: 1.8;">
-        <li>A cada visita concluída, você acumula <strong>1 clique</strong>.</li>
-        <li>Ao completar <strong>${program.required_visits} visitas</strong>, você ganha:</li>
-      </ul>
-      <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 5px;">
-        <p style="margin: 0; color: #92400e; font-size: 18px; font-weight: bold;">🎁 ${program.reward_description}</p>
-      </div>
-      <p style="color: #374151; font-size: 16px;">Atualmente você já tem <strong>${currentVisits} visitas</strong> registradas.<br>Faltam apenas <strong>${visitsRemaining}</strong> para desbloquear seu benefício!</p>
-      <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">Esperamos você em breve 😉</p>
-      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px;">Equipe ${restaurantName}</p>
-    </div>
-  </div>`;
-  try {
-    await resend.emails.send({ from: `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`, to: [customer.customer_email], subject: `Voce entrou no ${program.program_name} do ${restaurantName}!`, html });
-    console.log(`Activation email sent to ${customer.customer_email}`);
-  } catch (err) {
-    console.error(`Failed to send activation email to ${customer.customer_email}:`, err);
+  const fromAddress = `${restaurantName} <${RESEND_FROM_TRANSACTIONAL}>`;
+  const subject = `Voce entrou no ${program.program_name} do ${restaurantName}!`;
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${subject}</title></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f9fafb;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
+        <tr><td style="padding:28px 24px;text-align:center;background-color:#ea580c;border-radius:8px 8px 0 0;">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Voce entrou no ${program.program_name}!</h1>
+          <p style="margin:8px 0 0;color:#ffffff;font-size:15px;opacity:0.9;">${restaurantName}</p>
+        </td></tr>
+        <tr><td style="padding:28px 24px;">
+          <p style="color:#374151;font-size:16px;">Ola, <strong>${customer.customer_name || 'Cliente'}</strong>!</p>
+          <p style="color:#6b7280;font-size:16px;line-height:1.6;">Voce agora faz parte do <strong>${program.program_name}</strong> do <strong>${restaurantName}</strong></p>
+          <p style="color:#6b7280;font-size:16px;">Funciona assim:</p>
+          <ul style="color:#6b7280;font-size:15px;line-height:1.8;">
+            <li>A cada visita concluida, voce acumula <strong>1 clique</strong>.</li>
+            <li>Ao completar <strong>${program.required_visits} visitas</strong>, voce ganha:</li>
+          </ul>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:16px 0;">
+            <tr><td style="padding:15px;background-color:#fef3c7;border-left:4px solid #f59e0b;border-radius:5px;">
+              <p style="margin:0;color:#92400e;font-size:18px;font-weight:bold;">${program.reward_description}</p>
+            </td></tr>
+          </table>
+          <p style="color:#374151;font-size:16px;">Atualmente voce ja tem <strong>${currentVisits} visitas</strong> registradas.<br>Faltam apenas <strong>${visitsRemaining}</strong> para desbloquear seu beneficio!</p>
+          <p style="color:#6b7280;font-size:14px;margin-top:30px;">Esperamos voce em breve!</p>
+        </td></tr>
+        <tr><td style="padding:20px 24px;background-color:#f9fafb;border-radius:0 0 8px 8px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;">Este e-mail foi enviado pelo ${restaurantName}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `Voce entrou no ${program.program_name} do ${restaurantName}!\n\nOla ${customer.customer_name || 'Cliente'}!\nVoce agora faz parte do ${program.program_name}.\nA cada visita concluida, voce acumula 1 clique.\nAo completar ${program.required_visits} visitas, voce ganha: ${program.reward_description}\nAtualmente voce ja tem ${currentVisits} visitas. Faltam ${visitsRemaining}!\n\nEsperamos voce em breve!\nEquipe ${restaurantName}`;
+
+  const result = await sendEmailViaResend({ to: customer.customer_email, subject, html, from: fromAddress, text });
+  if (result.error) {
+    console.error(`Failed to send activation email to ${customer.customer_email}:`, result.error);
+  } else {
+    console.log(`Activation email sent to ${customer.customer_email}: ${result.id}`);
   }
 }
 
 async function sendRewardEmail(customer: any, program: any, restaurantName: string) {
   const expiresDate = new Date(Date.now() + program.reward_validity_days * 24 * 60 * 60 * 1000);
   const formattedExpiry = expiresDate.toLocaleDateString("pt-BR");
-  const html = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">Parabens! Recompensa desbloqueada!</h1>
-    </div>
-    <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-      <p style="color: #374151; font-size: 16px;">Olá, <strong>${customer.customer_name || 'Cliente'}</strong>!</p>
-      <p style="color: #6b7280; font-size: 16px; line-height: 1.6;">Você completou <strong>${program.required_visits} visitas</strong> no <strong>${restaurantName}</strong> 🎉</p>
-      <p style="color: #6b7280; font-size: 16px;">Como prometido, você ganhou:</p>
-      <div style="background: #dcfce7; border-left: 4px solid #16a34a; padding: 15px; margin: 20px 0; border-radius: 5px;">
-        <p style="margin: 0; color: #166534; font-size: 18px; font-weight: bold;">🎁 ${program.reward_description}</p>
-      </div>
-      <p style="color: #374151; font-size: 14px;">Válido até: <strong>${formattedExpiry}</strong></p>
-      <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">Apresente este e-mail na sua próxima visita para resgatar seu prêmio!</p>
-      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 20px;">Equipe ${restaurantName}</p>
-    </div>
-  </div>`;
-  try {
-    await resend.emails.send({ from: `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`, to: [customer.customer_email], subject: `Recompensa desbloqueada no ${restaurantName}!`, html });
-    console.log(`Reward email sent to ${customer.customer_email}`);
-  } catch (err) {
-    console.error(`Failed to send reward email to ${customer.customer_email}:`, err);
+  const fromAddress = `${restaurantName} <${RESEND_FROM_TRANSACTIONAL}>`;
+  const subject = `Recompensa desbloqueada no ${restaurantName}!`;
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${subject}</title></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f9fafb;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
+        <tr><td style="padding:28px 24px;text-align:center;background-color:#16a34a;border-radius:8px 8px 0 0;">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">Parabens! Recompensa desbloqueada!</h1>
+          <p style="margin:8px 0 0;color:#ffffff;font-size:15px;opacity:0.9;">${restaurantName}</p>
+        </td></tr>
+        <tr><td style="padding:28px 24px;">
+          <p style="color:#374151;font-size:16px;">Ola, <strong>${customer.customer_name || 'Cliente'}</strong>!</p>
+          <p style="color:#6b7280;font-size:16px;line-height:1.6;">Voce completou <strong>${program.required_visits} visitas</strong> no <strong>${restaurantName}</strong></p>
+          <p style="color:#6b7280;font-size:16px;">Como prometido, voce ganhou:</p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:16px 0;">
+            <tr><td style="padding:15px;background-color:#dcfce7;border-left:4px solid #16a34a;border-radius:5px;">
+              <p style="margin:0;color:#166534;font-size:18px;font-weight:bold;">${program.reward_description}</p>
+            </td></tr>
+          </table>
+          <p style="color:#374151;font-size:14px;">Valido ate: <strong>${formattedExpiry}</strong></p>
+          <p style="color:#6b7280;font-size:14px;margin-top:30px;">Apresente este e-mail na sua proxima visita para resgatar seu premio!</p>
+        </td></tr>
+        <tr><td style="padding:20px 24px;background-color:#f9fafb;border-radius:0 0 8px 8px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;">Este e-mail foi enviado pelo ${restaurantName}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nOla ${customer.customer_name || 'Cliente'}!\nVoce completou ${program.required_visits} visitas.\nVoce ganhou: ${program.reward_description}\nValido ate: ${formattedExpiry}\n\nApresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
+
+  const result = await sendEmailViaResend({ to: customer.customer_email, subject, html, from: fromAddress, text });
+  if (result.error) {
+    console.error(`Failed to send reward email to ${customer.customer_email}:`, result.error);
+  } else {
+    console.log(`Reward email sent to ${customer.customer_email}: ${result.id}`);
   }
 }
 
