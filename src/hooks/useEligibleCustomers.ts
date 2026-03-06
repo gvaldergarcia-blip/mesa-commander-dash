@@ -82,6 +82,23 @@ export const useEligibleCustomers = (restaurantId: string) => {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  useEffect(() => {
+    const handleWindowFocus = () => fetchCustomers();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchCustomers();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchCustomers]);
+
   return {
     customers,
     loading,
