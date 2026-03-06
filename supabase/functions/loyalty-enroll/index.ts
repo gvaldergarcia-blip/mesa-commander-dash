@@ -225,14 +225,18 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (!existing.activation_email_sent && cust.customer_email) {
           const visitsRemaining = Math.max(0, program.required_visits - visits);
-          await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
-          await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("id", existing.id);
-          emailsSent++;
+          const activationSent = await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
+          if (activationSent) {
+            await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("id", existing.id);
+            emailsSent++;
+          }
         }
         if (rewardUnlocked && !existing.reward_email_sent && cust.customer_email) {
-          await sendRewardEmail(cust, program, restaurantName);
-          await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
-          emailsSent++;
+          const rewardSent = await sendRewardEmail(cust, program, restaurantName);
+          if (rewardSent) {
+            await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
+            emailsSent++;
+          }
         }
       } else {
         await supabase.from("customer_loyalty_status").insert({
@@ -245,13 +249,17 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (cust.customer_email) {
           const visitsRemaining = Math.max(0, program.required_visits - visits);
-          await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
-          await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
-          emailsSent++;
-          if (rewardUnlocked) {
-            await sendRewardEmail(cust, program, restaurantName);
-            await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
+          const activationSent = await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
+          if (activationSent) {
+            await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
             emailsSent++;
+          }
+          if (rewardUnlocked) {
+            const rewardSent = await sendRewardEmail(cust, program, restaurantName);
+            if (rewardSent) {
+              await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
+              emailsSent++;
+            }
           }
         }
       }
@@ -299,9 +307,11 @@ const handler = async (req: Request): Promise<Response> => {
             reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
           }).eq("id", existing.id);
           if (rewardUnlocked && !existing.reward_email_sent && cust.marketing_optin && cust.customer_email) {
-            await sendRewardEmail(cust, program, restaurantName);
-            await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
-            emailsSent++;
+            const rewardSent = await sendRewardEmail(cust, program, restaurantName);
+            if (rewardSent) {
+              await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
+              emailsSent++;
+            }
           }
         } else {
           await supabase.from("customer_loyalty_status").insert({
@@ -313,13 +323,17 @@ const handler = async (req: Request): Promise<Response> => {
           });
           if (cust.marketing_optin && cust.customer_email) {
             const visitsRemaining = Math.max(0, program.required_visits - visits);
-            await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
-            await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
-            emailsSent++;
-            if (rewardUnlocked) {
-              await sendRewardEmail(cust, program, restaurantName);
-              await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
+            const activationSent = await sendActivationEmail(cust, program, restaurantName, visits, visitsRemaining);
+            if (activationSent) {
+              await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
               emailsSent++;
+            }
+            if (rewardUnlocked) {
+              const rewardSent = await sendRewardEmail(cust, program, restaurantName);
+              if (rewardSent) {
+                await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
+                emailsSent++;
+              }
             }
           }
           enrolled++;
@@ -367,8 +381,10 @@ const handler = async (req: Request): Promise<Response> => {
             : null,
         }).eq("id", status.id);
         if (rewardUnlocked && !status.reward_email_sent && cust.marketing_optin && cust.customer_email) {
-          await sendRewardEmail(cust, program, restaurantName);
-          await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", status.id);
+          const rewardSent = await sendRewardEmail(cust, program, restaurantName);
+          if (rewardSent) {
+            await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", status.id);
+          }
         }
       } else {
         const rewardExpiresAt = rewardUnlocked
@@ -394,9 +410,18 @@ const handler = async (req: Request): Promise<Response> => {
 
 // ── Email builders (plain HTML, no gradients for Outlook compat) ──
 
-async function sendActivationEmail(customer: any, program: any, restaurantName: string, currentVisits: number, visitsRemaining: number) {
-  const fromAddress = `${restaurantName} <${RESEND_FROM_TRANSACTIONAL}>`;
-  const subject = `Voce entrou no ${program.program_name} do ${restaurantName}!`;
+function buildMarketingEmailHeaders(): Record<string, string> {
+  return {
+    Precedence: "bulk",
+    "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
+    "List-Unsubscribe": "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>",
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
+
+async function sendActivationEmail(customer: any, program: any, restaurantName: string, currentVisits: number, visitsRemaining: number): Promise<boolean> {
+  const fromAddress = `Programa MesaClik <${getRawEmailAddress(RESEND_FROM_MARKETING)}>`;
+  const subject = `Voce entrou no ${program.program_name} - ${restaurantName}`;
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${subject}</title></head>
@@ -435,19 +460,21 @@ async function sendActivationEmail(customer: any, program: any, restaurantName: 
 
   const text = `Voce entrou no ${program.program_name} do ${restaurantName}!\n\nOla ${customer.customer_name || 'Cliente'}!\nVoce agora faz parte do ${program.program_name}.\nA cada visita concluida, voce acumula 1 clique.\nAo completar ${program.required_visits} visitas, voce ganha: ${program.reward_description}\nAtualmente voce ja tem ${currentVisits} visitas. Faltam ${visitsRemaining}!\n\nEsperamos voce em breve!\nEquipe ${restaurantName}`;
 
-  const result = await sendEmailViaResend({ to: customer.customer_email, subject, html, from: fromAddress, text });
+  const result = await sendEmailViaResend({ to: customer.customer_email, subject, html, from: fromAddress, text, headers: buildMarketingEmailHeaders() });
   if (result.error) {
     console.error(`Failed to send activation email to ${customer.customer_email}:`, result.error);
-  } else {
-    console.log(`Activation email sent to ${customer.customer_email}: ${result.id}`);
+    return false;
   }
+
+  console.log(`Activation email sent to ${customer.customer_email}: ${result.id}`);
+  return true;
 }
 
-async function sendRewardEmail(customer: any, program: any, restaurantName: string) {
+async function sendRewardEmail(customer: any, program: any, restaurantName: string): Promise<boolean> {
   const expiresDate = new Date(Date.now() + program.reward_validity_days * 24 * 60 * 60 * 1000);
   const formattedExpiry = expiresDate.toLocaleDateString("pt-BR");
-  const fromAddress = `${restaurantName} <${RESEND_FROM_TRANSACTIONAL}>`;
-  const subject = `Recompensa desbloqueada no ${restaurantName}!`;
+  const fromAddress = `Programa MesaClik <${getRawEmailAddress(RESEND_FROM_MARKETING)}>`;
+  const subject = `Recompensa desbloqueada - ${restaurantName}`;
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${subject}</title></head>
@@ -482,12 +509,14 @@ async function sendRewardEmail(customer: any, program: any, restaurantName: stri
 
   const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nOla ${customer.customer_name || 'Cliente'}!\nVoce completou ${program.required_visits} visitas.\nVoce ganhou: ${program.reward_description}\nValido ate: ${formattedExpiry}\n\nApresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
 
-  const result = await sendEmailViaResend({ to: customer.customer_email, subject, html, from: fromAddress, text });
+  const result = await sendEmailViaResend({ to: customer.customer_email, subject, html, from: fromAddress, text, headers: buildMarketingEmailHeaders() });
   if (result.error) {
     console.error(`Failed to send reward email to ${customer.customer_email}:`, result.error);
-  } else {
-    console.log(`Reward email sent to ${customer.customer_email}: ${result.id}`);
+    return false;
   }
+
+  console.log(`Reward email sent to ${customer.customer_email}: ${result.id}`);
+  return true;
 }
 
 serve(handler);
