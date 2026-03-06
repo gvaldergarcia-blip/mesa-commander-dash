@@ -1,27 +1,88 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// ── SECURITY FLAGS ──
+const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_GET_CUSTOMER_HISTORY") ?? "true") === "true";
+
+// ── CORS (restricted allowlist) ──
+const ALLOWED_ORIGINS = [
+  "https://mesaclik.com.br", "https://www.mesaclik.com.br",
+  "https://app.mesaclik.com.br", "https://painel.mesaclik.com.br",
+  "http://localhost:5173", "http://localhost:3000", "http://localhost:8080",
+];
+const PREVIEW_ORIGIN_RE = /^https:\/\/.*\.lovable\.app$/;
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") || "";
+  const isAllowed = ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_RE.test(origin);
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
+  };
+}
+
+// ── Auth helper ──
+async function authenticateRequest(req: Request, cors: Record<string, string>) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    if (REQUIRE_JWT) {
+      return { user: null, error: new Response(JSON.stringify({ error: "Autenticação necessária" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } }) };
+    }
+    return { user: { id: "anonymous" }, error: null };
+  }
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user) {
+    return { user: null, error: new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } }) };
+  }
+  return { user: data.user, error: null };
+}
+
+// ── Ownership helper ──
+async function resolveRestaurantForUser(userId: string, requestedRestaurantId: string): Promise<{ allowed: boolean; restaurantId: string }> {
+  if (userId === "anonymous") return { allowed: !REQUIRE_JWT, restaurantId: requestedRestaurantId };
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: member } = await supabase.from("restaurant_members").select("restaurant_id, role").eq("user_id", userId).eq("restaurant_id", requestedRestaurantId).maybeSingle();
+  if (member) return { allowed: true, restaurantId: member.restaurant_id };
+  const { data: admin } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
+  if (admin) return { allowed: true, restaurantId: requestedRestaurantId };
+  return { allowed: false, restaurantId: requestedRestaurantId };
+}
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const cors = getCorsHeaders(req);
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
+    // 1. Auth
+    const auth = await authenticateRequest(req, cors);
+    if (auth.error) return auth.error;
+    const userId = auth.user!.id;
+
     const { customer_id, restaurant_id, email, phone } = await req.json();
     if (!restaurant_id) {
       return new Response(JSON.stringify({ error: 'restaurant_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
+    // 2. Ownership
+    if (REQUIRE_JWT && userId !== "anonymous") {
+      const ownership = await resolveRestaurantForUser(userId, restaurant_id);
+      if (!ownership.allowed) {
+        console.warn(`[get-customer-history] User ${userId} blocked — not member of ${restaurant_id}`);
+        return new Response(JSON.stringify({ error: 'Acesso negado a este restaurante' }),
+          { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Get customer info
+    // ── Original business logic (unchanged) ──
+
     let customerData = null;
     let customerEmail = email;
     let customerPhone = phone;
@@ -46,7 +107,7 @@ Deno.serve(async (req) => {
         customer: null, queue_history: [], reservation_history: [],
         visit_history: [], promotion_history: [], metrics: null,
         alerts: [], score: null, trend: null,
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
     // 2. Fetch queue history
@@ -83,7 +144,7 @@ Deno.serve(async (req) => {
       cancel_actor: r.canceled_by || (r.canceled_at ? 'desconhecido' : null),
     }));
 
-    // 4. Fetch manual/direct visits from customer_visits table
+    // 4. Fetch manual/direct visits
     let visitData: any[] = [];
     if (customerId) {
       const { data: visits } = await supabase
@@ -121,7 +182,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6. Fetch restaurant average wait time for comparison
+    // 6. Fetch restaurant average wait time
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data: recentQueues } = await supabase
       .from('queue_entries')
@@ -129,15 +190,15 @@ Deno.serve(async (req) => {
       .eq('status', 'seated')
       .gte('created_at', ninetyDaysAgo)
       .limit(1000);
-    
+
     const { data: restaurantQueues } = await supabase
       .from('queues')
       .select('id')
       .eq('restaurant_id', restaurant_id);
-    
+
     const restaurantQueueIds = new Set((restaurantQueues || []).map((q: any) => q.id));
     const restaurantQueueEntries = (recentQueues || []).filter((e: any) => restaurantQueueIds.has(e.queue_id));
-    
+
     let restaurantAvgWaitTime = 0;
     if (restaurantQueueEntries.length > 0) {
       const waitTimes = restaurantQueueEntries
@@ -147,31 +208,25 @@ Deno.serve(async (req) => {
           return Math.round(diff / 60000);
         })
         .filter((w: number) => w > 0 && w < 300);
-      
       if (waitTimes.length > 0) {
         restaurantAvgWaitTime = Math.round(waitTimes.reduce((a: number, b: number) => a + b, 0) / waitTimes.length);
       }
     }
 
-    // 7. Calculate comprehensive metrics — VISITS as primary entity
+    // 7. Calculate comprehensive metrics
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const ninetyDaysAgoDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-    // Queue/reservation interactions (for show rate, cancellations etc)
     const allInteractions = [...queueData, ...reservationData];
     const completedInteractions = allInteractions.filter((v: any) => v.status === 'seated' || v.status === 'completed');
     const canceledVisits = allInteractions.filter((v: any) => v.status === 'canceled');
     const noShowVisits = allInteractions.filter((v: any) => v.status === 'no_show');
-    
-    // TOTAL VISITS = customer_visits (manual/all sources) as primary source
-    // customer_visits already includes visits created by queue/reservation triggers
+
     const totalVisitsFromTable = visitData.length;
-    // Fallback: if no customer_visits records, use completed interactions
     const totalCompletedVisits = totalVisitsFromTable > 0 ? totalVisitsFromTable : completedInteractions.length;
 
-    // Cancellations by restaurant in last 30 days
     const recentCancelsByRestaurant = allInteractions.filter((v: any) => {
       if (v.status !== 'canceled') return false;
       const cancelDate = new Date(v.canceled_at || v.date || v.created_at);
@@ -180,13 +235,11 @@ Deno.serve(async (req) => {
       return actor === 'restaurant' || actor === 'restaurante' || actor === 'admin' || actor === 'panel';
     });
 
-    // No-shows in last 60 days
     const recentNoShows = noShowVisits.filter((v: any) => {
       const eventDate = new Date(v.date || v.created_at);
       return eventDate >= sixtyDaysAgo;
     });
 
-    // Customer's last wait time
     const customerWaitTimes = queueData
       .filter((q: any) => q.status === 'seated' && q.wait_time && q.wait_time > 0)
       .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -195,12 +248,10 @@ Deno.serve(async (req) => {
       ? Math.round(customerWaitTimes.reduce((acc: number, q: any) => acc + q.wait_time, 0) / customerWaitTimes.length)
       : null;
 
-    // Average party size (from interactions that have party_size)
     const avgPartySize = completedInteractions.length > 0
       ? Math.round(completedInteractions.reduce((acc: number, v: any) => acc + (v.party_size || 0), 0) / completedInteractions.length)
       : 0;
 
-    // Preferred time — use ALL visit sources
     const allCompletedDates = [
       ...completedInteractions.filter((v: any) => v.date).map((v: any) => v.date),
       ...visitData.filter((v: any) => v.date).map((v: any) => v.date),
@@ -211,28 +262,25 @@ Deno.serve(async (req) => {
     const mostFrequentHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
     const preferredTime = mostFrequentHour ? `${mostFrequentHour[0]}:00` : null;
 
-    // Show rate: completed vs (completed + no_show + canceled) — from interactions only
     const totalWithOutcome = completedInteractions.length + noShowVisits.length + canceledVisits.length;
     const showRate = totalWithOutcome > 0
       ? Math.round((completedInteractions.length / totalWithOutcome) * 100)
       : 100;
 
-    // Preferred channel — includes manual visits
     const queueCompleted = queueData.filter((q: any) => q.status === 'seated').length;
     const reservationCompleted = reservationData.filter((r: any) => r.status === 'completed').length;
-    const manualVisits = visitData.filter((v: any) => 
+    const manualVisits = visitData.filter((v: any) =>
       v.source === 'registro_manual' || v.source === 'promocao' || v.source === 'evento'
     ).length;
-    
+
     let preferredChannel = 'queue';
     if (manualVisits > queueCompleted && manualVisits > reservationCompleted) preferredChannel = 'direct';
     else if (reservationCompleted > queueCompleted) preferredChannel = 'reservation';
 
-    // Trend: visits last 30d vs prev 30d — use customer_visits as primary
     const visitsLast30d = totalVisitsFromTable > 0
       ? visitData.filter((v: any) => new Date(v.date) >= thirtyDaysAgo).length
       : completedInteractions.filter((v: any) => new Date(v.date) >= thirtyDaysAgo).length;
-    
+
     const visitsPrev30d = totalVisitsFromTable > 0
       ? visitData.filter((v: any) => {
           const d = new Date(v.date);
@@ -248,21 +296,18 @@ Deno.serve(async (req) => {
     if (trendDiff >= 2) trendDirection = 'up';
     else if (trendDiff <= -2) trendDirection = 'down';
 
-    // Last visit date — from ALL sources
     const allVisitDates = [
       ...completedInteractions.map((v: any) => v.date),
       ...visitData.map((v: any) => v.date),
     ].filter(Boolean).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    
+
     const lastVisitAt = allVisitDates[0] || null;
     const daysSinceLastVisit = lastVisitAt
       ? Math.floor((now.getTime() - new Date(lastVisitAt).getTime()) / (1000 * 60 * 60 * 24))
       : null;
 
-    // 8. Score MesaClik (0-100) — REALISTIC scoring based on ALL visits
-    // Start at 30 (baseline for any known customer)
+    // 8. Score MesaClik (0-100)
     let score = 30;
-
     const visitsLast90d = totalVisitsFromTable > 0
       ? visitData.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length
       : completedInteractions.filter((v: any) => new Date(v.date) >= ninetyDaysAgoDate).length;
@@ -276,151 +321,78 @@ Deno.serve(async (req) => {
       return actor === 'customer' || actor === 'cliente' || actor === '';
     }).length;
 
-    // === POSITIVE SIGNALS ===
-    // Recência (até +20pts)
     if (daysSinceLastVisit !== null) {
       if (daysSinceLastVisit <= 3) score += 20;
       else if (daysSinceLastVisit <= 7) score += 15;
       else if (daysSinceLastVisit <= 14) score += 10;
       else if (daysSinceLastVisit <= 30) score += 5;
     }
-
-    // Frequência recente (até +15pts)
     if (visitsLast30d >= 4) score += 15;
     else if (visitsLast30d >= 2) score += 10;
     else if (visitsLast30d >= 1) score += 5;
-
-    // Frequência 90d (até +10pts)
     if (visitsLast90d >= 8) score += 10;
     else if (visitsLast90d >= 4) score += 7;
     else if (visitsLast90d >= 2) score += 3;
-
-    // Fidelidade total (até +10pts)
     if (totalCompletedVisits >= 20) score += 10;
     else if (totalCompletedVisits >= 10) score += 7;
     else if (totalCompletedVisits >= 5) score += 4;
-
-    // Comparecimento confiável (até +5pts)
     if (showRate >= 95 && totalWithOutcome >= 3) score += 5;
     else if (showRate >= 80 && totalWithOutcome >= 2) score += 3;
-
-    // Marketing opt-in (+5pts)
     if (customerData?.marketing_optin) score += 5;
-
-    // Tendência positiva (+5pts)
     if (trendDirection === 'up') score += 5;
-
-    // === NEGATIVE SIGNALS ===
-    // Inatividade (até -20pts)
     if (daysSinceLastVisit !== null) {
       if (daysSinceLastVisit > 90) score -= 20;
       else if (daysSinceLastVisit > 60) score -= 15;
       else if (daysSinceLastVisit > 45) score -= 10;
     }
-
-    // No-shows (até -15pts)
     if (noShowCount90d >= 3) score -= 15;
     else if (noShowCount90d >= 2) score -= 10;
     else if (noShowCount90d >= 1) score -= 5;
-
-    // Cancelamentos pelo cliente (até -10pts)
     if (cancelByCustomer90d >= 3) score -= 10;
     else if (cancelByCustomer90d >= 2) score -= 7;
-
-    // Tendência negativa (-5pts)
     if (trendDirection === 'down') score -= 5;
-
-    // Cliente sem nenhuma visita completada
     if (totalCompletedVisits === 0) score = Math.min(score, 20);
-
     score = Math.max(0, Math.min(100, score));
 
-    // Auto tags
     const autoTags: string[] = [];
     if (score >= 80 || totalCompletedVisits >= 10) autoTags.push('VIP');
     if (visitsLast30d >= 2) autoTags.push('Frequente');
     if ((daysSinceLastVisit !== null && daysSinceLastVisit > 60) || score <= 40) autoTags.push('Em risco');
     if (noShowCount90d >= 2) autoTags.push('Instável');
 
-    // 9. Build Alerts
+    // 9. Alerts
     const alerts: any[] = [];
-
     if (recentCancelsByRestaurant.length > 0) {
-      alerts.push({
-        id: 'cancel_by_restaurant',
-        severity: 'critical',
-        title: `Atenção: o restaurante cancelou ${recentCancelsByRestaurant.length} reserva(s) deste cliente nos últimos 30 dias.`,
-        cta: 'ver_eventos',
-      });
+      alerts.push({ id: 'cancel_by_restaurant', severity: 'critical', title: `Atenção: o restaurante cancelou ${recentCancelsByRestaurant.length} reserva(s) deste cliente nos últimos 30 dias.`, cta: 'ver_eventos' });
     }
-
     if (lastWaitTime && restaurantAvgWaitTime > 0 && lastWaitTime > restaurantAvgWaitTime * 1.3) {
-      alerts.push({
-        id: 'high_wait_time',
-        severity: 'warning',
-        title: `Tempo de espera acima da média: este cliente aguardou ${lastWaitTime} min (média do restaurante: ${restaurantAvgWaitTime} min).`,
-        cta: null,
-      });
+      alerts.push({ id: 'high_wait_time', severity: 'warning', title: `Tempo de espera acima da média: este cliente aguardou ${lastWaitTime} min (média do restaurante: ${restaurantAvgWaitTime} min).`, cta: null });
     }
-
     if (recentNoShows.length >= 3) {
-      alerts.push({
-        id: 'no_show_critical',
-        severity: 'critical',
-        title: `Cliente não compareceu ${recentNoShows.length} vezes nos últimos 60 dias.`,
-        cta: null,
-      });
+      alerts.push({ id: 'no_show_critical', severity: 'critical', title: `Cliente não compareceu ${recentNoShows.length} vezes nos últimos 60 dias.`, cta: null });
     } else if (recentNoShows.length >= 2) {
-      alerts.push({
-        id: 'no_show_warning',
-        severity: 'warning',
-        title: `Cliente não compareceu ${recentNoShows.length} vezes nos últimos 60 dias.`,
-        cta: null,
-      });
+      alerts.push({ id: 'no_show_warning', severity: 'warning', title: `Cliente não compareceu ${recentNoShows.length} vezes nos últimos 60 dias.`, cta: null });
     }
-
     if (daysSinceLastVisit !== null && daysSinceLastVisit > 60) {
-      alerts.push({
-        id: 'churn_critical',
-        severity: 'critical',
-        title: `Cliente pode estar inativo há ${daysSinceLastVisit} dias. Considere enviar uma promoção de retorno.`,
-        cta: 'enviar_promocao',
-      });
+      alerts.push({ id: 'churn_critical', severity: 'critical', title: `Cliente pode estar inativo há ${daysSinceLastVisit} dias. Considere enviar uma promoção de retorno.`, cta: 'enviar_promocao' });
     } else if (daysSinceLastVisit !== null && daysSinceLastVisit > 30) {
-      alerts.push({
-        id: 'churn_warning',
-        severity: 'warning',
-        title: `Cliente sem visita há ${daysSinceLastVisit} dias. Atenção para risco de churn.`,
-        cta: 'enviar_promocao',
-      });
+      alerts.push({ id: 'churn_warning', severity: 'warning', title: `Cliente sem visita há ${daysSinceLastVisit} dias. Atenção para risco de churn.`, cta: 'enviar_promocao' });
     }
 
-    // 10. Monthly evolution (last 12 months) — includes manual visits
+    // 10. Monthly evolution
     const monthlyEvolution: { month: string; queue: number; reservation: number; manual: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = monthDate.toISOString().slice(0, 7);
-      const queueInMonth = queueData.filter((q: any) => {
-        if (!q.date) return false;
-        return String(q.date).startsWith(monthKey) && q.status === 'seated';
-      }).length;
-      const reservationInMonth = reservationData.filter((r: any) => {
-        if (!r.date) return false;
-        return String(r.date).startsWith(monthKey) && r.status === 'completed';
-      }).length;
-      const manualInMonth = visitData.filter((v: any) => {
-        if (!v.date) return false;
-        return String(v.date).startsWith(monthKey);
-      }).length;
       monthlyEvolution.push({
         month: monthDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
-        queue: queueInMonth,
-        reservation: reservationInMonth,
-        manual: manualInMonth,
+        queue: queueData.filter((q: any) => q.date && String(q.date).startsWith(monthKey) && q.status === 'seated').length,
+        reservation: reservationData.filter((r: any) => r.date && String(r.date).startsWith(monthKey) && r.status === 'completed').length,
+        manual: visitData.filter((v: any) => v.date && String(v.date).startsWith(monthKey)).length,
       });
     }
 
-    // 11. Preferred day of week — from ALL visits
+    // 11. Preferred day
     const dayOfWeekCounts: Record<number, number> = {};
     [...completedInteractions, ...visitData].forEach((v: any) => {
       if (!v.date) return;
@@ -431,7 +403,6 @@ Deno.serve(async (req) => {
     const preferredDay = Object.entries(dayOfWeekCounts).sort((a, b) => b[1] - a[1])[0];
     const preferredDayName = preferredDay ? dayNames[parseInt(preferredDay[0])] : null;
 
-    // Visit source breakdown
     const visitSourceBreakdown = {
       fila: queueCompleted,
       reserva: reservationCompleted,
@@ -480,12 +451,12 @@ Deno.serve(async (req) => {
       alerts,
       score: { value: score, tags: autoTags },
       trend: { direction: trendDirection, diff: trendDiff, last30d: visitsLast30d, prev30d: visitsPrev30d },
-    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('[get-customer-history] Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } });
   }
 });

@@ -2884,42 +2884,87 @@ export type Database = {
       }
       get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
-      get_reports_queue_data: {
-        Args: {
-          p_end_date: string
-          p_restaurant_id: string
-          p_start_date: string
-        }
-        Returns: {
-          called_at: string
-          canceled_at: string
-          created_at: string
-          id: string
-          party_size: number
-          phone: string
-          seated_at: string
-          status: string
-        }[]
-      }
-      get_reports_reservation_data: {
-        Args: {
-          p_end_date: string
-          p_restaurant_id: string
-          p_start_date: string
-        }
-        Returns: {
-          canceled_at: string
-          completed_at: string
-          confirmed_at: string
-          created_at: string
-          id: string
-          no_show_at: string
-          party_size: number
-          phone: string
-          reserved_for: string
-          status: string
-        }[]
-      }
+      get_reports_queue_data:
+        | {
+            Args: { p_restaurant_id: string }
+            Returns: {
+              called_at: string
+              canceled_at: string
+              created_at: string
+              customer_id: string
+              customer_name: string
+              estimated_wait_time: number
+              id: string
+              notes: string
+              party_size: number
+              phone: string
+              position_number: number
+              priority: string
+              queue_id: string
+              seated_at: string
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              p_end_date: string
+              p_restaurant_id: string
+              p_start_date: string
+            }
+            Returns: {
+              called_at: string
+              canceled_at: string
+              created_at: string
+              id: string
+              party_size: number
+              phone: string
+              seated_at: string
+              status: string
+            }[]
+          }
+      get_reports_reservation_data:
+        | {
+            Args: { p_restaurant_id: string }
+            Returns: {
+              cancel_reason: string
+              canceled_at: string
+              canceled_by: string
+              completed_at: string
+              confirmed_at: string
+              created_at: string
+              customer_email: string
+              id: string
+              name: string
+              no_show_at: string
+              notes: string
+              party_size: number
+              phone: string
+              reserved_for: string
+              restaurant_id: string
+              status: string
+              updated_at: string
+              user_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_end_date: string
+              p_restaurant_id: string
+              p_start_date: string
+            }
+            Returns: {
+              canceled_at: string
+              completed_at: string
+              confirmed_at: string
+              created_at: string
+              id: string
+              no_show_at: string
+              party_size: number
+              phone: string
+              reserved_for: string
+              status: string
+            }[]
+          }
       get_reservations_panel: {
         Args: { p_restaurant_id: string }
         Returns: {
