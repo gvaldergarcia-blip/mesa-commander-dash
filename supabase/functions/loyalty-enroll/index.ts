@@ -12,23 +12,11 @@ const RESEND_FROM_TRANSACTIONAL =
 // ── SECURITY FLAGS ──
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
-// ── CORS (restricted allowlist) ──
-const ALLOWED_ORIGINS = [
-  "https://mesaclik.com.br", "https://www.mesaclik.com.br",
-  "https://app.mesaclik.com.br", "https://painel.mesaclik.com.br",
-  "http://localhost:5173", "http://localhost:3000", "http://localhost:8080",
-];
-const PREVIEW_ORIGIN_RE = /^https:\/\/.*\.lovable\.app$/;
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") || "";
-  const isAllowed = ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_RE.test(origin);
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
-  };
-}
+// ── CORS ──
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 
 // ── Resend via raw fetch (reliable in Deno edge runtime) ──
 async function sendEmailViaResend(params: {
@@ -116,7 +104,7 @@ interface EnrollRequest {
 const VALID_ACTIONS = ["save_program", "check_reward", "activate_customer", "deactivate_customer"];
 
 const handler = async (req: Request): Promise<Response> => {
-  const cors = getCorsHeaders(req);
+  const cors = corsHeaders;
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   try {
@@ -386,7 +374,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400, headers: { "Content-Type": "application/json", ...cors } });
   } catch (error: any) {
     console.error("Error in loyalty-enroll:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 };
 
