@@ -180,6 +180,12 @@ export function useQueueConsent() {
   /**
    * Salva opt-in de marketing (opcional) e atualiza CRM consolidado
    */
+  /**
+   * Salva opt-in de marketing (opcional) usando RPC SECURITY DEFINER
+   * IMPORTANTE: Páginas públicas não têm autenticação, então operações diretas
+   * na tabela restaurant_customers falham silenciosamente por causa do RLS.
+   * A RPC upsert_restaurant_customer é SECURITY DEFINER e bypassa o RLS.
+   */
   const saveMarketingOptin = useCallback(async (
     restaurantId: string,
     customerEmail: string,
@@ -187,32 +193,23 @@ export function useQueueConsent() {
     optin: boolean = true
   ): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from('restaurant_marketing_optins')
-        .upsert({
-          restaurant_id: restaurantId,
-          customer_email: customerEmail,
-          customer_name: customerName || null,
-          marketing_optin: optin,
-          marketing_optin_at: optin ? new Date().toISOString() : null,
-        }, {
-          onConflict: 'restaurant_id,customer_email'
-        });
+      // Usar RPC SECURITY DEFINER para garantir que funcione em páginas públicas
+      const { error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
+        p_restaurant_id: restaurantId,
+        p_email: customerEmail,
+        p_name: customerName || null,
+        p_phone: null,
+        p_source: 'manual', // Usar 'manual' para não duplicar contagem de visitas
+        p_marketing_optin: optin,
+        p_terms_accepted: null,
+      });
 
-      if (error) {
-        console.error('Erro ao salvar opt-in de marketing:', error);
+      if (rpcError) {
+        console.error('Erro ao salvar opt-in de marketing via RPC:', rpcError);
         return false;
       }
 
-      // Atualizar também no CRM consolidado
-      await supabase
-        .from('restaurant_customers')
-        .update({
-          marketing_optin: optin,
-          marketing_optin_at: optin ? new Date().toISOString() : null,
-        })
-        .eq('restaurant_id', restaurantId)
-        .eq('customer_email', customerEmail);
+      console.log('[useQueueConsent] Marketing opt-in salvo via RPC:', optin);
 
       setState(prev => ({
         ...prev,

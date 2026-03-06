@@ -235,70 +235,31 @@ export default function ReservaFinal() {
   }, [reservationInfo?.status]);
 
   // Handler para confirmar consentimento
+  // IMPORTANTE: Usa RPC SECURITY DEFINER para garantir que o upsert funcione
+  // mesmo em páginas públicas sem autenticação (anon key + RLS)
   const handleConfirmConsent = async () => {
-    if (!reservationInfo) return;
+    if (!reservationInfo || !reservationInfo.customer_email) return;
     
     setSavingConsent(true);
     try {
-      // Salvar preferência de marketing se optou por receber ofertas
-      if (offersOptIn && reservationInfo.customer_email) {
-        // Upsert em restaurant_marketing_optins
-        const { error: optinError } = await supabase
-          .from('restaurant_marketing_optins')
-          .upsert({
-            restaurant_id: reservationInfo.restaurant_id,
-            customer_email: reservationInfo.customer_email,
-            customer_name: reservationInfo.customer_name,
-            marketing_optin: true,
-            marketing_optin_at: new Date().toISOString(),
-          }, {
-            onConflict: 'restaurant_id,customer_email'
-          });
+      // Usar a RPC upsert_restaurant_customer (SECURITY DEFINER) que bypassa RLS
+      // Isso garante que o consentimento seja salvo corretamente em qualquer contexto
+      const { error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
+        p_restaurant_id: reservationInfo.restaurant_id,
+        p_email: reservationInfo.customer_email,
+        p_name: reservationInfo.customer_name || null,
+        p_phone: reservationInfo.phone || null,
+        p_source: 'reservation',
+        p_marketing_optin: offersOptIn,
+        p_terms_accepted: true,
+      });
 
-        if (optinError) {
-          console.error('Erro ao salvar opt-in de marketing:', optinError);
-        }
-
-        // Atualizar restaurant_customers também
-        const { error: customerError } = await supabase
-          .from('restaurant_customers')
-          .upsert({
-            restaurant_id: reservationInfo.restaurant_id,
-            customer_email: reservationInfo.customer_email,
-            customer_name: reservationInfo.customer_name,
-            marketing_optin: true,
-            marketing_optin_at: new Date().toISOString(),
-            terms_accepted: true,
-            terms_accepted_at: new Date().toISOString(),
-            last_seen_at: new Date().toISOString(),
-          }, {
-            onConflict: 'restaurant_id,customer_email'
-          });
-
-        if (customerError) {
-          console.error('Erro ao atualizar customer:', customerError);
-        }
-      } else if (reservationInfo.customer_email) {
-        // Apenas salvar aceite de termos sem marketing
-        const { error: customerError } = await supabase
-          .from('restaurant_customers')
-          .upsert({
-            restaurant_id: reservationInfo.restaurant_id,
-            customer_email: reservationInfo.customer_email,
-            customer_name: reservationInfo.customer_name,
-            marketing_optin: false,
-            terms_accepted: true,
-            terms_accepted_at: new Date().toISOString(),
-            last_seen_at: new Date().toISOString(),
-          }, {
-            onConflict: 'restaurant_id,customer_email'
-          });
-
-        if (customerError) {
-          console.error('Erro ao atualizar customer:', customerError);
-        }
+      if (rpcError) {
+        console.error('Erro ao salvar consentimento via RPC:', rpcError);
+        throw rpcError;
       }
 
+      console.log('[ReservaFinal] Consentimento salvo com sucesso via RPC. marketing_optin:', offersOptIn);
       setConsentConfirmed(true);
     } catch (err) {
       console.error('Erro ao salvar consentimento:', err);
