@@ -35,11 +35,18 @@ async function sendEmailViaResend(params: {
   html: string;
   from: string;
   text?: string;
+  headers?: Record<string, string>;
 }): Promise<{ id?: string; error?: string }> {
   if (!RESEND_API_KEY) {
     console.error("Missing RESEND_API_KEY secret");
     return { error: "Missing RESEND_API_KEY" };
   }
+
+  const mergedHeaders = {
+    "Auto-Submitted": "auto-generated",
+    "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
+    ...(params.headers || {}),
+  };
 
   try {
     const response = await fetch("https://api.resend.com/emails", {
@@ -55,10 +62,7 @@ async function sendEmailViaResend(params: {
         html: params.html,
         text: params.text || undefined,
         reply_to: "suporte@mesaclik.com.br",
-        headers: {
-          "Auto-Submitted": "auto-generated",
-          "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
-        },
+        headers: mergedHeaders,
       }),
     });
 
