@@ -199,9 +199,9 @@ export function useQueueConsent() {
         p_email: customerEmail,
         p_name: customerName || null,
         p_phone: null,
-        p_source: 'queue',
+        p_source: 'app', // Usar 'app' para não duplicar contagem de visitas
         p_marketing_optin: optin,
-        p_terms_accepted: null, // Não alterar termos aqui, já foi feito em saveTermsConsent
+        p_terms_accepted: null,
       });
 
       if (rpcError) {
