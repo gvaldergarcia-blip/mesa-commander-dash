@@ -365,7 +365,7 @@ async function sendActivationEmail(customer: any, program: any, restaurantName: 
     </div>
   </div>`;
   try {
-    await resend.emails.send({ from: `MesaClik <noreply@mesaclik.com.br>`, to: [customer.customer_email], subject: `🎉 Você entrou no ${program.program_name} do ${restaurantName}!`, html });
+    await resend.emails.send({ from: `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`, to: [customer.customer_email], subject: `Voce entrou no ${program.program_name} do ${restaurantName}!`, html });
     console.log(`Activation email sent to ${customer.customer_email}`);
   } catch (err) {
     console.error(`Failed to send activation email to ${customer.customer_email}:`, err);
@@ -392,7 +392,7 @@ async function sendRewardEmail(customer: any, program: any, restaurantName: stri
     </div>
   </div>`;
   try {
-    await resend.emails.send({ from: `MesaClik <noreply@mesaclik.com.br>`, to: [customer.customer_email], subject: `🏆 Recompensa desbloqueada no ${restaurantName}!`, html });
+    await resend.emails.send({ from: `MesaClik <${RESEND_FROM_TRANSACTIONAL}>`, to: [customer.customer_email], subject: `Recompensa desbloqueada no ${restaurantName}!`, html });
     console.log(`Reward email sent to ${customer.customer_email}`);
   } catch (err) {
     console.error(`Failed to send reward email to ${customer.customer_email}:`, err);
