@@ -231,14 +231,7 @@ function buildHtml(data: QueueEmailRequest): string {
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
             <tr>
               <td align="center" style="padding:28px 0 8px;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f4;border-radius:10px;padding:0;">
-                  <tr>
-                    <td style="padding:10px 20px;">
-                      <span style="font-size:18px;font-weight:800;color:#1f2937;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.5px;">M</span>
-                      <span style="font-size:13px;font-weight:600;color:#6b7280;font-family:Arial,Helvetica,sans-serif;letter-spacing:1px;margin-left:6px;">MESACLIK</span>
-                    </td>
-                  </tr>
-                </table>
+                <img src="${logoUrl}" alt="MesaClik" width="140" height="auto" style="display:block;border:0;outline:none;max-width:140px;" />
               </td>
             </tr>
           </table>
