@@ -73,140 +73,107 @@ function getSafeSenderName(restaurantName: string): string {
   return clean.length > 40 ? clean.slice(0, 40) : clean || "MesaClik";
 }
 
+// ── Escape helpers ─────────────────────────────────────────────────
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Plain-text builders ─────────────────────────────────────────────
 function buildPlainText(data: QueueEmailRequest): string {
-  const name = data.customer_name || 'Cliente';
+  const name = data.customer_name || "Cliente";
+  const positionLine = Number.isFinite(data.position) ? `Posicao atual: #${data.position}` : "";
+
   switch (data.type) {
-    case 'entry':
+    case "entry":
       return [
-        `Voce esta na fila do ${data.restaurant_name}`,
-        '',
+        `Voce entrou na fila do ${data.restaurant_name}.`,
+        "",
         `Ola ${name}!`,
-        data.party_size ? `Pessoas: ${data.party_size}` : '',
-        data.queue_url ? `Acompanhe em tempo real: ${data.queue_url}` : '',
-        '',
-        `Este e-mail foi enviado pelo ${data.restaurant_name}`,
-      ].filter(Boolean).join('\n');
+        positionLine,
+        data.party_size ? `Pessoas: ${data.party_size}` : "",
+        data.estimated_wait_minutes ? `Tempo estimado: ~${data.estimated_wait_minutes} min` : "",
+        data.queue_url ? `Acompanhar fila: ${data.queue_url}` : "",
+        "",
+        `Enviado por ${data.restaurant_name}`,
+      ].filter(Boolean).join("\n");
 
-    case 'called':
+    case "called":
       return [
-        `E a sua vez no ${data.restaurant_name}!`,
-        '',
-        `${name}, dirija-se ao balcao agora!`,
-        'Sua mesa esta pronta. Por favor, apresente-se ao atendente.',
-        '',
-        `Este e-mail foi enviado pelo ${data.restaurant_name}`,
-      ].filter(Boolean).join('\n');
+        `Sua vez chegou no ${data.restaurant_name}!`,
+        "",
+        `${name}, dirija-se ao balcao agora.`,
+        "Sua mesa esta pronta. Apresente-se ao atendente.",
+        "",
+        `Enviado por ${data.restaurant_name}`,
+      ].filter(Boolean).join("\n");
 
-    case 'position_update':
+    case "position_update":
     default:
       return [
         `Atualizacao da fila - ${data.restaurant_name}`,
-        '',
-        `Ola ${name}! A fila esta andando!`,
-        data.party_size ? `Pessoas: ${data.party_size}` : '',
-        data.queue_url ? `Acompanhe em tempo real: ${data.queue_url}` : '',
-        '',
-        'Aguarde, logo sera a sua vez!',
-        '',
-        `Este e-mail foi enviado pelo ${data.restaurant_name}`,
-      ].filter(Boolean).join('\n');
+        "",
+        `Ola ${name}!`,
+        positionLine,
+        data.estimated_wait_minutes ? `Tempo estimado: ~${data.estimated_wait_minutes} min` : "",
+        data.queue_url ? `Acompanhar fila: ${data.queue_url}` : "",
+        "",
+        `Enviado por ${data.restaurant_name}`,
+      ].filter(Boolean).join("\n");
   }
 }
 
-// ── Subject builders (NO emoji – Hotmail penalises emoji subjects) ──
-function buildSubject(data: QueueEmailRequest): string {
-  switch (data.type) {
-    case 'entry':
-      return `Voce esta na fila - ${data.restaurant_name}`;
-    case 'called':
-      return `Sua vez chegou - ${data.restaurant_name}`;
-    case 'position_update':
-      return `Atualizacao da fila - ${data.restaurant_name}`;
-    default:
-      return `Fila - ${data.restaurant_name}`;
-  }
-}
-
-// ── Minimal HTML builder (Outlook-safe: no gradients, no box-shadow) ──
+// ── Minimal HTML builder (super compatível anti-corpo-vazio) ───────
 function buildHtml(data: QueueEmailRequest): string {
-  const { customer_name, restaurant_name, party_size, size_group, queue_url, type } = data;
-  const name = customer_name || 'Cliente';
+  const customerName = escapeHtml(data.customer_name || "Cliente");
+  const restaurantName = escapeHtml(data.restaurant_name || "MesaClik");
+  const queueUrl = data.queue_url ? escapeHtml(data.queue_url) : "";
+  const positionLine = Number.isFinite(data.position)
+    ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Posicao atual:</strong> #${data.position}</p>`
+    : "";
 
-  const headerBg = type === 'called' ? '#d97706' : '#ea580c';
-  const headerTitle =
-    type === 'entry' ? 'Voce esta na fila!' :
-    type === 'called' ? 'Sua vez chegou!' :
-    'Atualizacao da fila';
+  let title = "Atualizacao da fila";
+  let intro = `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;">Ola <strong>${customerName}</strong>!</p>`;
+  let extra = "";
 
-  const bodyContent = type === 'called'
-    ? `<p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">${customer_name ? `<strong>${customer_name}</strong>, d` : 'D'}irija-se ao balcao agora!</p>
-       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
-         <tr><td style="padding:20px;background-color:#fef3c7;border:1px solid #fbbf24;border-radius:8px;text-align:center;">
-           <p style="margin:0;color:#92400e;font-size:16px;font-weight:600;">Sua mesa esta pronta!</p>
-         </td></tr>
-       </table>
-       <p style="margin:0;color:#6b7280;font-size:14px;">Por favor, apresente-se ao atendente.</p>`
-    : `${customer_name ? `<p style="margin:0 0 16px;color:#1f2937;font-size:16px;line-height:1.6;">Ola <strong>${customer_name}</strong>!</p>` : ''}
-       ${party_size ? `
-       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
-         <tr><td style="padding:16px;background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;text-align:center;">
-           <p style="margin:0;color:#9a3412;font-size:14px;font-weight:600;">${party_size} ${party_size === 1 ? 'pessoa' : 'pessoas'}</p>
-           <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Fila de ${size_group || `${party_size} pessoas`}</p>
-         </td></tr>
-       </table>` : ''}
-       ${queue_url ? `
-       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
-         <tr><td align="center">
-           <a href="${queue_url}" style="display:inline-block;padding:14px 32px;background-color:#ea580c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:8px;">
-             Ver minha posicao em tempo real
-           </a>
-         </td></tr>
-       </table>` : ''}
-       <p style="margin:0;color:#6b7280;font-size:13px;text-align:center;">
-         ${type === 'entry' ? 'Fique de olho! Avisaremos quando for a sua vez.' : 'Aguarde, logo sera a sua vez!'}
-       </p>`;
+  if (data.type === "entry") {
+    title = "Voce entrou na fila";
+    extra = `
+      ${positionLine}
+      ${data.party_size ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Pessoas:</strong> ${data.party_size}</p>` : ""}
+      ${data.estimated_wait_minutes ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Tempo estimado:</strong> ~${data.estimated_wait_minutes} min</p>` : ""}
+      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;">Avisaremos quando chegar sua vez.</p>
+    `;
+  } else if (data.type === "called") {
+    title = "Sua vez chegou";
+    extra = `
+      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Dirija-se ao balcao agora.</strong></p>
+      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;">Sua mesa esta pronta.</p>
+    `;
+  } else {
+    title = "Atualizacao da fila";
+    extra = `
+      ${positionLine}
+      ${data.estimated_wait_minutes ? `<p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Tempo estimado:</strong> ~${data.estimated_wait_minutes} min</p>` : ""}
+    `;
+  }
 
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <meta name="x-apple-disable-message-reformatting">
-  <meta name="format-detection" content="telephone=no,address=no,email=no">
-  <title>${headerTitle}</title>
-</head>
-<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f9fafb;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
-          <!-- Header -->
-          <tr>
-            <td style="padding:28px 24px;text-align:center;background-color:${headerBg};border-radius:8px 8px 0 0;">
-              <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${headerTitle}</h1>
-              <p style="margin:8px 0 0;color:#ffffff;font-size:15px;opacity:0.9;">${restaurant_name}</p>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:28px 24px;">
-              ${bodyContent}
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 24px;background-color:#f9fafb;border-radius:0 0 8px 8px;text-align:center;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;color:#9ca3af;font-size:12px;">
-                Este e-mail foi enviado pelo ${restaurant_name}
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#111111;">
+    <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;padding:24px;">
+      <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#111111;">${title}</h1>
+      <p style="margin:0 0 12px;color:#111111;font-size:16px;line-height:1.5;"><strong>Restaurante:</strong> ${restaurantName}</p>
+      ${intro}
+      ${extra}
+      ${queueUrl ? `<p style="margin:16px 0 0;color:#111111;font-size:16px;line-height:1.5;"><a href="${queueUrl}" style="color:#0a58ca;text-decoration:underline;">Clique aqui para acompanhar sua posicao</a></p>` : ""}
+      <p style="margin:24px 0 0;color:#666666;font-size:12px;line-height:1.5;">Enviado por ${restaurantName}</p>
+    </div>
+  </body>
 </html>`;
 }
 
