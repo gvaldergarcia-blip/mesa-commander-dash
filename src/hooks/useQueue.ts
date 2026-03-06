@@ -204,6 +204,8 @@ export function useQueue() {
 
   const updateQueueStatus = async (entryId: string, status: QueueEntry['status']) => {
     try {
+      console.log('[useQueue] Atualizando status:', { entryId, status });
+
       // Usar RPC que bypassa RLS e retorna dados necessários para notificações
       const { data: rpcResult, error: rpcError } = await supabase
         .schema('mesaclik')
@@ -232,11 +234,11 @@ export function useQueue() {
 
       const queueId = entryData?.queue_id as string | undefined;
 
-      // BROADCAST para clientes atualizarem posição em tempo real (sem polling!)
+      // BROADCAST para clientes atualizarem posição em tempo real
       if (queueId) {
         try {
           const channelName = `queue-broadcast-${queueId}`;
-          console.log('📢 Disparando broadcast para:', channelName);
+          console.log('[useQueue] Disparando broadcast para:', channelName);
           
           const channel = supabase.channel(channelName);
           await channel.send({
@@ -244,20 +246,53 @@ export function useQueue() {
             event: 'queue_updated',
             payload: { status, entry_id: entryId, party_size: entryData.party_size }
           });
-          // Remover canal após enviar
           supabase.removeChannel(channel);
         } catch (broadcastErr) {
-          console.warn('Broadcast não enviado (não crítico):', broadcastErr);
+          console.warn('[useQueue] Broadcast não enviado (não crítico):', broadcastErr);
         }
       }
 
-      // NOTA: Removido o envio de emails de atualização (notify-queue-position-updates)
-      // Agora a atualização de posição é feita via Realtime Broadcast na tela /fila/final
-      // Isso evita spam de emails toda vez que alguém é atendido/cancelado
+      // Enviar email quando cliente é CHAMADO (mesmo padrão da reserva que envia em status changes)
+      if (status === 'called' && entryData.email) {
+        try {
+          // Buscar nome do restaurante
+          const { data: restaurantData } = await supabase
+            .schema('mesaclik')
+            .from('restaurants')
+            .select('name')
+            .eq('id', restaurantId)
+            .maybeSingle();
 
-      // NOTA: O upsert de clientes agora é feito automaticamente pelo trigger
-      // 'upsert_customer_on_queue_seated' no banco de dados (SECURITY DEFINER)
-      // Isso resolve o erro de RLS ao inserir em customers
+          const restaurantName = restaurantData?.name || 'Restaurante';
+          const queueUrl = `${window.location.origin}/fila/final?ticket=${entryId}`;
+
+          console.log('[useQueue] Enviando email de chamada:', {
+            email: entryData.email,
+            restaurant_name: restaurantName,
+            type: 'called',
+          });
+
+          const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-queue-email', {
+            body: {
+              email: entryData.email,
+              customer_name: entryData.name,
+              restaurant_name: restaurantName,
+              position: 0,
+              party_size: entryData.party_size,
+              type: 'called',
+              queue_url: queueUrl,
+            },
+          });
+
+          if (emailError) {
+            console.warn('[useQueue] Erro ao enviar email de chamada (não crítico):', emailError);
+          } else {
+            console.log('[useQueue] Email de chamada enviado com sucesso:', emailResponse);
+          }
+        } catch (emailError) {
+          console.warn('[useQueue] Erro ao enviar email de chamada (não crítico):', emailError);
+        }
+      }
 
       const statusMessages: Record<QueueEntry['status'], string> = {
         'waiting': 'Status atualizado',
