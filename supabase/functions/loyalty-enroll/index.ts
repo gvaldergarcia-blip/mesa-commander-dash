@@ -4,6 +4,12 @@ import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+// ── Email sender addresses (match other functions) ──
+const RESEND_FROM_TRANSACTIONAL =
+  Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
+  "notify@mesaclik.com.br";
+
 // ── SECURITY FLAGS ──
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
