@@ -588,6 +588,7 @@ export default function IACreatorMarketing() {
 
   const generatePromoImage = async () => {
     setIsGeneratingImage(true);
+    setTextConfirmed(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -608,6 +609,10 @@ export default function IACreatorMarketing() {
         referenceImage: referenceImage || undefined,
         restaurantId: restaurant?.id || undefined,
         userId: user?.id || undefined,
+        // Custom text overrides from editable fields
+        customHeadline: editableHeadline || undefined,
+        customSubheadline: editableSubheadline || undefined,
+        customCta: editableCta || undefined,
       };
 
       if (form.hasDiscount) {
