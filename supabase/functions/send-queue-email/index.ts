@@ -146,7 +146,6 @@ function buildHtml(data: QueueEmailRequest): string {
   const customerName = escapeHtml(data.customer_name || "Cliente");
   const restaurantName = escapeHtml(data.restaurant_name || "MesaClik");
   const queueUrl = data.queue_url ? escapeHtml(data.queue_url) : "";
-  const hasPosition = Number.isFinite(data.position);
 
   let heroTitle = "Atualização da fila";
   let bodyIntro = `Olá <strong>${customerName}</strong>!`;
@@ -157,51 +156,50 @@ function buildHtml(data: QueueEmailRequest): string {
   if (data.type === "entry") {
     heroTitle = "Você está na fila!";
     infoBlock = `
-      ${hasPosition ? `<p style="margin:0 0 6px;font-size:20px;line-height:1.3;font-weight:700;color:#1f2937;">Posição atual: #${data.position}</p>` : ""}
-      ${data.party_size ? `<p style="margin:0 0 6px;font-size:18px;line-height:1.4;color:#9a3412;text-align:center;"><strong>👥 ${data.party_size} pessoas</strong></p>` : ""}
-      ${data.size_group ? `<p style="margin:0;font-size:15px;line-height:1.5;color:#6b7280;text-align:center;">Fila de ${escapeHtml(data.size_group)}</p>` : ""}
-      ${data.estimated_wait_minutes ? `<p style="margin:8px 0 0;font-size:14px;line-height:1.5;color:#6b7280;text-align:center;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>` : ""}
+      ${data.party_size ? `<p style="margin:0 0 4px;font-size:18px;line-height:1.4;color:#9a3412;text-align:center;font-weight:700;">👥 ${data.party_size} pessoas</p>` : ""}
+      ${data.size_group ? `<p style="margin:0;font-size:14px;line-height:1.5;color:#6b7280;text-align:center;">Fila de ${escapeHtml(data.size_group)}</p>` : ""}
     `;
   } else if (data.type === "called") {
     heroTitle = "Sua vez chegou!";
     ctaLabel = "Ir para o acompanhamento";
     footerText = "Dirija-se ao balcão o quanto antes para não perder sua vez.";
     infoBlock = `
-      <p style="margin:0 0 6px;font-size:18px;line-height:1.3;font-weight:700;color:#9a3412;text-align:center;">🔔 Estamos te chamando agora</p>
+      <p style="margin:0 0 4px;font-size:18px;line-height:1.3;font-weight:700;color:#9a3412;text-align:center;">🔔 Estamos te chamando agora</p>
       <p style="margin:0;font-size:15px;line-height:1.5;color:#4b5563;text-align:center;">Sua mesa está pronta.</p>
     `;
   } else {
     heroTitle = "Atualização da fila";
     infoBlock = `
-      ${hasPosition ? `<p style="margin:0 0 6px;font-size:20px;line-height:1.3;font-weight:700;color:#1f2937;text-align:center;">Posição atual: #${data.position}</p>` : ""}
       ${data.estimated_wait_minutes ? `<p style="margin:0;font-size:14px;line-height:1.5;color:#6b7280;text-align:center;">Tempo estimado: ~${data.estimated_wait_minutes} min</p>` : ""}
     `;
   }
 
-  const logoUrl = "https://akqldesakmcroydbgkbe.supabase.co/storage/v1/object/public/assets/mesaclik-logo-email.png";
+  // Logo hospedada no próprio site publicado
+  const logoUrl = "https://mesaclik.com.br/images/mesaclik-logo-email.png";
 
   return `<!doctype html>
 <html lang="pt-BR">
   <body style="margin:0;padding:0;background:#fff7ed;font-family:Arial,Helvetica,sans-serif;color:#111827;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;padding:0;margin:0;">
       <tr>
-        <td align="center" style="padding:32px 16px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;">
+        <td align="center" style="padding:40px 16px;">
+          <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:20px;overflow:hidden;">
             <!-- HEADER LARANJA -->
             <tr>
-              <td style="background:#f97316;padding:36px 24px;text-align:center;border-radius:16px 16px 0 0;">
-                <p style="margin:0 0 10px;font-size:28px;line-height:1;">🎉</p>
-                <h1 style="margin:0 0 8px;font-size:32px;line-height:1.15;color:#ffffff;font-weight:800;">${heroTitle}</h1>
-                <p style="margin:0;font-size:18px;line-height:1.4;color:#fff7ed;">${restaurantName}</p>
+              <td style="background:#f97316;padding:44px 32px 36px;text-align:center;">
+                <p style="margin:0 0 12px;font-size:32px;line-height:1;">🎉</p>
+                <h1 style="margin:0 0 8px;font-size:30px;line-height:1.2;color:#ffffff;font-weight:800;letter-spacing:-0.5px;">${heroTitle}</h1>
+                <p style="margin:0;font-size:16px;line-height:1.4;color:#fff7ed;opacity:0.9;">${restaurantName}</p>
               </td>
             </tr>
             <!-- CORPO -->
             <tr>
-              <td style="padding:28px 28px 20px;">
-                <p style="margin:0 0 20px;font-size:22px;line-height:1.3;color:#111827;">${bodyIntro}</p>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;">
+              <td style="padding:32px 36px 24px;">
+                <p style="margin:0 0 24px;font-size:20px;line-height:1.3;color:#111827;">${bodyIntro}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;">
                   <tr>
-                    <td style="padding:18px 20px;">
+                    <td style="padding:20px 24px;">
                       ${infoBlock}
                     </td>
                   </tr>
@@ -211,11 +209,11 @@ function buildHtml(data: QueueEmailRequest): string {
             <!-- BOTÃO CTA -->
             ${queueUrl ? `
             <tr>
-              <td align="center" style="padding:4px 28px 24px;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <td align="center" style="padding:4px 36px 28px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
                   <tr>
-                    <td style="background:#f97316;border-radius:14px;">
-                      <a href="${queueUrl}" style="display:inline-block;color:#ffffff;font-size:18px;line-height:1.3;font-weight:700;text-decoration:none;padding:16px 32px;">📱 ${ctaLabel}</a>
+                    <td align="center" style="background:#f97316;border-radius:14px;text-align:center;">
+                      <a href="${queueUrl}" style="display:block;color:#ffffff;font-size:17px;line-height:1.3;font-weight:700;text-decoration:none;padding:18px 24px;">📱 ${ctaLabel}</a>
                     </td>
                   </tr>
                 </table>
@@ -224,19 +222,27 @@ function buildHtml(data: QueueEmailRequest): string {
             ` : ""}
             <!-- RODAPÉ -->
             <tr>
-              <td style="padding:0 28px 24px;text-align:center;">
-                <p style="margin:0;font-size:15px;line-height:1.5;color:#6b7280;">${footerText}</p>
+              <td style="padding:0 36px 32px;text-align:center;">
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#9ca3af;">${footerText}</p>
               </td>
             </tr>
           </table>
           <!-- LOGO MESACLIK -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
             <tr>
-              <td align="center" style="padding:24px 0 8px;">
-                <img src="${logoUrl}" alt="MesaClik" width="140" height="auto" style="display:block;max-width:140px;height:auto;" />
+              <td align="center" style="padding:28px 0 8px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:#f5f5f4;border-radius:10px;padding:0;">
+                  <tr>
+                    <td style="padding:10px 20px;">
+                      <span style="font-size:18px;font-weight:800;color:#1f2937;font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.5px;">M</span>
+                      <span style="font-size:13px;font-weight:600;color:#6b7280;font-family:Arial,Helvetica,sans-serif;letter-spacing:1px;margin-left:6px;">MESACLIK</span>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
+          <!--[if mso]></td></tr></table><![endif]-->
         </td>
       </tr>
     </table>
