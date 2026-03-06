@@ -213,8 +213,7 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = buildSubject(requestData);
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
-    const senderName = getSafeSenderName(requestData.restaurant_name);
-    const fromAddress = `${senderName} <${getRawEmailAddress(RESEND_FROM_TRANSACTIONAL)}>`;
+    const fromAddress = `MesaClik <${getRawEmailAddress(RESEND_FROM_TRANSACTIONAL)}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
 

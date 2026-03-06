@@ -270,9 +270,8 @@ const handler = async (req: Request): Promise<Response> => {
     const html = buildHtml(requestData);
     const text = buildPlainText(requestData);
     // Use RESEND_FROM_EMAIL directly — it's already a valid email on the verified domain
-    const rawEmail = RESEND_FROM_TRANSACTIONAL.replace(/^.*</, '').replace(/>$/, '');
-    const senderName = getSafeSenderName(requestData.restaurant_name);
-    const fromAddress = `${senderName} <${rawEmail}>`;
+    const rawEmail = RESEND_FROM_TRANSACTIONAL.replace(/^.*</, '').replace(/>$/, '').trim();
+    const fromAddress = `MesaClik <${rawEmail}>`;
 
     console.log('Sending from:', fromAddress, '| Subject:', subject);
     console.log('Payload sizes:', JSON.stringify({ htmlLength: html.length, textLength: text.length, hasQueueUrl: !!requestData.queue_url }));
