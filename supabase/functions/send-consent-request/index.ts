@@ -5,7 +5,6 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // ALINHADO COM RESERVA: usar remetente transacional (notify@) para caixa principal
 const RESEND_FROM_TRANSACTIONAL =
   Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
-  Deno.env.get("RESEND_FROM_EMAIL") ||
   "notify@mesaclik.com.br";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
