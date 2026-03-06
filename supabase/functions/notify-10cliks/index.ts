@@ -3,10 +3,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_FROM_TRANSACTIONAL =
+  Deno.env.get("RESEND_FROM_TRANSACTIONAL") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
+  "notify@mesaclik.com.br";
+
+function getRawEmailAddress(fromValue: string): string {
+  return (fromValue || "notify@mesaclik.com.br").replace(/^.*</, "").replace(/>$/, "").trim();
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface NotificationRequest {
@@ -107,9 +115,9 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     const emailResponse = await resend.emails.send({
-      from: "MesaClik <noreply@mesaclik.com>",
+      from: `${restaurant.name} <${getRawEmailAddress(RESEND_FROM_TRANSACTIONAL)}>` ,
       to: [user.email],
-      subject: `🎉 Parabéns! Você completou 10 Cliks no ${restaurant.name}`,
+      subject: `Parabens! Você completou 10 Cliks no ${restaurant.name}`,
       html: emailHtml,
     });
 

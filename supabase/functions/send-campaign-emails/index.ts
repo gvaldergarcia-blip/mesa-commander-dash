@@ -3,6 +3,14 @@ import { Resend } from "https://esm.sh/resend@4.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_FROM_MARKETING =
+  Deno.env.get("RESEND_FROM_MARKETING") ||
+  Deno.env.get("RESEND_FROM_EMAIL") ||
+  "ofertas@mesaclik.com.br";
+
+function getRawEmailAddress(fromValue: string): string {
+  return (fromValue || "ofertas@mesaclik.com.br").replace(/^.*</, "").replace(/>$/, "").trim();
+}
 
 // ── SECURITY FLAGS ──
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_SEND_CAMPAIGN") ?? "true") === "true";
@@ -167,7 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
           </body></html>`;
 
         await resend.emails.send({
-          from: "MesaClik <promocoes@mesaclik.app>",
+          from: `Ofertas MesaClik <${getRawEmailAddress(RESEND_FROM_MARKETING)}>` ,
           to: [recipient.email],
           subject,
           html: emailHtml,
