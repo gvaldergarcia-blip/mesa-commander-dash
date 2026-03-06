@@ -171,7 +171,16 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-        window.history.replaceState({}, '', window.location.pathname);
+        // SECURITY: Remove tokens from URL immediately to reduce exposure
+        try {
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch (e) {
+          console.warn('[RestaurantContext] ⚠️ Failed to clean tokens from URL:', e);
+        }
+        // Double-check tokens are gone
+        if (window.location.search.includes('access_token') || window.location.hash.includes('access_token')) {
+          console.error('[RestaurantContext] ⚠️ SECURITY: Tokens still in URL after cleanup!');
+        }
         if (error) {
           console.error('[RestaurantContext] Erro ao restaurar sessão via URL:', error);
           return false;
