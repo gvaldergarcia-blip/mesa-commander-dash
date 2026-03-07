@@ -242,9 +242,8 @@ export default function ReservaFinal() {
     
     setSavingConsent(true);
     try {
-      // Usar a RPC upsert_restaurant_customer (SECURITY DEFINER) que bypassa RLS
-      // Isso garante que o consentimento seja salvo corretamente em qualquer contexto
-      const { error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
+      // Usar assinatura mais específica da RPC para evitar ambiguidade entre overloads
+      const rpcPayload = {
         p_restaurant_id: reservationInfo.restaurant_id,
         p_email: reservationInfo.customer_email,
         p_name: reservationInfo.customer_name || null,
@@ -252,7 +251,23 @@ export default function ReservaFinal() {
         p_source: 'reservation',
         p_marketing_optin: offersOptIn,
         p_terms_accepted: true,
-      });
+        p_opt_in_source: offersOptIn ? 'reservation_gateway' : null,
+      };
+
+      let { error: rpcError } = await supabase.rpc('upsert_restaurant_customer', rpcPayload);
+
+      // Fallback para ambientes antigos sem p_opt_in_source
+      if (rpcError?.message?.includes('p_opt_in_source')) {
+        ({ error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
+          p_restaurant_id: reservationInfo.restaurant_id,
+          p_email: reservationInfo.customer_email,
+          p_name: reservationInfo.customer_name || null,
+          p_phone: reservationInfo.phone || null,
+          p_source: 'reservation',
+          p_marketing_optin: offersOptIn,
+          p_terms_accepted: true,
+        }));
+      }
 
       if (rpcError) {
         console.error('Erro ao salvar consentimento via RPC:', rpcError);
