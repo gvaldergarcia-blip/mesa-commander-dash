@@ -1,4 +1,4 @@
-import { Users, TrendingUp, Star, Mail, AlertTriangle } from "lucide-react";
+import { Users, TrendingUp, Star, Mail, AlertTriangle, Cake, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,8 @@ type CustomerStrategicKPIsProps = {
   highValueCustomers: number;
   marketingOptIn: number;
   atRiskCustomers: number;
+  recurrentCustomers?: number;
+  birthdayThisMonth?: number;
   onFilterClick?: (filter: string) => void;
 };
 
@@ -16,7 +18,7 @@ type KPICardProps = {
   value: number;
   subtitle: string;
   icon: typeof Users;
-  variant: 'success' | 'primary' | 'accent' | 'info' | 'warning';
+  variant: 'success' | 'primary' | 'accent' | 'info' | 'warning' | 'birthday' | 'recurrent';
   filterKey: string;
   onClick?: (filter: string) => void;
 };
@@ -28,6 +30,8 @@ function KPICard({ title, value, subtitle, icon: Icon, variant, filterKey, onCli
     accent: "border-accent/30 bg-gradient-to-br from-accent/5 to-accent/10 hover:from-accent/10 hover:to-accent/15",
     info: "border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-blue-500/10 hover:from-blue-500/10 hover:to-blue-500/15",
     warning: "border-destructive/30 bg-gradient-to-br from-destructive/5 to-destructive/10 hover:from-destructive/10 hover:to-destructive/15",
+    birthday: "border-pink-500/30 bg-gradient-to-br from-pink-500/5 to-pink-500/10 hover:from-pink-500/10 hover:to-pink-500/15",
+    recurrent: "border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 hover:from-emerald-500/10 hover:to-emerald-500/15",
   };
 
   const iconVariants = {
@@ -36,6 +40,8 @@ function KPICard({ title, value, subtitle, icon: Icon, variant, filterKey, onCli
     accent: "bg-accent/20 text-accent",
     info: "bg-blue-500/20 text-blue-500",
     warning: "bg-destructive/20 text-destructive",
+    birthday: "bg-pink-500/20 text-pink-500",
+    recurrent: "bg-emerald-500/20 text-emerald-500",
   };
 
   return (
@@ -46,18 +52,18 @@ function KPICard({ title, value, subtitle, icon: Icon, variant, filterKey, onCli
       )}
       onClick={() => onClick?.(filterKey)}
     >
-      <CardContent className="p-5">
+      <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            <p className="text-2xl font-bold tracking-tight">{value}</p>
+            <p className="text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
           <div className={cn(
-            "p-3 rounded-xl transition-transform group-hover:scale-110",
+            "p-2.5 rounded-xl transition-transform group-hover:scale-110",
             iconVariants[variant]
           )}>
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4" />
           </div>
         </div>
       </CardContent>
@@ -71,12 +77,14 @@ export function CustomerStrategicKPIs({
   highValueCustomers,
   marketingOptIn,
   atRiskCustomers,
+  recurrentCustomers = 0,
+  birthdayThisMonth = 0,
   onFilterClick,
 }: CustomerStrategicKPIsProps) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
       <KPICard
-        title="Clientes Ativos"
+        title="Ativos"
         value={activeCustomers}
         subtitle="Últimos 30 dias"
         icon={Users}
@@ -85,12 +93,12 @@ export function CustomerStrategicKPIs({
         onClick={onFilterClick}
       />
       <KPICard
-        title="Frequentes"
-        value={frequentCustomers}
-        subtitle="3+ visitas recentes"
-        icon={TrendingUp}
-        variant="primary"
-        filterKey="frequent"
+        title="Recorrentes"
+        value={recurrentCustomers}
+        subtitle="3+ visitas"
+        icon={RefreshCw}
+        variant="recurrent"
+        filterKey="recurrent"
         onClick={onFilterClick}
       />
       <KPICard
@@ -103,12 +111,30 @@ export function CustomerStrategicKPIs({
         onClick={onFilterClick}
       />
       <KPICard
-        title="Opt-in Marketing"
+        title="🎂 Aniversário"
+        value={birthdayThisMonth}
+        subtitle="Este mês"
+        icon={Cake}
+        variant="birthday"
+        filterKey="birthday"
+        onClick={onFilterClick}
+      />
+      <KPICard
+        title="Opt-in"
         value={marketingOptIn}
         subtitle="Aceitam promoções"
         icon={Mail}
         variant="info"
         filterKey="marketing"
+        onClick={onFilterClick}
+      />
+      <KPICard
+        title="Frequentes"
+        value={frequentCustomers}
+        subtitle="3+ visitas recentes"
+        icon={TrendingUp}
+        variant="primary"
+        filterKey="frequent"
         onClick={onFilterClick}
       />
       <KPICard

@@ -28,8 +28,8 @@ type CustomerFiltersCleanProps = {
   onMarketingFilterChange: (value: MarketingFilter) => void;
   periodFilter: PeriodFilter;
   onPeriodFilterChange: (value: PeriodFilter) => void;
-  sortBy: 'name' | 'visits' | 'lastVisit';
-  onSortByChange: (value: 'name' | 'visits' | 'lastVisit') => void;
+  sortBy: 'name' | 'visits' | 'lastVisit' | 'birthday';
+  onSortByChange: (value: 'name' | 'visits' | 'lastVisit' | 'birthday') => void;
 };
 
 export function CustomerFiltersClean({
@@ -67,7 +67,7 @@ export function CustomerFiltersClean({
       <div className="relative flex-1 w-full sm:max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar cliente..."
+          placeholder="Buscar por nome, e-mail, telefone ou tag..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-9 h-10"
@@ -89,7 +89,7 @@ export function CustomerFiltersClean({
         {/* Status Quick Filter */}
         <Select value={statusFilter} onValueChange={onStatusFilterChange}>
           <SelectTrigger className={cn(
-            "w-[130px] h-10",
+            "w-[150px] h-10",
             statusFilter !== 'all' && "border-primary bg-primary/5"
           )}>
             <SelectValue placeholder="Status" />
@@ -99,6 +99,8 @@ export function CustomerFiltersClean({
             <SelectItem value="vip">⭐ VIP</SelectItem>
             <SelectItem value="new">🆕 Novos</SelectItem>
             <SelectItem value="active">🟢 Ativos</SelectItem>
+            <SelectItem value="recurrent">🔄 Recorrentes</SelectItem>
+            <SelectItem value="birthday">🎂 Aniversariantes</SelectItem>
             <SelectItem value="inactive">🔴 Em risco</SelectItem>
           </SelectContent>
         </Select>
@@ -138,6 +140,7 @@ export function CustomerFiltersClean({
                       <SelectItem value="all">Todas</SelectItem>
                       <SelectItem value="queue">🎫 Fila</SelectItem>
                       <SelectItem value="reservation">📅 Reserva</SelectItem>
+                      <SelectItem value="both">🔀 Usa ambos</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -177,13 +180,14 @@ export function CustomerFiltersClean({
 
         {/* Sort */}
         <Select value={sortBy} onValueChange={onSortByChange}>
-          <SelectTrigger className="w-[140px] h-10">
+          <SelectTrigger className="w-[160px] h-10">
             <SelectValue placeholder="Ordenar" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="lastVisit">Última visita</SelectItem>
             <SelectItem value="name">Nome A-Z</SelectItem>
             <SelectItem value="visits">Mais visitas</SelectItem>
+            <SelectItem value="birthday">Aniversário</SelectItem>
           </SelectContent>
         </Select>
       </div>
