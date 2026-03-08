@@ -55,18 +55,26 @@ function CustomersPageContent() {
 
   // Função para obter mensagem de insight
   const getInsightMessage = (customer: RestaurantCustomer): string | null => {
-    const insights = customerInsightsMap.get(customer.id);
-    if (!insights || insights.length === 0) return null;
+    // Priority-based insight messages
+    if (customer.is_birthday_soon) return '🎂 Aniversário em breve! Envie uma oferta especial';
+    if (customer.is_birthday_month) return '🎂 Aniversariante do mês';
     
-    // Gerar mensagens curtas e acionáveis
+    const insights = customerInsightsMap.get(customer.id);
+    if (!insights || insights.length === 0) {
+      // Fallback insights from computed data
+      if (customer.origin === 'both') return 'Usa fila e reserva — cliente engajado';
+      if (customer.total_visits >= 5 && !customer.vip) return 'Alto potencial para VIP';
+      return null;
+    }
+    
     const insight = insights[0];
     switch (insight.insight_type) {
       case 'vip_missing':
         return 'VIP sem visita recente. Hora de uma oferta especial!';
       case 'inactive':
-        return 'Uma promoção pode trazê-lo de volta';
+        return `Inativo há ${customer.days_since_last_visit}d. Hora de reativar`;
       case 'recurrent':
-        return 'Cliente frequente. Candidato a VIP!';
+        return `${customer.total_visits} visitas — candidato a VIP!`;
       case 'new_customer':
         return 'Cliente novo! Boas-vindas podem fidelizar';
       default:
