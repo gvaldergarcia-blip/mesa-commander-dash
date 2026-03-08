@@ -28,7 +28,7 @@ function CustomersPageContent() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [marketingFilter, setMarketingFilter] = useState<MarketingFilter>("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
-  const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit'>('lastVisit');
+  const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit' | 'birthday'>('lastVisit');
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
@@ -83,6 +83,17 @@ function CustomersPageContent() {
         return (a.customer_name || '').localeCompare(b.customer_name || '');
       } else if (sortBy === 'visits') {
         return b.total_visits - a.total_visits;
+      } else if (sortBy === 'birthday') {
+        // Sort by upcoming birthday
+        const now = new Date();
+        const getNextBday = (d: string | null) => {
+          if (!d) return Infinity;
+          const bday = new Date(d + 'T00:00:00');
+          const next = new Date(now.getFullYear(), bday.getMonth(), bday.getDate());
+          if (next < now) next.setFullYear(now.getFullYear() + 1);
+          return next.getTime() - now.getTime();
+        };
+        return getNextBday(a.birthday) - getNextBday(b.birthday);
       } else {
         const dateA = new Date(a.last_seen_at).getTime();
         const dateB = new Date(b.last_seen_at).getTime();
@@ -97,19 +108,27 @@ function CustomersPageContent() {
 
   // Calcular KPIs estratégicos
   const strategicKPIs = useMemo(() => {
+    const kpiData = getKPIs();
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     
     return {
-      activeCustomers: customers.filter(c => new Date(c.last_seen_at) >= thirtyDaysAgo).length,
+      activeCustomers: kpiData.active,
       frequentCustomers: customers.filter(c => c.total_visits >= 3 && !c.vip).length,
-      highValueCustomers: customers.filter(c => c.vip || c.total_visits >= 10).length,
-      marketingOptIn: customers.filter(c => c.marketing_optin).length,
-      atRiskCustomers: customers.filter(c => new Date(c.last_seen_at) < thirtyDaysAgo).length,
+      highValueCustomers: kpiData.vip + customers.filter(c => c.total_visits >= 10 && !c.vip).length,
+      marketingOptIn: kpiData.marketingOptIn,
+      atRiskCustomers: kpiData.inactive,
+      recurrentCustomers: kpiData.recurrent,
+      birthdayThisMonth: kpiData.birthdayThisMonth,
     };
-  }, [customers]);
+  }, [customers, getKPIs]);
 
   const handleFilterClick = (filter: string) => {
+    // Reset other filters first
+    setSourceFilter('all');
+    setMarketingFilter('all');
+    setPeriodFilter('all');
+    
     switch (filter) {
       case 'active':
         setStatusFilter('active');
@@ -122,7 +141,14 @@ function CustomersPageContent() {
         setStatusFilter('inactive');
         break;
       case 'marketing':
+        setStatusFilter('all');
         setMarketingFilter('opt-in');
+        break;
+      case 'recurrent':
+        setStatusFilter('recurrent');
+        break;
+      case 'birthday':
+        setStatusFilter('birthday');
         break;
     }
   };
@@ -207,6 +233,8 @@ function CustomersPageContent() {
         highValueCustomers={strategicKPIs.highValueCustomers}
         marketingOptIn={strategicKPIs.marketingOptIn}
         atRiskCustomers={strategicKPIs.atRiskCustomers}
+        recurrentCustomers={strategicKPIs.recurrentCustomers}
+        birthdayThisMonth={strategicKPIs.birthdayThisMonth}
         onFilterClick={handleFilterClick}
       />
 
