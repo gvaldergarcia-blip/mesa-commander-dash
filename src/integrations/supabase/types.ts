@@ -1906,6 +1906,7 @@ export type Database = {
       }
       restaurant_customers: {
         Row: {
+          birthday: string | null
           created_at: string
           customer_email: string
           customer_name: string | null
@@ -1934,6 +1935,7 @@ export type Database = {
           vip: boolean
         }
         Insert: {
+          birthday?: string | null
           created_at?: string
           customer_email: string
           customer_name?: string | null
@@ -1962,6 +1964,7 @@ export type Database = {
           vip?: boolean
         }
         Update: {
+          birthday?: string | null
           created_at?: string
           customer_email?: string
           customer_name?: string | null
