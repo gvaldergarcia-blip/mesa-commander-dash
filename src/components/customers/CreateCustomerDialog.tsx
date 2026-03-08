@@ -30,6 +30,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [notes, setNotes] = useState("");
   const [marketingOptIn, setMarketingOptIn] = useState(false);
 
@@ -39,6 +40,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
     setName("");
     setEmail("");
     setPhone("");
+    setBirthday("");
     setNotes("");
     setMarketingOptIn(false);
   };
@@ -79,13 +81,19 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
         return;
       }
 
-      // Save notes if provided
-      if (notes.trim() && data) {
-        await supabase
-          .from("restaurant_customers")
-          .update({ internal_notes: notes.trim() })
-          .eq("id", data)
-          .eq("restaurant_id", restaurantId);
+      // Save notes and birthday if provided
+      if (data) {
+        const updatePayload: Record<string, any> = {};
+        if (notes.trim()) updatePayload.internal_notes = notes.trim();
+        if (birthday) updatePayload.birthday = birthday;
+        
+        if (Object.keys(updatePayload).length > 0) {
+          await supabase
+            .from("restaurant_customers")
+            .update(updatePayload)
+            .eq("id", data)
+            .eq("restaurant_id", restaurantId);
+        }
       }
 
       // Auto-create first visit for manually registered customers
@@ -153,22 +161,33 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="customer-phone">Telefone</Label>
-            <Input
-              id="customer-phone"
-              placeholder="(11) 99999-9999"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              maxLength={50}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="customer-phone">Telefone</Label>
+              <Input
+                id="customer-phone"
+                placeholder="(11) 99999-9999"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                maxLength={50}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customer-birthday">Aniversário</Label>
+              <Input
+                id="customer-birthday"
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="customer-notes">Observação</Label>
             <Textarea
               id="customer-notes"
-              placeholder="Ex: cliente VIP, aniversário em março..."
+              placeholder="Ex: prefere mesa perto da janela, alergia a frutos do mar..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}

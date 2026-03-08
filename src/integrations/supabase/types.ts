@@ -1906,6 +1906,7 @@ export type Database = {
       }
       restaurant_customers: {
         Row: {
+          birthday: string | null
           created_at: string
           customer_email: string
           customer_name: string | null
@@ -1934,6 +1935,7 @@ export type Database = {
           vip: boolean
         }
         Insert: {
+          birthday?: string | null
           created_at?: string
           customer_email: string
           customer_name?: string | null
@@ -1962,6 +1964,7 @@ export type Database = {
           vip?: boolean
         }
         Update: {
+          birthday?: string | null
           created_at?: string
           customer_email?: string
           customer_name?: string | null
@@ -2211,6 +2214,7 @@ export type Database = {
           city: string | null
           created_at: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
+          current_plan: string | null
           has_queue: boolean | null
           has_reservation: boolean | null
           home_priority: number
@@ -2225,6 +2229,10 @@ export type Database = {
           owner_id: string | null
           plan_modules: string
           status: string
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
           updated_at: string
         }
         Insert: {
@@ -2235,6 +2243,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
+          current_plan?: string | null
           has_queue?: boolean | null
           has_reservation?: boolean | null
           home_priority?: number
@@ -2249,6 +2258,10 @@ export type Database = {
           owner_id?: string | null
           plan_modules?: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -2259,6 +2272,7 @@ export type Database = {
           city?: string | null
           created_at?: string | null
           cuisine?: Database["public"]["Enums"]["cuisine_enum"]
+          current_plan?: string | null
           has_queue?: boolean | null
           has_reservation?: boolean | null
           home_priority?: number
@@ -2273,6 +2287,10 @@ export type Database = {
           owner_id?: string | null
           plan_modules?: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Relationships: []

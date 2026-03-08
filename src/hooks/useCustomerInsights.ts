@@ -41,18 +41,38 @@ export function generateInsightsForCustomer(customer: RestaurantCustomer): Omit<
     dismissed: false,
   };
 
+  // VIP missing
   if (customer.vip && daysSinceLastVisit > VIP_MISSING_DAYS_THRESHOLD) {
     insights.push({ ...baseInsight, insight_type: 'vip_missing', message: `Cliente VIP não visita há ${daysSinceLastVisit} dias. Considere uma oferta especial de reengajamento.` });
   } else if (!customer.vip && daysSinceLastVisit > INACTIVE_DAYS_THRESHOLD) {
     insights.push({ ...baseInsight, insight_type: 'inactive', message: `Cliente inativo há ${daysSinceLastVisit} dias. Uma promoção pode trazê-lo de volta.` });
   }
 
+  // Recurrent
   if (customer.total_visits >= RECURRENT_VISITS_THRESHOLD && !customer.vip) {
-    insights.push({ ...baseInsight, insight_type: 'recurrent', message: `Cliente frequente com ${customer.total_visits} visitas. Candidate a programa de fidelidade.` });
+    insights.push({ ...baseInsight, insight_type: 'recurrent', message: `Cliente frequente com ${customer.total_visits} visitas. Candidato a programa de fidelidade.` });
   }
 
+  // New customer
   if (daysSinceCreated <= 7 && customer.total_visits <= 1) {
     insights.push({ ...baseInsight, insight_type: 'new_customer', message: 'Cliente novo! Uma mensagem de boas-vindas pode fidelizá-lo.' });
+  }
+
+  // Birthday insights
+  if (customer.is_birthday_soon) {
+    insights.push({ ...baseInsight, insight_type: 'new_customer' as InsightType, message: 'Esse cliente faz aniversário em breve! Hora de enviar uma mensagem especial.' });
+  } else if (customer.is_birthday_month) {
+    insights.push({ ...baseInsight, insight_type: 'new_customer' as InsightType, message: 'Esse cliente faz aniversário este mês. Considere uma campanha de aniversário.' });
+  }
+
+  // Channel preference
+  if (customer.origin === 'both') {
+    insights.push({ ...baseInsight, insight_type: 'recurrent' as InsightType, message: 'Esse cliente usa tanto fila quanto reserva. Cliente engajado e versátil!' });
+  }
+
+  // Marketing opt-in
+  if (customer.marketing_optin && customer.total_visits >= 3) {
+    insights.push({ ...baseInsight, insight_type: 'recurrent' as InsightType, message: 'Esse cliente aceita promoções por e-mail. Tem potencial para campanha de fidelização.' });
   }
 
   return insights;

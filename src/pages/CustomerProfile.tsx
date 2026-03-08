@@ -85,6 +85,16 @@ export default function CustomerProfile() {
           vip_status: restaurantCustomer.vip || false,
           marketing_opt_in: restaurantCustomer.marketing_optin || false,
           notes: restaurantCustomer.internal_notes,
+          birthday: (restaurantCustomer as any).birthday || null,
+          tags: (restaurantCustomer as any).tags || [],
+          origin: (() => {
+            const q = restaurantCustomer.total_queue_visits || 0;
+            const r = restaurantCustomer.total_reservation_visits || 0;
+            if (q > 0 && r > 0) return 'Fila + Reserva';
+            if (q > 0) return 'Fila';
+            if (r > 0) return 'Reserva';
+            return 'Manual';
+          })(),
         };
       } else {
         // Fallback to customers table
@@ -283,6 +293,16 @@ export default function CustomerProfile() {
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" /> Desde {formatDate(customer.created_at)}
                   </span>
+                  {customer.birthday && (
+                    <span className="flex items-center gap-1">
+                      🎂 {new Date(customer.birthday + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+                    </span>
+                  )}
+                  {customer.origin && (
+                    <Badge variant="secondary" className="text-xs">
+                      {customer.origin === 'Fila' ? '🎫' : customer.origin === 'Reserva' ? '📅' : customer.origin === 'Fila + Reserva' ? '🔀' : '✏️'} {customer.origin}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
