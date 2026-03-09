@@ -241,7 +241,7 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
   const rfm = analysis.score_rfm;
   const segmento = analysis.segmento;
   const probRetorno = analysis.probabilidade_retorno_30d;
-  const ltv = analysis.ltv_estimado;
+  
 
   return (
     <Card className="overflow-hidden">
