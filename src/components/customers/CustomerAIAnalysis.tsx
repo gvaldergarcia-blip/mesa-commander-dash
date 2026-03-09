@@ -43,12 +43,6 @@ type CustomerAnalysis = {
     fatores_negativos: string[];
     explicacao: string;
   };
-  ltv_estimado?: {
-    valor_mensal: number;
-    valor_anual: number;
-    classificacao: string;
-    explicacao: string;
-  };
   tendencia?: string;
   metricas_calculadas?: {
     taxa_cancelamento: number;
