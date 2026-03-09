@@ -251,6 +251,12 @@ function DashboardContent() {
                       value={queueNotes}
                       onChange={(e) => setQueueNotes(e.target.value)}
                     />
+                    <Input 
+                      type="date"
+                      placeholder="Data de aniversário (opcional)"
+                      value={queueBirthday}
+                      onChange={(e) => setQueueBirthday(e.target.value)}
+                    />
                     <Button 
                       className="w-full"
                       onClick={handleAddQueue}
