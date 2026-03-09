@@ -43,6 +43,8 @@ function DashboardContent() {
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const [isVisitDialogOpen, setIsVisitDialogOpen] = useState(false);
+  const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
+  const { refetch: refetchCustomers } = useRestaurantCustomers();
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
