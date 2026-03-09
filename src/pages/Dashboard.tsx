@@ -77,6 +77,7 @@ function DashboardContent() {
     setQueueEmail("");
     setQueuePeople("2");
     setQueueNotes("");
+    setQueueBirthday("");
     setIsQueueDialogOpen(false);
   };
   
