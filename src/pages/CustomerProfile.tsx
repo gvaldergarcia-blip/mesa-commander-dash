@@ -367,6 +367,10 @@ export default function CustomerProfile() {
             preferred_time: metrics?.preferred_time,
             preferred_channel: metrics?.preferred_channel,
             promotions_sent: metrics?.promotions_sent || 0,
+            visits_last_30d: metrics?.visits_last_30d,
+            visits_last_90d: metrics?.visits_last_90d,
+            avg_days_between_visits: metrics?.avg_days_between_visits,
+            first_visit_date: metrics?.first_visit_date,
           }}
           historyData={{
             queue_count: historyData?.queue_history?.length || 0,
