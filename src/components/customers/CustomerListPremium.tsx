@@ -76,7 +76,7 @@ const originConfig: Record<string, { emoji: string; label: string; className: st
   queue: { emoji: '🎫', label: 'Fila', className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
   reservation: { emoji: '📅', label: 'Reserva', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
   both: { emoji: '🔀', label: 'Fila + Reserva', className: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20' },
-  manual: { emoji: '✏️', label: 'Manual', className: 'bg-muted text-muted-foreground border-muted' },
+  manual: { emoji: '✏️', label: 'Cliente cadastrado', className: 'bg-muted text-muted-foreground border-muted' },
 };
 
 function CustomerRow({ 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck } from "lucide-react";
+import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
+import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
+import { useRestaurantCustomers } from "@/hooks/useRestaurantCustomers";
 import { 
   Dialog,
   DialogContent,
@@ -41,12 +43,15 @@ function DashboardContent() {
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const [isVisitDialogOpen, setIsVisitDialogOpen] = useState(false);
+  const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
+  const { refetch: refetchCustomers } = useRestaurantCustomers();
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
   const [queueEmail, setQueueEmail] = useState("");
   const [queuePeople, setQueuePeople] = useState("2");
   const [queueNotes, setQueueNotes] = useState("");
+  const [queueBirthday, setQueueBirthday] = useState("");
   
   // Reservation dialog state
   const [resName, setResName] = useState("");
@@ -55,6 +60,7 @@ function DashboardContent() {
   const [resTime, setResTime] = useState("");
   const [resPeople, setResPeople] = useState("2");
   const [resNotes, setResNotes] = useState("");
+  const [resBirthday, setResBirthday] = useState("");
   
   const handleAddQueue = async () => {
     if (!queueName || !queueEmail) return;
@@ -71,6 +77,7 @@ function DashboardContent() {
     setQueueEmail("");
     setQueuePeople("2");
     setQueueNotes("");
+    setQueueBirthday("");
     setIsQueueDialogOpen(false);
   };
   
@@ -244,6 +251,12 @@ function DashboardContent() {
                       value={queueNotes}
                       onChange={(e) => setQueueNotes(e.target.value)}
                     />
+                    <Input 
+                      type="date"
+                      placeholder="Data de aniversário (opcional)"
+                      value={queueBirthday}
+                      onChange={(e) => setQueueBirthday(e.target.value)}
+                    />
                     <Button 
                       className="w-full"
                       onClick={handleAddQueue}
@@ -307,6 +320,12 @@ function DashboardContent() {
                       value={resNotes}
                       onChange={(e) => setResNotes(e.target.value)}
                     />
+                    <Input 
+                      type="date"
+                      placeholder="Data de aniversário (opcional)"
+                      value={resBirthday}
+                      onChange={(e) => setResBirthday(e.target.value)}
+                    />
                     <Button 
                       className="w-full"
                       onClick={handleAddReservation}
@@ -322,11 +341,17 @@ function DashboardContent() {
             <Button 
               className="w-full justify-start" 
               variant="outline"
-              onClick={() => navigate('/customers')}
+              onClick={() => setIsCreateCustomerOpen(true)}
             >
-              <UserCheck className="w-4 h-4 mr-2" />
+              <UserPlus className="w-4 h-4 mr-2" />
               Cadastrar Cliente
             </Button>
+            
+            <CreateCustomerDialog
+              open={isCreateCustomerOpen}
+              onOpenChange={setIsCreateCustomerOpen}
+              onSuccess={refetchCustomers}
+            />
             
             {/* Botão de Promoção - condicionado à feature flag */}
             {FEATURE_FLAGS.CUPONS_ENABLED && (
