@@ -320,6 +320,12 @@ function DashboardContent() {
                       value={resNotes}
                       onChange={(e) => setResNotes(e.target.value)}
                     />
+                    <Input 
+                      type="date"
+                      placeholder="Data de aniversário (opcional)"
+                      value={resBirthday}
+                      onChange={(e) => setResBirthday(e.target.value)}
+                    />
                     <Button 
                       className="w-full"
                       onClick={handleAddReservation}
