@@ -279,9 +279,9 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
           </div>
         </div>
 
-        {/* Score RFM + Probabilidade + LTV */}
-        {(rfm || probRetorno || ltv) && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Score RFM + Probabilidade */}
+        {(rfm || probRetorno) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Score RFM */}
             {rfm && (
               <Card className="border-border/50">
