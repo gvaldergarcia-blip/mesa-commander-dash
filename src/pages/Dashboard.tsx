@@ -341,11 +341,17 @@ function DashboardContent() {
             <Button 
               className="w-full justify-start" 
               variant="outline"
-              onClick={() => navigate('/customers')}
+              onClick={() => setIsCreateCustomerOpen(true)}
             >
-              <UserCheck className="w-4 h-4 mr-2" />
+              <UserPlus className="w-4 h-4 mr-2" />
               Cadastrar Cliente
             </Button>
+            
+            <CreateCustomerDialog
+              open={isCreateCustomerOpen}
+              onOpenChange={setIsCreateCustomerOpen}
+              onSuccess={refetchCustomers}
+            />
             
             {/* Botão de Promoção - condicionado à feature flag */}
             {FEATURE_FLAGS.CUPONS_ENABLED && (
