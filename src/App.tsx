@@ -180,6 +180,11 @@ const App = () => {
                       <IACreatorMarketing />
                     </RoleGuard>
                   } />
+                  <Route path="/marketing/gerador-posts" element={
+                    <RoleGuard>
+                      <PostGenerator />
+                    </RoleGuard>
+                  } />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
