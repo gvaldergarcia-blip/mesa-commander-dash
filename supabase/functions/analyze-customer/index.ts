@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // ── SECURITY FLAGS ──
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_ANALYZE_CUSTOMER") ?? "true") === "true";
 
-// ── CORS (restricted allowlist) ──
+// ── CORS ──
 const ALLOWED_ORIGINS = [
   "https://mesaclik.com.br",
   "https://www.mesaclik.com.br",
@@ -25,119 +25,54 @@ function getCorsHeaders(req: Request): Record<string, string> {
   };
 }
 
-// ── Auth helper ──
-async function authenticateRequest(
-  req: Request,
-  corsHeaders: Record<string, string>
-): Promise<{ userId: string | null; error: Response | null }> {
+async function authenticateRequest(req: Request, corsHeaders: Record<string, string>) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     if (REQUIRE_JWT) {
-      console.warn("[analyze-customer] Missing JWT — blocked");
-      return {
-        userId: null,
-        error: new Response(
-          JSON.stringify({ error: "Autenticação necessária" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        ),
-      };
+      return { userId: null, error: new Response(JSON.stringify({ error: "Autenticação necessária" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }) };
     }
-    console.warn("[analyze-customer] Missing JWT — allowed (compat mode)");
     return { userId: null, error: null };
   }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
-
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {
-    console.warn("[analyze-customer] Invalid JWT:", error?.message);
-    return {
-      userId: null,
-      error: new Response(
-        JSON.stringify({ error: "Sessão inválida" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      ),
-    };
+    return { userId: null, error: new Response(JSON.stringify({ error: "Sessão inválida" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }) };
   }
-
   return { userId: data.user.id, error: null };
 }
 
-// ── Ownership validation ──
-async function validateMembership(
-  userId: string,
-  restaurantId: string,
-  corsHeaders: Record<string, string>
-): Promise<Response | null> {
-  const supabaseAdmin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  const { data: membership } = await supabaseAdmin
-    .from("restaurant_members")
-    .select("restaurant_id")
-    .eq("user_id", userId)
-    .eq("restaurant_id", restaurantId)
-    .maybeSingle();
-
+async function validateMembership(userId: string, restaurantId: string, corsHeaders: Record<string, string>) {
+  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: membership } = await supabaseAdmin.from("restaurant_members").select("restaurant_id").eq("user_id", userId).eq("restaurant_id", restaurantId).maybeSingle();
   if (!membership) {
-    // Check if admin
-    const { data: adminRole } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-
+    const { data: adminRole } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
     if (!adminRole) {
-      console.warn(`[analyze-customer] User ${userId} not member of restaurant ${restaurantId}`);
-      return new Response(
-        JSON.stringify({ error: "Acesso negado ao restaurante" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Acesso negado ao restaurante" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
   }
-
-  return null; // Access granted
+  return null;
 }
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // ── AUTH ──
     const auth = await authenticateRequest(req, corsHeaders);
     if (auth.error) return auth.error;
 
     const { customer_id, restaurant_id, customer_data, history_data, metrics } = await req.json();
 
-    console.log('[analyze-customer] Request:', { customer_id, restaurant_id, userId: auth.userId });
-
-    // ── OWNERSHIP CHECK ──
     if (auth.userId && restaurant_id) {
       const ownershipError = await validateMembership(auth.userId, restaurant_id, corsHeaders);
       if (ownershipError) return ownershipError;
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     if (!customer_data || !metrics) {
-      return new Response(
-        JSON.stringify({ error: 'Dados insuficientes para análise', analysis: null }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Dados insuficientes para análise', analysis: null }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const customerContext = `
@@ -158,6 +93,10 @@ MÉTRICAS:
 - Horário preferido: ${metrics.preferred_time || 'N/A'}
 - Canal preferido: ${metrics.preferred_channel || 'N/A'}
 - Dias desde última visita: ${customer_data.days_since_last_visit || 0}
+- Visitas nos últimos 30 dias: ${metrics.visits_last_30d ?? 'N/A'}
+- Visitas nos últimos 90 dias: ${metrics.visits_last_90d ?? 'N/A'}
+- Frequência média (dias entre visitas): ${metrics.avg_days_between_visits ?? 'N/A'}
+- Primeira visita: ${metrics.first_visit_date ?? 'N/A'}
 
 HISTÓRICO:
 - Filas no histórico: ${history_data?.queue_count || 0}
@@ -165,37 +104,27 @@ HISTÓRICO:
 - Promoções enviadas: ${metrics.promotions_sent || 0}
 `;
 
-    const systemPrompt = `Você é a IA de análise de clientes do MesaClik, um sistema premium de gestão para restaurantes.
+    const systemPrompt = `Você é a IA de análise estratégica de clientes do MesaClik, um SaaS premium de CRM para restaurantes.
 
 REGRAS OBRIGATÓRIAS:
 - Use APENAS os dados fornecidos, nunca invente ou simule
 - Se dados forem insuficientes, indique claramente
-- Mantenha tom profissional, direto e executivo (estilo SaaS enterprise)
-- Textos curtos e objetivos, sem enrolação
-- Foque em ajudar o restaurante a tomar decisões melhores
+- Tom profissional, direto, executivo (estilo SaaS enterprise)
+- Textos curtos e objetivos
 - IDIOMA: 100% em Português do Brasil
 
 REGRA CRÍTICA — SUGESTÃO DE PROMOÇÃO:
-A IA NÃO DEVE sugerir promoção por padrão.
-Só sugira promoção quando:
-- Risco de perda for MÉDIO ou ALTO
-- Houve queda de frequência recente
-- Cancelamentos ou não comparecimentos recorrentes
-- Longo período sem visita (>21 dias para clientes frequentes)
+Só sugira promoção quando risco de perda for MÉDIO ou ALTO, queda de frequência, cancelamentos recorrentes, ou longo período sem visita (>21 dias para frequentes).
+Se o cliente for saudável: defina tipo_acao como "nao_agir" ou "acompanhar".
 
-Se o cliente for saudável (visitas regulares, bom comparecimento, engajamento consistente):
-- NÃO sugira promoção
-- Defina tipo_acao como "nao_agir" ou "acompanhar"
-- Explique que nenhuma ação promocional é necessária
-
-Com base nos dados do cliente, gere uma análise estruturada em JSON com os seguintes campos:
+Com base nos dados do cliente, gere uma análise JSON com os seguintes campos:
 
 {
-  "resumo": "1-2 frases executivas sobre o perfil geral do cliente",
-  "perfil_comportamento": "Descrição do padrão de visitas, preferências, horários, tipo de grupo e hábitos identificados",
+  "resumo": "1-2 frases executivas sobre o perfil geral",
+  "perfil_comportamento": "Descrição do padrão de visitas, preferências e hábitos",
   "risco_perda": {
     "nivel": "baixo|medio|alto",
-    "justificativa": "Explicação breve do porquê"
+    "justificativa": "Explicação breve"
   },
   "sensibilidade_promocao": {
     "nivel": "baixa|media|alta",
@@ -207,27 +136,84 @@ Com base nos dados do cliente, gere uma análise estruturada em JSON com os segu
   },
   "sugestao_acao": {
     "tipo": "enviar_promocao|fidelizar|recuperar|nao_agir|acompanhar",
-    "descricao": "Ação específica recomendada OU mensagem explícita de que nenhuma ação é necessária",
-    "momento_ideal": "Dia/horário sugerido se aplicável, ou null"
+    "descricao": "Ação recomendada",
+    "momento_ideal": "Dia/horário sugerido ou null"
+  },
+  "score_rfm": {
+    "recencia": <1-5>,
+    "frequencia": <1-5>,
+    "valor": <1-5>,
+    "score_composto": <0-100>,
+    "explicacao": "Frase curta explicando o score"
+  },
+  "segmento": {
+    "id": "campeao|fiel|promissor|novo|em_risco|inativo|perdido",
+    "label": "⭐ VIP|💚 Fiel|🚀 Promissor|🆕 Novo|⚠️ Em Risco|😴 Inativo|❌ Perdido",
+    "cor": "dourado|verde|roxo|azul|laranja|cinza|vermelho",
+    "acao_sugerida": "Ação clara para esse segmento"
+  },
+  "probabilidade_retorno_30d": {
+    "score": <0-100>,
+    "fatores_positivos": ["fator1", "fator2"],
+    "fatores_negativos": ["fator1"],
+    "explicacao": "Frase sobre a probabilidade"
+  },
+  "ltv_estimado": {
+    "valor_mensal": <number>,
+    "valor_anual": <number>,
+    "classificacao": "alto|medio|baixo",
+    "explicacao": "Como foi calculado"
+  },
+  "tendencia": "crescendo|estavel|diminuindo",
+  "metricas_calculadas": {
+    "taxa_cancelamento": <0-100>,
+    "frequencia_media_dias": <number ou null>,
+    "tipo_preferido": "fila|reserva|ambos"
   }
 }
 
-CRITÉRIOS DE CLASSIFICAÇÃO:
+CRITÉRIOS PARA SCORE RFM (escala 1-5):
 
-RISCO DE PERDA:
-- Baixo: Visita regular (últimos 15 dias), taxa comparecimento >80%, padrão consistente
-- Médio: 16-30 dias sem visita OU queda de frequência OU alguns cancelamentos
-- Alto: >30 dias sem visita OU muitos cancelamentos/não comparecimentos
+R (Recência):
+  5 = veio há <14 dias
+  4 = 15-30 dias
+  3 = 31-60 dias
+  2 = 61-90 dias
+  1 = >90 dias
 
-SENSIBILIDADE A PROMOÇÕES:
-- Alta: Histórico de retorno após promoções, responde bem a incentivos
-- Média: Responde ocasionalmente, comportamento misto
-- Baixa: Não demonstra influência por promoções, prefere experiência
+F (Frequência - visitas últimos 90 dias):
+  5 = 8+ visitas
+  4 = 5-7 visitas
+  3 = 3-4 visitas
+  2 = 2 visitas
+  1 = 1 visita
 
-RETENÇÃO (30 DIAS):
-- Alta: Padrão consistente, última visita recente (<10 dias), engajamento contínuo
-- Média: Padrão irregular mas ainda engajado, 10-21 dias sem visita
-- Baixa: Longo período sem visita (>21 dias), histórico negativo
+M (Valor - proxy: total_visitas × tamanho_medio_grupo):
+  5 = volume muito alto
+  4 = volume alto
+  3 = volume médio
+  2 = volume baixo
+  1 = volume mínimo
+
+SCORE COMPOSTO: (R*0.4 + F*0.4 + M*0.2) normalizado 0-100
+
+SEGMENTAÇÃO:
+- CAMPEÃO: score_rfm >= 80
+- FIEL: score_rfm 60-79 + total_visitas >= 5
+- PROMISSOR: score_rfm 50-69 + tendencia crescendo
+- NOVO: total_visitas <= 2 + cliente há <=30 dias
+- EM RISCO: score_rfm 40-59 + tendencia diminuindo
+- INATIVO: dias_desde_ultima_visita 45-90
+- PERDIDO: dias_desde_ultima_visita > 90
+
+PROBABILIDADE DE RETORNO (0-100):
+Positivos: frequência alta (+40), recente <14d (+30), tendência crescendo (+15), reserva (+10), 3+ visitas (+5)
+Negativos: 60+ dias sem visita (-30), tendência diminuindo (-20), cancelamento >30% (-15), 1 visita (-10)
+
+LTV ESTIMADO:
+ltv_mensal = (visitas_por_mes × tamanho_medio_grupo × R$45)
+ltv_anual = ltv_mensal × 12
+Se dados insuficientes, use estimativas conservadoras.
 
 Responda APENAS com o JSON, sem explicações adicionais.`;
 
@@ -250,29 +236,18 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[analyze-customer] AI Gateway error:', response.status, errorText);
-
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Créditos de IA esgotados. Adicione mais créditos.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Créditos de IA esgotados. Adicione mais créditos.' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Resposta vazia da IA');
-    }
+    if (!content) throw new Error('Resposta vazia da IA');
 
     console.log('[analyze-customer] AI raw response:', content.substring(0, 200));
 
@@ -280,8 +255,7 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
     try {
       const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
       analysis = JSON.parse(cleanContent);
-    } catch (parseError) {
-      console.error('[analyze-customer] Parse error:', parseError);
+    } catch (_parseError) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         analysis = JSON.parse(jsonMatch[0]);
@@ -292,18 +266,12 @@ Responda APENAS com o JSON, sem explicações adicionais.`;
 
     console.log('[analyze-customer] Analysis generated successfully');
 
-    return new Response(
-      JSON.stringify({ analysis }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ analysis }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     const corsH = getCorsHeaders(req);
     console.error('[analyze-customer] Error:', error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsH, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: message }), { status: 500, headers: { ...corsH, 'Content-Type': 'application/json' } });
   }
 });
