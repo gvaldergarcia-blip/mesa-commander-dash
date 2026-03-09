@@ -2,8 +2,7 @@ import { useState } from 'react';
 import {
   Brain, TrendingDown, TrendingUp, AlertTriangle, Target, RefreshCw,
   Sparkles, BadgePercent, Calendar, ArrowRight, Loader2, CheckCircle2,
-  XCircle, Minus, ShieldCheck, BarChart3, DollarSign, Gauge, Users,
-  TrendingUpIcon
+  XCircle, Minus, ShieldCheck, BarChart3, Gauge
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
