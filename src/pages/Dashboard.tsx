@@ -60,6 +60,7 @@ function DashboardContent() {
   const [resTime, setResTime] = useState("");
   const [resPeople, setResPeople] = useState("2");
   const [resNotes, setResNotes] = useState("");
+  const [resBirthday, setResBirthday] = useState("");
   
   const handleAddQueue = async () => {
     if (!queueName || !queueEmail) return;
