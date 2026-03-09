@@ -180,7 +180,7 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
           <Button onClick={fetchAnalysis} className="gap-2">
             <Brain className="w-4 h-4" /> Gerar Análise de IA
           </Button>
-          <p className="text-xs text-muted-foreground mt-3">Inclui Score RFM, segmentação, probabilidade de retorno e LTV estimado.</p>
+          <p className="text-xs text-muted-foreground mt-3">Inclui Score RFM, segmentação e probabilidade de retorno.</p>
         </CardContent>
       </Card>
     );
