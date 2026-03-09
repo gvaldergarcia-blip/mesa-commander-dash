@@ -51,6 +51,7 @@ function DashboardContent() {
   const [queueEmail, setQueueEmail] = useState("");
   const [queuePeople, setQueuePeople] = useState("2");
   const [queueNotes, setQueueNotes] = useState("");
+  const [queueBirthday, setQueueBirthday] = useState("");
   
   // Reservation dialog state
   const [resName, setResName] = useState("");
