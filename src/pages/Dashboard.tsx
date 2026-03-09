@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck } from "lucide-react";
+import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
