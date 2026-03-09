@@ -2,8 +2,7 @@ import { useState } from 'react';
 import {
   Brain, TrendingDown, TrendingUp, AlertTriangle, Target, RefreshCw,
   Sparkles, BadgePercent, Calendar, ArrowRight, Loader2, CheckCircle2,
-  XCircle, Minus, ShieldCheck, BarChart3, DollarSign, Gauge, Users,
-  TrendingUpIcon
+  XCircle, Minus, ShieldCheck, BarChart3, Gauge
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,12 +40,6 @@ type CustomerAnalysis = {
     score: number;
     fatores_positivos: string[];
     fatores_negativos: string[];
-    explicacao: string;
-  };
-  ltv_estimado?: {
-    valor_mensal: number;
-    valor_anual: number;
-    classificacao: string;
     explicacao: string;
   };
   tendencia?: string;
@@ -186,7 +179,7 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
           <Button onClick={fetchAnalysis} className="gap-2">
             <Brain className="w-4 h-4" /> Gerar Análise de IA
           </Button>
-          <p className="text-xs text-muted-foreground mt-3">Inclui Score RFM, segmentação, probabilidade de retorno e LTV estimado.</p>
+          <p className="text-xs text-muted-foreground mt-3">Inclui Score RFM, segmentação e probabilidade de retorno.</p>
         </CardContent>
       </Card>
     );
@@ -247,7 +240,7 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
   const rfm = analysis.score_rfm;
   const segmento = analysis.segmento;
   const probRetorno = analysis.probabilidade_retorno_30d;
-  const ltv = analysis.ltv_estimado;
+  
 
   return (
     <Card className="overflow-hidden">
@@ -285,9 +278,9 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
           </div>
         </div>
 
-        {/* Score RFM + Probabilidade + LTV */}
-        {(rfm || probRetorno || ltv) && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Score RFM + Probabilidade */}
+        {(rfm || probRetorno) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Score RFM */}
             {rfm && (
               <Card className="border-border/50">
@@ -357,38 +350,6 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
               </Card>
             )}
 
-            {/* LTV Estimado */}
-            {ltv && (
-              <Card className="border-border/50">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-primary" />
-                      <p className="text-sm font-semibold">LTV Estimado</p>
-                    </div>
-                    <Badge variant="outline" className={cn(
-                      "text-xs",
-                      ltv.classificacao === 'alto' ? 'bg-success/10 text-success border-success/30' :
-                      ltv.classificacao === 'medio' ? 'bg-warning/10 text-warning border-warning/30' :
-                      'bg-muted text-muted-foreground'
-                    )}>
-                      {ltv.classificacao === 'alto' ? '💎 Alto' : ltv.classificacao === 'medio' ? '📊 Médio' : '📉 Baixo'}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-muted-foreground">Mensal</span>
-                      <span className="text-lg font-bold">R$ {ltv.valor_mensal?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-muted-foreground">Anual</span>
-                      <span className="text-sm font-semibold text-muted-foreground">R$ {ltv.valor_anual?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{ltv.explicacao}</p>
-                </CardContent>
-              </Card>
-            )}
           </div>
         )}
 
