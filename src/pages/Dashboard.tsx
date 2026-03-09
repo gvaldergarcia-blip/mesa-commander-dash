@@ -14,6 +14,8 @@ import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
+import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
+import { useRestaurantCustomers } from "@/hooks/useRestaurantCustomers";
 import { 
   Dialog,
   DialogContent,
