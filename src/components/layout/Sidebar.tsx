@@ -17,6 +17,7 @@ import {
   Sun,
   LogOut,
   Film,
+  ImagePlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const allNavigation = [
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null, adminOnly: true },
   { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null, adminOnly: true },
   { name: "MesaClik Studio", href: "/marketing/creator", icon: Sparkles, requiresFeature: null, requiresModule: null, adminOnly: true },
+  { name: "Gerador de Posts", href: "/marketing/gerador-posts", icon: ImagePlus, requiresFeature: null, requiresModule: null, adminOnly: true },
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null, adminOnly: true },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null, adminOnly: true },
 ];

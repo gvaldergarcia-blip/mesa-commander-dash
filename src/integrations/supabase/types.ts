@@ -1002,6 +1002,63 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_posts: {
+        Row: {
+          copy_data: Json
+          created_at: string
+          discount_percent: number | null
+          dish_name: string | null
+          id: string
+          image_final_url: string | null
+          image_upload_url: string | null
+          layout: string
+          post_type: string
+          price_new: number | null
+          price_old: number | null
+          published: boolean
+          published_at: string | null
+          restaurant_id: string
+          tone: string | null
+          validity: string | null
+        }
+        Insert: {
+          copy_data?: Json
+          created_at?: string
+          discount_percent?: number | null
+          dish_name?: string | null
+          id?: string
+          image_final_url?: string | null
+          image_upload_url?: string | null
+          layout?: string
+          post_type: string
+          price_new?: number | null
+          price_old?: number | null
+          published?: boolean
+          published_at?: string | null
+          restaurant_id: string
+          tone?: string | null
+          validity?: string | null
+        }
+        Update: {
+          copy_data?: Json
+          created_at?: string
+          discount_percent?: number | null
+          dish_name?: string | null
+          id?: string
+          image_final_url?: string | null
+          image_upload_url?: string | null
+          layout?: string
+          post_type?: string
+          price_new?: number | null
+          price_old?: number | null
+          published?: boolean
+          published_at?: string | null
+          restaurant_id?: string
+          tone?: string | null
+          validity?: string | null
+        }
+        Relationships: []
+      }
       marketing_posts: {
         Row: {
           created_at: string
