@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Brain, RefreshCw, Sparkles } from 'lucide-react';
+import { Brain, RefreshCw, Sparkles, BarChart3, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { useRestaurantCustomers } from '@/hooks/useRestaurantCustomers';
 import { 
   useAIPalpites, 
   AIPalpite,
@@ -14,6 +16,8 @@ import { PalpitesStats } from '@/components/intelligence/PalpitesStats';
 import { PalpitesFilters } from '@/components/intelligence/PalpitesFilters';
 import { PalpiteCard } from '@/components/intelligence/PalpiteCard';
 import { SendPalpitePromotionDialog } from '@/components/intelligence/SendPalpitePromotionDialog';
+import { InsightsDashboard } from '@/components/intelligence/InsightsDashboard';
+import { AlertsAnalysis } from '@/components/intelligence/AlertsAnalysis';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 function IntelligenceContent() {
@@ -21,11 +25,13 @@ function IntelligenceContent() {
   const {
     palpites,
     stats,
-    loading,
+    loading: palpitesLoading,
     generatePalpites,
     updatePalpiteStatus,
     filterPalpites,
   } = useAIPalpites(restaurantId || '');
+
+  const { customers, loading: customersLoading } = useRestaurantCustomers();
 
   const [statusFilter, setStatusFilter] = useState<PalpiteStatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PalpitePriorityFilter>('all');
@@ -43,22 +49,15 @@ function IntelligenceContent() {
     setIsGenerating(false);
   };
 
-  const handleMarkSeen = async (id: string) => {
-    return updatePalpiteStatus(id, 'seen');
-  };
-
-  const handleDismiss = async (id: string) => {
-    return updatePalpiteStatus(id, 'dismissed');
-  };
+  const handleMarkSeen = async (id: string) => updatePalpiteStatus(id, 'seen');
+  const handleDismiss = async (id: string) => updatePalpiteStatus(id, 'dismissed');
 
   const handleSendPromotion = (palpite: AIPalpite) => {
     setSelectedPalpite(palpite);
     setIsPromotionDialogOpen(true);
   };
 
-  const handlePromotionSent = async (palpiteId: string) => {
-    return updatePalpiteStatus(palpiteId, 'sent');
-  };
+  const handlePromotionSent = async (palpiteId: string) => updatePalpiteStatus(palpiteId, 'sent');
 
   return (
     <div className="p-6 space-y-6">
@@ -67,86 +66,111 @@ function IntelligenceContent() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Brain className="h-7 w-7 text-primary" />
-            Palpites
+            Inteligência MesaClik
           </h1>
           <p className="text-muted-foreground">
-            Sugestões inteligentes para retenção e recuperação de clientes
+            Análise comportamental, alertas e insights estratégicos dos seus clientes
           </p>
         </div>
-
-        <Button 
-          onClick={handleGeneratePalpites}
-          disabled={isGenerating}
-          className="gap-2"
-        >
-          {isGenerating ? (
-            <RefreshCw className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          Gerar Palpites
-        </Button>
       </div>
 
-      {/* Stats cards */}
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-      ) : (
-        <PalpitesStats stats={stats} />
-      )}
+      {/* Tabs */}
+      <Tabs defaultValue="insights" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="insights" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </TabsTrigger>
+          <TabsTrigger value="alerts" className="gap-2">
+            <Bell className="w-4 h-4" />
+            <span className="hidden sm:inline">Alertas & Análise</span>
+          </TabsTrigger>
+          <TabsTrigger value="palpites" className="gap-2">
+            <Sparkles className="w-4 h-4" />
+            <span className="hidden sm:inline">Palpites</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Filters */}
-      <PalpitesFilters
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        priorityFilter={priorityFilter}
-        onPriorityChange={setPriorityFilter}
-        typeFilter={typeFilter}
-        onTypeChange={setTypeFilter}
-      />
+        {/* Tab: Insights Dashboard (Phase 2) */}
+        <TabsContent value="insights">
+          <InsightsDashboard customers={customers} loading={customersLoading} />
+        </TabsContent>
 
-      {/* Palpites feed */}
-      <div className="space-y-4">
-        {loading ? (
-          <>
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
-          </>
-        ) : filteredPalpites.length === 0 ? (
-          <div className="text-center py-12 bg-muted/30 rounded-lg">
-            <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhum palpite encontrado</h3>
-            <p className="text-muted-foreground mb-4">
-              {palpites.length === 0
-                ? 'Clique em "Gerar Palpites" para analisar seus clientes.'
-                : 'Nenhum palpite corresponde aos filtros selecionados.'}
-            </p>
-            {palpites.length === 0 && (
-              <Button onClick={handleGeneratePalpites} disabled={isGenerating}>
-                <Sparkles className="h-4 w-4 mr-2" />
+        {/* Tab: Alerts & Analysis (Phase 3) */}
+        <TabsContent value="alerts">
+          <AlertsAnalysis customers={customers} loading={customersLoading} />
+        </TabsContent>
+
+        {/* Tab: Palpites (existing) */}
+        <TabsContent value="palpites">
+          <div className="space-y-6">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleGeneratePalpites}
+                disabled={isGenerating}
+                className="gap-2"
+              >
+                {isGenerating ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
                 Gerar Palpites
               </Button>
-            )}
-          </div>
-        ) : (
-          filteredPalpites.map((palpite) => (
-            <PalpiteCard
-              key={palpite.id}
-              palpite={palpite}
-              onMarkSeen={handleMarkSeen}
-              onDismiss={handleDismiss}
-              onSendPromotion={handleSendPromotion}
-            />
-          ))
-        )}
-      </div>
+            </div>
 
-      {/* Send promotion dialog */}
+            {palpitesLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24" />)}
+              </div>
+            ) : (
+              <PalpitesStats stats={stats} />
+            )}
+
+            <PalpitesFilters
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+              priorityFilter={priorityFilter}
+              onPriorityChange={setPriorityFilter}
+              typeFilter={typeFilter}
+              onTypeChange={setTypeFilter}
+            />
+
+            <div className="space-y-4">
+              {palpitesLoading ? (
+                [1, 2, 3].map((i) => <Skeleton key={i} className="h-48" />)
+              ) : filteredPalpites.length === 0 ? (
+                <div className="text-center py-12 bg-muted/30 rounded-lg">
+                  <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Nenhum palpite encontrado</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {palpites.length === 0
+                      ? 'Clique em "Gerar Palpites" para analisar seus clientes.'
+                      : 'Nenhum palpite corresponde aos filtros selecionados.'}
+                  </p>
+                  {palpites.length === 0 && (
+                    <Button onClick={handleGeneratePalpites} disabled={isGenerating}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Gerar Palpites
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                filteredPalpites.map((palpite) => (
+                  <PalpiteCard
+                    key={palpite.id}
+                    palpite={palpite}
+                    onMarkSeen={handleMarkSeen}
+                    onDismiss={handleDismiss}
+                    onSendPromotion={handleSendPromotion}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
       <SendPalpitePromotionDialog
         open={isPromotionDialogOpen}
         onOpenChange={setIsPromotionDialogOpen}
