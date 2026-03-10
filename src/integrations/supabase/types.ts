@@ -455,8 +455,15 @@ export type Database = {
           activation_email_sent: boolean
           created_at: string
           current_visits: number
+          custom_required_visits: number | null
+          custom_reward_description: string | null
+          custom_reward_validity_days: number | null
           customer_id: string
           id: string
+          reminder_2_sent: boolean
+          reminder_3_sent: boolean
+          reminder_4_sent: boolean
+          reminder_5_sent: boolean
           restaurant_id: string
           reward_email_sent: boolean
           reward_expires_at: string | null
@@ -468,8 +475,15 @@ export type Database = {
           activation_email_sent?: boolean
           created_at?: string
           current_visits?: number
+          custom_required_visits?: number | null
+          custom_reward_description?: string | null
+          custom_reward_validity_days?: number | null
           customer_id: string
           id?: string
+          reminder_2_sent?: boolean
+          reminder_3_sent?: boolean
+          reminder_4_sent?: boolean
+          reminder_5_sent?: boolean
           restaurant_id: string
           reward_email_sent?: boolean
           reward_expires_at?: string | null
@@ -481,8 +495,15 @@ export type Database = {
           activation_email_sent?: boolean
           created_at?: string
           current_visits?: number
+          custom_required_visits?: number | null
+          custom_reward_description?: string | null
+          custom_reward_validity_days?: number | null
           customer_id?: string
           id?: string
+          reminder_2_sent?: boolean
+          reminder_3_sent?: boolean
+          reminder_4_sent?: boolean
+          reminder_5_sent?: boolean
           restaurant_id?: string
           reward_email_sent?: boolean
           reward_expires_at?: string | null
