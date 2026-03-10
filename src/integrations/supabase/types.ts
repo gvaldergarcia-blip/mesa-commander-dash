@@ -263,6 +263,36 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_trial_attempts: {
+        Row: {
+          cnpj: string | null
+          created_at: string | null
+          device_fingerprint: string | null
+          email: string | null
+          id: string
+          motivo: string
+          phone: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string | null
+          device_fingerprint?: string | null
+          email?: string | null
+          id?: string
+          motivo: string
+          phone?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string | null
+          device_fingerprint?: string | null
+          email?: string | null
+          id?: string
+          motivo?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       clientes_restaurante: {
         Row: {
           created_at: string
@@ -425,8 +455,15 @@ export type Database = {
           activation_email_sent: boolean
           created_at: string
           current_visits: number
+          custom_required_visits: number | null
+          custom_reward_description: string | null
+          custom_reward_validity_days: number | null
           customer_id: string
           id: string
+          reminder_2_sent: boolean
+          reminder_3_sent: boolean
+          reminder_4_sent: boolean
+          reminder_5_sent: boolean
           restaurant_id: string
           reward_email_sent: boolean
           reward_expires_at: string | null
@@ -438,8 +475,15 @@ export type Database = {
           activation_email_sent?: boolean
           created_at?: string
           current_visits?: number
+          custom_required_visits?: number | null
+          custom_reward_description?: string | null
+          custom_reward_validity_days?: number | null
           customer_id: string
           id?: string
+          reminder_2_sent?: boolean
+          reminder_3_sent?: boolean
+          reminder_4_sent?: boolean
+          reminder_5_sent?: boolean
           restaurant_id: string
           reward_email_sent?: boolean
           reward_expires_at?: string | null
@@ -451,8 +495,15 @@ export type Database = {
           activation_email_sent?: boolean
           created_at?: string
           current_visits?: number
+          custom_required_visits?: number | null
+          custom_reward_description?: string | null
+          custom_reward_validity_days?: number | null
           customer_id?: string
           id?: string
+          reminder_2_sent?: boolean
+          reminder_3_sent?: boolean
+          reminder_4_sent?: boolean
+          reminder_5_sent?: boolean
           restaurant_id?: string
           reward_email_sent?: boolean
           reward_expires_at?: string | null
@@ -781,6 +832,128 @@ export type Database = {
           },
         ]
       }
+      email_queue: {
+        Row: {
+          assunto: string
+          cliente_id: string | null
+          criado_em: string
+          destinatario_email: string
+          destinatario_nome: string | null
+          enviado_em: string | null
+          erro: string | null
+          html: string
+          id: string
+          max_tentativas: number
+          metadata: Json | null
+          proximo_retry: string | null
+          resend_id: string | null
+          restaurante_id: string | null
+          status: string
+          tentativas: number
+          texto_simples: string | null
+          tipo: string
+        }
+        Insert: {
+          assunto: string
+          cliente_id?: string | null
+          criado_em?: string
+          destinatario_email: string
+          destinatario_nome?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          html: string
+          id?: string
+          max_tentativas?: number
+          metadata?: Json | null
+          proximo_retry?: string | null
+          resend_id?: string | null
+          restaurante_id?: string | null
+          status?: string
+          tentativas?: number
+          texto_simples?: string | null
+          tipo: string
+        }
+        Update: {
+          assunto?: string
+          cliente_id?: string | null
+          criado_em?: string
+          destinatario_email?: string
+          destinatario_nome?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          html?: string
+          id?: string
+          max_tentativas?: number
+          metadata?: Json | null
+          proximo_retry?: string | null
+          resend_id?: string | null
+          restaurante_id?: string | null
+          status?: string
+          tentativas?: number
+          texto_simples?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
+      email_send_logs: {
+        Row: {
+          criado_em: string
+          detalhes: string | null
+          email_queue_id: string | null
+          evento: string
+          id: string
+        }
+        Insert: {
+          criado_em?: string
+          detalhes?: string | null
+          email_queue_id?: string | null
+          evento: string
+          id?: string
+        }
+        Update: {
+          criado_em?: string
+          detalhes?: string | null
+          email_queue_id?: string | null
+          evento?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_send_logs_email_queue_id_fkey"
+            columns: ["email_queue_id"]
+            isOneToOne: false
+            referencedRelation: "email_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_verification_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          verified: boolean | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          email: string
+          expires_at?: string
+          id?: string
+          verified?: boolean | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
       fila_entradas: {
         Row: {
           active: boolean
@@ -870,6 +1043,7 @@ export type Database = {
           cuisine_type: string
           current_system: string | null
           current_system_name: string | null
+          device_fingerprint: string | null
           id: string
           ip_address: string | null
           is_multi_unit: boolean
@@ -919,6 +1093,7 @@ export type Database = {
           cuisine_type: string
           current_system?: string | null
           current_system_name?: string | null
+          device_fingerprint?: string | null
           id?: string
           ip_address?: string | null
           is_multi_unit?: boolean
@@ -968,6 +1143,7 @@ export type Database = {
           cuisine_type?: string
           current_system?: string | null
           current_system_name?: string | null
+          device_fingerprint?: string | null
           id?: string
           ip_address?: string | null
           is_multi_unit?: boolean
@@ -2269,9 +2445,11 @@ export type Database = {
           address_line: string | null
           approved_at: string | null
           city: string | null
+          cnpj: string | null
           created_at: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
           current_plan: string | null
+          device_fingerprint: string | null
           has_queue: boolean | null
           has_reservation: boolean | null
           home_priority: number
@@ -2284,6 +2462,7 @@ export type Database = {
           menu_url: string | null
           name: string
           owner_id: string | null
+          phone: string | null
           plan_modules: string
           status: string
           stripe_customer_id: string | null
@@ -2298,9 +2477,11 @@ export type Database = {
           address_line?: string | null
           approved_at?: string | null
           city?: string | null
+          cnpj?: string | null
           created_at?: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
           current_plan?: string | null
+          device_fingerprint?: string | null
           has_queue?: boolean | null
           has_reservation?: boolean | null
           home_priority?: number
@@ -2313,6 +2494,7 @@ export type Database = {
           menu_url?: string | null
           name: string
           owner_id?: string | null
+          phone?: string | null
           plan_modules?: string
           status?: string
           stripe_customer_id?: string | null
@@ -2327,9 +2509,11 @@ export type Database = {
           address_line?: string | null
           approved_at?: string | null
           city?: string | null
+          cnpj?: string | null
           created_at?: string | null
           cuisine?: Database["public"]["Enums"]["cuisine_enum"]
           current_plan?: string | null
+          device_fingerprint?: string | null
           has_queue?: boolean | null
           has_reservation?: boolean | null
           home_priority?: number
@@ -2342,6 +2526,7 @@ export type Database = {
           menu_url?: string | null
           name?: string
           owner_id?: string | null
+          phone?: string | null
           plan_modules?: string
           status?: string
           stripe_customer_id?: string | null
