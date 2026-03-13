@@ -2464,11 +2464,13 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           plan_modules: string
+          plan_status: string | null
           status: string
           stripe_customer_id: string | null
           stripe_price_id: string | null
           stripe_subscription_id: string | null
           subscription_status: string | null
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
@@ -2496,11 +2498,13 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan_modules?: string
+          plan_status?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
           subscription_status?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -2528,11 +2532,13 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan_modules?: string
+          plan_status?: string | null
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
           subscription_status?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -3004,49 +3010,55 @@ export type Database = {
       }
       restaurants_public: {
         Row: {
+          about: string | null
           address_line: string | null
-          approved_at: string | null
           city: string | null
-          created_at: string | null
           cuisine: Database["public"]["Enums"]["cuisine_enum"] | null
           has_queue: boolean | null
           has_reservation: boolean | null
+          home_priority: number | null
           id: string | null
           image_url: string | null
+          is_featured_both: boolean | null
+          is_featured_novidades: boolean | null
+          is_featured_queue: boolean | null
+          is_featured_reservation: boolean | null
           name: string | null
-          plan_modules: string | null
           status: string | null
-          updated_at: string | null
         }
         Insert: {
+          about?: string | null
           address_line?: string | null
-          approved_at?: string | null
           city?: string | null
-          created_at?: string | null
           cuisine?: Database["public"]["Enums"]["cuisine_enum"] | null
           has_queue?: boolean | null
           has_reservation?: boolean | null
+          home_priority?: number | null
           id?: string | null
           image_url?: string | null
+          is_featured_both?: boolean | null
+          is_featured_novidades?: boolean | null
+          is_featured_queue?: boolean | null
+          is_featured_reservation?: boolean | null
           name?: string | null
-          plan_modules?: string | null
           status?: string | null
-          updated_at?: string | null
         }
         Update: {
+          about?: string | null
           address_line?: string | null
-          approved_at?: string | null
           city?: string | null
-          created_at?: string | null
           cuisine?: Database["public"]["Enums"]["cuisine_enum"] | null
           has_queue?: boolean | null
           has_reservation?: boolean | null
+          home_priority?: number | null
           id?: string | null
           image_url?: string | null
+          is_featured_both?: boolean | null
+          is_featured_novidades?: boolean | null
+          is_featured_queue?: boolean | null
+          is_featured_reservation?: boolean | null
           name?: string | null
-          plan_modules?: string | null
           status?: string | null
-          updated_at?: string | null
         }
         Relationships: []
       }
