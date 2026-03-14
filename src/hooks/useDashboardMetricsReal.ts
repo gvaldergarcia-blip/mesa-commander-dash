@@ -56,9 +56,38 @@ export type RecentActivityItem = {
   status: string;
 };
 
+const isDevEnvironment = () => {
+  const explicitBypass = import.meta.env.VITE_PREVIEW_BYPASS;
+  if (explicitBypass !== undefined) return explicitBypass === 'true';
+  return import.meta.env.DEV || 
+    window.location.hostname.includes('lovable.app') || 
+    window.location.hostname === 'localhost';
+};
+
+const MOCK_METRICS: DashboardMetrics = {
+  peopleInQueue: 14,
+  groupsInQueue: 5,
+  reservationsToday: 12,
+  servedToday: 23,
+  calledToday: 8,
+  canceledToday: 2,
+  avgWaitTimeMinutes: 18,
+  weeklyGrowth: 15,
+};
+
+const MOCK_ACTIVITY: RecentActivityItem[] = [
+  { id: '1', type: 'queue', customer: 'João S.', action: 'Adicionado à fila', time: '19:42', timestamp: new Date(), party: 4, status: 'waiting' },
+  { id: '2', type: 'reservation', customer: 'Maria L.', action: 'Reserva confirmada', time: '19:30', timestamp: new Date(), party: 2, status: 'confirmed' },
+  { id: '3', type: 'queue', customer: 'Carlos R.', action: 'Chamado para mesa', time: '19:25', timestamp: new Date(), party: 3, status: 'called' },
+  { id: '4', type: 'queue', customer: 'Ana P.', action: 'Sentado', time: '19:15', timestamp: new Date(), party: 2, status: 'seated' },
+  { id: '5', type: 'reservation', customer: 'Pedro M.', action: 'Reserva concluída', time: '18:50', timestamp: new Date(), party: 6, status: 'completed' },
+  { id: '6', type: 'queue', customer: 'Fernanda B.', action: 'Adicionado à fila', time: '18:40', timestamp: new Date(), party: 5, status: 'waiting' },
+];
+
 export function useDashboardMetricsReal() {
   const { restaurantId } = useRestaurant();
-  const [metrics, setMetrics] = useState<DashboardMetrics>({
+  const isDev = isDevEnvironment();
+  const [metrics, setMetrics] = useState<DashboardMetrics>(isDev ? MOCK_METRICS : {
     peopleInQueue: 0,
     groupsInQueue: 0,
     reservationsToday: 0,
