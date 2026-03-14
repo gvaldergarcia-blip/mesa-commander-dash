@@ -32,13 +32,35 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
+// ⚡ DEMO MODE — apenas visual para screenshots. Trocar para false após capturar.
+const DEMO_MODE = true;
+
+const DEMO_METRICS = {
+  groupsInQueue: 4,
+  peopleInQueue: 11,
+  reservationsToday: 7,
+  servedToday: 23,
+  calledToday: 2,
+  canceledToday: 1,
+  weeklyGrowth: 12,
+};
+
+const DEMO_ACTIVITY = [
+  { id: '1', customer: 'Guilherme', action: 'Mesa para 2 — entrou na fila', time: 'agora', party: 2, type: 'queue' as const },
+  { id: '2', customer: 'Família Silva', action: 'Reserva confirmada — 19h', time: '12 min atrás', party: 5, type: 'reservation' as const },
+  { id: '3', customer: 'João', action: 'Cliente atendido — mesa 4', time: '18 min atrás', party: 3, type: 'queue' as const },
+];
+
 function DashboardContent() {
   const { restaurants, loading: loadingRestaurants } = useRestaurants();
-  const { metrics, recentActivity, loading: loadingMetrics } = useDashboardMetricsReal();
+  const { metrics: realMetrics, recentActivity: realActivity, loading: loadingMetrics } = useDashboardMetricsReal();
   const { addToQueue } = useQueue();
   const { createReservation } = useReservations();
   const navigate = useNavigate();
   const { hasModule } = useModules();
+
+  const metrics = DEMO_MODE ? DEMO_METRICS : realMetrics;
+  const recentActivity = DEMO_MODE ? DEMO_ACTIVITY : realActivity;
   
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
