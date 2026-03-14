@@ -97,8 +97,8 @@ export function useDashboardMetricsReal() {
     avgWaitTimeMinutes: null,
     weeklyGrowth: 0,
   });
-  const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>(isDev ? MOCK_ACTIVITY : []);
+  const [loading, setLoading] = useState(!isDev);
 
   const fetchMetrics = useCallback(async () => {
     if (!restaurantId) {
