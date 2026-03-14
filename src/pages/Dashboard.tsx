@@ -134,7 +134,7 @@ function DashboardContent() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Painel</h1>
           <p className="text-muted-foreground">
-            {loadingRestaurants ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
+            {DEMO_MODE ? 'Restaurante Demo' : (loadingRestaurants ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`)}
           </p>
         </div>
         <div className="flex space-x-3">
