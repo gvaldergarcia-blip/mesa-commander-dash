@@ -341,6 +341,15 @@ function DashboardContent() {
             <Button 
               className="w-full justify-start" 
               variant="outline"
+              onClick={() => setIsVisitDialogOpen(true)}
+            >
+              <ClipboardCheck className="w-4 h-4 mr-2" />
+              Registrar Visita
+            </Button>
+            
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
               onClick={() => setIsCreateCustomerOpen(true)}
             >
               <UserPlus className="w-4 h-4 mr-2" />
