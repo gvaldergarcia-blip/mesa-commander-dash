@@ -375,18 +375,33 @@ function DashboardContent() {
               onOpenChange={setIsCreateCustomerOpen}
               onSuccess={refetchCustomers}
             />
-            
-            {/* Botão de Promoção - condicionado à feature flag */}
-            {FEATURE_FLAGS.CUPONS_ENABLED && (
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={() => navigate('/promotions')}
-              >
-                <Megaphone className="w-4 h-4 mr-2" />
-                Enviar Promoção
-              </Button>
-            )}
+
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/reports')}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Ver Relatórios
+            </Button>
+
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/promotions')}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Enviar Promoção
+            </Button>
+
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/intelligence')}
+            >
+              <Star className="w-4 h-4 mr-2" />
+              Inteligência IA
+            </Button>
           </CardContent>
         </Card>
       </div>
