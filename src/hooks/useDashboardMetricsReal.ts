@@ -101,6 +101,7 @@ export function useDashboardMetricsReal() {
   const [loading, setLoading] = useState(!isDev);
 
   const fetchMetrics = useCallback(async () => {
+    if (isDev) return; // Dev environment uses mock data
     if (!restaurantId) {
       setLoading(false);
       return;
