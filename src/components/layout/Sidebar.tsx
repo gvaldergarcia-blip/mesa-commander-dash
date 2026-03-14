@@ -207,7 +207,7 @@ export function Sidebar() {
             isCollapsed && "opacity-0 w-0 overflow-hidden"
           )}>
             <p className="text-sm font-medium truncate text-sidebar-foreground">
-              {restaurant?.name || 'Restaurante Demo'}
+              {restaurant?.name || 'Carregando...'}
             </p>
             <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">
               {isAdmin ? 'Administrador' : 'Operador'}
