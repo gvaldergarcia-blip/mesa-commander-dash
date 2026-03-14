@@ -116,10 +116,6 @@ function DashboardContent() {
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" onClick={() => setIsVisitDialogOpen(true)} className="gap-2">
-            <ClipboardCheck className="w-4 h-4" />
-            Registrar Visita
-          </Button>
           <Button variant="outline">
             <Calendar className="w-4 h-4 mr-2" />
             Hoje
