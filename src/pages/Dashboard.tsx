@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck, UserPlus } from "lucide-react";
+import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck, UserPlus, BarChart3, Send, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,8 +50,6 @@ const DEMO_ACTIVITY = [
   { id: '2', customer: 'Família Silva', action: 'Reserva confirmada — 19h', time: '12 min atrás', party: 5, type: 'reservation' as const },
   { id: '3', customer: 'João', action: 'Cliente atendido — mesa 4', time: '18 min atrás', party: 3, type: 'queue' as const },
   { id: '4', customer: 'Ana Paula', action: 'Mesa para 4 — entrou na fila', time: '25 min atrás', party: 4, type: 'queue' as const },
-  { id: '5', customer: 'Carlos Mendes', action: 'Reserva confirmada — 20h30', time: '34 min atrás', party: 2, type: 'reservation' as const },
-  { id: '6', customer: 'Família Costa', action: 'Cliente atendido — mesa 7', time: '41 min atrás', party: 6, type: 'queue' as const },
 ];
 
 function DashboardContent() {
@@ -377,18 +375,33 @@ function DashboardContent() {
               onOpenChange={setIsCreateCustomerOpen}
               onSuccess={refetchCustomers}
             />
-            
-            {/* Botão de Promoção - condicionado à feature flag */}
-            {FEATURE_FLAGS.CUPONS_ENABLED && (
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={() => navigate('/promotions')}
-              >
-                <Megaphone className="w-4 h-4 mr-2" />
-                Enviar Promoção
-              </Button>
-            )}
+
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/reports')}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Ver Relatórios
+            </Button>
+
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/promotions')}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Enviar Promoção
+            </Button>
+
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => navigate('/intelligence')}
+            >
+              <Star className="w-4 h-4 mr-2" />
+              Inteligência IA
+            </Button>
           </CardContent>
         </Card>
       </div>
