@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 
 // ⚡ DEMO MODE — apenas visual para screenshots. Trocar para false após capturar.
-const DEMO_MODE = true;
+const DEMO_MODE = false;
 
 const DEMO_METRICS = {
   groupsInQueue: 4,
