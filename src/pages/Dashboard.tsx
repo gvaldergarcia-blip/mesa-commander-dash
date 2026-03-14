@@ -49,6 +49,9 @@ const DEMO_ACTIVITY = [
   { id: '1', customer: 'Guilherme', action: 'Mesa para 2 — entrou na fila', time: 'agora', party: 2, type: 'queue' as const },
   { id: '2', customer: 'Família Silva', action: 'Reserva confirmada — 19h', time: '12 min atrás', party: 5, type: 'reservation' as const },
   { id: '3', customer: 'João', action: 'Cliente atendido — mesa 4', time: '18 min atrás', party: 3, type: 'queue' as const },
+  { id: '4', customer: 'Ana Paula', action: 'Mesa para 4 — entrou na fila', time: '25 min atrás', party: 4, type: 'queue' as const },
+  { id: '5', customer: 'Carlos Mendes', action: 'Reserva confirmada — 20h30', time: '34 min atrás', party: 2, type: 'reservation' as const },
+  { id: '6', customer: 'Família Costa', action: 'Cliente atendido — mesa 7', time: '41 min atrás', party: 6, type: 'queue' as const },
 ];
 
 function DashboardContent() {
