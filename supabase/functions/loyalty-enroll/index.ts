@@ -448,6 +448,11 @@ Deno.serve(async (req) => {
       let emailsSent = 0;
 
       for (const cust of customers || []) {
+        // ONLY process customers who have been individually activated
+        if (!cust.loyalty_program_active) {
+          continue;
+        }
+
         let visits = 0;
         if (program.count_queue) visits += (cust.total_queue_visits || 0);
         if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
@@ -482,7 +487,7 @@ Deno.serve(async (req) => {
           }
 
           // Process reminders for active customers
-          if (!rewardUnlocked && cust.loyalty_program_active) {
+          if (!rewardUnlocked) {
             emailsSent += await processReminders(supabase, existing, cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits);
           }
         } else {
@@ -493,7 +498,7 @@ Deno.serve(async (req) => {
             reward_expires_at: rewardExpiresAt,
             activation_email_sent: false, reward_email_sent: false,
           });
-          if (cust.marketing_optin && cust.customer_email && cust.loyalty_program_active) {
+          if (cust.marketing_optin && cust.customer_email) {
             const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
             const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining);
             if (sent) {
