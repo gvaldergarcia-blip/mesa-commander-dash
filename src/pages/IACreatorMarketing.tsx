@@ -517,11 +517,24 @@ export default function IACreatorMarketing() {
       return;
     }
     setReferenceFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReferenceImage(reader.result as string);
+    // Resize image to max 800px to keep payload under Supabase limits
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        const ratio = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      setReferenceImage(canvas.toDataURL("image/jpeg", 0.85));
     };
-    reader.readAsDataURL(file);
+    img.src = URL.createObjectURL(file);
   };
 
   const removeReferenceImage = () => {
