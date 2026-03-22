@@ -41,7 +41,7 @@ serve(async (req) => {
     const customCta = str(body.customCta, 100);
     const address = str(body.address, 200);
     const logoUrl = str(body.logoUrl, 500);
-    const referenceImage = body.referenceImage ? str(body.referenceImage, 50000) : null;
+    const referenceImage = body.referenceImage && typeof body.referenceImage === 'string' ? body.referenceImage : null;
     const originalPrice = body.originalPrice;
     const promoPrice = body.promoPrice;
     const discount = body.discount;
