@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { reservationSchema, normalizeReservationToUTC } from "@/lib/validations/reservation";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { logAudit } from "@/lib/audit";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
