@@ -129,7 +129,8 @@ function ReservationsContent() {
       // Validar com Zod
       const validationResult = reservationSchema.safeParse({
         customer_name: newName,
-        customer_email: newEmail,
+        customer_phone: newPhone,
+        customer_email: newEmail || undefined,
         date: newDate,
         time: newTime,
         party_size: parseInt(newPeople),
