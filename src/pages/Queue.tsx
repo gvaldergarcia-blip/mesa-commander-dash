@@ -483,7 +483,7 @@ function QueueContent() {
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <span className="flex items-center">
-                        <Mail className="w-3 h-3 mr-1" />
+                        <Phone className="w-3 h-3 mr-1" />
                         {entry.email || entry.phone}
                       </span>
                       <span className="flex items-center">
