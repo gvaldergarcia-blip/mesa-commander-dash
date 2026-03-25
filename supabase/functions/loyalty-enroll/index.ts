@@ -271,8 +271,12 @@ async function sendReminderEmail(customer: any, programName: string, restaurantN
   const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining);
   const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\nNos vemos em breve!\nEquipe ${restaurantName}`;
 
-  console.log("[loyalty-enroll] Sending REMINDER email (${remaining} remaining):", JSON.stringify({ to: customer.customer_email }));
+  console.log("[loyalty-enroll] Sending REMINDER email:", JSON.stringify({ to: customer.customer_email, remaining }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
+
+  // SMS + WhatsApp
+  const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!`;
+  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
     console.error("[loyalty-enroll] REMINDER email FAILED:", JSON.stringify({ error: result.error }));
