@@ -230,6 +230,10 @@ async function sendActivationEmail(customer: any, programName: string, restauran
   console.log("[loyalty-enroll] Sending ACTIVATION email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
+  // SMS + WhatsApp
+  const smsText = `${restaurantName}: Voce entrou no ${programName}! Complete ${requiredVisits} visitas e ganhe: ${rewardDescription}. Voce ja tem ${currentVisits}. Faltam ${visitsRemaining}!`;
+  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
+
   if (result.error) {
     console.error("[loyalty-enroll] ACTIVATION email FAILED:", JSON.stringify({ error: result.error, to: customer.customer_email }));
     return false;
