@@ -255,9 +255,13 @@ function QueueContent() {
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
                 />
+                <PhoneInput
+                  value={newCustomerPhone}
+                  onChange={setNewCustomerPhone}
+                />
                 <Input 
                   type="email"
-                  placeholder="Email do cliente *"
+                  placeholder="E-mail do cliente (opcional)"
                   value={newCustomerEmail}
                   onChange={(e) => setNewCustomerEmail(e.target.value)}
                 />
