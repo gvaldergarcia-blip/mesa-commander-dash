@@ -253,6 +253,10 @@ async function sendRewardEmail(customer: any, programName: string, restaurantNam
   console.log("[loyalty-enroll] Sending REWARD email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
+  // SMS + WhatsApp
+  const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}. Apresente esta mensagem na sua proxima visita!`;
+  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
+
   if (result.error) {
     console.error("[loyalty-enroll] REWARD email FAILED:", JSON.stringify({ error: result.error, to: customer.customer_email }));
     return false;
