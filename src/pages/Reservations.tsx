@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Calendar, Clock, User, Search, Filter, Mail } from "lucide-react";
+import { Plus, Calendar, Clock, User, Search, Filter, Phone } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { ReservationStatusFilter } from "@/components/reservations/ReservationStatusFilter";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
