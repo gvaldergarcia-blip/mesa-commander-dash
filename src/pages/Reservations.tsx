@@ -515,7 +515,7 @@ function ReservationsContent() {
               <Button 
                 className="w-full"
                 onClick={handleCreateReservation}
-                disabled={isSubmitting || !newName || !newEmail || !newDate || !newTime || (newDate && !isDayAvailable(newDate))}
+                disabled={isSubmitting || !newName || !newPhone || !newDate || !newTime || (newDate && !isDayAvailable(newDate))}
               >
                 {isSubmitting ? "Criando..." : "Criar Reserva"}
               </Button>
