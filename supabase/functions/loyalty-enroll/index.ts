@@ -91,7 +91,56 @@ async function sendEmailViaResend(
   return { id, last_event: lastEvent };
 }
 
-// ── Auth helper ──
+// ── SMS + WhatsApp via Twilio ──
+async function sendTwilioMessage(
+  to: string,
+  body: string,
+  channel: 'sms' | 'whatsapp'
+): Promise<{ success: boolean; sid?: string; channel: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+  const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+  if (!LOVABLE_API_KEY || !TWILIO_API_KEY || !TWILIO_PHONE_NUMBER) {
+    return { success: false, channel };
+  }
+
+  const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\\D/g, '')}`;
+  const formattedTo = channel === 'whatsapp' ? `whatsapp:${formattedPhone}` : formattedPhone;
+  const formattedFrom = channel === 'whatsapp' ? `whatsapp:${TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER;
+
+  try {
+    const response = await fetch(`https://connector-gateway.lovable.dev/twilio/Messages.json`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": TWILIO_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: formattedTo, From: formattedFrom, Body: body }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.warn(`[loyalty-enroll] ${channel} failed:`, data.message);
+      return { success: false, channel };
+    }
+    console.log(`[loyalty-enroll] ${channel} sent:`, data.sid);
+    return { success: true, sid: data.sid, channel };
+  } catch (err) {
+    console.warn(`[loyalty-enroll] ${channel} error:`, err);
+    return { success: false, channel };
+  }
+}
+
+async function sendSmsAndWhatsApp(phone: string | null, body: string): Promise<void> {
+  if (!phone) return;
+  await Promise.all([
+    sendTwilioMessage(phone, body, 'sms'),
+    sendTwilioMessage(phone, body, 'whatsapp'),
+  ]);
+}
+
+
 async function authenticateRequest(req: Request, cors: Record<string, string>) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -181,6 +230,10 @@ async function sendActivationEmail(customer: any, programName: string, restauran
   console.log("[loyalty-enroll] Sending ACTIVATION email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
+  // SMS + WhatsApp
+  const smsText = `${restaurantName}: Voce entrou no ${programName}! Complete ${requiredVisits} visitas e ganhe: ${rewardDescription}. Voce ja tem ${currentVisits}. Faltam ${visitsRemaining}!`;
+  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
+
   if (result.error) {
     console.error("[loyalty-enroll] ACTIVATION email FAILED:", JSON.stringify({ error: result.error, to: customer.customer_email }));
     return false;
@@ -200,6 +253,10 @@ async function sendRewardEmail(customer: any, programName: string, restaurantNam
   console.log("[loyalty-enroll] Sending REWARD email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
+  // SMS + WhatsApp
+  const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}. Apresente esta mensagem na sua proxima visita!`;
+  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
+
   if (result.error) {
     console.error("[loyalty-enroll] REWARD email FAILED:", JSON.stringify({ error: result.error, to: customer.customer_email }));
     return false;
@@ -214,8 +271,12 @@ async function sendReminderEmail(customer: any, programName: string, restaurantN
   const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining);
   const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\nNos vemos em breve!\nEquipe ${restaurantName}`;
 
-  console.log("[loyalty-enroll] Sending REMINDER email (${remaining} remaining):", JSON.stringify({ to: customer.customer_email }));
+  console.log("[loyalty-enroll] Sending REMINDER email:", JSON.stringify({ to: customer.customer_email, remaining }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
+
+  // SMS + WhatsApp
+  const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!`;
+  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
     console.error("[loyalty-enroll] REMINDER email FAILED:", JSON.stringify({ error: result.error }));
