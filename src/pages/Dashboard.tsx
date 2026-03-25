@@ -64,17 +64,19 @@ function DashboardContent() {
   const [resBirthday, setResBirthday] = useState("");
   
   const handleAddQueue = async () => {
-    if (!queueName || !queueEmail) return;
+    if (!queueName || !queuePhone) return;
     
     await addToQueue({
       customer_name: queueName,
-      email: queueEmail,
+      phone: queuePhone,
+      email: queueEmail || undefined,
       people: parseInt(queuePeople),
       notes: queueNotes || undefined,
     });
     
     // Reset
     setQueueName("");
+    setQueuePhone("");
     setQueueEmail("");
     setQueuePeople("2");
     setQueueNotes("");
