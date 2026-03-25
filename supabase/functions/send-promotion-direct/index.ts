@@ -160,7 +160,8 @@ async function sendEmailViaResend(
 }
 
 interface PromotionEmailRequest {
-  to_email: string;
+  to_email?: string;
+  to_phone?: string;
   to_name?: string;
   subject: string;
   message: string;
@@ -172,6 +173,48 @@ interface PromotionEmailRequest {
   restaurant_name?: string;
   unsubscribe_token?: string;
   site_url?: string;
+}
+
+async function sendSmsViaTwilio(to: string, body: string): Promise<{ success: boolean; sid?: string; error?: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+  const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+  if (!LOVABLE_API_KEY || !TWILIO_API_KEY || !TWILIO_PHONE_NUMBER) {
+    console.warn("[send-promotion-direct] SMS keys missing, skipping SMS");
+    return { success: false, error: "SMS not configured" };
+  }
+
+  const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\D/g, '')}`;
+  const GATEWAY_URL = 'https://connector-gateway.lovable.dev/twilio';
+
+  try {
+    const response = await fetch(`${GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": TWILIO_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: formattedPhone,
+        From: TWILIO_PHONE_NUMBER,
+        Body: body,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("[send-promotion-direct] SMS error:", data);
+      return { success: false, error: data.message || "SMS failed" };
+    }
+
+    console.log("[send-promotion-direct] SMS sent:", data.sid);
+    return { success: true, sid: data.sid };
+  } catch (err) {
+    console.error("[send-promotion-direct] SMS exception:", err);
+    return { success: false, error: err instanceof Error ? err.message : "SMS error" };
+  }
 }
 
 const buildPromotionHtml = (data: PromotionEmailRequest): string => {
@@ -247,74 +290,109 @@ Deno.serve(async (req) => {
       message_length: requestData.message?.length || 0,
     }));
 
-    if (!requestData.to_email || !requestData.subject || !requestData.message) {
+    if ((!requestData.to_email && !requestData.to_phone) || !requestData.subject || !requestData.message) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: to_email, subject, message" }),
+        JSON.stringify({ error: "Missing required fields: to_email or to_phone, subject, message" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const html = buildPromotionHtml(requestData);
-    const safeSubject = sanitizeSubject(requestData.subject);
-    const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
-    const baseUrl = requestData.site_url || "https://mesaclik.com.br";
-    const unsubUrl = requestData.unsubscribe_token
-      ? `${baseUrl}/marketing/unsubscribe?token=${requestData.unsubscribe_token}`
-      : null;
+    let emailMessageId: string | undefined;
+    let emailLastEvent: string | null = null;
+    let smsSid: string | undefined;
 
-    const textBody = [
-      requestData.to_name ? `Olá, ${requestData.to_name}!` : undefined,
-      requestData.message,
-      requestData.coupon_code ? `\nCupom: ${requestData.coupon_code}` : undefined,
-      requestData.expires_at
-        ? `Validade: ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
-        : undefined,
-      requestData.cta_url ? `\nVer oferta: ${requestData.cta_url}` : undefined,
-      unsubUrl
-        ? `\nCancelar recebimento: ${unsubUrl}`
-        : "\nCancelar recebimento: suporte@mesaclik.com.br",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // Send email if email is provided
+    if (requestData.to_email && !requestData.to_email.endsWith('@phone.local')) {
+      const html = buildPromotionHtml(requestData);
+      const safeSubject = sanitizeSubject(requestData.subject);
+      const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
+      const baseUrl = requestData.site_url || "https://mesaclik.com.br";
+      const unsubUrl = requestData.unsubscribe_token
+        ? `${baseUrl}/marketing/unsubscribe?token=${requestData.unsubscribe_token}`
+        : null;
 
-    const headers: Record<string, string> = {
-      "Reply-To": "suporte@mesaclik.com.br",
-      Precedence: "bulk",
-      "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
-    };
-    if (unsubUrl) {
-      headers["List-Unsubscribe"] = `<${unsubUrl}>`;
-      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
-    } else {
-      headers["List-Unsubscribe"] =
-        "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>";
-      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+      const textBody = [
+        requestData.to_name ? `Olá, ${requestData.to_name}!` : undefined,
+        requestData.message,
+        requestData.coupon_code ? `\nCupom: ${requestData.coupon_code}` : undefined,
+        requestData.expires_at
+          ? `Validade: ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
+          : undefined,
+        requestData.cta_url ? `\nVer oferta: ${requestData.cta_url}` : undefined,
+        unsubUrl
+          ? `\nCancelar recebimento: ${unsubUrl}`
+          : "\nCancelar recebimento: suporte@mesaclik.com.br",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const headers: Record<string, string> = {
+        "Reply-To": "suporte@mesaclik.com.br",
+        Precedence: "bulk",
+        "X-Auto-Response-Suppress": "DR, RN, NRN, OOF, AutoReply",
+      };
+      if (unsubUrl) {
+        headers["List-Unsubscribe"] = `<${unsubUrl}>`;
+        headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+      } else {
+        headers["List-Unsubscribe"] =
+          "<mailto:suporte@mesaclik.com.br?subject=unsubscribe>";
+        headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+      }
+
+      const emailResponse = await sendEmailViaResend(
+        requestData.to_email,
+        safeSubject,
+        html,
+        fromAddress,
+        textBody,
+        headers
+      );
+
+      if (emailResponse.error) {
+        console.error("Failed to send email:", emailResponse.error);
+      } else {
+        emailMessageId = emailResponse.id;
+        emailLastEvent = emailResponse.last_event ?? null;
+        console.log("Promotion email sent successfully:", emailResponse.id);
+      }
     }
 
-    const emailResponse = await sendEmailViaResend(
-      requestData.to_email,
-      safeSubject,
-      html,
-      fromAddress,
-      textBody,
-      headers
-    );
+    // Send SMS if phone is provided
+    if (requestData.to_phone) {
+      const restaurantName = requestData.restaurant_name || "MesaClik";
+      const smsBody = [
+        `${restaurantName}: ${requestData.message}`,
+        requestData.coupon_code ? `Cupom: ${requestData.coupon_code}` : undefined,
+        requestData.expires_at
+          ? `Valido ate ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
+          : undefined,
+        requestData.cta_url ? `${requestData.cta_url}` : undefined,
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1600);
 
-    if (emailResponse.error) {
-      console.error("Failed to send email:", emailResponse.error);
+      const smsResult = await sendSmsViaTwilio(requestData.to_phone, smsBody);
+      if (smsResult.success) {
+        smsSid = smsResult.sid;
+      }
+    }
+
+    // If neither email nor SMS succeeded
+    if (!emailMessageId && !smsSid) {
       return new Response(
-        JSON.stringify({ success: false, error: emailResponse.error }),
+        JSON.stringify({ success: false, error: "Falha ao enviar email e SMS" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Promotion email sent successfully:", emailResponse.id);
-
     return new Response(
       JSON.stringify({
         success: true,
-        messageId: emailResponse.id,
-        last_event: emailResponse.last_event ?? null,
+        messageId: emailMessageId,
+        smsSid: smsSid,
+        last_event: emailLastEvent,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

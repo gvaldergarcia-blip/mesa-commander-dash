@@ -332,6 +332,7 @@ function CustomersPageContent() {
 
             await sendPromotion({
               to_email: data.recipients[0]?.email || selectedCustomer.customer_email,
+              to_phone: data.recipients[0]?.phone || selectedCustomer.customer_phone || undefined,
               to_name: data.recipients[0]?.name || selectedCustomer.customer_name || undefined,
               subject: data.subject,
               message: data.message,

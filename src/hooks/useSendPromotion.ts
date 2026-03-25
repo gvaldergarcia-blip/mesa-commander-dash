@@ -4,7 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface PromotionData {
-  to_email: string;
+  to_email?: string;
+  to_phone?: string;
   to_name?: string;
   subject: string;
   message: string;
@@ -75,8 +76,8 @@ export function useSendPromotion() {
   }, [toast, restaurant?.name]);
 
   const sendPromotionToMultiple = useCallback(async (
-    recipients: { email: string; name?: string }[],
-    promotionData: Omit<PromotionData, 'to_email' | 'to_name'>
+    recipients: { email?: string; phone?: string; name?: string }[],
+    promotionData: Omit<PromotionData, 'to_email' | 'to_phone' | 'to_name'>
   ): Promise<{ sent: number; failed: number }> => {
     setSending(true);
     let sent = 0;
@@ -93,6 +94,7 @@ export function useSendPromotion() {
           body: {
             ...normalizedPromotionData,
             to_email: recipient.email,
+            to_phone: recipient.phone,
             to_name: recipient.name,
           },
         });

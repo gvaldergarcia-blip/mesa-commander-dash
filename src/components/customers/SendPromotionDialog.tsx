@@ -39,7 +39,7 @@ export interface SendPromotionDialogProps {
     couponCode?: string;
     expiresAt?: string;
     imageUrl?: string;
-    recipients: { email: string; name?: string; customerId?: string }[];
+    recipients: { email?: string; phone?: string; name?: string; customerId?: string }[];
   }) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -175,6 +175,7 @@ export function SendPromotionDialog({
       imageUrl,
       recipients: [{
         email: customer.customer_email,
+        phone: customer.customer_phone || undefined,
         name: customer.customer_name || undefined,
         customerId: customer.id,
       }],
