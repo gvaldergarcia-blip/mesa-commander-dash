@@ -306,6 +306,7 @@ Deno.serve(async (req) => {
     let emailMessageId: string | undefined;
     let emailLastEvent: string | null = null;
     let smsSid: string | undefined;
+    let whatsappSid: string | undefined;
 
     // Send email if email is provided
     if (requestData.to_email && !requestData.to_email.endsWith('@phone.local')) {
