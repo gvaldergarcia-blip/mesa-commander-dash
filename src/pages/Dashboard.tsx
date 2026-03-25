@@ -102,6 +102,7 @@ function DashboardContent() {
     
     // Reset
     setResName("");
+    setResPhone("");
     setResEmail("");
     setResDate("");
     setResTime("");
