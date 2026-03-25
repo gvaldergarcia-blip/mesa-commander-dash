@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { VipBadge } from "@/components/queue/VipBadge";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { QueueAlert } from "@/components/queue/QueueAlert";
 import { ClearQueueDialog } from "@/components/queue/ClearQueueDialog";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";

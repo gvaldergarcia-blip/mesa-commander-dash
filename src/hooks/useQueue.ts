@@ -75,7 +75,7 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: { customer_name: string; email: string; people: number; notes?: string }) => {
+  const addToQueue = async (entry: { customer_name: string; phone: string; email?: string; people: number; notes?: string }) => {
     try {
       if (!restaurantId) {
         throw new Error('Restaurant ID não configurado');
