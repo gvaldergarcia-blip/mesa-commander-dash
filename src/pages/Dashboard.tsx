@@ -48,6 +48,7 @@ function DashboardContent() {
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
+  const [queuePhone, setQueuePhone] = useState("");
   const [queueEmail, setQueueEmail] = useState("");
   const [queuePeople, setQueuePeople] = useState("2");
   const [queueNotes, setQueueNotes] = useState("");
