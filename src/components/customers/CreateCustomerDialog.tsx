@@ -155,7 +155,16 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customer-email">E-mail *</Label>
+            <Label htmlFor="customer-phone">Celular *</Label>
+            <PhoneInput
+              id="customer-phone"
+              value={phone}
+              onChange={setPhone}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="customer-email">E-mail (opcional)</Label>
             <Input
               id="customer-email"
               type="email"
@@ -166,26 +175,14 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="customer-phone">Telefone</Label>
-              <Input
-                id="customer-phone"
-                placeholder="(11) 99999-9999"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                maxLength={50}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customer-birthday">Aniversário</Label>
-              <Input
-                id="customer-birthday"
-                type="date"
-                value={birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="customer-birthday">Aniversário</Label>
+            <Input
+              id="customer-birthday"
+              type="date"
+              value={birthday}
+              onChange={(e) => setBirthday(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
