@@ -56,7 +56,11 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
       toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" });
       return;
     }
-    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+    if (!phone || !isValidBrazilianPhone(phone)) {
+      toast({ title: "Erro", description: "Celular válido é obrigatório: (XX) 9XXXX-XXXX", variant: "destructive" });
+      return;
+    }
+    if (trimmedEmail && !emailRegex.test(trimmedEmail)) {
       toast({ title: "Erro", description: "E-mail inválido.", variant: "destructive" });
       return;
     }
