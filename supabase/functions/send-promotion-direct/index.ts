@@ -390,10 +390,10 @@ Deno.serve(async (req) => {
       console.log("[send-promotion-direct] SMS:", smsResult, "WhatsApp:", whatsappResult);
     }
 
-    // If neither email nor SMS succeeded
-    if (!emailMessageId && !smsSid) {
+    // If no channel succeeded at all
+    if (!emailMessageId && !smsSid && !whatsappSid) {
       return new Response(
-        JSON.stringify({ success: false, error: "Falha ao enviar email e SMS" }),
+        JSON.stringify({ success: false, error: "Falha ao enviar por todos os canais" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -402,7 +402,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         messageId: emailMessageId,
-        smsSid: smsSid,
+        smsSid,
+        whatsappSid,
         last_event: emailLastEvent,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
