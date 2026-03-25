@@ -45,7 +45,8 @@ export function normalizeReservationToUTC(data: ReservationInput) {
   const localDateTime = new Date(`${data.date}T${data.time}`);
   return {
     customer_name: data.customer_name,
-    customer_email: data.customer_email,
+    customer_phone: data.customer_phone,
+    customer_email: data.customer_email || undefined,
     starts_at: localDateTime.toISOString(),
     people: data.party_size,
     notes: data.notes,
