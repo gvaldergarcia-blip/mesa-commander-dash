@@ -57,6 +57,7 @@ function DashboardContent() {
   
   // Reservation dialog state
   const [resName, setResName] = useState("");
+  const [resPhone, setResPhone] = useState("");
   const [resEmail, setResEmail] = useState("");
   const [resDate, setResDate] = useState("");
   const [resTime, setResTime] = useState("");
