@@ -229,9 +229,13 @@ function DashboardContent() {
                       value={queueName}
                       onChange={(e) => setQueueName(e.target.value)}
                     />
+                    <PhoneInput
+                      value={queuePhone}
+                      onChange={setQueuePhone}
+                    />
                     <Input 
                       type="email"
-                      placeholder="Email do cliente"
+                      placeholder="E-mail (opcional)"
                       value={queueEmail}
                       onChange={(e) => setQueueEmail(e.target.value)}
                     />
@@ -259,7 +263,7 @@ function DashboardContent() {
                     <Button 
                       className="w-full"
                       onClick={handleAddQueue}
-                      disabled={!queueName || !queueEmail}
+                      disabled={!queueName || !queuePhone}
                     >
                       Adicionar
                     </Button>
