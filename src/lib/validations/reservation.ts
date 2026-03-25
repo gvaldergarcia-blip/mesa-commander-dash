@@ -6,10 +6,16 @@ export const reservationSchema = z.object({
     .min(2, { message: "Nome deve ter pelo menos 2 caracteres" })
     .max(100, { message: "Nome muito longo (máximo 100 caracteres)" }),
   
+  customer_phone: z.string()
+    .trim()
+    .min(14, { message: "Telefone inválido - use (XX) XXXXX-XXXX" }),
+
   customer_email: z.string()
     .trim()
     .email({ message: "E-mail inválido" })
-    .max(255, { message: "E-mail muito longo (máximo 255 caracteres)" }),
+    .max(255, { message: "E-mail muito longo (máximo 255 caracteres)" })
+    .optional()
+    .or(z.literal('')),
   
   date: z.string()
     .min(1, { message: "Data é obrigatória" }),
@@ -24,7 +30,6 @@ export const reservationSchema = z.object({
   
   notes: z.string().optional(),
 }).refine((data) => {
-  // Validar data futura
   const datetime = new Date(`${data.date}T${data.time}`);
   const now = new Date();
   return datetime > now;
@@ -40,7 +45,8 @@ export function normalizeReservationToUTC(data: ReservationInput) {
   const localDateTime = new Date(`${data.date}T${data.time}`);
   return {
     customer_name: data.customer_name,
-    customer_email: data.customer_email,
+    customer_phone: data.customer_phone,
+    customer_email: data.customer_email || undefined,
     starts_at: localDateTime.toISOString(),
     people: data.party_size,
     notes: data.notes,

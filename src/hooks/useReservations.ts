@@ -107,14 +107,13 @@ export function useReservations() {
 
   useReservationsRealtime(fetchReservations);
 
-  const createReservation = async (reservation: { customer_name: string; customer_email: string; people: number; starts_at: string; notes?: string }) => {
+  const createReservation = async (reservation: { customer_name: string; customer_phone: string; customer_email?: string; people: number; starts_at: string; notes?: string }) => {
     try {
-      // IMPORTANTE: criação via RPC (SECURITY DEFINER) para evitar bloqueio por RLS,
-      // seguindo o mesmo padrão usado na Fila.
       const { data, error } = await supabase.rpc('create_reservation_panel', {
         p_restaurant_id: restaurantId,
         p_name: reservation.customer_name,
-        p_customer_email: reservation.customer_email,
+        p_customer_phone: reservation.customer_phone,
+        p_customer_email: reservation.customer_email || null,
         p_reserved_for: reservation.starts_at,
         p_party_size: reservation.people,
         p_notes: reservation.notes ?? null,
@@ -123,26 +122,23 @@ export function useReservations() {
       if (error) throw error;
       if (!data) throw new Error('Reserva não retornou dados');
 
-      // Registrar cliente em restaurant_customers ao criar a reserva
-      // para que apareça na lista de Clientes imediatamente
-      if (reservation.customer_email) {
-        try {
-          await supabase.rpc('upsert_restaurant_customer', {
-            p_restaurant_id: restaurantId,
-            p_email: reservation.customer_email,
-            p_name: reservation.customer_name,
-            p_phone: null,
-            p_source: 'reservation',
-            p_marketing_optin: null,
-            p_terms_accepted: null,
-          });
-          console.log('[useReservations] Cliente registrado em restaurant_customers na criação da reserva');
-        } catch (customerError) {
-          console.warn('[useReservations] Erro ao registrar cliente na criação (não crítico):', customerError);
-        }
+      // Registrar cliente em restaurant_customers
+      try {
+        await supabase.rpc('upsert_restaurant_customer', {
+          p_restaurant_id: restaurantId,
+          p_email: reservation.customer_email || `${reservation.customer_phone.replace(/\D/g, '')}@phone.local`,
+          p_name: reservation.customer_name,
+          p_phone: reservation.customer_phone,
+          p_source: 'reservation',
+          p_marketing_optin: null,
+          p_terms_accepted: null,
+        });
+        console.log('[useReservations] Cliente registrado em restaurant_customers');
+      } catch (customerError) {
+        console.warn('[useReservations] Erro ao registrar cliente (não crítico):', customerError);
       }
 
-      // Buscar informações do restaurante para o email
+      // Buscar informações do restaurante
       const { data: restaurantData } = await supabase
         .schema('mesaclik')
         .from('restaurants')
@@ -150,39 +146,56 @@ export function useReservations() {
         .eq('id', restaurantId)
         .single();
 
-      // Enviar e-mail de confirmação via Resend
-      try {
-        const reservationUrl = `${window.location.origin}/reserva/final?id=${(data as any).id}`;
-        const dateTime = new Date(reservation.starts_at);
-        const formattedDate = dateTime.toLocaleDateString('pt-BR', {
-          weekday: 'long',
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric'
-        });
-        const formattedTime = dateTime.toLocaleTimeString('pt-BR', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+      const restaurantName = restaurantData?.name || 'Restaurante';
+      const reservationUrl = `${window.location.origin}/reserva/final?id=${(data as any).id}`;
+      const dateTime = new Date(reservation.starts_at);
+      const formattedDate = dateTime.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+      const formattedTime = dateTime.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
-        await supabase.functions.invoke('send-reservation-email', {
+      // Enviar SMS com link da reserva
+      try {
+        const { toE164 } = await import('@/components/ui/phone-input');
+        await supabase.functions.invoke('send-sms', {
           body: {
-            email: reservation.customer_email,
-            customer_name: reservation.customer_name,
-            restaurant_name: restaurantData?.name || 'Restaurante',
-            restaurant_address: restaurantData?.address_line || null,
-            restaurant_cuisine: restaurantData?.cuisine || null,
-            reservation_date: formattedDate,
-            reservation_time: formattedTime,
-            party_size: reservation.people,
-            notes: reservation.notes || null,
-            reservation_url: reservationUrl,
-            type: 'confirmation'
-          }
+            to: toE164(reservation.customer_phone),
+            message: `${restaurantName}: Sua reserva para ${formattedDate} às ${formattedTime} foi confirmada! Acompanhe: ${reservationUrl}`,
+          },
         });
-        console.log('E-mail de confirmação enviado para reserva:', (data as any).id);
-      } catch (emailError) {
-        console.warn('Erro ao enviar e-mail (não crítico):', emailError);
+        console.log('[useReservations] SMS de confirmação enviado');
+      } catch (smsError) {
+        console.warn('[useReservations] Erro ao enviar SMS (não crítico):', smsError);
+      }
+
+      // Enviar e-mail se fornecido
+      if (reservation.customer_email) {
+        try {
+          await supabase.functions.invoke('send-reservation-email', {
+            body: {
+              email: reservation.customer_email,
+              customer_name: reservation.customer_name,
+              restaurant_name: restaurantName,
+              restaurant_address: restaurantData?.address_line || null,
+              restaurant_cuisine: restaurantData?.cuisine || null,
+              reservation_date: formattedDate,
+              reservation_time: formattedTime,
+              party_size: reservation.people,
+              notes: reservation.notes || null,
+              reservation_url: reservationUrl,
+              type: 'confirmation'
+            }
+          });
+          console.log('[useReservations] Email de confirmação enviado');
+        } catch (emailError) {
+          console.warn('[useReservations] Erro ao enviar email (não crítico):', emailError);
+        }
       }
 
       toast({

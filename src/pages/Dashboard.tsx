@@ -57,6 +57,7 @@ function DashboardContent() {
   
   // Reservation dialog state
   const [resName, setResName] = useState("");
+  const [resPhone, setResPhone] = useState("");
   const [resEmail, setResEmail] = useState("");
   const [resDate, setResDate] = useState("");
   const [resTime, setResTime] = useState("");
@@ -86,13 +87,14 @@ function DashboardContent() {
   };
   
   const handleAddReservation = async () => {
-    if (!resName || !resEmail || !resDate || !resTime) return;
+    if (!resName || !resPhone || !resDate || !resTime) return;
     
     const dateTime = `${resDate}T${resTime}:00`;
     
     await createReservation({
       customer_name: resName,
-      customer_email: resEmail,
+      customer_phone: resPhone,
+      customer_email: resEmail || undefined,
       starts_at: dateTime,
       people: parseInt(resPeople),
       notes: resNotes || undefined,
@@ -100,6 +102,7 @@ function DashboardContent() {
     
     // Reset
     setResName("");
+    setResPhone("");
     setResEmail("");
     setResDate("");
     setResTime("");
@@ -291,9 +294,13 @@ function DashboardContent() {
                       value={resName}
                       onChange={(e) => setResName(e.target.value)}
                     />
+                    <PhoneInput 
+                      value={resPhone}
+                      onChange={setResPhone}
+                    />
                     <Input 
                       type="email"
-                      placeholder="E-mail do cliente"
+                      placeholder="E-mail (opcional)"
                       value={resEmail}
                       onChange={(e) => setResEmail(e.target.value)}
                     />
@@ -333,7 +340,7 @@ function DashboardContent() {
                     <Button 
                       className="w-full"
                       onClick={handleAddReservation}
-                      disabled={!resName || !resEmail || !resDate || !resTime}
+                      disabled={!resName || !resPhone || !resDate || !resTime}
                     >
                       Criar Reserva
                     </Button>
