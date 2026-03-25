@@ -181,6 +181,7 @@ function ReservationsContent() {
 
       // Reset form
       setNewName("");
+      setNewPhone("");
       setNewEmail("");
       setNewDate("");
       setNewTime("");
