@@ -68,6 +68,9 @@ const handler = async (req: Request): Promise<Response> => {
     const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
     if (!TWILIO_PHONE_NUMBER) throw new Error("TWILIO_PHONE_NUMBER not configured");
 
+    // WhatsApp Sandbox number - use env var if set, otherwise default to Twilio sandbox
+    const TWILIO_WHATSAPP_NUMBER = Deno.env.get("TWILIO_WHATSAPP_NUMBER") || "+14155238886";
+
     const { to, message }: SmsRequest = await req.json();
     console.log(`[send-sms] Enviando SMS + WhatsApp para ${to}`);
 
@@ -76,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send SMS and WhatsApp in parallel
     const [smsResult, whatsappResult] = await Promise.all([
       sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'sms'),
-      sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp'),
+      sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp'),
     ]);
 
     console.log('[send-sms] Results:', { sms: smsResult, whatsapp: whatsappResult });
