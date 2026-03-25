@@ -94,6 +94,7 @@ export function useSendPromotion() {
           body: {
             ...normalizedPromotionData,
             to_email: recipient.email,
+            to_phone: recipient.phone,
             to_name: recipient.name,
           },
         });
