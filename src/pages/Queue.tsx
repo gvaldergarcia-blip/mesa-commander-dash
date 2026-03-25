@@ -56,6 +56,7 @@ function QueueContent() {
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
