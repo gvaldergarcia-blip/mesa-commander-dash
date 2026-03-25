@@ -175,6 +175,7 @@ export function SendPromotionDialog({
       imageUrl,
       recipients: [{
         email: customer.customer_email,
+        phone: customer.customer_phone || undefined,
         name: customer.customer_name || undefined,
         customerId: customer.id,
       }],

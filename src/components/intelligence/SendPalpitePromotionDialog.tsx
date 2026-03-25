@@ -57,10 +57,11 @@ export function SendPalpitePromotionDialog({
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + validDays);
 
-      // Send the promotion email
+      // Send the promotion email + SMS
       const { error: sendError } = await supabase.functions.invoke('send-promotion-direct', {
         body: {
           to_email: palpite.customer_email,
+          to_phone: (palpite as any).customer_phone || undefined,
           to_name: palpite.customer_name,
           subject,
           message,
