@@ -24,6 +24,7 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { 
   Select,
   SelectContent,
@@ -48,6 +49,7 @@ function DashboardContent() {
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
+  const [queuePhone, setQueuePhone] = useState("");
   const [queueEmail, setQueueEmail] = useState("");
   const [queuePeople, setQueuePeople] = useState("2");
   const [queueNotes, setQueueNotes] = useState("");
@@ -63,17 +65,19 @@ function DashboardContent() {
   const [resBirthday, setResBirthday] = useState("");
   
   const handleAddQueue = async () => {
-    if (!queueName || !queueEmail) return;
+    if (!queueName || !queuePhone) return;
     
     await addToQueue({
       customer_name: queueName,
-      email: queueEmail,
+      phone: queuePhone,
+      email: queueEmail || undefined,
       people: parseInt(queuePeople),
       notes: queueNotes || undefined,
     });
     
     // Reset
     setQueueName("");
+    setQueuePhone("");
     setQueueEmail("");
     setQueuePeople("2");
     setQueueNotes("");
@@ -226,9 +230,13 @@ function DashboardContent() {
                       value={queueName}
                       onChange={(e) => setQueueName(e.target.value)}
                     />
+                    <PhoneInput
+                      value={queuePhone}
+                      onChange={setQueuePhone}
+                    />
                     <Input 
                       type="email"
-                      placeholder="Email do cliente"
+                      placeholder="E-mail (opcional)"
                       value={queueEmail}
                       onChange={(e) => setQueueEmail(e.target.value)}
                     />
@@ -256,7 +264,7 @@ function DashboardContent() {
                     <Button 
                       className="w-full"
                       onClick={handleAddQueue}
-                      disabled={!queueName || !queueEmail}
+                      disabled={!queueName || !queuePhone}
                     >
                       Adicionar
                     </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Clock, Users, Mail, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { VipBadge } from "@/components/queue/VipBadge";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { QueueAlert } from "@/components/queue/QueueAlert";
 import { ClearQueueDialog } from "@/components/queue/ClearQueueDialog";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -56,6 +57,7 @@ function QueueContent() {
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
@@ -180,10 +182,12 @@ function QueueContent() {
       return;
     }
     
-    if (!newCustomerEmail) {
+    // Validar telefone obrigatório
+    const { isValidBrazilianPhone } = await import('@/components/ui/phone-input');
+    if (!newCustomerPhone || !isValidBrazilianPhone(newCustomerPhone)) {
       toast({
         title: "Erro",
-        description: "Preencha o email do cliente",
+        description: "Preencha um celular válido: (XX) 9XXXX-XXXX",
         variant: "destructive",
       });
       return;
@@ -192,13 +196,15 @@ function QueueContent() {
     try {
       await addToQueue({
         customer_name: newCustomerName,
-        email: newCustomerEmail,
+        phone: newCustomerPhone,
+        email: newCustomerEmail || undefined,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
       });
       
       // Reset form
       setNewCustomerName("");
+      setNewCustomerPhone("");
       setNewCustomerEmail("");
       setNewPartySize("2");
       setNewNotes("");
@@ -250,9 +256,13 @@ function QueueContent() {
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
                 />
+                <PhoneInput
+                  value={newCustomerPhone}
+                  onChange={setNewCustomerPhone}
+                />
                 <Input 
                   type="email"
-                  placeholder="Email do cliente *"
+                  placeholder="E-mail do cliente (opcional)"
                   value={newCustomerEmail}
                   onChange={(e) => setNewCustomerEmail(e.target.value)}
                 />
@@ -473,7 +483,7 @@ function QueueContent() {
                     </div>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <span className="flex items-center">
-                        <Mail className="w-3 h-3 mr-1" />
+                        <Phone className="w-3 h-3 mr-1" />
                         {entry.email || entry.phone}
                       </span>
                       <span className="flex items-center">
@@ -530,7 +540,7 @@ function QueueContent() {
                         variant="outline"
                         onClick={() => handleCallCustomer(entry)}
                       >
-                        <Mail className="w-4 h-4 mr-1" />
+                        <Phone className="w-4 h-4 mr-1" />
                         Chamar
                       </Button>
                       <Button 

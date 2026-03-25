@@ -75,7 +75,7 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: { customer_name: string; email: string; people: number; notes?: string }) => {
+  const addToQueue = async (entry: { customer_name: string; phone: string; email?: string; people: number; notes?: string }) => {
     try {
       if (!restaurantId) {
         throw new Error('Restaurant ID não configurado');
@@ -104,6 +104,7 @@ export function useQueue() {
           p_restaurant_id: restaurantId,
           p_queue_id: activeQueue.id,
           p_customer_name: entry.customer_name,
+          p_customer_phone: entry.phone,
           p_customer_email: entry.email || null,
           p_party_size: entry.people,
           p_notes: entry.notes || null,
@@ -132,61 +133,74 @@ export function useQueue() {
 
       const restaurantName = restaurantData?.name || 'Restaurante';
 
-      // Registrar cliente em restaurant_customers (mesmo padrão da reserva)
-      if (entry.email) {
-        try {
-          await supabase.rpc('upsert_restaurant_customer', {
-            p_restaurant_id: restaurantId,
-            p_email: entry.email,
-            p_name: entry.customer_name,
-            p_phone: null,
-            p_source: 'queue',
-            p_marketing_optin: null,
-            p_terms_accepted: null,
-          });
-          console.log('[useQueue] Cliente registrado em restaurant_customers');
-        } catch (customerError) {
-          console.warn('[useQueue] Erro ao registrar cliente (não crítico):', customerError);
-        }
+      // Registrar cliente em restaurant_customers (phone é o identificador principal)
+      try {
+        await supabase.rpc('upsert_restaurant_customer', {
+          p_restaurant_id: restaurantId,
+          p_email: entry.email || `${entry.phone.replace(/\D/g, '')}@phone.local`,
+          p_name: entry.customer_name,
+          p_phone: entry.phone,
+          p_source: 'queue',
+          p_marketing_optin: null,
+          p_terms_accepted: null,
+        });
+        console.log('[useQueue] Cliente registrado em restaurant_customers');
+      } catch (customerError) {
+        console.warn('[useQueue] Erro ao registrar cliente (não crítico):', customerError);
       }
 
-      // Enviar email com link da fila (MESMO PADRÃO da reserva: try-catch isolado)
+      // Enviar SMS com link da fila
       try {
         const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
         const sizeGroup = getSizeGroup(entry.people);
 
-        console.log('[useQueue] Enviando email:', {
-          email: entry.email,
+        console.log('[useQueue] Enviando SMS:', {
+          phone: entry.phone,
           restaurant_name: restaurantName,
           type: 'entry',
           queue_url: queueUrl,
         });
 
-        const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-queue-email', {
+        // Enviar SMS via Twilio
+        const { toE164 } = await import('@/components/ui/phone-input');
+        const { data: smsResponse, error: smsError } = await supabase.functions.invoke('send-sms', {
           body: {
-            email: entry.email,
-            customer_name: entry.customer_name,
-            restaurant_name: restaurantName,
-            position: 0, // Posição será vista em tempo real na página
-            party_size: entry.people,
-            size_group: getSizeGroupLabel(sizeGroup),
-            type: 'entry',
-            queue_url: queueUrl,
+            to: toE164(entry.phone),
+            message: `${restaurantName}: Você entrou na fila! Acompanhe sua posição: ${queueUrl}`,
           },
         });
 
-        if (emailError) {
-          console.warn('[useQueue] Erro ao enviar email (não crítico):', emailError);
+        if (smsError) {
+          console.warn('[useQueue] Erro ao enviar SMS (não crítico):', smsError);
         } else {
-          console.log('[useQueue] Email de entrada na fila enviado com sucesso:', emailResponse);
+          console.log('[useQueue] SMS de entrada na fila enviado com sucesso:', smsResponse);
         }
-      } catch (emailError) {
-        console.warn('[useQueue] Erro ao enviar email (não crítico):', emailError);
+
+        // Também enviar email se fornecido
+        if (entry.email) {
+          const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-queue-email', {
+            body: {
+              email: entry.email,
+              customer_name: entry.customer_name,
+              restaurant_name: restaurantName,
+              position: 0,
+              party_size: entry.people,
+              size_group: getSizeGroupLabel(sizeGroup),
+              type: 'entry',
+              queue_url: queueUrl,
+            },
+          });
+          if (emailError) {
+            console.warn('[useQueue] Erro ao enviar email (não crítico):', emailError);
+          }
+        }
+      } catch (notifyError) {
+        console.warn('[useQueue] Erro ao enviar notificações (não crítico):', notifyError);
       }
 
       toast({
         title: 'Sucesso',
-        description: 'Cliente adicionado à fila. Email enviado!',
+        description: 'Cliente adicionado à fila. Notificação enviada!',
       });
 
       await fetchQueue();

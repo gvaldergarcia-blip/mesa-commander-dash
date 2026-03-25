@@ -2,6 +2,7 @@ import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput, isValidBrazilianPhone } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,7 +56,11 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
       toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" });
       return;
     }
-    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+    if (!phone || !isValidBrazilianPhone(phone)) {
+      toast({ title: "Erro", description: "Celular válido é obrigatório: (XX) 9XXXX-XXXX", variant: "destructive" });
+      return;
+    }
+    if (trimmedEmail && !emailRegex.test(trimmedEmail)) {
       toast({ title: "Erro", description: "E-mail inválido.", variant: "destructive" });
       return;
     }
@@ -64,7 +69,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
     try {
       const { data, error } = await supabase.rpc("upsert_restaurant_customer", {
         p_restaurant_id: restaurantId,
-        p_email: trimmedEmail,
+        p_email: trimmedEmail || `${phone.replace(/\D/g, '')}@phone.local`,
         p_name: trimmedName,
         p_phone: phone.trim() || null,
         p_source: "manual",
@@ -101,7 +106,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
         try {
           await supabase.rpc('register_customer_visit', {
             p_restaurant_id: restaurantId,
-            p_email: trimmedEmail,
+            p_email: trimmedEmail || `${phone.replace(/\D/g, '')}@phone.local`,
             p_name: trimmedName,
             p_phone: phone.trim() || null,
             p_source: 'registro_manual',
@@ -150,7 +155,16 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customer-email">E-mail *</Label>
+            <Label htmlFor="customer-phone">Celular *</Label>
+            <PhoneInput
+              id="customer-phone"
+              value={phone}
+              onChange={setPhone}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="customer-email">E-mail (opcional)</Label>
             <Input
               id="customer-email"
               type="email"
@@ -161,26 +175,14 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="customer-phone">Telefone</Label>
-              <Input
-                id="customer-phone"
-                placeholder="(11) 99999-9999"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                maxLength={50}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customer-birthday">Aniversário</Label>
-              <Input
-                id="customer-birthday"
-                type="date"
-                value={birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="customer-birthday">Aniversário</Label>
+            <Input
+              id="customer-birthday"
+              type="date"
+              value={birthday}
+              onChange={(e) => setBirthday(e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">

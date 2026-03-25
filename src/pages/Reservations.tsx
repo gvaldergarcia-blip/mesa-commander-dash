@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Calendar, Clock, User, Search, Filter, Mail } from "lucide-react";
+import { Plus, Calendar, Clock, User, Search, Filter, Phone } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { ReservationStatusFilter } from "@/components/reservations/ReservationStatusFilter";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { reservationSchema, normalizeReservationToUTC } from "@/lib/validations/reservation";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { logAudit } from "@/lib/audit";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -112,6 +113,7 @@ function ReservationsContent() {
 
   // Form state
   const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
@@ -128,7 +130,8 @@ function ReservationsContent() {
       // Validar com Zod
       const validationResult = reservationSchema.safeParse({
         customer_name: newName,
-        customer_email: newEmail,
+        customer_phone: newPhone,
+        customer_email: newEmail || undefined,
         date: newDate,
         time: newTime,
         party_size: parseInt(newPeople),
@@ -179,6 +182,7 @@ function ReservationsContent() {
 
       // Reset form
       setNewName("");
+      setNewPhone("");
       setNewEmail("");
       setNewDate("");
       setNewTime("");
@@ -426,9 +430,22 @@ function ReservationsContent() {
               </div>
 
               <div>
+                <PhoneInput 
+                  value={newPhone}
+                  onChange={(val) => {
+                    setNewPhone(val);
+                    if (formErrors.customer_phone) setFormErrors({...formErrors, customer_phone: ''});
+                  }}
+                />
+                {formErrors.customer_phone && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.customer_phone}</p>
+                )}
+              </div>
+
+              <div>
                 <Input 
                   type="email"
-                  placeholder="E-mail do cliente"
+                  placeholder="E-mail do cliente (opcional)"
                   value={newEmail}
                   onChange={(e) => {
                     setNewEmail(e.target.value);
@@ -499,7 +516,7 @@ function ReservationsContent() {
               <Button 
                 className="w-full"
                 onClick={handleCreateReservation}
-                disabled={isSubmitting || !newName || !newEmail || !newDate || !newTime || (newDate && !isDayAvailable(newDate))}
+                disabled={isSubmitting || !newName || !newPhone || !newDate || !newTime || (newDate && !isDayAvailable(newDate))}
               >
                 {isSubmitting ? "Criando..." : "Criar Reserva"}
               </Button>
@@ -694,7 +711,7 @@ function ReservationsContent() {
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             {reservation.customer_email && (
                               <span className="flex items-center">
-                                <Mail className="w-3 h-3 mr-1" />
+                                <Phone className="w-3 h-3 mr-1" />
                                 {reservation.customer_email}
                               </span>
                             )}
@@ -876,7 +893,7 @@ function ReservationsContent() {
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             {reservation.customer_email && (
                               <span className="flex items-center">
-                                <Mail className="w-3 h-3 mr-1" />
+                                <Phone className="w-3 h-3 mr-1" />
                                 {reservation.customer_email}
                               </span>
                             )}
@@ -1055,7 +1072,7 @@ function ReservationsContent() {
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                           {reservation.customer_email && (
                             <span className="flex items-center">
-                              <Mail className="w-3 h-3 mr-1" />
+                              <Phone className="w-3 h-3 mr-1" />
                               {reservation.customer_email}
                             </span>
                           )}
