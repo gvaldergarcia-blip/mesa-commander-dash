@@ -181,10 +181,12 @@ function QueueContent() {
       return;
     }
     
-    if (!newCustomerEmail) {
+    // Validar telefone obrigatório
+    const { isValidBrazilianPhone } = await import('@/components/ui/phone-input');
+    if (!newCustomerPhone || !isValidBrazilianPhone(newCustomerPhone)) {
       toast({
         title: "Erro",
-        description: "Preencha o email do cliente",
+        description: "Preencha um celular válido: (XX) 9XXXX-XXXX",
         variant: "destructive",
       });
       return;
@@ -193,13 +195,15 @@ function QueueContent() {
     try {
       await addToQueue({
         customer_name: newCustomerName,
-        email: newCustomerEmail,
+        phone: newCustomerPhone,
+        email: newCustomerEmail || undefined,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
       });
       
       // Reset form
       setNewCustomerName("");
+      setNewCustomerPhone("");
       setNewCustomerEmail("");
       setNewPartySize("2");
       setNewNotes("");
