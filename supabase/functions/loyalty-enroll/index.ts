@@ -91,7 +91,56 @@ async function sendEmailViaResend(
   return { id, last_event: lastEvent };
 }
 
-// ── Auth helper ──
+// ── SMS + WhatsApp via Twilio ──
+async function sendTwilioMessage(
+  to: string,
+  body: string,
+  channel: 'sms' | 'whatsapp'
+): Promise<{ success: boolean; sid?: string; channel: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+  const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+  if (!LOVABLE_API_KEY || !TWILIO_API_KEY || !TWILIO_PHONE_NUMBER) {
+    return { success: false, channel };
+  }
+
+  const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\\D/g, '')}`;
+  const formattedTo = channel === 'whatsapp' ? `whatsapp:${formattedPhone}` : formattedPhone;
+  const formattedFrom = channel === 'whatsapp' ? `whatsapp:${TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER;
+
+  try {
+    const response = await fetch(`https://connector-gateway.lovable.dev/twilio/Messages.json`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": TWILIO_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: formattedTo, From: formattedFrom, Body: body }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.warn(`[loyalty-enroll] ${channel} failed:`, data.message);
+      return { success: false, channel };
+    }
+    console.log(`[loyalty-enroll] ${channel} sent:`, data.sid);
+    return { success: true, sid: data.sid, channel };
+  } catch (err) {
+    console.warn(`[loyalty-enroll] ${channel} error:`, err);
+    return { success: false, channel };
+  }
+}
+
+async function sendSmsAndWhatsApp(phone: string | null, body: string): Promise<void> {
+  if (!phone) return;
+  await Promise.all([
+    sendTwilioMessage(phone, body, 'sms'),
+    sendTwilioMessage(phone, body, 'whatsapp'),
+  ]);
+}
+
+
 async function authenticateRequest(req: Request, cors: Record<string, string>) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
