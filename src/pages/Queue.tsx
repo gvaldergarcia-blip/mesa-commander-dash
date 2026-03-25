@@ -540,7 +540,7 @@ function QueueContent() {
                         variant="outline"
                         onClick={() => handleCallCustomer(entry)}
                       >
-                        <Mail className="w-4 h-4 mr-1" />
+                        <Phone className="w-4 h-4 mr-1" />
                         Chamar
                       </Button>
                       <Button 
