@@ -69,7 +69,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
     try {
       const { data, error } = await supabase.rpc("upsert_restaurant_customer", {
         p_restaurant_id: restaurantId,
-        p_email: trimmedEmail,
+        p_email: trimmedEmail || `${phone.replace(/\D/g, '')}@phone.local`,
         p_name: trimmedName,
         p_phone: phone.trim() || null,
         p_source: "manual",
