@@ -175,17 +175,23 @@ interface PromotionEmailRequest {
   site_url?: string;
 }
 
-async function sendSmsViaTwilio(to: string, body: string): Promise<{ success: boolean; sid?: string; error?: string }> {
+async function sendTwilioMessage(
+  to: string,
+  body: string,
+  channel: 'sms' | 'whatsapp'
+): Promise<{ success: boolean; sid?: string; error?: string; channel: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
   const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
 
   if (!LOVABLE_API_KEY || !TWILIO_API_KEY || !TWILIO_PHONE_NUMBER) {
-    console.warn("[send-promotion-direct] SMS keys missing, skipping SMS");
-    return { success: false, error: "SMS not configured" };
+    console.warn(`[send-promotion-direct] ${channel} keys missing, skipping`);
+    return { success: false, error: `${channel} not configured`, channel };
   }
 
   const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\D/g, '')}`;
+  const formattedTo = channel === 'whatsapp' ? `whatsapp:${formattedPhone}` : formattedPhone;
+  const formattedFrom = channel === 'whatsapp' ? `whatsapp:${TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER;
   const GATEWAY_URL = 'https://connector-gateway.lovable.dev/twilio';
 
   try {
@@ -197,23 +203,23 @@ async function sendSmsViaTwilio(to: string, body: string): Promise<{ success: bo
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        To: formattedPhone,
-        From: TWILIO_PHONE_NUMBER,
+        To: formattedTo,
+        From: formattedFrom,
         Body: body,
       }),
     });
 
     const data = await response.json();
     if (!response.ok) {
-      console.error("[send-promotion-direct] SMS error:", data);
-      return { success: false, error: data.message || "SMS failed" };
+      console.error(`[send-promotion-direct] ${channel} error:`, data);
+      return { success: false, error: data.message || `${channel} failed`, channel };
     }
 
-    console.log("[send-promotion-direct] SMS sent:", data.sid);
-    return { success: true, sid: data.sid };
+    console.log(`[send-promotion-direct] ${channel} sent:`, data.sid);
+    return { success: true, sid: data.sid, channel };
   } catch (err) {
-    console.error("[send-promotion-direct] SMS exception:", err);
-    return { success: false, error: err instanceof Error ? err.message : "SMS error" };
+    console.error(`[send-promotion-direct] ${channel} exception:`, err);
+    return { success: false, error: err instanceof Error ? err.message : `${channel} error`, channel };
   }
 }
 
