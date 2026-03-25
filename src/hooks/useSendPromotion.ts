@@ -76,8 +76,8 @@ export function useSendPromotion() {
   }, [toast, restaurant?.name]);
 
   const sendPromotionToMultiple = useCallback(async (
-    recipients: { email: string; name?: string }[],
-    promotionData: Omit<PromotionData, 'to_email' | 'to_name'>
+    recipients: { email?: string; phone?: string; name?: string }[],
+    promotionData: Omit<PromotionData, 'to_email' | 'to_phone' | 'to_name'>
   ): Promise<{ sent: number; failed: number }> => {
     setSending(true);
     let sent = 0;
