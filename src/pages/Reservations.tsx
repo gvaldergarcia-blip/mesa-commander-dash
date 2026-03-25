@@ -697,7 +697,7 @@ function ReservationsContent() {
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             {reservation.customer_email && (
                               <span className="flex items-center">
-                                <Mail className="w-3 h-3 mr-1" />
+                                <Phone className="w-3 h-3 mr-1" />
                                 {reservation.customer_email}
                               </span>
                             )}
@@ -879,7 +879,7 @@ function ReservationsContent() {
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                             {reservation.customer_email && (
                               <span className="flex items-center">
-                                <Mail className="w-3 h-3 mr-1" />
+                                <Phone className="w-3 h-3 mr-1" />
                                 {reservation.customer_email}
                               </span>
                             )}
@@ -1058,7 +1058,7 @@ function ReservationsContent() {
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                           {reservation.customer_email && (
                             <span className="flex items-center">
-                              <Mail className="w-3 h-3 mr-1" />
+                              <Phone className="w-3 h-3 mr-1" />
                               {reservation.customer_email}
                             </span>
                           )}
