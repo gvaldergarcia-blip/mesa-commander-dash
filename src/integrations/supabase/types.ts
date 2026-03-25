@@ -3105,23 +3105,42 @@ export type Database = {
         Args: { p_party_size?: number; p_restaurante_id: string }
         Returns: Json
       }
-      create_reservation_panel: {
-        Args: {
-          p_customer_email: string
-          p_name: string
-          p_notes?: string
-          p_party_size: number
-          p_reserved_for: string
-          p_restaurant_id: string
-        }
-        Returns: Database["public"]["Tables"]["reservations"]["Row"]
-        SetofOptions: {
-          from: "*"
-          to: "reservations"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      create_reservation_panel:
+        | {
+            Args: {
+              p_customer_email: string
+              p_name: string
+              p_notes?: string
+              p_party_size: number
+              p_reserved_for: string
+              p_restaurant_id: string
+            }
+            Returns: Database["public"]["Tables"]["reservations"]["Row"]
+            SetofOptions: {
+              from: "*"
+              to: "reservations"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_customer_email?: string
+              p_customer_phone?: string
+              p_name: string
+              p_notes?: string
+              p_party_size?: number
+              p_reserved_for?: string
+              p_restaurant_id: string
+            }
+            Returns: Database["public"]["Tables"]["reservations"]["Row"]
+            SetofOptions: {
+              from: "*"
+              to: "reservations"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       delete_user_data: { Args: { p_email: string }; Returns: Json }
       ensure_dev_test_restaurant: { Args: never; Returns: undefined }
       enter_queue: {
