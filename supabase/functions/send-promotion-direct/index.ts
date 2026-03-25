@@ -365,10 +365,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send SMS if phone is provided
+    // Send SMS + WhatsApp if phone is provided
     if (requestData.to_phone) {
       const restaurantName = requestData.restaurant_name || "MesaClik";
-      const smsBody = [
+      const msgBody = [
         `${restaurantName}: ${requestData.message}`,
         requestData.coupon_code ? `Cupom: ${requestData.coupon_code}` : undefined,
         requestData.expires_at
@@ -380,10 +380,14 @@ Deno.serve(async (req) => {
         .join("\n")
         .slice(0, 1600);
 
-      const smsResult = await sendSmsViaTwilio(requestData.to_phone, smsBody);
-      if (smsResult.success) {
-        smsSid = smsResult.sid;
-      }
+      const [smsResult, whatsappResult] = await Promise.all([
+        sendTwilioMessage(requestData.to_phone, msgBody, 'sms'),
+        sendTwilioMessage(requestData.to_phone, msgBody, 'whatsapp'),
+      ]);
+
+      if (smsResult.success) smsSid = smsResult.sid;
+      if (whatsappResult.success) whatsappSid = whatsappResult.sid;
+      console.log("[send-promotion-direct] SMS:", smsResult, "WhatsApp:", whatsappResult);
     }
 
     // If neither email nor SMS succeeded
