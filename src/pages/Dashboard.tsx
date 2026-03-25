@@ -87,13 +87,14 @@ function DashboardContent() {
   };
   
   const handleAddReservation = async () => {
-    if (!resName || !resEmail || !resDate || !resTime) return;
+    if (!resName || !resPhone || !resDate || !resTime) return;
     
     const dateTime = `${resDate}T${resTime}:00`;
     
     await createReservation({
       customer_name: resName,
-      customer_email: resEmail,
+      customer_phone: resPhone,
+      customer_email: resEmail || undefined,
       starts_at: dateTime,
       people: parseInt(resPeople),
       notes: resNotes || undefined,
