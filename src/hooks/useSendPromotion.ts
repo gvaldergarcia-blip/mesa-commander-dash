@@ -4,7 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 
 interface PromotionData {
-  to_email: string;
+  to_email?: string;
+  to_phone?: string;
   to_name?: string;
   subject: string;
   message: string;
