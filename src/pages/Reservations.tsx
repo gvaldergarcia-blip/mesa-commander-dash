@@ -429,9 +429,22 @@ function ReservationsContent() {
               </div>
 
               <div>
+                <PhoneInput 
+                  value={newPhone}
+                  onChange={(val) => {
+                    setNewPhone(val);
+                    if (formErrors.customer_phone) setFormErrors({...formErrors, customer_phone: ''});
+                  }}
+                />
+                {formErrors.customer_phone && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.customer_phone}</p>
+                )}
+              </div>
+
+              <div>
                 <Input 
                   type="email"
-                  placeholder="E-mail do cliente"
+                  placeholder="E-mail do cliente (opcional)"
                   value={newEmail}
                   onChange={(e) => {
                     setNewEmail(e.target.value);
