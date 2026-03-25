@@ -112,6 +112,7 @@ function ReservationsContent() {
 
   // Form state
   const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
