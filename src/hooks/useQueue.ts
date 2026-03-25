@@ -104,6 +104,7 @@ export function useQueue() {
           p_restaurant_id: restaurantId,
           p_queue_id: activeQueue.id,
           p_customer_name: entry.customer_name,
+          p_customer_phone: entry.phone,
           p_customer_email: entry.email || null,
           p_party_size: entry.people,
           p_notes: entry.notes || null,
@@ -132,22 +133,20 @@ export function useQueue() {
 
       const restaurantName = restaurantData?.name || 'Restaurante';
 
-      // Registrar cliente em restaurant_customers (mesmo padrão da reserva)
-      if (entry.email) {
-        try {
-          await supabase.rpc('upsert_restaurant_customer', {
-            p_restaurant_id: restaurantId,
-            p_email: entry.email,
-            p_name: entry.customer_name,
-            p_phone: null,
-            p_source: 'queue',
-            p_marketing_optin: null,
-            p_terms_accepted: null,
-          });
-          console.log('[useQueue] Cliente registrado em restaurant_customers');
-        } catch (customerError) {
-          console.warn('[useQueue] Erro ao registrar cliente (não crítico):', customerError);
-        }
+      // Registrar cliente em restaurant_customers (phone é o identificador principal)
+      try {
+        await supabase.rpc('upsert_restaurant_customer', {
+          p_restaurant_id: restaurantId,
+          p_email: entry.email || `${entry.phone.replace(/\D/g, '')}@phone.local`,
+          p_name: entry.customer_name,
+          p_phone: entry.phone,
+          p_source: 'queue',
+          p_marketing_optin: null,
+          p_terms_accepted: null,
+        });
+        console.log('[useQueue] Cliente registrado em restaurant_customers');
+      } catch (customerError) {
+        console.warn('[useQueue] Erro ao registrar cliente (não crítico):', customerError);
       }
 
       // Enviar email com link da fila (MESMO PADRÃO da reserva: try-catch isolado)
