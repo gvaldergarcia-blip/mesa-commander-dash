@@ -294,9 +294,13 @@ function DashboardContent() {
                       value={resName}
                       onChange={(e) => setResName(e.target.value)}
                     />
+                    <PhoneInput 
+                      value={resPhone}
+                      onChange={setResPhone}
+                    />
                     <Input 
                       type="email"
-                      placeholder="E-mail do cliente"
+                      placeholder="E-mail (opcional)"
                       value={resEmail}
                       onChange={(e) => setResEmail(e.target.value)}
                     />
@@ -336,7 +340,7 @@ function DashboardContent() {
                     <Button 
                       className="w-full"
                       onClick={handleAddReservation}
-                      disabled={!resName || !resEmail || !resDate || !resTime}
+                      disabled={!resName || !resPhone || !resDate || !resTime}
                     >
                       Criar Reserva
                     </Button>
