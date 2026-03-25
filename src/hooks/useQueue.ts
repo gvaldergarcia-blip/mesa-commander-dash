@@ -200,7 +200,7 @@ export function useQueue() {
 
       toast({
         title: 'Sucesso',
-        description: 'Cliente adicionado à fila. Email enviado!',
+        description: 'Cliente adicionado à fila. Notificação enviada!',
       });
 
       await fetchQueue();
