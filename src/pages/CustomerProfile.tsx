@@ -514,7 +514,7 @@ export default function CustomerProfile() {
       </Tabs>
 
       {/* Promotion Dialog */}
-      {customer?.email && (
+      {customer && (customer.phone || customer.email) && (
         <SendPromotionDialog
           open={promotionDialogOpen}
           onOpenChange={setPromotionDialogOpen}
@@ -529,7 +529,8 @@ export default function CustomerProfile() {
           } as any}
           onSubmit={async (data) => {
             await sendPromotion({
-              to_email: customer.email!,
+              to_email: customer.email || undefined,
+              to_phone: customer.phone || undefined,
               to_name: customer.name,
               subject: data.subject,
               message: data.message,

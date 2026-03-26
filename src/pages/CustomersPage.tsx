@@ -308,7 +308,23 @@ function CustomersPageContent() {
         open={campaignDialogOpen}
         onOpenChange={setCampaignDialogOpen}
         eligibleCustomers={eligibleCustomers}
-        onSubmit={handleCreateCampaign}
+          onSubmit={async (data) => {
+            await handleCreateCampaign({
+              title: data.title,
+              subject: data.subject,
+              message: data.message,
+              ctaText: data.ctaText,
+              ctaUrl: data.ctaUrl,
+              couponCode: data.couponCode,
+              expiresAt: data.expiresAt,
+              recipients: data.recipients.map((recipient) => ({
+                email: recipient.email || '',
+                phone: recipient.phone,
+                name: recipient.name,
+                customerId: recipient.customerId,
+              })),
+            });
+          }}
         isSubmitting={isSubmittingCampaign}
       />
 

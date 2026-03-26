@@ -22,7 +22,7 @@ type CreateCampaignDialogProps = {
     couponCode?: string;
     expiresAt?: string;
     audienceFilter: AudienceFilter;
-    recipients: { email: string; name?: string; customerId?: string }[];
+    recipients: { email?: string; phone?: string; name?: string; customerId?: string }[];
   }) => Promise<void>;
   isSubmitting: boolean;
 };
@@ -49,6 +49,7 @@ export function CreateCampaignDialog({
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     return eligibleCustomers.filter(customer => {
+      if (!customer.customer_phone) return false;
       if (audienceType === "all") return true;
       if (audienceType === "vip") return customer.vip;
       if (audienceType === "active") {
@@ -76,9 +77,10 @@ export function CreateCampaignDialog({
       expiresAt: expiresAt || undefined,
       audienceFilter: { type: audienceType },
       recipients: filteredRecipients.map(c => ({
-        email: c.customer_email,
-        name: c.customer_name || undefined,
-        customerId: c.id,
+          email: c.customer_email,
+          phone: c.customer_phone || undefined,
+          name: c.customer_name || undefined,
+          customerId: c.id,
       })),
     });
     
@@ -102,7 +104,7 @@ export function CreateCampaignDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-primary" />
-            Nova Campanha de E-mail
+              Nova Campanha de Promoção
           </DialogTitle>
         </DialogHeader>
 
@@ -128,7 +130,7 @@ export function CreateCampaignDialog({
                 <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="vip" id="vip" />
                   <Label htmlFor="vip" className="flex items-center gap-2 cursor-pointer">
-                    <Star className="w-4 h-4 text-yellow-500" />
+                    <Star className="w-4 h-4 text-primary" />
                     <div>
                       <div className="font-medium">VIP</div>
                       <div className="text-xs text-muted-foreground">
@@ -141,7 +143,7 @@ export function CreateCampaignDialog({
                 <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="active" id="active" />
                   <Label htmlFor="active" className="flex items-center gap-2 cursor-pointer">
-                    <Calendar className="w-4 h-4 text-green-500" />
+                    <Calendar className="w-4 h-4 text-primary" />
                     <div>
                       <div className="font-medium">Ativos</div>
                       <div className="text-xs text-muted-foreground">
@@ -154,7 +156,7 @@ export function CreateCampaignDialog({
                 <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="inactive" id="inactive" />
                   <Label htmlFor="inactive" className="flex items-center gap-2 cursor-pointer">
-                    <Zap className="w-4 h-4 text-orange-500" />
+                    <Zap className="w-4 h-4 text-primary" />
                     <div>
                       <div className="font-medium">Inativos</div>
                       <div className="text-xs text-muted-foreground">
@@ -167,7 +169,7 @@ export function CreateCampaignDialog({
             </RadioGroup>
 
             <div className="bg-muted/50 rounded-lg p-3 text-sm">
-              <strong>{filteredRecipients.length}</strong> destinatários receberão esta campanha
+              <strong>{filteredRecipients.length}</strong> destinatários com celular receberão esta campanha por SMS
             </div>
           </div>
 
@@ -182,9 +184,9 @@ export function CreateCampaignDialog({
             />
           </div>
 
-          {/* Assunto do e-mail */}
+          {/* Assunto */}
           <div className="space-y-2">
-            <Label htmlFor="subject">Assunto do e-mail</Label>
+            <Label htmlFor="subject">Assunto</Label>
             <Input
               id="subject"
               placeholder="Ex: 🎄 Oferta especial para você!"
