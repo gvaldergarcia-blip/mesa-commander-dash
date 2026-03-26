@@ -22,6 +22,8 @@ interface PromotionData {
 interface SendPromotionResult {
   success: boolean;
   messageId?: string;
+  smsSid?: string;
+  whatsappSid?: string;
   lastEvent?: string | null;
   error?: string;
 }
@@ -35,8 +37,14 @@ export function useSendPromotion() {
     setSending(true);
     
     try {
+      const normalizedPhone = data.to_phone?.trim();
+      if (!normalizedPhone) {
+        throw new Error('Telefone é obrigatório para enviar promoção por SMS');
+      }
+
       const normalizedData: PromotionData = {
         ...data,
+        to_phone: normalizedPhone,
         restaurant_name: data.restaurant_name?.trim() || restaurant?.name || 'MesaClik',
       };
 
@@ -53,13 +61,20 @@ export function useSendPromotion() {
       }
 
       const messageId = response.messageId as string | undefined;
+      const smsSid = response.smsSid as string | undefined;
+      const whatsappSid = response.whatsappSid as string | undefined;
       const lastEvent = (response.last_event ?? null) as string | null;
+
+      if (!smsSid) {
+        throw new Error(response?.error || response?.sms?.error || 'SMS não foi enviado');
+      }
 
       toast({
         title: '✅ Promoção enviada com sucesso',
+        description: data.to_email ? 'SMS enviado e e-mail disparado quando disponível.' : 'SMS enviado com sucesso.',
       });
 
-      return { success: true, messageId, lastEvent };
+      return { success: true, messageId, smsSid, whatsappSid, lastEvent };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar promoção';
       
@@ -90,18 +105,24 @@ export function useSendPromotion() {
       };
 
       for (const recipient of recipients) {
+        if (!recipient.phone?.trim()) {
+          failed++;
+          console.error('Failed to send promotion: recipient missing phone', recipient);
+          continue;
+        }
+
         const result = await supabase.functions.invoke('send-promotion-direct', {
           body: {
             ...normalizedPromotionData,
             to_email: recipient.email,
-            to_phone: recipient.phone,
+            to_phone: recipient.phone.trim(),
             to_name: recipient.name,
           },
         });
 
-        if (result.error || !result.data?.success) {
+        if (result.error || !result.data?.success || !result.data?.smsSid) {
           failed++;
-          console.error(`Failed to send to ${recipient.email}:`, result.error);
+          console.error(`Failed to send to ${recipient.email || recipient.phone}:`, result.error || result.data);
         } else {
           sent++;
         }
@@ -110,12 +131,12 @@ export function useSendPromotion() {
       if (sent > 0) {
         toast({
           title: '✅ Promoção enviada com sucesso',
-          description: `${sent} e-mail(s) enviado(s)${failed > 0 ? `, ${failed} falhou(aram)` : ''}`,
+          description: `${sent} SMS enviado(s)${failed > 0 ? `, ${failed} falhou(aram)` : ''}`,
         });
       } else {
         toast({
           title: 'Erro ao enviar promoções',
-          description: 'Nenhum e-mail foi enviado',
+          description: 'Nenhum SMS foi enviado',
           variant: 'destructive',
         });
       }

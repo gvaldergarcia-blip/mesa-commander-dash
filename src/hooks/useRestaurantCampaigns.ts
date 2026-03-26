@@ -134,7 +134,7 @@ export function useRestaurantCampaigns(restaurantId: string) {
   // Enviar campanha
   const sendCampaign = useCallback(async (
     campaignId: string, 
-    recipients: { email: string; name?: string; customerId?: string }[]
+    recipients: { email?: string; phone?: string; name?: string; customerId?: string }[]
   ): Promise<boolean> => {
     if (!restaurantId) return false;
     
@@ -150,7 +150,7 @@ export function useRestaurantCampaigns(restaurantId: string) {
         campaign_id: campaignId,
         restaurant_id: restaurantId,
         customer_id: r.customerId || null,
-        customer_email: r.email,
+        customer_email: r.email || `${(r.phone || '').replace(/\D/g, '')}@phone.local`,
         customer_name: r.name || null,
         delivery_status: 'pending' as const,
       }));
@@ -181,9 +181,10 @@ export function useRestaurantCampaigns(restaurantId: string) {
           cta_url: campaign.cta_url,
           coupon_code: campaign.coupon_code,
           expires_at: campaign.expires_at,
-          recipients: recipientRecords.map(r => ({
-            email: r.customer_email,
-            name: r.customer_name,
+          recipients: recipients.map((recipient, index) => ({
+            email: recipient.email || recipientRecords[index].customer_email,
+            phone: recipient.phone,
+            name: recipient.name || recipientRecords[index].customer_name,
           })),
         },
       });
@@ -209,7 +210,7 @@ export function useRestaurantCampaigns(restaurantId: string) {
 
       toast({
         title: 'Campanha enviada!',
-        description: `E-mail enviado para ${recipients.length} destinatários.`,
+        description: `SMS enviado para ${recipients.length} destinatários${recipients.some((recipient) => !!recipient.email) ? ' e e-mail quando disponível' : ''}.`,
       });
 
       await fetchCampaigns();

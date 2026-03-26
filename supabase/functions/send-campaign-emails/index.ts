@@ -7,6 +7,7 @@ const RESEND_FROM_MARKETING =
   Deno.env.get("RESEND_FROM_MARKETING") ||
   Deno.env.get("RESEND_FROM_EMAIL") ||
   "ofertas@mesaclik.com.br";
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
 
 function getRawEmailAddress(fromValue: string): string {
   return (fromValue || "ofertas@mesaclik.com.br").replace(/^.*</, "").replace(/>$/, "").trim();
@@ -83,6 +84,53 @@ async function validateOwnership(userId: string, restaurantId: string): Promise<
 // ── Input validation ──
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function hasRealEmail(email?: string): boolean {
+  return !!email && EMAIL_RE.test(email) && !email.endsWith("@phone.local");
+}
+
+async function sendSms(
+  to: string,
+  body: string,
+): Promise<{ success: boolean; sid?: string; error?: string }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+  const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+  if (!LOVABLE_API_KEY || !TWILIO_API_KEY || !TWILIO_PHONE_NUMBER) {
+    return { success: false, error: "Twilio não configurado" };
+  }
+
+  const formattedTo = to.startsWith("+") ? to : `+55${to.replace(/\D/g, "")}`;
+
+  try {
+    const response = await fetch(`${GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": TWILIO_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: formattedTo,
+        From: TWILIO_PHONE_NUMBER,
+        Body: body,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || "Falha ao enviar SMS" };
+    }
+
+    return { success: true, sid: data.sid };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Falha ao enviar SMS",
+    };
+  }
+}
+
 function validateInput(body: any, cors: Record<string, string>): { valid: true; data: any } | { valid: false; error: Response } {
   const { campaign_id, restaurant_id, subject, message, recipients } = body;
   if (!campaign_id || typeof campaign_id !== "string") return { valid: false, error: new Response(JSON.stringify({ error: "campaign_id inválido" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }) };
@@ -92,7 +140,8 @@ function validateInput(body: any, cors: Record<string, string>): { valid: true; 
   if (!Array.isArray(recipients) || recipients.length === 0) return { valid: false, error: new Response(JSON.stringify({ error: "recipients deve ser array não vazio" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }) };
   if (recipients.length > MAX_RECIPIENTS) return { valid: false, error: new Response(JSON.stringify({ error: `Máximo ${MAX_RECIPIENTS} destinatários por request` }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }) };
   for (const r of recipients) {
-    if (!r.email || !EMAIL_RE.test(r.email)) return { valid: false, error: new Response(JSON.stringify({ error: `Email inválido: ${r.email?.slice(0, 50)}` }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }) };
+    if (!r.phone || typeof r.phone !== "string") return { valid: false, error: new Response(JSON.stringify({ error: "Telefone é obrigatório para promoções" }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }) };
+    if (r.email && !r.email.endsWith("@phone.local") && !EMAIL_RE.test(r.email)) return { valid: false, error: new Response(JSON.stringify({ error: `Email inválido: ${r.email?.slice(0, 50)}` }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } }) };
   }
   return { valid: true, data: body };
 }
@@ -139,6 +188,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const recipient of recipients) {
       try {
+        const smsText = [
+          message,
+          coupon_code ? `Cupom: ${coupon_code}` : undefined,
+          expires_at ? `Valido ate ${new Date(expires_at).toLocaleDateString('pt-BR')}` : undefined,
+          cta_url || undefined,
+        ].filter(Boolean).join("\n").slice(0, 1600);
+
+        const smsResult = await sendSms(recipient.phone, smsText);
+        if (!smsResult.success) {
+          throw new Error(smsResult.error || 'Falha ao enviar SMS');
+        }
+
         const expiresText = expires_at
           ? `<p style="font-size: 12px; color: #888;">Válido até ${new Date(expires_at).toLocaleDateString('pt-BR')}</p>`
           : '';
@@ -174,12 +235,14 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
           </body></html>`;
 
-        await resend.emails.send({
-          from: `Ofertas MesaClik <${getRawEmailAddress(RESEND_FROM_MARKETING)}>` ,
-          to: [recipient.email],
-          subject,
-          html: emailHtml,
-        });
+        if (hasRealEmail(recipient.email)) {
+          await resend.emails.send({
+            from: `Ofertas MesaClik <${getRawEmailAddress(RESEND_FROM_MARKETING)}>` ,
+            to: [recipient.email],
+            subject,
+            html: emailHtml,
+          });
+        }
 
         await supabase.from('restaurant_campaign_recipients').update({
           delivery_status: 'sent', sent_at: new Date().toISOString(),

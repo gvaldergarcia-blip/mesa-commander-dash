@@ -290,25 +290,59 @@ Deno.serve(async (req) => {
 
     console.log("Received promotion email request:", JSON.stringify({
       to_email: requestData.to_email,
+      to_phone: requestData.to_phone,
       subject: requestData.subject,
       coupon_code: requestData.coupon_code || null,
       expires_at: requestData.expires_at || null,
       message_length: requestData.message?.length || 0,
     }));
 
-    if ((!requestData.to_email && !requestData.to_phone) || !requestData.subject || !requestData.message) {
+    if (!requestData.to_phone || !requestData.subject || !requestData.message) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: to_email or to_phone, subject, message" }),
+        JSON.stringify({ error: "Missing required fields: to_phone, subject, message" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let emailMessageId: string | undefined;
-    let emailLastEvent: string | null = null;
     let smsSid: string | undefined;
     let whatsappSid: string | undefined;
+    let emailMessageId: string | undefined;
+    let emailLastEvent: string | null = null;
 
-    // Send email if email is provided
+    const restaurantName = requestData.restaurant_name || "MesaClik";
+    const msgBody = [
+      `${restaurantName}: ${requestData.message}`,
+      requestData.coupon_code ? `Cupom: ${requestData.coupon_code}` : undefined,
+      requestData.expires_at
+        ? `Valido ate ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
+        : undefined,
+      requestData.cta_url ? `${requestData.cta_url}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 1600);
+
+    const [smsResult, whatsappResult] = await Promise.all([
+      sendTwilioMessage(requestData.to_phone, msgBody, 'sms'),
+      sendTwilioMessage(requestData.to_phone, msgBody, 'whatsapp'),
+    ]);
+
+    if (smsResult.success) smsSid = smsResult.sid;
+    if (whatsappResult.success) whatsappSid = whatsappResult.sid;
+    console.log("[send-promotion-direct] SMS:", smsResult, "WhatsApp:", whatsappResult);
+
+    if (!smsSid) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: smsResult.error || 'Falha ao enviar SMS',
+          sms: smsResult,
+          whatsapp: whatsappResult,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (requestData.to_email && !requestData.to_email.endsWith('@phone.local')) {
       const html = buildPromotionHtml(requestData);
       const safeSubject = sanitizeSubject(requestData.subject);
@@ -365,45 +399,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send SMS + WhatsApp if phone is provided
-    if (requestData.to_phone) {
-      const restaurantName = requestData.restaurant_name || "MesaClik";
-      const msgBody = [
-        `${restaurantName}: ${requestData.message}`,
-        requestData.coupon_code ? `Cupom: ${requestData.coupon_code}` : undefined,
-        requestData.expires_at
-          ? `Valido ate ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
-          : undefined,
-        requestData.cta_url ? `${requestData.cta_url}` : undefined,
-      ]
-        .filter(Boolean)
-        .join("\n")
-        .slice(0, 1600);
-
-      const [smsResult, whatsappResult] = await Promise.all([
-        sendTwilioMessage(requestData.to_phone, msgBody, 'sms'),
-        sendTwilioMessage(requestData.to_phone, msgBody, 'whatsapp'),
-      ]);
-
-      if (smsResult.success) smsSid = smsResult.sid;
-      if (whatsappResult.success) whatsappSid = whatsappResult.sid;
-      console.log("[send-promotion-direct] SMS:", smsResult, "WhatsApp:", whatsappResult);
-    }
-
-    // If no channel succeeded at all
-    if (!emailMessageId && !smsSid && !whatsappSid) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Falha ao enviar por todos os canais" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
         messageId: emailMessageId,
         smsSid,
         whatsappSid,
+        sms: smsResult,
+        whatsapp: whatsappResult,
         last_event: emailLastEvent,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
