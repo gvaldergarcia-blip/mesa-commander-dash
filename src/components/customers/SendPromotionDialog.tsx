@@ -209,7 +209,12 @@ export function SendPromotionDialog({
             <div>
               <p className="text-sm text-muted-foreground">Destinatário</p>
               <p className="font-medium">{customer.customer_name || 'Sem nome'}</p>
-              <p className="text-sm text-muted-foreground">{customer.customer_email}</p>
+              {customer.customer_phone && (
+                <p className="text-sm text-muted-foreground">📱 {customer.customer_phone}</p>
+              )}
+              {customer.customer_email && (
+                <p className="text-sm text-muted-foreground">✉️ {customer.customer_email}</p>
+              )}
             </div>
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               1 cliente

@@ -92,7 +92,7 @@ export function SendPalpitePromotionDialog({
 
       toast({
         title: 'Promoção enviada!',
-        description: `Email enviado para ${palpite.customer_email}`,
+        description: `Promoção enviada para ${palpite.customer_name || palpite.customer_email}`,
       });
 
       onOpenChange(false);
