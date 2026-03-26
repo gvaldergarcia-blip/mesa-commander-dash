@@ -500,7 +500,7 @@ export default function ReservaFinal() {
                   htmlFor="offers-consent"
                   className="text-sm font-medium leading-tight cursor-pointer"
                 >
-                  Aceito receber ofertas e promoções por e-mail
+                  Aceito receber ofertas e promoções por e-mail e SMS
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   Opcional - Você pode cancelar a qualquer momento

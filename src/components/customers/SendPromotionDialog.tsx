@@ -199,7 +199,7 @@ export function SendPromotionDialog({
             Enviar Promoção
           </DialogTitle>
           <DialogDescription>
-            Enviar promoção diretamente para este cliente
+            Enviar promoção por SMS{customer.customer_email ? ' e e-mail' : ''} para este cliente
           </DialogDescription>
         </DialogHeader>
 
@@ -209,7 +209,12 @@ export function SendPromotionDialog({
             <div>
               <p className="text-sm text-muted-foreground">Destinatário</p>
               <p className="font-medium">{customer.customer_name || 'Sem nome'}</p>
-              <p className="text-sm text-muted-foreground">{customer.customer_email}</p>
+              {customer.customer_phone && (
+                <p className="text-sm text-muted-foreground">📱 {customer.customer_phone}</p>
+              )}
+              {customer.customer_email && (
+                <p className="text-sm text-muted-foreground">✉️ {customer.customer_email}</p>
+              )}
             </div>
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               1 cliente
@@ -250,7 +255,7 @@ export function SendPromotionDialog({
         {/* Campos do formulário */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="subject">Assunto do e-mail *</Label>
+            <Label htmlFor="subject">Assunto *</Label>
             <Input
               id="subject"
               placeholder="Ex: Oferta especial para você!"

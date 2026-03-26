@@ -92,7 +92,7 @@ export function SendPalpitePromotionDialog({
 
       toast({
         title: 'Promoção enviada!',
-        description: `Email enviado para ${palpite.customer_email}`,
+        description: `Promoção enviada para ${palpite.customer_name || palpite.customer_email}`,
       });
 
       onOpenChange(false);
@@ -126,7 +126,7 @@ export function SendPalpitePromotionDialog({
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="subject">Assunto do email *</Label>
+            <Label htmlFor="subject">Assunto *</Label>
             <Input
               id="subject"
               value={subject}
