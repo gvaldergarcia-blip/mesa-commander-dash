@@ -250,7 +250,7 @@ export function SendPromotionDialog({
         {/* Campos do formulário */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="subject">Assunto do e-mail *</Label>
+            <Label htmlFor="subject">Assunto *</Label>
             <Input
               id="subject"
               placeholder="Ex: Oferta especial para você!"
