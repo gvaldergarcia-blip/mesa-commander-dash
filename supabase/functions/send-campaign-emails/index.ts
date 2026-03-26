@@ -188,6 +188,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const recipient of recipients) {
       try {
+        const recipientEmail = hasRealEmail(recipient.email)
+          ? recipient.email
+          : `${String(recipient.phone || '').replace(/\D/g, '')}@phone.local`;
+
         const smsText = [
           message,
           coupon_code ? `Cupom: ${coupon_code}` : undefined,
@@ -238,7 +242,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (hasRealEmail(recipient.email)) {
           await resend.emails.send({
             from: `Ofertas MesaClik <${getRawEmailAddress(RESEND_FROM_MARKETING)}>` ,
-            to: [recipient.email],
+            to: [recipient.email!],
             subject,
             html: emailHtml,
           });
@@ -246,7 +250,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         await supabase.from('restaurant_campaign_recipients').update({
           delivery_status: 'sent', sent_at: new Date().toISOString(),
-        }).eq('campaign_id', campaign_id).eq('customer_email', recipient.email);
+        }).eq('campaign_id', campaign_id).eq('customer_email', recipientEmail);
 
         successCount++;
       } catch (error) {
@@ -254,7 +258,7 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from('restaurant_campaign_recipients').update({
           delivery_status: 'failed',
           error_message: error instanceof Error ? error.message : 'Unknown error',
-        }).eq('campaign_id', campaign_id).eq('customer_email', recipient.email);
+        }).eq('campaign_id', campaign_id).eq('customer_email', recipientEmail);
         failCount++;
       }
     }

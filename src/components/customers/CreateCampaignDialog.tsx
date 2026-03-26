@@ -130,7 +130,7 @@ export function CreateCampaignDialog({
                 <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="vip" id="vip" />
                   <Label htmlFor="vip" className="flex items-center gap-2 cursor-pointer">
-                    <Star className="w-4 h-4 text-yellow-500" />
+                    <Star className="w-4 h-4 text-primary" />
                     <div>
                       <div className="font-medium">VIP</div>
                       <div className="text-xs text-muted-foreground">
@@ -143,7 +143,7 @@ export function CreateCampaignDialog({
                 <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="active" id="active" />
                   <Label htmlFor="active" className="flex items-center gap-2 cursor-pointer">
-                    <Calendar className="w-4 h-4 text-green-500" />
+                    <Calendar className="w-4 h-4 text-primary" />
                     <div>
                       <div className="font-medium">Ativos</div>
                       <div className="text-xs text-muted-foreground">
@@ -156,7 +156,7 @@ export function CreateCampaignDialog({
                 <div className="flex items-center space-x-2 border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="inactive" id="inactive" />
                   <Label htmlFor="inactive" className="flex items-center gap-2 cursor-pointer">
-                    <Zap className="w-4 h-4 text-orange-500" />
+                    <Zap className="w-4 h-4 text-primary" />
                     <div>
                       <div className="font-medium">Inativos</div>
                       <div className="text-xs text-muted-foreground">
