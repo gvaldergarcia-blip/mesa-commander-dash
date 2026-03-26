@@ -199,7 +199,7 @@ export function SendPromotionDialog({
             Enviar Promoção
           </DialogTitle>
           <DialogDescription>
-            Enviar promoção diretamente para este cliente
+            Enviar promoção por SMS{customer.customer_email ? ' e e-mail' : ''} para este cliente
           </DialogDescription>
         </DialogHeader>
 
