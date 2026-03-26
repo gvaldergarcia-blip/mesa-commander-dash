@@ -126,7 +126,7 @@ export function SendPalpitePromotionDialog({
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="subject">Assunto do email *</Label>
+            <Label htmlFor="subject">Assunto *</Label>
             <Input
               id="subject"
               value={subject}
