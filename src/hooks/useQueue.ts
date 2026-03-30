@@ -151,7 +151,8 @@ export function useQueue() {
 
       // Enviar SMS com link da fila
       try {
-        const queueUrl = `${window.location.origin}/fila/final?ticket=${data.id}`;
+        const { getSiteBaseUrl } = await import('@/config/site-url');
+        const queueUrl = `${getSiteBaseUrl()}/fila/final?ticket=${data.id}`;
         const sizeGroup = getSizeGroup(entry.people);
 
         console.log('[useQueue] Enviando SMS:', {
