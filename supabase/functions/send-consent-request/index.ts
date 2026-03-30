@@ -175,7 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build opt-in URL
-    const baseUrl = site_url || Deno.env.get("PUBLIC_APP_URL") || "https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app";
+    const baseUrl = site_url || Deno.env.get("PUBLIC_APP_URL") || "https://mesaclik.com.br";
     const optInUrl = `${baseUrl}/marketing/optin?token=${token}`;
     console.log("[send-consent-request] OptIn URL:", optInUrl);
 
