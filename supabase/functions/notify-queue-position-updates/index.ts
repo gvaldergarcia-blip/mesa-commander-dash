@@ -303,7 +303,7 @@ serve(async (req) => {
       if (!entry.email) continue;
 
       const position = idx + 1; // Posição correta após remoção do exclude_entry_id
-      const baseUrl = (body.base_url || Deno.env.get("PUBLIC_APP_URL") || "https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app").replace(/\/$/, "");
+      const baseUrl = (body.base_url || Deno.env.get("PUBLIC_APP_URL") || "https://mesaclik.com.br").replace(/\/$/, "");
       const queueUrl = `${baseUrl}/fila/final?ticket=${entry.id}`;
       const { subject, html } = buildPositionUpdateEmail({
         restaurantName,
