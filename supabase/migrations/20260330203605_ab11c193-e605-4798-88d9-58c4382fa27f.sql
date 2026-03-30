@@ -1,0 +1,2 @@
+ALTER TABLE mesaclik.queue_entries DROP CONSTRAINT queue_entries_party_size_check;
+ALTER TABLE mesaclik.queue_entries ADD CONSTRAINT queue_entries_party_size_check CHECK (party_size >= 1 AND party_size <= 50);
