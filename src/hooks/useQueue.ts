@@ -279,7 +279,8 @@ export function useQueue() {
             .maybeSingle();
 
           const restaurantName = restaurantData?.name || 'Restaurante';
-          const queueUrl = `${window.location.origin}/fila/final?ticket=${entryId}`;
+          const { getSiteBaseUrl } = await import('@/config/site-url');
+          const queueUrl = `${getSiteBaseUrl()}/fila/final?ticket=${entryId}`;
 
           console.log('[useQueue] Enviando email de chamada:', {
             email: entryData.email,
