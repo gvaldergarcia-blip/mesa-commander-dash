@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
       const html = buildPromotionHtml(requestData);
       const safeSubject = sanitizeSubject(requestData.subject);
       const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
-      const baseUrl = requestData.site_url || "https://mesaclik.com.br";
+      const baseUrl = requestData.site_url || Deno.env.get("PUBLIC_APP_URL") || "https://id-preview--8745614f-4684-4931-9f6e-917b37b60a47.lovable.app";
       const unsubUrl = requestData.unsubscribe_token
         ? `${baseUrl}/marketing/unsubscribe?token=${requestData.unsubscribe_token}`
         : null;
