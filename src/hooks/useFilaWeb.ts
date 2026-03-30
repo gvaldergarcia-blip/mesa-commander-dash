@@ -79,12 +79,12 @@ export function useFilaWeb() {
       }
 
       // Usar signInWithOtp do Supabase Auth
+      const { getSiteBaseUrl } = await import('@/config/site-url');
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          // Não criar usuário automaticamente se não existir
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/fila/verificar?restauranteId=${restauranteId}&email=${encodeURIComponent(email)}`,
+          emailRedirectTo: `${getSiteBaseUrl()}/fila/verificar?restauranteId=${restauranteId}&email=${encodeURIComponent(email)}`,
         },
       });
 
