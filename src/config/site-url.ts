@@ -1,21 +1,19 @@
 /**
- * Retorna a base URL de produção do site.
- * Em produção (mesaclik.com.br) usa o domínio real.
- * Em dev/preview usa window.location.origin como fallback.
+ * Retorna a base URL do app para links em SMS/email.
+ * Usa o domínio customizado se configurado via env var,
+ * senão usa o origin atual (lovable.app em produção).
  */
 export function getSiteBaseUrl(): string {
-  const PRODUCTION_URL = 'https://mesaclik.com.br';
-  
-  // Always use production URL for customer-facing links (SMS, emails)
-  // so links work correctly regardless of where the admin panel is accessed from
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // If already on production domain, use it
-    if (hostname === 'mesaclik.com.br' || hostname === 'www.mesaclik.com.br') {
-      return PRODUCTION_URL;
-    }
+  // Se houver domínio customizado configurado, usar ele
+  const customDomain = import.meta.env.VITE_PUBLIC_APP_URL;
+  if (customDomain) {
+    return customDomain.replace(/\/$/, '');
   }
-  
-  // For SMS and email links, always use production domain
-  return PRODUCTION_URL;
+
+  // Fallback: usar o origin atual (funciona em lovable.app e qualquer outro host)
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+
+  return 'https://mesaclik.com.br';
 }
