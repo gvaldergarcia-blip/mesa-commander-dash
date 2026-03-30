@@ -303,7 +303,8 @@ serve(async (req) => {
       if (!entry.email) continue;
 
       const position = idx + 1; // Posição correta após remoção do exclude_entry_id
-      const queueUrl = `${body.base_url.replace(/\/$/, "")}/fila/final?ticket=${entry.id}`;
+      const baseUrl = (body.base_url || "https://mesaclik.com.br").replace(/\/$/, "");
+      const queueUrl = `${baseUrl}/fila/final?ticket=${entry.id}`;
       const { subject, html } = buildPositionUpdateEmail({
         restaurantName,
         customerName: entry.name || undefined,

@@ -147,7 +147,8 @@ export function useReservations() {
         .single();
 
       const restaurantName = restaurantData?.name || 'Restaurante';
-      const reservationUrl = `${window.location.origin}/reserva/final?id=${(data as any).id}`;
+      const { getSiteBaseUrl } = await import('@/config/site-url');
+      const reservationUrl = `${getSiteBaseUrl()}/reserva/final?id=${(data as any).id}`;
       const dateTime = new Date(reservation.starts_at);
       const formattedDate = dateTime.toLocaleDateString('pt-BR', {
         weekday: 'long',

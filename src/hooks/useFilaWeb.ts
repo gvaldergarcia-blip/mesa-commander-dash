@@ -228,7 +228,8 @@ export function useFilaWeb() {
             (userData?.user?.user_metadata?.full_name as string | undefined) ||
             (userData?.user?.user_metadata?.name as string | undefined);
           const queueStatus = queueStatusData as QueueStatus | null;
-          const queueUrl = `${window.location.origin}/fila/final?ticket=${result.entry_id}`;
+          const { getSiteBaseUrl } = await import('@/config/site-url');
+          const queueUrl = `${getSiteBaseUrl()}/fila/final?ticket=${result.entry_id}`;
 
           if (userEmail && restaurantName) {
             const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
