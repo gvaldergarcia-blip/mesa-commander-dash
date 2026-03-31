@@ -124,7 +124,7 @@ export function useQueue() {
           p_restaurant_id: restaurantId,
           p_queue_id: activeQueue.id,
           p_customer_name: entry.customer_name,
-          p_customer_phone: entry.phone,
+          p_customer_phone: entry.phone.replace(/\D/g, ''),
           p_customer_email: entry.email || null,
           p_party_size: entry.people,
           p_notes: entry.notes || null,
