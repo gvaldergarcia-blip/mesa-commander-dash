@@ -233,10 +233,6 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         setTimeout(() => {
           if (isMounted) fetchRestaurantForUser(newUser.id);
         }, 0);
-      } else if (!newUser && isPreviewEnvironment()) {
-        setTimeout(() => {
-          if (isMounted) fetchDefaultRestaurant();
-        }, 0);
       }
     });
 
