@@ -94,16 +94,34 @@ export function useQueue() {
       
       let activeQueue = (allQueues || []).find(q => q.queue_type === targetType);
       
-      // Se não encontrou a fila exclusiva, criar automaticamente
+      // Se não encontrou a fila exclusiva, criar via RPC (bypassa RLS)
       if (!activeQueue && targetType === 'exclusive') {
-        const { data: newQueue, error: createError } = await supabase
+        const { data: newQueueResult, error: createError } = await supabase
           .schema('mesaclik')
-          .from('queues')
-          .insert({ restaurant_id: restaurantId, queue_type: 'exclusive' })
-          .select('id, queue_type')
-          .single();
-        if (createError) throw createError;
-        activeQueue = newQueue;
+          .rpc('ensure_queue_exists', {
+            p_restaurant_id: restaurantId,
+            p_queue_type: 'exclusive'
+          });
+        if (createError) {
+          console.warn('[useQueue] Erro ao criar fila exclusiva via RPC, tentando insert direto:', createError);
+          // Fallback: tentar insert direto
+          const { data: newQueue, error: insertError } = await supabase
+            .schema('mesaclik')
+            .from('queues')
+            .insert({ restaurant_id: restaurantId, queue_type: 'exclusive' })
+            .select('id, queue_type')
+            .single();
+          if (insertError) throw insertError;
+          activeQueue = newQueue;
+        } else {
+          // Re-fetch queues to get the new one
+          const { data: refreshedQueues } = await supabase
+            .schema('mesaclik')
+            .from('queues')
+            .select('id, queue_type')
+            .eq('restaurant_id', restaurantId);
+          activeQueue = (refreshedQueues || []).find(q => q.queue_type === 'exclusive');
+        }
       }
       
       // Fallback para fila normal
