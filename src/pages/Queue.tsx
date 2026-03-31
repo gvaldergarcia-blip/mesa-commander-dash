@@ -76,7 +76,10 @@ function QueueContent() {
   };
 
   // Considerar todos os entries para permitir visualização em todas as tabs
-  const activeEntries = queueEntries;
+  // Filtrar entradas pelo tipo de fila ativo
+  const activeEntries = hasExclusiveQueue 
+    ? queueEntries.filter(entry => (entry.queue_type || 'normal') === activeQueueTab)
+    : queueEntries;
   
   const totalWaiting = activeEntries.filter(entry => entry.status === "waiting").length;
   const totalPeople = activeEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
