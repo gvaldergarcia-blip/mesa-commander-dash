@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { Loader2, ShieldAlert, Building2 } from 'lucide-react';
+import { Loader2, Building2 } from 'lucide-react';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import Login from '@/pages/Login';
 
 interface ProtectedRouteProps {
   children: ReactNode;
