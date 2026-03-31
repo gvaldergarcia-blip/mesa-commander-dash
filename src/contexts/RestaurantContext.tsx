@@ -26,8 +26,15 @@ interface RestaurantContextType {
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
 
-// Sem restaurante padrão - cada usuário carrega o seu via restaurant_members
-const DEFAULT_RESTAURANT_ID: string | null = null;
+const DEFAULT_RESTAURANT_ID = '8e5d4e30-3432-410a-bcd2-35a4fb5b8e9f';
+const DEFAULT_RESTAURANT: Restaurant = {
+  id: DEFAULT_RESTAURANT_ID,
+  name: 'Mocotó',
+  image_url: null,
+  address_line: null,
+  cuisine: 'Outros',
+  owner_id: null,
+};
 
 interface RestaurantProviderProps {
   children: ReactNode;
@@ -40,7 +47,13 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isPreviewEnvironment = () => false;
+  const isPreviewEnvironment = () => {
+    const hostname = window.location.hostname;
+    return hostname.includes('lovableproject.com') ||
+      hostname.includes('lovable.app') ||
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1';
+  };
 
   const fetchRestaurantForUser = async (userId: string) => {
     try {
@@ -111,8 +124,28 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   };
 
   const fetchDefaultRestaurant = async () => {
-    // Sem restaurante padrão - usuário precisa estar autenticado e vinculado
-    console.log('[RestaurantContext] Nenhum restaurante padrão configurado. Login necessário.');
+    try {
+      setError(null);
+      setUserRole('admin');
+
+      const { data: restaurantData, error: restaurantError } = await (supabase as any)
+        .schema('public')
+        .from('restaurants')
+        .select('id, name, image_url, address_line, cuisine, owner_id')
+        .eq('id', DEFAULT_RESTAURANT_ID)
+        .maybeSingle();
+
+      if (restaurantError) {
+        console.warn('[RestaurantContext] Preview fallback usando restaurante local:', restaurantError);
+      }
+
+      setRestaurant(restaurantData ?? DEFAULT_RESTAURANT);
+    } catch (err) {
+      console.warn('[RestaurantContext] Preview fallback local ativado:', err);
+      setRestaurant(DEFAULT_RESTAURANT);
+      setUserRole('admin');
+      setError(null);
+    }
   };
 
   const refetch = async () => {
@@ -177,8 +210,6 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       const urlHasTokens = window.location.search.includes('access_token') || window.location.hash.includes('access_token');
       console.log('[RestaurantContext] Initialize START', { urlHasTokens, href: window.location.href });
 
-      // Preview environment — allow existing sessions to persist
-
       const restoredFromUrl = await restoreSessionFromUrl();
       console.log('[RestaurantContext] After restoreSessionFromUrl', { restoredFromUrl });
 
@@ -196,6 +227,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         setUser(session.user);
         loadedForUserRef.current = session.user.id;
         await fetchRestaurantForUser(session.user.id);
+      } else if (isPreviewEnvironment()) {
+        console.log('[RestaurantContext] Preview mode ativo — abrindo restaurante padrão');
+        await fetchDefaultRestaurant();
       } else {
         console.warn('[RestaurantContext] No session. Login required.');
       }
@@ -268,9 +302,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         restaurant,
         restaurantId: restaurant?.id ?? null,
         user,
-        userRole: userRole || (!!user && isPreviewEnvironment() ? 'admin' : null),
+        userRole: userRole || (isPreviewEnvironment() && restaurant ? 'admin' : null),
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user || (isPreviewEnvironment() && !!restaurant),
         error,
         refetch,
       }}
