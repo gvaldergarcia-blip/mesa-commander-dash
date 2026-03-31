@@ -177,6 +177,17 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       const urlHasTokens = window.location.search.includes('access_token') || window.location.hash.includes('access_token');
       console.log('[RestaurantContext] Initialize START', { urlHasTokens, href: window.location.href });
 
+      // SECURITY: In Lovable preview iframe, clear any inherited session 
+      // so the dashboard always requires fresh login via the Login page.
+      const isLovablePreview = window.location.hostname.includes('lovableproject.com') ||
+        window.location.hostname.includes('lovable.app');
+      if (isLovablePreview && !urlHasTokens) {
+        console.log('[RestaurantContext] Lovable preview detected — clearing inherited session');
+        await supabase.auth.signOut({ scope: 'local' });
+        if (isMounted) setIsLoading(false);
+        return;
+      }
+
       const restoredFromUrl = await restoreSessionFromUrl();
       console.log('[RestaurantContext] After restoreSessionFromUrl', { restoredFromUrl });
 
@@ -188,18 +199,14 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         hasSession: !!session, 
         userId: session?.user?.id,
         email: session?.user?.email,
-        isPreview: isPreviewEnvironment()
       });
       
       if (session?.user) {
         setUser(session.user);
         loadedForUserRef.current = session.user.id;
         await fetchRestaurantForUser(session.user.id);
-      } else if (isPreviewEnvironment()) {
-        console.log('[RestaurantContext] Preview mode: using default restaurant');
-        await fetchDefaultRestaurant();
       } else {
-        console.warn('[RestaurantContext] No session and not in preview. User has no access.');
+        console.warn('[RestaurantContext] No session. Login required.');
       }
       
       if (isMounted) setIsLoading(false);
