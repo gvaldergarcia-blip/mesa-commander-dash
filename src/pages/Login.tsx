@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,21 +15,30 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      toast({
-        title: 'Erro ao entrar',
-        description: error.message === 'Invalid login credentials'
-          ? 'E-mail ou senha incorretos.'
-          : error.message,
-        variant: 'destructive',
-      });
+      if (error) {
+        toast({
+          title: 'Erro ao entrar',
+          description: error.message === 'Invalid login credentials'
+            ? 'E-mail ou senha incorretos.'
+            : error.message,
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Login succeeded — force full reload to re-initialize RestaurantContext
+      window.location.reload();
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
