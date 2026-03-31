@@ -390,7 +390,7 @@ export function RegisterVisitDialog({
               <Button variant="outline" className="flex-1" onClick={() => setStep('search')}>
                 Voltar
               </Button>
-              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !email.trim()}>
+              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || normalizePhone(phone).length < 10}>
                 {submitting ? 'Registrando...' : 'Registrar visita'}
               </Button>
             </div>
