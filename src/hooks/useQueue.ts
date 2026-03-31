@@ -228,6 +228,7 @@ export function useQueue() {
       return data;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao adicionar à fila';
+      console.error('[useQueue] addToQueue error completo:', err);
       toast({
         title: 'Erro',
         description: message,
