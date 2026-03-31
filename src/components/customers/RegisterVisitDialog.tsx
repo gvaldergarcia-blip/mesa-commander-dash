@@ -235,9 +235,10 @@ export function RegisterVisitDialog({
 
     setSubmitting(true);
     try {
+      const finalEmail = email.trim() || `${phoneDigits}@phone.local`;
       const { data, error } = await supabase.rpc('register_customer_visit', {
         p_restaurant_id: restaurantId,
-        p_email: email.trim(),
+        p_email: finalEmail,
         p_name: name.trim() || null,
         p_phone: phone.trim() || null,
         p_source: source,
