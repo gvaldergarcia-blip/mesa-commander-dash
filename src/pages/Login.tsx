@@ -33,7 +33,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-background to-orange-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary via-background to-muted px-4">
       <Card className="w-full max-w-md shadow-2xl border-0">
         <CardHeader className="text-center space-y-2 pb-2">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-2">
