@@ -117,6 +117,20 @@ export function useQueueSettings(restaurantId: string) {
 
       if (error) throw error;
 
+      // Save exclusive queue settings to mesaclik
+      try {
+        await supabase
+          .schema('mesaclik')
+          .from('queue_settings')
+          .update({
+            has_exclusive_queue: values.has_exclusive_queue,
+            exclusive_queue_name: values.exclusive_queue_name || 'Fila Exclusiva',
+          })
+          .eq('restaurant_id', restaurantId);
+      } catch (e) {
+        console.warn('[useQueueSettings] Erro ao salvar exclusive settings:', e);
+      }
+
       toast({
         title: "Configurações salvas",
         description: "As configurações da fila foram atualizadas com sucesso.",
