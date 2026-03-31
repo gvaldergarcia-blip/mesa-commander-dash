@@ -12,6 +12,8 @@ export type QueueSettings = {
   avg_wait_time_3_4: number;
   avg_wait_time_5_6: number;
   avg_wait_time_7_8: number;
+  has_exclusive_queue: boolean;
+  exclusive_queue_name: string;
   created_at?: string;
   updated_at?: string;
 };
