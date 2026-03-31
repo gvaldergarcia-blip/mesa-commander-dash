@@ -20,6 +20,7 @@ type QueueEntry = {
   canceled_at?: string;
   created_at: string;
   updated_at: string;
+  queue_type?: string;
 };
 
 export type { QueueEntry };
