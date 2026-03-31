@@ -340,7 +340,18 @@ export function RegisterVisitDialog({
             )}
 
             <div className="space-y-2">
-              <Label>E-mail *</Label>
+              <Label>Telefone *</Label>
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(11) 99999-9999"
+                disabled={!!foundCustomer}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>E-mail (opcional)</Label>
               <Input
                 type="email"
                 value={email}
