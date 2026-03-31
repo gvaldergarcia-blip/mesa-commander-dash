@@ -236,6 +236,32 @@ function QueueContent() {
       {/* Alerta de Fila Cheia */}
       <QueueAlert totalWaiting={totalWaiting} capacityLimit={QUEUE_CAPACITY_LIMIT} />
 
+      {/* Tabs de tipo de fila */}
+      {hasExclusiveQueue && (
+        <div className="flex gap-2 border-b border-border pb-0">
+          <button
+            onClick={() => setActiveQueueTab('normal')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeQueueTab === 'normal'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Fila
+          </button>
+          <button
+            onClick={() => setActiveQueueTab('exclusive')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeQueueTab === 'exclusive'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {exclusiveQueueName}
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
