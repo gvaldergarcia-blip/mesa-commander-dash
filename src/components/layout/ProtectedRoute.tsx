@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { Loader2, ShieldAlert, Building2 } from 'lucide-react';
+import { Loader2, Building2 } from 'lucide-react';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import Login from '@/pages/Login';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -29,19 +30,9 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     );
   }
 
-  // Sem sessão válida — solicitar login
+  // Sem sessão válida — mostrar login
   if (!isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-4 max-w-md px-6">
-          <ShieldAlert className="h-12 w-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-semibold text-foreground">Sessão não encontrada</h2>
-          <p className="text-sm text-muted-foreground">
-            Faça login pelo site MesaClik para acessar o painel.
-          </p>
-        </div>
-      </div>
-    );
+    return <Login />;
   }
 
   const isPreview = (() => {
