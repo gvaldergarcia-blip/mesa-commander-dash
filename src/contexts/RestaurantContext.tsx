@@ -40,25 +40,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * SECURITY: Preview bypass é controlado por env var explícita (VITE_PREVIEW_BYPASS).
-   * Em produção, NUNCA deve estar setada. Em dev/lovable.app, é true por padrão.
-   * Fallback: se a env var não existir, usa detecção de hostname (backward-compat).
-   */
-  const isPreviewEnvironment = () => {
-    const explicitBypass = import.meta.env.VITE_PREVIEW_BYPASS;
-    if (explicitBypass !== undefined) {
-      return explicitBypass === 'true';
-    }
-    // Fallback: hostname-based (será removido em versão futura)
-    const isFallback = import.meta.env.DEV || 
-           window.location.hostname.includes('lovable.app') ||
-           window.location.hostname === 'localhost';
-    if (isFallback) {
-      console.warn('[RestaurantContext] ⚠️ Preview bypass via hostname (deprecated). Set VITE_PREVIEW_BYPASS=true explicitly.');
-    }
-    return isFallback;
-  };
+  const isPreviewEnvironment = () => false;
 
   const fetchRestaurantForUser = async (userId: string) => {
     try {

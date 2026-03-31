@@ -64,13 +64,7 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
 
     // 3. Fallback: fetch from DB
     if (!restaurantId) {
-      // Default to FILA_RESERVA in dev/preview
-      const isPreview = import.meta.env.DEV || 
-        window.location.hostname.includes('lovable.app') || 
-        window.location.hostname === 'localhost';
-      if (isPreview) {
-        setPlanModules('FILA_RESERVA');
-      }
+      setPlanModules(null);
       setIsLoading(false);
       return;
     }

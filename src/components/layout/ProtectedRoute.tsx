@@ -35,17 +35,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Login />;
   }
 
-  const isPreview = (() => {
-    const explicitBypass = import.meta.env.VITE_PREVIEW_BYPASS;
-    if (explicitBypass !== undefined) return explicitBypass === 'true';
-    // Fallback (deprecated)
-    return import.meta.env.DEV || 
-      window.location.hostname.includes('lovable.app') || 
-      window.location.hostname === 'localhost';
-  })();
-
-  // Sem restaurante vinculado — bloqueia apenas em produção
-  if (!restaurantId && !isPreview) {
+  // Sem restaurante vinculado — bloqueia sempre
+  if (!restaurantId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-4 max-w-md px-6">
