@@ -46,6 +46,11 @@ function QueueContent() {
   const { settings: queueSettings, loading: loadingSettings } = useQueueSettings(restaurantId || '');
   const { toast } = useToast();
 
+  // Fila Exclusiva
+  const hasExclusiveQueue = queueSettings?.has_exclusive_queue ?? false;
+  const exclusiveQueueName = queueSettings?.exclusive_queue_name || 'Fila Exclusiva';
+  const [activeQueueTab, setActiveQueueTab] = useState<'normal' | 'exclusive'>('normal');
+
   // CONFIGURAÇÃO: Usar valores das configurações do restaurante
   const QUEUE_CAPACITY_LIMIT = queueSettings?.max_queue_capacity || 50;
   const MAX_PARTY_SIZE = queueSettings?.max_party_size || 8;
