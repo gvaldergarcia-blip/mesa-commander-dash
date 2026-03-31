@@ -46,6 +46,11 @@ function QueueContent() {
   const { settings: queueSettings, loading: loadingSettings } = useQueueSettings(restaurantId || '');
   const { toast } = useToast();
 
+  // Fila Exclusiva
+  const hasExclusiveQueue = queueSettings?.has_exclusive_queue ?? false;
+  const exclusiveQueueName = queueSettings?.exclusive_queue_name || 'Fila Exclusiva';
+  const [activeQueueTab, setActiveQueueTab] = useState<'normal' | 'exclusive'>('normal');
+
   // CONFIGURAÇÃO: Usar valores das configurações do restaurante
   const QUEUE_CAPACITY_LIMIT = queueSettings?.max_queue_capacity || 50;
   const MAX_PARTY_SIZE = queueSettings?.max_party_size || 8;
@@ -71,7 +76,10 @@ function QueueContent() {
   };
 
   // Considerar todos os entries para permitir visualização em todas as tabs
-  const activeEntries = queueEntries;
+  // Filtrar entradas pelo tipo de fila ativo
+  const activeEntries = hasExclusiveQueue 
+    ? queueEntries.filter(entry => (entry.queue_type || 'normal') === activeQueueTab)
+    : queueEntries;
   
   const totalWaiting = activeEntries.filter(entry => entry.status === "waiting").length;
   const totalPeople = activeEntries.filter(entry => entry.status === "waiting").reduce((sum, entry) => sum + entry.people, 0);
@@ -200,6 +208,7 @@ function QueueContent() {
         email: newCustomerEmail || undefined,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
+        queue_type: hasExclusiveQueue ? activeQueueTab : undefined,
       });
       
       // Reset form
@@ -226,6 +235,32 @@ function QueueContent() {
     <div className="p-6 space-y-6">
       {/* Alerta de Fila Cheia */}
       <QueueAlert totalWaiting={totalWaiting} capacityLimit={QUEUE_CAPACITY_LIMIT} />
+
+      {/* Tabs de tipo de fila */}
+      {hasExclusiveQueue && (
+        <div className="flex gap-2 border-b border-border pb-0">
+          <button
+            onClick={() => setActiveQueueTab('normal')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeQueueTab === 'normal'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Fila
+          </button>
+          <button
+            onClick={() => setActiveQueueTab('exclusive')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeQueueTab === 'exclusive'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {exclusiveQueueName}
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">

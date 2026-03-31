@@ -20,6 +20,7 @@ type QueueEntry = {
   canceled_at?: string;
   created_at: string;
   updated_at: string;
+  queue_type?: string;
 };
 
 export type { QueueEntry };
@@ -75,22 +76,41 @@ export function useQueue() {
 
   useQueueRealtime(fetchQueue);
 
-  const addToQueue = async (entry: { customer_name: string; phone: string; email?: string; people: number; notes?: string }) => {
+  const addToQueue = async (entry: { customer_name: string; phone: string; email?: string; people: number; notes?: string; queue_type?: string }) => {
     try {
       if (!restaurantId) {
         throw new Error('Restaurant ID não configurado');
       }
       
-      // Buscar fila do restaurante
-      const { data: activeQueue, error: queueError } = await supabase
+      // Buscar fila do restaurante pelo tipo
+      const targetType = entry.queue_type || 'normal';
+      const { data: allQueues, error: queueError } = await supabase
         .schema('mesaclik')
         .from('queues')
-        .select('id')
-        .eq('restaurant_id', restaurantId)
-        .limit(1)
-        .maybeSingle();
+        .select('id, queue_type')
+        .eq('restaurant_id', restaurantId);
 
       if (queueError) throw queueError;
+      
+      let activeQueue = (allQueues || []).find(q => q.queue_type === targetType);
+      
+      // Se não encontrou a fila exclusiva, criar automaticamente
+      if (!activeQueue && targetType === 'exclusive') {
+        const { data: newQueue, error: createError } = await supabase
+          .schema('mesaclik')
+          .from('queues')
+          .insert({ restaurant_id: restaurantId, queue_type: 'exclusive' })
+          .select('id, queue_type')
+          .single();
+        if (createError) throw createError;
+        activeQueue = newQueue;
+      }
+      
+      // Fallback para fila normal
+      if (!activeQueue) {
+        activeQueue = (allQueues || []).find(q => q.queue_type === 'normal') || (allQueues || [])[0];
+      }
+      
       if (!activeQueue) {
         throw new Error('Nenhuma fila encontrada para este restaurante');
       }

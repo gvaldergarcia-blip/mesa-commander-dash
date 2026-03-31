@@ -12,6 +12,8 @@ export type QueueSettings = {
   avg_wait_time_3_4: number;
   avg_wait_time_5_6: number;
   avg_wait_time_7_8: number;
+  has_exclusive_queue: boolean;
+  exclusive_queue_name: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -40,7 +42,25 @@ export function useQueueSettings(restaurantId: string) {
         .maybeSingle();
 
       if (error) throw error;
-      // Map public schema fields to internal type
+
+      // Also fetch exclusive queue settings from mesaclik
+      let hasExclusive = false;
+      let exclusiveName = 'Fila Exclusiva';
+      try {
+        const { data: mesaclikSettings } = await supabase
+          .schema('mesaclik')
+          .from('queue_settings')
+          .select('has_exclusive_queue, exclusive_queue_name')
+          .eq('restaurant_id', restaurantId)
+          .maybeSingle();
+        if (mesaclikSettings) {
+          hasExclusive = mesaclikSettings.has_exclusive_queue ?? false;
+          exclusiveName = mesaclikSettings.exclusive_queue_name ?? 'Fila Exclusiva';
+        }
+      } catch (e) {
+        console.warn('[useQueueSettings] Erro ao buscar settings mesaclik:', e);
+      }
+
       if (data) {
         setSettings({
           id: data.id,
@@ -52,6 +72,8 @@ export function useQueueSettings(restaurantId: string) {
           avg_wait_time_3_4: data.avg_time_3_4,
           avg_wait_time_5_6: data.avg_time_5_6,
           avg_wait_time_7_8: data.avg_time_7_8,
+          has_exclusive_queue: hasExclusive,
+          exclusive_queue_name: exclusiveName,
         } as QueueSettings);
       } else {
         setSettings(null);
@@ -94,6 +116,20 @@ export function useQueueSettings(restaurantId: string) {
         : await supabase.from('queue_settings').insert(payload);
 
       if (error) throw error;
+
+      // Save exclusive queue settings to mesaclik
+      try {
+        await supabase
+          .schema('mesaclik')
+          .from('queue_settings')
+          .update({
+            has_exclusive_queue: values.has_exclusive_queue,
+            exclusive_queue_name: values.exclusive_queue_name || 'Fila Exclusiva',
+          })
+          .eq('restaurant_id', restaurantId);
+      } catch (e) {
+        console.warn('[useQueueSettings] Erro ao salvar exclusive settings:', e);
+      }
 
       toast({
         title: "Configurações salvas",
