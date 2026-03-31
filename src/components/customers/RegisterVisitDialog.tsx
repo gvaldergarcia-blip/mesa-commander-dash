@@ -216,10 +216,12 @@ export function RegisterVisitDialog({
   };
 
   const handleSubmit = async () => {
-    if (!email.trim() || !restaurantId) {
-      toast({ title: 'E-mail é obrigatório', variant: 'destructive' });
+    const phoneDigits = normalizePhone(phone);
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast({ title: 'Telefone obrigatório (DDD + número)', variant: 'destructive' });
       return;
     }
+    if (!restaurantId) return;
 
     if (!foundCustomer) {
       setStep('new_customer_warning');
@@ -233,9 +235,10 @@ export function RegisterVisitDialog({
 
     setSubmitting(true);
     try {
+      const finalEmail = email.trim() || `${phoneDigits}@phone.local`;
       const { data, error } = await supabase.rpc('register_customer_visit', {
         p_restaurant_id: restaurantId,
-        p_email: email.trim(),
+        p_email: finalEmail,
         p_name: name.trim() || null,
         p_phone: phone.trim() || null,
         p_source: source,
@@ -337,7 +340,18 @@ export function RegisterVisitDialog({
             )}
 
             <div className="space-y-2">
-              <Label>E-mail *</Label>
+              <Label>Telefone *</Label>
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(11) 99999-9999"
+                disabled={!!foundCustomer}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>E-mail (opcional)</Label>
               <Input
                 type="email"
                 value={email}
@@ -376,7 +390,7 @@ export function RegisterVisitDialog({
               <Button variant="outline" className="flex-1" onClick={() => setStep('search')}>
                 Voltar
               </Button>
-              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || !email.trim()}>
+              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || normalizePhone(phone).length < 10}>
                 {submitting ? 'Registrando...' : 'Registrar visita'}
               </Button>
             </div>
