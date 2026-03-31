@@ -109,9 +109,8 @@ export function useReservations() {
 
   const createReservation = async (reservation: { customer_name: string; customer_phone: string; customer_email?: string; people: number; starts_at: string; notes?: string }) => {
     try {
-      // Strip formatting from phone - DB constraint requires digits only
       const phoneDigits = reservation.customer_phone.replace(/\D/g, '');
-      
+
       const { data, error } = await supabase.rpc('create_reservation_panel', {
         p_restaurant_id: restaurantId,
         p_name: reservation.customer_name,
@@ -129,9 +128,9 @@ export function useReservations() {
       try {
         await supabase.rpc('upsert_restaurant_customer', {
           p_restaurant_id: restaurantId,
-          p_email: reservation.customer_email || `${reservation.customer_phone.replace(/\D/g, '')}@phone.local`,
+          p_email: reservation.customer_email || `${phoneDigits}@phone.local`,
           p_name: reservation.customer_name,
-          p_phone: reservation.customer_phone,
+          p_phone: phoneDigits,
           p_source: 'reservation',
           p_marketing_optin: null,
           p_terms_accepted: null,
