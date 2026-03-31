@@ -177,16 +177,7 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       const urlHasTokens = window.location.search.includes('access_token') || window.location.hash.includes('access_token');
       console.log('[RestaurantContext] Initialize START', { urlHasTokens, href: window.location.href });
 
-      // SECURITY: In Lovable preview iframe, clear any inherited session 
-      // so the dashboard always requires fresh login via the Login page.
-      const isLovablePreview = window.location.hostname.includes('lovableproject.com') ||
-        window.location.hostname.includes('lovable.app');
-      if (isLovablePreview && !urlHasTokens) {
-        console.log('[RestaurantContext] Lovable preview detected — clearing inherited session');
-        await supabase.auth.signOut({ scope: 'local' });
-        if (isMounted) setIsLoading(false);
-        return;
-      }
+      // Preview environment — allow existing sessions to persist
 
       const restoredFromUrl = await restoreSessionFromUrl();
       console.log('[RestaurantContext] After restoreSessionFromUrl', { restoredFromUrl });
