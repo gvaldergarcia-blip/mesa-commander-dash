@@ -208,6 +208,7 @@ function QueueContent() {
         email: newCustomerEmail || undefined,
         people: parseInt(newPartySize),
         notes: newNotes || undefined,
+        queue_type: hasExclusiveQueue ? activeQueueTab : undefined,
       });
       
       // Reset form
