@@ -292,9 +292,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         restaurant,
         restaurantId: restaurant?.id ?? null,
         user,
-        userRole: userRole || (isPreviewEnvironment() ? 'admin' : null),
+        userRole: userRole || (!!user && isPreviewEnvironment() ? 'admin' : null),
         isLoading,
-        isAuthenticated: !!user || isPreviewEnvironment(),
+        isAuthenticated: !!user,
         error,
         refetch,
       }}
