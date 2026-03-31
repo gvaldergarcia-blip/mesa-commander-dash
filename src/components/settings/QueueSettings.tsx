@@ -5,7 +5,8 @@ import * as z from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, Clock, Info, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Users, Clock, Info, Loader2, Star } from 'lucide-react';
 import { useQueueSettings } from '@/hooks/useQueueSettings';
 import { useQueueWaitTimeAveragesEnhanced } from '@/hooks/useQueueWaitTimeAveragesEnhanced';
 import {
@@ -17,6 +18,7 @@ import {
   FormDescription,
   FormMessage,
 } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 
 const queueSettingsSchema = z.object({
   max_party_size: z.number().min(1).max(50),
@@ -30,6 +32,8 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
   const { settings, loading, saveSettings } = useQueueSettings(restaurantId);
   const { todayAverages, historicalAverages, loading: loadingAverages } = useQueueWaitTimeAveragesEnhanced(restaurantId);
   const [saving, setSaving] = useState(false);
+  const [hasExclusiveQueue, setHasExclusiveQueue] = useState(false);
+  const [exclusiveQueueName, setExclusiveQueueName] = useState('Fila Exclusiva');
 
   const form = useForm<QueueSettingsFormValues>({
     resolver: zodResolver(queueSettingsSchema),
@@ -47,6 +51,8 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
         queue_capacity: settings.max_queue_capacity,
         tolerance_minutes: settings.tolerance_minutes ?? 10,
       });
+      setHasExclusiveQueue(settings.has_exclusive_queue ?? false);
+      setExclusiveQueueName(settings.exclusive_queue_name ?? 'Fila Exclusiva');
     }
   }, [settings]);
 
@@ -57,41 +63,27 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
       max_party_size: values.max_party_size,
       max_queue_capacity: values.queue_capacity,
       tolerance_minutes: values.tolerance_minutes,
-      // Keep existing avg times since they're not editable anymore
       avg_wait_time_1_2: settings?.avg_wait_time_1_2 || 30,
       avg_wait_time_3_4: settings?.avg_wait_time_3_4 || 45,
       avg_wait_time_5_6: settings?.avg_wait_time_5_6 || 60,
       avg_wait_time_7_8: settings?.avg_wait_time_7_8 || 75,
+      has_exclusive_queue: hasExclusiveQueue,
+      exclusive_queue_name: exclusiveQueueName,
     });
     setSaving(false);
   };
 
-  // Get display value for a size range
   const getDisplayValue = (sizeRange: string) => {
     const todayValue = todayAverages[sizeRange];
     const historicalValue = historicalAverages[sizeRange];
 
     if (todayValue !== undefined && todayValue !== null) {
-      return {
-        value: `${todayValue} min`,
-        source: 'hoje',
-        hasData: true,
-      };
+      return { value: `${todayValue} min`, source: 'hoje', hasData: true };
     }
-
     if (historicalValue !== undefined && historicalValue !== null) {
-      return {
-        value: `${historicalValue} min`,
-        source: 'últimos 7 dias',
-        hasData: true,
-      };
+      return { value: `${historicalValue} min`, source: 'últimos 7 dias', hasData: true };
     }
-
-    return {
-      value: 'Sem dados suficientes',
-      source: null,
-      hasData: false,
-    };
+    return { value: 'Sem dados suficientes', source: null, hasData: false };
   };
 
   if (loading) {
@@ -113,9 +105,9 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Bloco A - Limites da Fila */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Bloco A - Limites da Fila */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -171,7 +163,7 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
                 />
               </div>
 
-                <FormField
+              <FormField
                 control={form.control}
                 name="tolerance_minutes"
                 render={({ field }) => (
@@ -197,21 +189,62 @@ export function QueueSettings({ restaurantId }: { restaurantId: string }) {
                   </FormItem>
                 )}
               />
-
-              <div className="flex justify-end">
-                <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90">
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    'Salvar configurações da fila'
-                  )}
-                </Button>
-              </div>
             </CardContent>
           </Card>
+
+          {/* Bloco - Fila Exclusiva */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-primary" />
+                Fila Exclusiva
+              </CardTitle>
+              <CardDescription>
+                Habilite uma segunda fila independente para áreas especiais (ex: Vista Lago, Área VIP).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Habilitar Fila Exclusiva</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Quando ativada, uma segunda fila aparecerá na tela de operação
+                  </p>
+                </div>
+                <Switch
+                  checked={hasExclusiveQueue}
+                  onCheckedChange={setHasExclusiveQueue}
+                />
+              </div>
+
+              {hasExclusiveQueue && (
+                <div className="space-y-2">
+                  <Label>Nome da fila exclusiva</Label>
+                  <Input
+                    value={exclusiveQueueName}
+                    onChange={(e) => setExclusiveQueueName(e.target.value)}
+                    placeholder="Ex: Vista Lago, Área VIP..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este nome aparecerá como aba na tela de fila
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90">
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar configurações da fila'
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
 
