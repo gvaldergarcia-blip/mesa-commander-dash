@@ -216,10 +216,12 @@ export function RegisterVisitDialog({
   };
 
   const handleSubmit = async () => {
-    if (!email.trim() || !restaurantId) {
-      toast({ title: 'E-mail é obrigatório', variant: 'destructive' });
+    const phoneDigits = normalizePhone(phone);
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast({ title: 'Telefone obrigatório (DDD + número)', variant: 'destructive' });
       return;
     }
+    if (!restaurantId) return;
 
     if (!foundCustomer) {
       setStep('new_customer_warning');
