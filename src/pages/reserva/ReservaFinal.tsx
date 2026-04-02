@@ -252,6 +252,9 @@ export default function ReservaFinal() {
   const handleConfirmConsent = async () => {
     if (!reservationInfo) return;
 
+    // Libera a próxima tela imediatamente ao clicar, sem esperar persistência
+    setConsentConfirmed(true);
+
     const customerConsentEmail = resolveCustomerConsentEmail(reservationInfo.customer_email, reservationInfo.phone);
 
     // Se realmente não houver identificador, não travar a experiência do cliente
@@ -290,19 +293,12 @@ export default function ReservaFinal() {
       }
 
       if (rpcError) {
-        console.error('Erro ao salvar consentimento via RPC:', rpcError);
-        throw rpcError;
+        console.warn('[ReservaFinal] Consentimento não persistido, mas a reserva foi liberada:', rpcError);
+      } else {
+        console.log('[ReservaFinal] Consentimento salvo com sucesso via RPC. marketing_optin:', offersOptIn);
       }
-
-      console.log('[ReservaFinal] Consentimento salvo com sucesso via RPC. marketing_optin:', offersOptIn);
-      setConsentConfirmed(true);
     } catch (err) {
-      console.error('Erro ao salvar consentimento:', err);
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar suas preferências. Tente novamente.',
-        variant: 'destructive',
-      });
+      console.warn('[ReservaFinal] Erro ao salvar consentimento após liberar a reserva:', err);
     } finally {
       setSavingConsent(false);
     }
