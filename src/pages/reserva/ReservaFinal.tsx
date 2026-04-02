@@ -117,6 +117,13 @@ export default function ReservaFinal() {
     fetchReservationInfo();
   }, [fetchReservationInfo]);
 
+  // Auto-confirmar consentimento se não tem email (telefone é obrigatório, email opcional)
+  useEffect(() => {
+    if (reservationInfo && !reservationInfo.customer_email) {
+      setConsentConfirmed(true);
+    }
+  }, [reservationInfo]);
+
   // Ref para controlar o último status (evita toasts duplicados)
   const lastStatusRef = useRef<string | null>(null);
 
