@@ -81,9 +81,7 @@ export default function FilaVerificar() {
     const result = await createQueueEntry(restauranteId, parseInt(partySize));
     
     if (result.success && result.entry_id) {
-      // Redirecionar para página de status (no Cursor)
-      // A URL deve ser configurada de acordo com o app do Cursor
-      navigate(`/fila/final?restauranteId=${restauranteId}`);
+      navigate(`/fila/final?ticket=${encodeURIComponent(result.entry_id)}`, { replace: true });
     }
   };
 
