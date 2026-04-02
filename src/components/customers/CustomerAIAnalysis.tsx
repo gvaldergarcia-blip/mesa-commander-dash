@@ -156,9 +156,10 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
         console.warn('[CustomerAIAnalysis] No analysis in response:', data);
         setError('Resposta vazia da IA. Tente novamente.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[CustomerAIAnalysis] Error:', err);
-      setError('Não foi possível gerar a análise. Tente novamente.');
+      const message = err?.message || err?.context?.message || 'Não foi possível gerar a análise. Tente novamente.';
+      setError(message.includes('Failed to send a request') ? 'Falha de conexão com a análise de IA. Tente novamente.' : message);
     } finally {
       setLoading(false);
     }
