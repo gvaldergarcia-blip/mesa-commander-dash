@@ -550,35 +550,39 @@ Deno.serve(async (req) => {
             reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
           }).eq("id", existing.id);
 
+          const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
+
           if (rewardUnlocked && !existing.reward_email_sent && cust.marketing_optin && cust.customer_email) {
-            const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+            const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
             if (sent) {
               await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
               emailsSent++;
             }
           }
 
-          // Process reminders for active customers
           if (!rewardUnlocked) {
             emailsSent += await processReminders(supabase, existing, cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits);
           }
         } else {
-          await supabase.from("customer_loyalty_status").insert({
+          const { data: newStat } = await supabase.from("customer_loyalty_status").insert({
             restaurant_id, customer_id: cust.id, current_visits: visits,
             reward_unlocked: rewardUnlocked,
             reward_unlocked_at: rewardUnlocked ? nowDate.toISOString() : null,
             reward_expires_at: rewardExpiresAt,
             activation_email_sent: false, reward_email_sent: false,
-          });
+          }).select("loyalty_token").single();
+
+          const trackingUrl = newStat?.loyalty_token ? `${TRACKING_BASE_URL}/${newStat.loyalty_token}` : undefined;
+
           if (cust.marketing_optin && cust.customer_email) {
             const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
-            const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining);
+            const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
             if (sent) {
               await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
               emailsSent++;
             }
             if (rewardUnlocked) {
-              const rewardSent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+              const rewardSent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
               if (rewardSent) {
                 await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
                 emailsSent++;
