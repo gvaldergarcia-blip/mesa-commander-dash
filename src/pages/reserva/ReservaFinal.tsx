@@ -516,10 +516,10 @@ export default function ReservaFinal() {
                   htmlFor="offers-consent"
                   className="text-sm font-medium leading-tight cursor-pointer"
                 >
-                  Quero receber ofertas e novidades por SMS do restaurante {reservationInfo.restaurant_name}
+                  Quero receber ofertas e novidades somente por SMS.
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Opcional - Você pode cancelar a qualquer momento
+                  Opcional - comunicações apenas por SMS. Você pode cancelar a qualquer momento.
                 </p>
               </div>
             </div>
