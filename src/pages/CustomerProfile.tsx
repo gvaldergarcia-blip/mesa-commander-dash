@@ -131,17 +131,36 @@ export default function CustomerProfile() {
       setCustomer(finalCustomer);
       setNotes(customerInfo.notes || '');
 
-      // Fetch history via edge function
-      const { data, error } = await supabase.functions.invoke('get-customer-history', {
-        body: {
-          customer_id: id,
-          restaurant_id: restaurantId || '',
-          email: customerInfo.email || '',
-          phone: customerInfo.phone && customerInfo.phone !== '—' ? customerInfo.phone : '',
-        },
-      });
-      if (!error && data) {
-        setHistoryData(data);
+      // Fetch history - try edge function first, fallback to direct queries
+      let historyLoaded = false;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const { data, error } = await supabase.functions.invoke('get-customer-history', {
+          body: {
+            customer_id: id,
+            restaurant_id: restaurantId || '',
+            email: customerInfo.email || '',
+            phone: customerInfo.phone && customerInfo.phone !== '—' ? customerInfo.phone : '',
+          },
+        });
+        clearTimeout(timeout);
+        if (!error && data) {
+          setHistoryData(data);
+          historyLoaded = true;
+        }
+      } catch (edgeFnErr) {
+        console.warn('Edge function timeout/error, using fallback:', edgeFnErr);
+      }
+
+      // Fallback: fetch directly from tables if edge function failed
+      if (!historyLoaded && restaurantId) {
+        try {
+          const fallback = await fetchHistoryFallback(id, restaurantId, customerInfo.email, customerInfo.phone);
+          setHistoryData(fallback);
+        } catch (fallbackErr) {
+          console.error('Fallback history fetch failed:', fallbackErr);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar cliente:', error);
