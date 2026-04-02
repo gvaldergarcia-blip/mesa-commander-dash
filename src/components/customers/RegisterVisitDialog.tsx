@@ -279,14 +279,15 @@ export function RegisterVisitDialog({
         {step === 'search' && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Busque o cliente por e-mail, telefone ou nome
+              Busque o cliente pelo telefone
             </p>
             <div className="flex gap-2">
               <Input
-                placeholder="Email, telefone ou nome..."
+                placeholder="(11) 99999-9999"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                type="tel"
                 autoFocus
               />
               <Button onClick={handleSearch} disabled={searching || !searchQuery.trim()}>

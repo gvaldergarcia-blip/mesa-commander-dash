@@ -3340,18 +3340,31 @@ export type Database = {
         Returns: boolean
       }
       marketing_unsubscribe: { Args: { p_token: string }; Returns: Json }
-      register_customer_visit: {
-        Args: {
-          p_email: string
-          p_name?: string
-          p_notes?: string
-          p_phone?: string
-          p_restaurant_id: string
-          p_source?: string
-          p_visit_date?: string
-        }
-        Returns: Json
-      }
+      register_customer_visit:
+        | {
+            Args: {
+              p_email: string
+              p_name?: string
+              p_notes?: string
+              p_phone?: string
+              p_restaurant_id: string
+              p_source?: string
+              p_visit_date?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_email: string
+              p_name?: string
+              p_notes?: string
+              p_phone?: string
+              p_restaurant_id: string
+              p_source?: string
+              p_visit_date?: string
+            }
+            Returns: Json
+          }
       rotate_customer_visits_monthly: { Args: never; Returns: undefined }
       toggle_restaurant_calendar_day: {
         Args: { p_day: string; p_is_open: boolean; p_restaurant_id: string }
