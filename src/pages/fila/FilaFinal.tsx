@@ -28,12 +28,21 @@ interface QueueInfo {
   size_group: string;
   created_at: string;
   customer_email?: string;
+  customer_phone?: string;
   customer_name?: string;
   tolerance_minutes?: number;
 }
 
-const hasCustomerConsentEmail = (email?: string | null) => {
-  return (email?.trim().length ?? 0) > 0;
+const normalizePhone = (phone?: string | null) => (phone || '').replace(/\D/g, '');
+
+const resolveCustomerConsentEmail = (email?: string | null, phone?: string | null) => {
+  const normalizedEmail = email?.trim().toLowerCase() || '';
+  if (normalizedEmail) return normalizedEmail;
+
+  const phoneDigits = normalizePhone(phone);
+  if (phoneDigits.length >= 10) return `${phoneDigits}@phone.local`;
+
+  return null;
 };
 
 export default function FilaFinal() {
@@ -119,12 +128,13 @@ export default function FilaFinal() {
         size_group: getSizeGroupLabel(sizeGroup),
         created_at: data.created_at || new Date().toISOString(),
         customer_email: data.customer_email,
+        customer_phone: data.customer_phone,
         customer_name: data.customer_name,
         tolerance_minutes: data.tolerance_minutes ?? 10,
       };
 
       setQueueInfo(nextQueueInfo);
-      if (!hasCustomerConsentEmail(nextQueueInfo.customer_email)) {
+      if (!resolveCustomerConsentEmail(nextQueueInfo.customer_email, nextQueueInfo.customer_phone)) {
         setConsentConfirmed(true);
         setConsentLoading(false);
       }
@@ -148,7 +158,9 @@ export default function FilaFinal() {
 
       // Se não houver identificador algum, pular consentimento para não travar o fluxo
       // Emails @phone.local continuam válidos para persistir o opt-in sem depender de e-mail real
-      if (!hasCustomerConsentEmail(queueInfo.customer_email)) {
+      const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
+
+      if (!customerConsentEmail) {
         setConsentConfirmed(true);
         setConsentLoading(false);
         return;
@@ -158,7 +170,7 @@ export default function FilaFinal() {
       const { termsAccepted, marketingOptin } = await fetchConsents(
         queueInfo.restaurant_id,
         queueInfo.ticket_id,
-        queueInfo.customer_email
+        customerConsentEmail
       );
       
       setLocalTermsAccepted(termsAccepted);
@@ -190,7 +202,9 @@ export default function FilaFinal() {
     }
 
       // Se não houver identificador algum, apenas liberar a visualização para não travar
-      if (!hasCustomerConsentEmail(queueInfo.customer_email)) {
+      const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
+
+      if (!customerConsentEmail) {
       setConsentConfirmed(true);
       return;
     }
@@ -203,22 +217,12 @@ export default function FilaFinal() {
       await saveTermsConsent(
         queueInfo.restaurant_id,
         queueInfo.ticket_id,
-        queueInfo.customer_email,
+        customerConsentEmail,
         queueInfo.customer_name,
         localTermsAccepted,
-        undefined, // customerPhone - não temos no fluxo atual
+        queueInfo.customer_phone,
         localMarketingOptin // Passa o marketing optin para o CRM
       );
-
-      // Salvar marketing optin separado (tabela específica)
-      if (localMarketingOptin) {
-        await saveMarketingOptin(
-          queueInfo.restaurant_id,
-          queueInfo.customer_email,
-          queueInfo.customer_name,
-          localMarketingOptin
-        );
-      }
 
       // Liberar visualização da posição
       setConsentConfirmed(true);
