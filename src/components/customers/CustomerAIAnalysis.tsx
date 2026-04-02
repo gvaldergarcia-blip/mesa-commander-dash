@@ -137,12 +137,25 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
     setLoading(true);
     setError(null);
     try {
+      console.log('[CustomerAIAnalysis] Invoking analyze-customer for:', customerId, 'restaurant:', restaurantId);
       const { data, error: fnError } = await supabase.functions.invoke('analyze-customer', {
         body: { customer_id: customerId, restaurant_id: restaurantId, customer_data: customerData, metrics, history_data: historyData }
       });
-      if (fnError) throw fnError;
-      if (data?.error) { setError(data.error); return; }
+      console.log('[CustomerAIAnalysis] Response:', { data: data ? 'received' : 'null', error: fnError });
+      if (fnError) {
+        console.error('[CustomerAIAnalysis] Function error details:', JSON.stringify(fnError));
+        throw fnError;
+      }
+      if (data?.error) { 
+        console.error('[CustomerAIAnalysis] Data error:', data.error);
+        setError(data.error); 
+        return; 
+      }
       if (data?.analysis) { setAnalysis(data.analysis); setHasGenerated(true); }
+      else {
+        console.warn('[CustomerAIAnalysis] No analysis in response:', data);
+        setError('Resposta vazia da IA. Tente novamente.');
+      }
     } catch (err) {
       console.error('[CustomerAIAnalysis] Error:', err);
       setError('Não foi possível gerar a análise. Tente novamente.');
