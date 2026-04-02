@@ -123,8 +123,8 @@ export const useLoyaltyProgram = (restaurantId: string) => {
       await fetchProgram();
       await fetchStatuses();
     } catch (err: any) {
-      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
-      throw err;
+      console.error("[useLoyaltyProgram] saveProgram error:", err);
+      toast({ title: "Erro ao salvar", description: err?.message || "Erro desconhecido ao salvar programa", variant: "destructive" });
     } finally {
       setSaving(false);
     }
