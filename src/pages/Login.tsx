@@ -52,6 +52,12 @@ export default function Login() {
           <CardDescription className="text-muted-foreground">
             Acesse o painel do seu restaurante
           </CardDescription>
+          <p className="text-xs text-muted-foreground/70">
+            Não tem conta? Cadastre-se em{' '}
+            <a href="https://mesaclik.com.br" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+              mesaclik.com.br
+            </a>
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
