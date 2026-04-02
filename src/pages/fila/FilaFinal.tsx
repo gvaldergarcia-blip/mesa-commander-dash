@@ -190,6 +190,9 @@ export default function FilaFinal() {
       return;
     }
 
+    // Libera a próxima tela imediatamente ao clicar, sem esperar persistência
+    setConsentConfirmed(true);
+
       // Se não houver identificador algum, apenas liberar a visualização para não travar
       const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
 
@@ -203,7 +206,7 @@ export default function FilaFinal() {
     try {
       // Salvar termos aceitos E fazer upsert no CRM consolidado
       // Passando phone (se existir) e marketing optin para a função RPC
-      await saveTermsConsent(
+      const saved = await saveTermsConsent(
         queueInfo.restaurant_id,
         queueInfo.ticket_id,
         customerConsentEmail,
@@ -213,8 +216,9 @@ export default function FilaFinal() {
         localMarketingOptin // Passa o marketing optin para o CRM
       );
 
-      // Liberar visualização da posição
-      setConsentConfirmed(true);
+      if (!saved) {
+        console.warn('[FilaFinal] Consentimento não persistido, mas a visualização foi liberada.');
+      }
     } catch (error) {
       console.error('Erro ao salvar consentimento:', error);
     } finally {
