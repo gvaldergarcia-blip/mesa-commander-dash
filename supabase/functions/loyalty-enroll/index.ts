@@ -94,6 +94,21 @@ async function sendEmailViaResend(
 }
 
 // ── SMS + WhatsApp via Twilio ──
+function normalizePhoneForTwilio(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+
+  const rawPhone = String(phone).trim();
+  if (!rawPhone) return null;
+
+  const digits = rawPhone.replace(/\D/g, "");
+  if (digits.length < 10) return null;
+
+  if (rawPhone.startsWith("+")) return `+${digits}`;
+  if (digits.startsWith("55") && digits.length >= 12) return `+${digits}`;
+
+  return `+55${digits}`;
+}
+
 async function sendTwilioMessage(
   to: string,
   body: string,
@@ -102,14 +117,20 @@ async function sendTwilioMessage(
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
   const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
+  const TWILIO_WHATSAPP_NUMBER = Deno.env.get("TWILIO_WHATSAPP_NUMBER") || "+14155238886";
 
   if (!LOVABLE_API_KEY || !TWILIO_API_KEY || !TWILIO_PHONE_NUMBER) {
     return { success: false, channel };
   }
 
-  const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\\D/g, '')}`;
+  const formattedPhone = normalizePhoneForTwilio(to);
+  if (!formattedPhone) {
+    console.warn(`[loyalty-enroll] ${channel} skipped: invalid phone`, to);
+    return { success: false, channel };
+  }
+
   const formattedTo = channel === 'whatsapp' ? `whatsapp:${formattedPhone}` : formattedPhone;
-  const formattedFrom = channel === 'whatsapp' ? `whatsapp:${TWILIO_PHONE_NUMBER}` : TWILIO_PHONE_NUMBER;
+  const formattedFrom = channel === 'whatsapp' ? `whatsapp:${TWILIO_WHATSAPP_NUMBER}` : TWILIO_PHONE_NUMBER;
 
   try {
     const response = await fetch(`https://connector-gateway.lovable.dev/twilio/Messages.json`, {
@@ -123,7 +144,7 @@ async function sendTwilioMessage(
     });
     const data = await response.json();
     if (!response.ok) {
-      console.warn(`[loyalty-enroll] ${channel} failed:`, data.message);
+      console.warn(`[loyalty-enroll] ${channel} failed:`, data.message || JSON.stringify(data));
       return { success: false, channel };
     }
     console.log(`[loyalty-enroll] ${channel} sent:`, data.sid);
@@ -134,12 +155,26 @@ async function sendTwilioMessage(
   }
 }
 
-async function sendSmsAndWhatsApp(phone: string | null, body: string): Promise<void> {
-  if (!phone) return;
-  await Promise.all([
+async function sendSmsAndWhatsApp(phone: string | null, body: string): Promise<{ smsSent: boolean; whatsappSent: boolean }> {
+  if (!phone) {
+    console.warn("[loyalty-enroll] SMS/WhatsApp skipped: customer without phone");
+    return { smsSent: false, whatsappSent: false };
+  }
+
+  const [smsResult, whatsappResult] = await Promise.all([
     sendTwilioMessage(phone, body, 'sms'),
     sendTwilioMessage(phone, body, 'whatsapp'),
   ]);
+
+  console.log("[loyalty-enroll] Channel results:", JSON.stringify({
+    smsSent: smsResult.success,
+    whatsappSent: whatsappResult.success,
+  }));
+
+  return {
+    smsSent: smsResult.success,
+    whatsappSent: whatsappResult.success,
+  };
 }
 
 
@@ -232,19 +267,33 @@ async function sendActivationEmail(customer: any, programName: string, restauran
   const html = buildActivationHtml(customer, programName, restaurantName, requiredVisits, rewardDescription, currentVisits, visitsRemaining, trackingUrl);
   const text = `Voce entrou no ${programName} do ${restaurantName}!\n\nOla ${customer.customer_name || "Cliente"}!\nA cada visita concluida, voce acumula 1 clique.\nAo completar ${requiredVisits} visitas, voce ganha: ${rewardDescription}\nAtualmente voce ja tem ${currentVisits} visitas. Faltam ${visitsRemaining}!\n\n${trackingUrl ? `Acompanhe seu progresso: ${trackingUrl}\n\n` : ''}Esperamos voce em breve!\nEquipe ${restaurantName}`;
 
-  console.log("[loyalty-enroll] Sending ACTIVATION email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
-  const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
-
   // SMS + WhatsApp
   const smsText = `${restaurantName}: Voce entrou no ${programName}! Complete ${requiredVisits} visitas e ganhe: ${rewardDescription}. Voce ja tem ${currentVisits}. Faltam ${visitsRemaining}!${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
-  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
-  if (result.error) {
+  const smsPromise = sendSmsAndWhatsApp(customer.customer_phone, smsText);
+  const emailPromise = customer.customer_email
+    ? (() => {
+        console.log("[loyalty-enroll] Sending ACTIVATION email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
+        return sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
+      })()
+    : Promise.resolve<{ id?: string; error?: string; last_event?: string }>({});
+
+  const [channelResult, result] = await Promise.all([smsPromise, emailPromise]);
+
+  if (customer.customer_email && result.error) {
     console.error("[loyalty-enroll] ACTIVATION email FAILED:", JSON.stringify({ error: result.error, to: customer.customer_email }));
-    return false;
+  } else if (customer.customer_email) {
+    console.log("[loyalty-enroll] ACTIVATION email SUCCESS:", JSON.stringify({ id: result.id, last_event: result.last_event }));
+  } else {
+    console.log("[loyalty-enroll] ACTIVATION email skipped: customer without email");
   }
-  console.log("[loyalty-enroll] ACTIVATION email SUCCESS:", JSON.stringify({ id: result.id, last_event: result.last_event }));
-  return true;
+
+  const notificationSent = !!result.id || channelResult.smsSent || channelResult.whatsappSent;
+  if (!notificationSent) {
+    console.warn("[loyalty-enroll] ACTIVATION notification failed on all channels", JSON.stringify({ customer_id: customer.id }));
+  }
+
+  return notificationSent;
 }
 
 async function sendRewardEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, rewardValidityDays: number, trackingUrl?: string): Promise<boolean> {
@@ -255,19 +304,33 @@ async function sendRewardEmail(customer: any, programName: string, restaurantNam
   const html = buildRewardHtml(customer, programName, restaurantName, rewardDescription, formattedExpiry, requiredVisits, trackingUrl);
   const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nVoce completou ${requiredVisits} visitas.\nVoce ganhou: ${rewardDescription}\nValido ate: ${formattedExpiry}\n\n${trackingUrl ? `Veja seu programa: ${trackingUrl}\n\n` : ''}Apresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
 
-  console.log("[loyalty-enroll] Sending REWARD email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
-  const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
-
   // SMS + WhatsApp
   const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}.${trackingUrl ? ` Veja: ${trackingUrl}` : ''} Apresente esta mensagem na sua proxima visita!`;
-  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
-  if (result.error) {
+  const smsPromise = sendSmsAndWhatsApp(customer.customer_phone, smsText);
+  const emailPromise = customer.customer_email
+    ? (() => {
+        console.log("[loyalty-enroll] Sending REWARD email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
+        return sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
+      })()
+    : Promise.resolve<{ id?: string; error?: string; last_event?: string }>({});
+
+  const [channelResult, result] = await Promise.all([smsPromise, emailPromise]);
+
+  if (customer.customer_email && result.error) {
     console.error("[loyalty-enroll] REWARD email FAILED:", JSON.stringify({ error: result.error, to: customer.customer_email }));
-    return false;
+  } else if (customer.customer_email) {
+    console.log("[loyalty-enroll] REWARD email SUCCESS:", JSON.stringify({ id: result.id, last_event: result.last_event }));
+  } else {
+    console.log("[loyalty-enroll] REWARD email skipped: customer without email");
   }
-  console.log("[loyalty-enroll] REWARD email SUCCESS:", JSON.stringify({ id: result.id, last_event: result.last_event }));
-  return true;
+
+  const notificationSent = !!result.id || channelResult.smsSent || channelResult.whatsappSent;
+  if (!notificationSent) {
+    console.warn("[loyalty-enroll] REWARD notification failed on all channels", JSON.stringify({ customer_id: customer.id }));
+  }
+
+  return notificationSent;
 }
 
 async function sendReminderEmail(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number, trackingUrl?: string): Promise<boolean> {
@@ -276,24 +339,38 @@ async function sendReminderEmail(customer: any, programName: string, restaurantN
   const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining, trackingUrl);
   const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\n${trackingUrl ? `Acompanhe: ${trackingUrl}\n\n` : ''}Nos vemos em breve!\nEquipe ${restaurantName}`;
 
-  console.log("[loyalty-enroll] Sending REMINDER email:", JSON.stringify({ to: customer.customer_email, remaining }));
-  const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
-
   // SMS + WhatsApp
   const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
-  await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
-  if (result.error) {
+  const smsPromise = sendSmsAndWhatsApp(customer.customer_phone, smsText);
+  const emailPromise = customer.customer_email
+    ? (() => {
+        console.log("[loyalty-enroll] Sending REMINDER email:", JSON.stringify({ to: customer.customer_email, remaining }));
+        return sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
+      })()
+    : Promise.resolve<{ id?: string; error?: string; last_event?: string }>({});
+
+  const [channelResult, result] = await Promise.all([smsPromise, emailPromise]);
+
+  if (customer.customer_email && result.error) {
     console.error("[loyalty-enroll] REMINDER email FAILED:", JSON.stringify({ error: result.error }));
-    return false;
+  } else if (customer.customer_email) {
+    console.log("[loyalty-enroll] REMINDER email SUCCESS:", JSON.stringify({ id: result.id }));
+  } else {
+    console.log("[loyalty-enroll] REMINDER email skipped: customer without email");
   }
-  console.log("[loyalty-enroll] REMINDER email SUCCESS:", JSON.stringify({ id: result.id }));
-  return true;
+
+  const notificationSent = !!result.id || channelResult.smsSent || channelResult.whatsappSent;
+  if (!notificationSent) {
+    console.warn("[loyalty-enroll] REMINDER notification failed on all channels", JSON.stringify({ customer_id: customer.id, remaining }));
+  }
+
+  return notificationSent;
 }
 
 // ── Send reminder emails based on remaining visits (2-5) ──
 async function processReminders(supabase: any, statusRow: any, customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, currentVisits: number): Promise<number> {
-  if (!customer.customer_email || !customer.marketing_optin) return 0;
+  if (!customer.marketing_optin || (!customer.customer_email && !customer.customer_phone)) return 0;
 
   const remaining = requiredVisits - currentVisits;
   if (remaining < 2 || remaining > 5) return 0;
@@ -436,7 +513,7 @@ Deno.serve(async (req) => {
 
         const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
 
-        if (!existing.activation_email_sent && cust.customer_email) {
+        if (!existing.activation_email_sent && (cust.customer_email || cust.customer_phone)) {
           const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
           const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
           if (sent) {
@@ -445,7 +522,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        if (rewardUnlocked && !existing.reward_email_sent && cust.customer_email) {
+        if (rewardUnlocked && !existing.reward_email_sent && (cust.customer_email || cust.customer_phone)) {
           const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
           if (sent) {
             await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
@@ -468,7 +545,7 @@ Deno.serve(async (req) => {
 
         const trackingUrl = newStatus?.loyalty_token ? `${TRACKING_BASE_URL}/${newStatus.loyalty_token}` : undefined;
 
-        if (cust.customer_email) {
+        if (cust.customer_email || cust.customer_phone) {
           const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
           const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
           if (sent) {
@@ -553,7 +630,7 @@ Deno.serve(async (req) => {
 
           const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
 
-          if (rewardUnlocked && !existing.reward_email_sent && cust.marketing_optin && cust.customer_email) {
+          if (rewardUnlocked && !existing.reward_email_sent && cust.marketing_optin && (cust.customer_email || cust.customer_phone)) {
             const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
             if (sent) {
               await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
@@ -575,7 +652,7 @@ Deno.serve(async (req) => {
 
           const trackingUrl = newStat?.loyalty_token ? `${TRACKING_BASE_URL}/${newStat.loyalty_token}` : undefined;
 
-          if (cust.marketing_optin && cust.customer_email) {
+          if (cust.marketing_optin && (cust.customer_email || cust.customer_phone)) {
             const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
             const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
             if (sent) {
@@ -642,7 +719,7 @@ Deno.serve(async (req) => {
             : null,
         }).eq("id", statusRow.id);
 
-        if (rewardUnlocked && !statusRow.reward_email_sent && cust.marketing_optin && cust.customer_email) {
+        if (rewardUnlocked && !statusRow.reward_email_sent && cust.marketing_optin && (cust.customer_email || cust.customer_phone)) {
           const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
           if (sent) {
             await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", statusRow.id);
