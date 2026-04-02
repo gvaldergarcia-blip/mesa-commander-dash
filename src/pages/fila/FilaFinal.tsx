@@ -131,7 +131,14 @@ export default function FilaFinal() {
   // Buscar consentimentos existentes quando tiver as infos da fila
   useEffect(() => {
     const loadConsents = async () => {
-      if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id || !queueInfo?.customer_email) {
+      if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id) {
+        setConsentLoading(false);
+        return;
+      }
+
+      // Se não tem email, pular consentimento e mostrar posição diretamente
+      if (!queueInfo.customer_email) {
+        setConsentConfirmed(true);
         setConsentLoading(false);
         return;
       }
@@ -167,7 +174,13 @@ export default function FilaFinal() {
 
   // Handler para confirmar consentimento e ver posição
   const handleConfirmConsent = async () => {
-    if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id || !queueInfo?.customer_email) {
+    if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id) {
+      return;
+    }
+
+    // Se não tem email, apenas confirmar consent e seguir
+    if (!queueInfo.customer_email) {
+      setConsentConfirmed(true);
       return;
     }
 
