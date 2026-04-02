@@ -162,6 +162,47 @@ async function sendSmsAndWhatsApp(phone: string | null, body: string): Promise<{
     return { smsSent: false, whatsappSent: false };
   }
 
+  const formattedPhone = normalizePhoneForTwilio(phone);
+  if (!formattedPhone) {
+    console.warn("[loyalty-enroll] SMS/WhatsApp skipped: invalid phone", phone);
+    return { smsSent: false, whatsappSent: false };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const functionsBaseUrl = supabaseUrl?.replace(".supabase.co", ".functions.supabase.co");
+
+  if (functionsBaseUrl && supabaseAnonKey) {
+    try {
+      const bridgeResponse = await fetch(`${functionsBaseUrl}/send-sms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseAnonKey}`,
+          "apikey": supabaseAnonKey,
+        },
+        body: JSON.stringify({
+          to: formattedPhone,
+          message: body,
+        }),
+      });
+
+      const bridgeData = await bridgeResponse.json().catch(() => ({}));
+
+      if (bridgeResponse.ok && bridgeData?.success) {
+        const smsSent = !!bridgeData?.sms?.success;
+        const whatsappSent = !!bridgeData?.whatsapp?.success;
+
+        console.log("[loyalty-enroll] send-sms bridge success:", JSON.stringify({ smsSent, whatsappSent }));
+        return { smsSent, whatsappSent };
+      }
+
+      console.warn("[loyalty-enroll] send-sms bridge failed, falling back to direct Twilio:", JSON.stringify(bridgeData));
+    } catch (bridgeError) {
+      console.warn("[loyalty-enroll] send-sms bridge error, falling back to direct Twilio:", bridgeError);
+    }
+  }
+
   const [smsResult, whatsappResult] = await Promise.all([
     sendTwilioMessage(phone, body, 'sms'),
     sendTwilioMessage(phone, body, 'whatsapp'),

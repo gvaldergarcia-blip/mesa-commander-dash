@@ -57,9 +57,16 @@ interface ReservationInfo {
   tolerance_minutes: number;
 }
 
-const hasRealCustomerEmail = (email?: string | null) => {
+const normalizePhone = (phone?: string | null) => (phone || '').replace(/\D/g, '');
+
+const resolveCustomerConsentEmail = (email?: string | null, phone?: string | null) => {
   const normalizedEmail = email?.trim().toLowerCase() || '';
-  return normalizedEmail !== '' && !normalizedEmail.endsWith('@phone.local');
+  if (normalizedEmail) return normalizedEmail;
+
+  const phoneDigits = normalizePhone(phone);
+  if (phoneDigits.length >= 10) return `${phoneDigits}@phone.local`;
+
+  return null;
 };
 
 export default function ReservaFinal() {
@@ -109,7 +116,7 @@ export default function ReservaFinal() {
       }
 
       setReservationInfo(data);
-      if (!hasRealCustomerEmail(data.customer_email)) {
+      if (!resolveCustomerConsentEmail(data.customer_email, data.phone)) {
         setConsentConfirmed(true);
       }
       setNotFound(false);
@@ -125,10 +132,10 @@ export default function ReservaFinal() {
     fetchReservationInfo();
   }, [fetchReservationInfo]);
 
-  // Auto-confirmar consentimento se não tem email real (telefone é obrigatório, email opcional)
-  // Emails @phone.local são fallback gerados automaticamente
+  // Só pular consentimento se realmente não houver identificador algum.
+  // Se houver telefone, geramos o fallback @phone.local e o fluxo continua normalmente.
   useEffect(() => {
-    if (reservationInfo && !hasRealCustomerEmail(reservationInfo.customer_email)) {
+    if (reservationInfo && !resolveCustomerConsentEmail(reservationInfo.customer_email, reservationInfo.phone)) {
       setConsentConfirmed(true);
     }
   }, [reservationInfo]);
@@ -256,8 +263,10 @@ export default function ReservaFinal() {
   const handleConfirmConsent = async () => {
     if (!reservationInfo) return;
 
-    // Se não tem email real, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
-    if (!hasRealCustomerEmail(reservationInfo.customer_email)) {
+    const customerConsentEmail = resolveCustomerConsentEmail(reservationInfo.customer_email, reservationInfo.phone);
+
+    // Se realmente não houver identificador, não travar a experiência do cliente
+    if (!customerConsentEmail) {
       setConsentConfirmed(true);
       return;
     }
@@ -267,7 +276,7 @@ export default function ReservaFinal() {
       // Usar assinatura mais específica da RPC para evitar ambiguidade entre overloads
       const rpcPayload = {
         p_restaurant_id: reservationInfo.restaurant_id,
-        p_email: reservationInfo.customer_email,
+        p_email: customerConsentEmail,
         p_name: reservationInfo.customer_name || null,
         p_phone: reservationInfo.phone || null,
         p_source: 'reservation',
@@ -282,7 +291,7 @@ export default function ReservaFinal() {
       if (rpcError?.message?.includes('p_opt_in_source')) {
         ({ error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
           p_restaurant_id: reservationInfo.restaurant_id,
-          p_email: reservationInfo.customer_email,
+          p_email: customerConsentEmail,
           p_name: reservationInfo.customer_name || null,
           p_phone: reservationInfo.phone || null,
           p_source: 'reservation',

@@ -112,6 +112,18 @@ export function CreateCustomerDialog({ open, onOpenChange, onSuccess }: CreateCu
             p_source: 'registro_manual',
             p_notes: 'Primeira visita (cadastro manual)',
           });
+
+          const { data: loyaltyData, error: loyaltyError } = await supabase.functions.invoke('loyalty-enroll', {
+            body: {
+              restaurant_id: restaurantId,
+              action: 'check_reward',
+              customer_id: data,
+            },
+          });
+
+          if (loyaltyError || loyaltyData?.error) {
+            console.warn('Loyalty check_reward failed after manual customer creation:', loyaltyError || loyaltyData?.error);
+          }
         } catch (err: any) {
           console.warn('Auto-visit creation failed:', err);
         }

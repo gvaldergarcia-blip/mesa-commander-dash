@@ -32,9 +32,8 @@ interface QueueInfo {
   tolerance_minutes?: number;
 }
 
-const hasRealCustomerEmail = (email?: string | null) => {
-  const normalizedEmail = email?.trim().toLowerCase() || '';
-  return normalizedEmail !== '' && !normalizedEmail.endsWith('@phone.local');
+const hasCustomerConsentEmail = (email?: string | null) => {
+  return (email?.trim().length ?? 0) > 0;
 };
 
 export default function FilaFinal() {
@@ -125,7 +124,7 @@ export default function FilaFinal() {
       };
 
       setQueueInfo(nextQueueInfo);
-      if (!hasRealCustomerEmail(nextQueueInfo.customer_email)) {
+      if (!hasCustomerConsentEmail(nextQueueInfo.customer_email)) {
         setConsentConfirmed(true);
         setConsentLoading(false);
       }
@@ -147,9 +146,9 @@ export default function FilaFinal() {
         return;
       }
 
-      // Se não tem email real, pular consentimento e mostrar posição diretamente
-      // Emails @phone.local são gerados automaticamente quando o cliente não informa email
-      if (!hasRealCustomerEmail(queueInfo.customer_email)) {
+      // Se não houver identificador algum, pular consentimento para não travar o fluxo
+      // Emails @phone.local continuam válidos para persistir o opt-in sem depender de e-mail real
+      if (!hasCustomerConsentEmail(queueInfo.customer_email)) {
         setConsentConfirmed(true);
         setConsentLoading(false);
         return;
@@ -190,8 +189,8 @@ export default function FilaFinal() {
       return;
     }
 
-    // Se não tem email real, apenas confirmar consent e seguir
-    if (!hasRealCustomerEmail(queueInfo.customer_email)) {
+      // Se não houver identificador algum, apenas liberar a visualização para não travar
+      if (!hasCustomerConsentEmail(queueInfo.customer_email)) {
       setConsentConfirmed(true);
       return;
     }
