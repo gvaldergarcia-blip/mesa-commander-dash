@@ -1,0 +1,142 @@
+
+-- Drop the view that depends on total_visits
+DROP VIEW IF EXISTS mesaclik.v_customers;
+
+-- Fix total_visits generated column to include manual visits
+ALTER TABLE public.restaurant_customers DROP COLUMN total_visits;
+ALTER TABLE public.restaurant_customers ADD COLUMN total_visits integer GENERATED ALWAYS AS (
+  COALESCE(total_queue_visits, 0) + COALESCE(total_reservation_visits, 0) + COALESCE(total_manual_visits, 0)
+) STORED;
+
+-- Recreate the view
+CREATE OR REPLACE VIEW mesaclik.v_customers AS
+SELECT rc.id,
+    rc.restaurant_id,
+    rc.customer_email,
+    rc.customer_name,
+    rc.customer_phone,
+    rc.total_visits,
+    rc.total_queue_visits,
+    rc.total_reservation_visits,
+    rc.last_seen_at,
+    rc.marketing_optin,
+    rc.marketing_optin_at,
+    rc.terms_accepted,
+    rc.terms_accepted_at,
+    rc.vip,
+    rc.status,
+    rc.tags,
+    rc.internal_notes,
+    rc.created_at,
+    rc.updated_at,
+    cm.avg_wait_minutes,
+    cm.last_queue_wait_minutes,
+    cm.no_show_count,
+    cm.cancel_count,
+    cm.visits_last_30d,
+    cm.visits_prev_30d
+   FROM (public.restaurant_customers rc
+     LEFT JOIN public.customer_metrics cm ON (cm.customer_id = rc.id))
+  WHERE (rc.restaurant_id IN ( SELECT restaurant_members.restaurant_id
+           FROM public.restaurant_members
+          WHERE (restaurant_members.user_id = auth.uid())
+        UNION
+         SELECT restaurants.id
+           FROM public.restaurants
+          WHERE (restaurants.owner_id = auth.uid())));
+
+-- Fix register_customer_visit to NOT update total_visits (it's generated)
+CREATE OR REPLACE FUNCTION public.register_customer_visit(
+  p_restaurant_id uuid,
+  p_email text,
+  p_name text DEFAULT NULL,
+  p_phone text DEFAULT NULL,
+  p_source text DEFAULT 'registro_manual',
+  p_notes text DEFAULT NULL,
+  p_visit_date timestamptz DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_customer_id uuid;
+  v_visit_id uuid;
+  v_sanitized_email text;
+  v_is_new boolean := false;
+BEGIN
+  IF p_email IS NULL OR TRIM(p_email) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Email é obrigatório');
+  END IF;
+
+  v_sanitized_email := LOWER(TRIM(p_email));
+
+  IF NOT EXISTS (SELECT 1 FROM public.restaurants WHERE id = p_restaurant_id) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Restaurante não encontrado');
+  END IF;
+
+  -- Try to find by phone first (normalized), then by email
+  IF p_phone IS NOT NULL AND TRIM(p_phone) != '' THEN
+    SELECT id INTO v_customer_id
+    FROM public.restaurant_customers
+    WHERE restaurant_id = p_restaurant_id
+      AND regexp_replace(COALESCE(customer_phone, ''), '\D', '', 'g') = regexp_replace(p_phone, '\D', '', 'g')
+    LIMIT 1;
+  END IF;
+
+  IF v_customer_id IS NULL THEN
+    SELECT id INTO v_customer_id
+    FROM public.restaurant_customers
+    WHERE restaurant_id = p_restaurant_id
+      AND customer_email = v_sanitized_email;
+  END IF;
+
+  IF v_customer_id IS NULL THEN
+    v_is_new := true;
+    v_customer_id := public.upsert_restaurant_customer(
+      p_restaurant_id,
+      v_sanitized_email,
+      p_name,
+      p_phone,
+      'manual'::text,
+      NULL::boolean,
+      NULL::boolean,
+      'v1'::text,
+      'v1'::text
+    );
+  END IF;
+
+  INSERT INTO public.customer_visits (restaurant_id, customer_id, visit_date, source, notes, registered_by)
+  VALUES (
+    p_restaurant_id,
+    v_customer_id,
+    COALESCE(p_visit_date, now()),
+    p_source,
+    NULLIF(TRIM(p_notes), ''),
+    auth.uid()
+  )
+  RETURNING id INTO v_visit_id;
+
+  UPDATE public.restaurant_customers
+  SET
+    total_manual_visits = COALESCE(total_manual_visits, 0) + 1,
+    last_seen_at = GREATEST(COALESCE(last_seen_at, COALESCE(p_visit_date, now())), COALESCE(p_visit_date, now())),
+    vip = CASE
+      WHEN (COALESCE(total_queue_visits, 0) + COALESCE(total_reservation_visits, 0) + COALESCE(total_manual_visits, 0) + 1) >= 10 THEN true
+      ELSE vip
+    END
+  WHERE id = v_customer_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'customer_id', v_customer_id,
+    'visit_id', v_visit_id,
+    'is_new_customer', v_is_new,
+    'message', CASE
+      WHEN v_is_new THEN 'Cliente cadastrado e visita registrada'
+      ELSE 'Visita registrada com sucesso'
+    END
+  );
+END;
+$$;
