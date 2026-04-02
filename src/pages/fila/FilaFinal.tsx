@@ -192,38 +192,35 @@ export default function FilaFinal() {
 
     // Libera a próxima tela imediatamente ao clicar, sem esperar persistência
     setConsentConfirmed(true);
+    setConsentLoading(false);
+    setSavingConsent(false);
 
-      // Se não houver identificador algum, apenas liberar a visualização para não travar
-      const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
+    const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
 
-      if (!customerConsentEmail) {
-      setConsentConfirmed(true);
+    // Se não houver identificador algum, apenas liberar a visualização para não travar
+    if (!customerConsentEmail) {
       return;
     }
 
-    setSavingConsent(true);
-    
-    try {
-      // Salvar termos aceitos E fazer upsert no CRM consolidado
-      // Passando phone (se existir) e marketing optin para a função RPC
-      const saved = await saveTermsConsent(
-        queueInfo.restaurant_id,
-        queueInfo.ticket_id,
-        customerConsentEmail,
-        queueInfo.customer_name,
-        localTermsAccepted,
-        queueInfo.customer_phone,
-        localMarketingOptin // Passa o marketing optin para o CRM
-      );
+    void (async () => {
+      try {
+        const saved = await saveTermsConsent(
+          queueInfo.restaurant_id,
+          queueInfo.ticket_id,
+          customerConsentEmail,
+          queueInfo.customer_name,
+          localTermsAccepted,
+          queueInfo.customer_phone,
+          localMarketingOptin
+        );
 
-      if (!saved) {
-        console.warn('[FilaFinal] Consentimento não persistido, mas a visualização foi liberada.');
+        if (!saved) {
+          console.warn('[FilaFinal] Consentimento não persistido, mas a visualização foi liberada.');
+        }
+      } catch (error) {
+        console.error('Erro ao salvar consentimento:', error);
       }
-    } catch (error) {
-      console.error('Erro ao salvar consentimento:', error);
-    } finally {
-      setSavingConsent(false);
-    }
+    })();
   };
 
   // Inicialização
