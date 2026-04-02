@@ -506,7 +506,7 @@ Deno.serve(async (req) => {
 
       const { data: customers, error: custListError } = await supabase
         .from("restaurant_customers")
-        .select("id, customer_name, customer_email, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
+        .select("id, customer_name, customer_email, customer_phone, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
         .eq("restaurant_id", restaurant_id);
 
       if (custListError) {
