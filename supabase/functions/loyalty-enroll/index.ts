@@ -246,19 +246,19 @@ async function sendActivationEmail(customer: any, programName: string, restauran
   return true;
 }
 
-async function sendRewardEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, rewardValidityDays: number): Promise<boolean> {
+async function sendRewardEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, rewardValidityDays: number, trackingUrl?: string): Promise<boolean> {
   const expiresDate = new Date(Date.now() + rewardValidityDays * 24 * 60 * 60 * 1000);
   const formattedExpiry = expiresDate.toLocaleDateString("pt-BR");
   const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
   const subject = sanitizeSubject(`Recompensa desbloqueada - ${restaurantName}`);
-  const html = buildRewardHtml(customer, programName, restaurantName, rewardDescription, formattedExpiry, requiredVisits);
-  const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nVoce completou ${requiredVisits} visitas.\nVoce ganhou: ${rewardDescription}\nValido ate: ${formattedExpiry}\n\nApresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
+  const html = buildRewardHtml(customer, programName, restaurantName, rewardDescription, formattedExpiry, requiredVisits, trackingUrl);
+  const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nVoce completou ${requiredVisits} visitas.\nVoce ganhou: ${rewardDescription}\nValido ate: ${formattedExpiry}\n\n${trackingUrl ? `Veja seu programa: ${trackingUrl}\n\n` : ''}Apresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
 
   console.log("[loyalty-enroll] Sending REWARD email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
   // SMS + WhatsApp
-  const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}. Apresente esta mensagem na sua proxima visita!`;
+  const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}.${trackingUrl ? ` Veja: ${trackingUrl}` : ''} Apresente esta mensagem na sua proxima visita!`;
   await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
