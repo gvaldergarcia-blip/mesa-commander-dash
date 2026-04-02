@@ -297,12 +297,15 @@ async function processReminders(supabase: any, statusRow: any, customer: any, pr
   const remaining = requiredVisits - currentVisits;
   if (remaining < 2 || remaining > 5) return 0;
 
+  // Build tracking URL from token
+  const trackingUrl = statusRow?.loyalty_token ? `${TRACKING_BASE_URL}/${statusRow.loyalty_token}` : undefined;
+
   let emailsSent = 0;
   const reminderField = `reminder_${remaining}_sent`;
   const alreadySent = statusRow?.[reminderField] === true;
 
   if (!alreadySent) {
-    const sent = await sendReminderEmail(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining);
+    const sent = await sendReminderEmail(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining, trackingUrl);
     if (sent) {
       await supabase.from("customer_loyalty_status").update({ [reminderField]: true }).eq("id", statusRow.id);
       emailsSent++;
