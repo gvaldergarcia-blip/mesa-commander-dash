@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { resolveCustomerConsentEmail } from '@/utils/customerIdentifiers';
 
 interface ReservationInfo {
   reservation_id: string;
@@ -56,18 +57,6 @@ interface ReservationInfo {
   canceled_at: string | null;
   tolerance_minutes: number;
 }
-
-const normalizePhone = (phone?: string | null) => (phone || '').replace(/\D/g, '');
-
-const resolveCustomerConsentEmail = (email?: string | null, phone?: string | null) => {
-  const normalizedEmail = email?.trim().toLowerCase() || '';
-  if (normalizedEmail) return normalizedEmail;
-
-  const phoneDigits = normalizePhone(phone);
-  if (phoneDigits.length >= 10) return `${phoneDigits}@phone.local`;
-
-  return null;
-};
 
 export default function ReservaFinal() {
   const [searchParams] = useSearchParams();
@@ -531,7 +520,7 @@ export default function ReservaFinal() {
                   htmlFor="offers-consent"
                   className="text-sm font-medium leading-tight cursor-pointer"
                 >
-                  Quero receber ofertas e novidades por SMS de {reservationInfo.restaurant_name}
+                  Quero receber ofertas e novidades por SMS do restaurante {reservationInfo.restaurant_name}
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   Opcional - Você pode cancelar a qualquer momento

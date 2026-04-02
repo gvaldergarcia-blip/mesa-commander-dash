@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useReservationsRealtime } from './useReservationsRealtime';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { sanitizeOptionalEmail } from '@/utils/customerIdentifiers';
 
 type Reservation = {
   reservation_id: string;
@@ -110,12 +111,13 @@ export function useReservations() {
   const createReservation = async (reservation: { customer_name: string; customer_phone: string; customer_email?: string; people: number; starts_at: string; notes?: string }) => {
     try {
       const phoneDigits = reservation.customer_phone.replace(/\D/g, '');
+      const sanitizedEmail = sanitizeOptionalEmail(reservation.customer_email);
 
       const { data, error } = await supabase.rpc('create_reservation_panel', {
         p_restaurant_id: restaurantId,
         p_name: reservation.customer_name,
         p_customer_phone: phoneDigits,
-        p_customer_email: reservation.customer_email || null,
+        p_customer_email: sanitizedEmail,
         p_reserved_for: reservation.starts_at,
         p_party_size: reservation.people,
         p_notes: reservation.notes ?? null,
@@ -128,7 +130,7 @@ export function useReservations() {
       try {
         await supabase.rpc('upsert_restaurant_customer', {
           p_restaurant_id: restaurantId,
-          p_email: reservation.customer_email || `${phoneDigits}@phone.local`,
+          p_email: sanitizedEmail || `${phoneDigits}@phone.local`,
           p_name: reservation.customer_name,
           p_phone: phoneDigits,
           p_source: 'reservation',
@@ -178,11 +180,11 @@ export function useReservations() {
       }
 
       // Enviar e-mail se fornecido
-      if (reservation.customer_email) {
+      if (sanitizedEmail) {
         try {
           await supabase.functions.invoke('send-reservation-email', {
             body: {
-              email: reservation.customer_email,
+              email: sanitizedEmail,
               customer_name: reservation.customer_name,
               restaurant_name: restaurantName,
               restaurant_address: restaurantData?.address_line || null,
