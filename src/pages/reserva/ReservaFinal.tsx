@@ -117,9 +117,10 @@ export default function ReservaFinal() {
     fetchReservationInfo();
   }, [fetchReservationInfo]);
 
-  // Auto-confirmar consentimento se não tem email (telefone é obrigatório, email opcional)
+  // Auto-confirmar consentimento se não tem email real (telefone é obrigatório, email opcional)
+  // Emails @phone.local são fallback gerados automaticamente
   useEffect(() => {
-    if (reservationInfo && !reservationInfo.customer_email) {
+    if (reservationInfo && (!reservationInfo.customer_email || reservationInfo.customer_email.endsWith('@phone.local'))) {
       setConsentConfirmed(true);
     }
   }, [reservationInfo]);
@@ -247,8 +248,8 @@ export default function ReservaFinal() {
   const handleConfirmConsent = async () => {
     if (!reservationInfo) return;
 
-    // Se não tem email, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
-    if (!reservationInfo.customer_email) {
+    // Se não tem email real, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
+    if (!reservationInfo.customer_email || reservationInfo.customer_email.endsWith('@phone.local')) {
       setConsentConfirmed(true);
       return;
     }
