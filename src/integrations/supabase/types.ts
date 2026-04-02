@@ -3343,7 +3343,7 @@ export type Database = {
       register_customer_visit:
         | {
             Args: {
-              p_email: string
+              p_email?: string
               p_name?: string
               p_notes?: string
               p_phone?: string
