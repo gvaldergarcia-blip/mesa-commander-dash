@@ -69,13 +69,34 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         .maybeSingle();
       
       // 2. Buscar restaurante do usuário via membership (CRÍTICO: filtrar por user_id)
-      const { data: membership } = await (supabase as any)
+      // Buscar TODAS as memberships para priorizar restaurante com subscription ativa
+      const { data: allMemberships } = await (supabase as any)
         .schema('public')
         .from('restaurant_members')
         .select('restaurant_id, role')
         .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
+      
+      // Se tem múltiplas memberships, priorizar restaurante com subscription ativa/trial
+      let membership = allMemberships?.[0] || null;
+      if (allMemberships && allMemberships.length > 1) {
+        const { data: subs } = await (supabase as any)
+          .schema('public')
+          .from('subscriptions')
+          .select('restaurant_id, status')
+          .in('restaurant_id', allMemberships.map((m: any) => m.restaurant_id));
+        
+        const activeRestaurantIds = new Set(
+          (subs || [])
+            .filter((s: any) => s.status === 'trialing' || s.status === 'active')
+            .map((s: any) => s.restaurant_id)
+        );
+        
+        const activeMembership = allMemberships.find((m: any) => activeRestaurantIds.has(m.restaurant_id));
+        if (activeMembership) {
+          membership = activeMembership;
+        }
+      }
       
       let targetRestaurantId: string | null = null;
       
