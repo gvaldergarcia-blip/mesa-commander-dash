@@ -48,7 +48,7 @@ export default function Login() {
           <div className="mx-auto w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-2">
             <span className="text-2xl font-black text-primary-foreground">MC</span>
           </div>
-           <CardTitle className="text-2xl font-bold text-foreground">MesaClik</CardTitle>
+          <CardTitle className="text-2xl font-bold text-foreground">MesaClik</CardTitle>
           <CardDescription className="text-muted-foreground">
             Acesse o painel do seu restaurante
           </CardDescription>
@@ -58,7 +58,6 @@ export default function Login() {
               mesaclik.com.br
             </a>
           </p>
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
