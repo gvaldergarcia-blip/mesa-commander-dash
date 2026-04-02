@@ -269,17 +269,17 @@ async function sendRewardEmail(customer: any, programName: string, restaurantNam
   return true;
 }
 
-async function sendReminderEmail(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number): Promise<boolean> {
+async function sendReminderEmail(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number, trackingUrl?: string): Promise<boolean> {
   const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
   const subject = sanitizeSubject(`Faltam ${remaining} visitas para sua recompensa - ${restaurantName}`);
-  const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining);
-  const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\nNos vemos em breve!\nEquipe ${restaurantName}`;
+  const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining, trackingUrl);
+  const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\n${trackingUrl ? `Acompanhe: ${trackingUrl}\n\n` : ''}Nos vemos em breve!\nEquipe ${restaurantName}`;
 
   console.log("[loyalty-enroll] Sending REMINDER email:", JSON.stringify({ to: customer.customer_email, remaining }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
   // SMS + WhatsApp
-  const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!`;
+  const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
   await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
