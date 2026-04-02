@@ -81,7 +81,7 @@ export function QueueConsentForm({
             htmlFor="marketing-consent"
             className="text-sm font-medium leading-tight cursor-pointer"
           >
-            Quero receber ofertas e novidades por e-mail e SMS de {restaurantName}.
+            Quero receber ofertas e novidades por SMS de {restaurantName}.
           </Label>
           <p className="text-xs text-muted-foreground">
             Opcional - Você pode cancelar a qualquer momento

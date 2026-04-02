@@ -57,6 +57,11 @@ interface ReservationInfo {
   tolerance_minutes: number;
 }
 
+const hasRealCustomerEmail = (email?: string | null) => {
+  const normalizedEmail = email?.trim().toLowerCase() || '';
+  return normalizedEmail !== '' && !normalizedEmail.endsWith('@phone.local');
+};
+
 export default function ReservaFinal() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -104,6 +109,9 @@ export default function ReservaFinal() {
       }
 
       setReservationInfo(data);
+      if (!hasRealCustomerEmail(data.customer_email)) {
+        setConsentConfirmed(true);
+      }
       setNotFound(false);
     } catch (err) {
       console.error('Erro ao buscar reserva:', err);
@@ -120,7 +128,7 @@ export default function ReservaFinal() {
   // Auto-confirmar consentimento se não tem email real (telefone é obrigatório, email opcional)
   // Emails @phone.local são fallback gerados automaticamente
   useEffect(() => {
-    if (reservationInfo && (!reservationInfo.customer_email || reservationInfo.customer_email.endsWith('@phone.local'))) {
+    if (reservationInfo && !hasRealCustomerEmail(reservationInfo.customer_email)) {
       setConsentConfirmed(true);
     }
   }, [reservationInfo]);
@@ -249,7 +257,7 @@ export default function ReservaFinal() {
     if (!reservationInfo) return;
 
     // Se não tem email real, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
-    if (!reservationInfo.customer_email || reservationInfo.customer_email.endsWith('@phone.local')) {
+    if (!hasRealCustomerEmail(reservationInfo.customer_email)) {
       setConsentConfirmed(true);
       return;
     }
@@ -514,7 +522,7 @@ export default function ReservaFinal() {
                   htmlFor="offers-consent"
                   className="text-sm font-medium leading-tight cursor-pointer"
                 >
-                  Aceito receber ofertas e promoções por e-mail e SMS
+                  Quero receber ofertas e novidades por SMS de {reservationInfo.restaurant_name}
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   Opcional - Você pode cancelar a qualquer momento

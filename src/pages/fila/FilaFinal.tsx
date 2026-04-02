@@ -32,6 +32,11 @@ interface QueueInfo {
   tolerance_minutes?: number;
 }
 
+const hasRealCustomerEmail = (email?: string | null) => {
+  const normalizedEmail = email?.trim().toLowerCase() || '';
+  return normalizedEmail !== '' && !normalizedEmail.endsWith('@phone.local');
+};
+
 export default function FilaFinal() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -103,7 +108,7 @@ export default function FilaFinal() {
       const sizeGroup = getSizeGroup(partySize);
       const position: number | null = typeof data.position === 'number' ? data.position : null;
 
-      setQueueInfo({
+      const nextQueueInfo = {
         ticket_id: data.ticket_id || ticketId || '',
         queue_id: data.queue_id || '',
         restaurant_id: data.restaurant_id || restauranteIdParam || '',
@@ -117,7 +122,13 @@ export default function FilaFinal() {
         customer_email: data.customer_email,
         customer_name: data.customer_name,
         tolerance_minutes: data.tolerance_minutes ?? 10,
-      });
+      };
+
+      setQueueInfo(nextQueueInfo);
+      if (!hasRealCustomerEmail(nextQueueInfo.customer_email)) {
+        setConsentConfirmed(true);
+        setConsentLoading(false);
+      }
 
       setNotFound(false);
     } catch (err) {
@@ -138,7 +149,7 @@ export default function FilaFinal() {
 
       // Se não tem email real, pular consentimento e mostrar posição diretamente
       // Emails @phone.local são gerados automaticamente quando o cliente não informa email
-      if (!queueInfo.customer_email || queueInfo.customer_email.endsWith('@phone.local')) {
+      if (!hasRealCustomerEmail(queueInfo.customer_email)) {
         setConsentConfirmed(true);
         setConsentLoading(false);
         return;
@@ -180,7 +191,7 @@ export default function FilaFinal() {
     }
 
     // Se não tem email real, apenas confirmar consent e seguir
-    if (!queueInfo.customer_email || queueInfo.customer_email.endsWith('@phone.local')) {
+    if (!hasRealCustomerEmail(queueInfo.customer_email)) {
       setConsentConfirmed(true);
       return;
     }
