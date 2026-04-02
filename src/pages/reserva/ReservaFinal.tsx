@@ -254,34 +254,18 @@ export default function ReservaFinal() {
 
     // Libera a próxima tela imediatamente ao clicar, sem esperar persistência
     setConsentConfirmed(true);
+    setSavingConsent(false);
 
     const customerConsentEmail = resolveCustomerConsentEmail(reservationInfo.customer_email, reservationInfo.phone);
 
     // Se realmente não houver identificador, não travar a experiência do cliente
     if (!customerConsentEmail) {
-      setConsentConfirmed(true);
       return;
     }
     
-    setSavingConsent(true);
-    try {
-      // Usar assinatura mais específica da RPC para evitar ambiguidade entre overloads
-      const rpcPayload = {
-        p_restaurant_id: reservationInfo.restaurant_id,
-        p_email: customerConsentEmail,
-        p_name: reservationInfo.customer_name || null,
-        p_phone: reservationInfo.phone || null,
-        p_source: 'reservation',
-        p_marketing_optin: offersOptIn,
-        p_terms_accepted: true,
-        p_opt_in_source: offersOptIn ? 'reservation_gateway' : null,
-      };
-
-      let { error: rpcError } = await supabase.rpc('upsert_restaurant_customer', rpcPayload);
-
-      // Fallback para ambientes antigos sem p_opt_in_source
-      if (rpcError?.message?.includes('p_opt_in_source')) {
-        ({ error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
+    void (async () => {
+      try {
+        const rpcPayload = {
           p_restaurant_id: reservationInfo.restaurant_id,
           p_email: customerConsentEmail,
           p_name: reservationInfo.customer_name || null,
@@ -289,19 +273,32 @@ export default function ReservaFinal() {
           p_source: 'reservation',
           p_marketing_optin: offersOptIn,
           p_terms_accepted: true,
-        }));
-      }
+          p_opt_in_source: offersOptIn ? 'reservation_gateway' : null,
+        };
 
-      if (rpcError) {
-        console.warn('[ReservaFinal] Consentimento não persistido, mas a reserva foi liberada:', rpcError);
-      } else {
-        console.log('[ReservaFinal] Consentimento salvo com sucesso via RPC. marketing_optin:', offersOptIn);
+        let { error: rpcError } = await supabase.rpc('upsert_restaurant_customer', rpcPayload);
+
+        if (rpcError?.message?.includes('p_opt_in_source')) {
+          ({ error: rpcError } = await supabase.rpc('upsert_restaurant_customer', {
+            p_restaurant_id: reservationInfo.restaurant_id,
+            p_email: customerConsentEmail,
+            p_name: reservationInfo.customer_name || null,
+            p_phone: reservationInfo.phone || null,
+            p_source: 'reservation',
+            p_marketing_optin: offersOptIn,
+            p_terms_accepted: true,
+          }));
+        }
+
+        if (rpcError) {
+          console.warn('[ReservaFinal] Consentimento não persistido, mas a reserva foi liberada:', rpcError);
+        } else {
+          console.log('[ReservaFinal] Consentimento salvo com sucesso via RPC. marketing_optin:', offersOptIn);
+        }
+      } catch (err) {
+        console.warn('[ReservaFinal] Erro ao salvar consentimento após liberar a reserva:', err);
       }
-    } catch (err) {
-      console.warn('[ReservaFinal] Erro ao salvar consentimento após liberar a reserva:', err);
-    } finally {
-      setSavingConsent(false);
-    }
+    })();
   };
 
   // Handler para cancelar reserva - usa RPC para atualizar mesaclik.reservations
