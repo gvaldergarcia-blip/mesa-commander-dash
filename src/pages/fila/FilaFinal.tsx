@@ -53,14 +53,20 @@ export default function FilaFinal() {
   const [localMarketingOptin, setLocalMarketingOptin] = useState(false);
   const [consentLoading, setConsentLoading] = useState(true);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [trackingViewUnlocked, setTrackingViewUnlocked] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
+
+  const openTrackingView = useCallback(() => {
+    setTrackingViewUnlocked(true);
+    setConsentConfirmed(true);
+    setConsentLoading(false);
+    setSavingConsent(false);
+  }, []);
   
   // Hook de consentimento
-  const { 
-    fetchConsents, 
-    saveTermsConsent, 
-    saveMarketingOptin,
-    loading: consentHookLoading 
+  const {
+    fetchConsents,
+    saveTermsConsent,
   } = useQueueConsent();
 
   // Atualizar título da aba do navegador
@@ -123,9 +129,9 @@ export default function FilaFinal() {
       };
 
       setQueueInfo(nextQueueInfo);
+
       if (!resolveCustomerConsentEmail(nextQueueInfo.customer_email, nextQueueInfo.customer_phone)) {
-        setConsentConfirmed(true);
-        setConsentLoading(false);
+        openTrackingView();
       }
 
       setNotFound(false);
@@ -135,7 +141,7 @@ export default function FilaFinal() {
     } finally {
       setLoading(false);
     }
-  }, [ticketId, restauranteIdParam]);
+  }, [ticketId, restauranteIdParam, openTrackingView]);
 
   // Buscar consentimentos existentes quando tiver as infos da fila
   useEffect(() => {
@@ -150,8 +156,7 @@ export default function FilaFinal() {
       const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
 
       if (!customerConsentEmail) {
-        setConsentConfirmed(true);
-        setConsentLoading(false);
+        openTrackingView();
         return;
       }
 
@@ -164,15 +169,20 @@ export default function FilaFinal() {
       
       setLocalTermsAccepted(termsAccepted);
       setLocalMarketingOptin(marketingOptin);
-      // Se já aceitou termos antes, já pode ver a posição
-      setConsentConfirmed(termsAccepted);
+
+      if (termsAccepted) {
+        openTrackingView();
+        return;
+      }
+
+      setConsentConfirmed(false);
       setConsentLoading(false);
     };
 
     if (queueInfo) {
       loadConsents();
     }
-  }, [queueInfo?.restaurant_id, queueInfo?.ticket_id, queueInfo?.customer_email, queueInfo?.customer_phone, fetchConsents]);
+  }, [queueInfo?.restaurant_id, queueInfo?.ticket_id, queueInfo?.customer_email, queueInfo?.customer_phone, fetchConsents, openTrackingView]);
 
   // Handler para mudança no checkbox de termos (apenas UI, não salva ainda)
   const handleTermsChange = (accepted: boolean) => {
@@ -190,10 +200,7 @@ export default function FilaFinal() {
       return;
     }
 
-    // Libera a próxima tela imediatamente ao clicar, sem esperar persistência
-    setConsentConfirmed(true);
-    setConsentLoading(false);
-    setSavingConsent(false);
+    openTrackingView();
 
     const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
 
@@ -356,9 +363,10 @@ export default function FilaFinal() {
 
   const config = statusConfig[queueInfo.status] || statusConfig.waiting;
   const StatusIcon = config.icon;
+  const shouldShowTrackingView = trackingViewUnlocked || consentConfirmed;
 
   // Se ainda não confirmou consentimento, mostrar tela de consentimento
-  if (!consentConfirmed && !consentLoading) {
+  if (!shouldShowTrackingView && !consentLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-0">
@@ -388,6 +396,7 @@ export default function FilaFinal() {
 
             {/* Botão desabilitado até aceitar termos */}
             <Button
+              type="button"
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
               disabled={!localTermsAccepted || savingConsent}
               onClick={handleConfirmConsent}
