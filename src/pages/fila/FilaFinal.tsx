@@ -136,8 +136,9 @@ export default function FilaFinal() {
         return;
       }
 
-      // Se não tem email, pular consentimento e mostrar posição diretamente
-      if (!queueInfo.customer_email) {
+      // Se não tem email real, pular consentimento e mostrar posição diretamente
+      // Emails @phone.local são gerados automaticamente quando o cliente não informa email
+      if (!queueInfo.customer_email || queueInfo.customer_email.endsWith('@phone.local')) {
         setConsentConfirmed(true);
         setConsentLoading(false);
         return;
