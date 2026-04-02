@@ -48,9 +48,16 @@ export default function Login() {
           <div className="mx-auto w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-2">
             <span className="text-2xl font-black text-primary-foreground">MC</span>
           </div>
-          <CardTitle className="text-2xl font-bold text-foreground">MesaClik</CardTitle>
+           <CardTitle className="text-2xl font-bold text-foreground">MesaClik</CardTitle>
           <CardDescription className="text-muted-foreground">
             Acesse o painel do seu restaurante
+          </CardDescription>
+          <p className="text-xs text-muted-foreground/70">
+            Não tem conta? Cadastre-se em{' '}
+            <a href="https://mesaclik.com.br" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+              mesaclik.com.br
+            </a>
+          </p>
           </CardDescription>
         </CardHeader>
         <CardContent>
