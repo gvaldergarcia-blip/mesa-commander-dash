@@ -460,6 +460,7 @@ export type Database = {
           custom_reward_validity_days: number | null
           customer_id: string
           id: string
+          loyalty_token: string
           reminder_2_sent: boolean
           reminder_3_sent: boolean
           reminder_4_sent: boolean
@@ -480,6 +481,7 @@ export type Database = {
           custom_reward_validity_days?: number | null
           customer_id: string
           id?: string
+          loyalty_token?: string
           reminder_2_sent?: boolean
           reminder_3_sent?: boolean
           reminder_4_sent?: boolean
@@ -500,6 +502,7 @@ export type Database = {
           custom_reward_validity_days?: number | null
           customer_id?: string
           id?: string
+          loyalty_token?: string
           reminder_2_sent?: boolean
           reminder_3_sent?: boolean
           reminder_4_sent?: boolean
@@ -3191,6 +3194,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_loyalty_tracking: { Args: { p_token: string }; Returns: Json }
       get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
       get_reports_queue_data:

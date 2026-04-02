@@ -6,7 +6,8 @@ const RESEND_FROM_MARKETING =
   Deno.env.get("RESEND_FROM_EMAIL") ||
   "ofertas@mesaclik.com.br";
 
-const FUNCTION_VERSION = "2026-03-10_v8_per_customer_reminders";
+const FUNCTION_VERSION = "2026-04-02_v9_tracking_link";
+const TRACKING_BASE_URL = Deno.env.get("LOYALTY_TRACKING_URL") || "https://mesa-commander-dash.lovable.app/clube";
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
 // ── CORS ──
@@ -204,34 +205,37 @@ function getEffectiveValues(statusRow: any, program: any) {
 }
 
 // ── Email builders ──
-function buildActivationHtml(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, currentVisits: number, visitsRemaining: number): string {
+function buildActivationHtml(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, currentVisits: number, visitsRemaining: number, trackingUrl?: string): string {
   const name = customer.customer_name || "Cliente";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Programa de Fidelidade</title></head><body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);"><tr><td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;"><h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Voce entrou no ${programName}!</h1><p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurantName}</p></td></tr><tr><td style="padding: 32px;"><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Ola <strong>${name}</strong>!</p><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Voce agora faz parte do <strong>${programName}</strong> do <strong>${restaurantName}</strong>.</p><p style="margin: 0 0 12px; color: #3f3f46; font-size: 16px;">Funciona assim:</p><ul style="color: #3f3f46; font-size: 15px; line-height: 1.8; padding-left: 20px;"><li>A cada visita concluida, voce acumula <strong>1 clique</strong>.</li><li>Ao completar <strong>${requiredVisits} visitas</strong>, voce ganha:</li></ul><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 16px 0;"><tr><td style="padding: 15px; background-color: #fff7ed; border-radius: 12px; text-align: center;"><p style="margin: 0; color: #9a3412; font-size: 18px; font-weight: bold;">${rewardDescription}</p></td></tr></table><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px;">Atualmente voce ja tem <strong>${currentVisits} visitas</strong> registradas. Faltam apenas <strong>${visitsRemaining}</strong> para desbloquear seu beneficio!</p><p style="margin: 0; color: #71717a; font-size: 14px; text-align: center;">Esperamos voce em breve!</p></td></tr><tr><td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;"><p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p></td></tr></table></td></tr></table></body></html>`;
+  const trackingButton = trackingUrl ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0;"><tr><td align="center"><a href="${trackingUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px;">Ver meu programa</a></td></tr></table>` : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Programa de Fidelidade</title></head><body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);"><tr><td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;"><h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Voce entrou no ${programName}!</h1><p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurantName}</p></td></tr><tr><td style="padding: 32px;"><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Ola <strong>${name}</strong>!</p><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Voce agora faz parte do <strong>${programName}</strong> do <strong>${restaurantName}</strong>.</p><p style="margin: 0 0 12px; color: #3f3f46; font-size: 16px;">Funciona assim:</p><ul style="color: #3f3f46; font-size: 15px; line-height: 1.8; padding-left: 20px;"><li>A cada visita concluida, voce acumula <strong>1 clique</strong>.</li><li>Ao completar <strong>${requiredVisits} visitas</strong>, voce ganha:</li></ul><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 16px 0;"><tr><td style="padding: 15px; background-color: #fff7ed; border-radius: 12px; text-align: center;"><p style="margin: 0; color: #9a3412; font-size: 18px; font-weight: bold;">${rewardDescription}</p></td></tr></table><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px;">Atualmente voce ja tem <strong>${currentVisits} visitas</strong> registradas. Faltam apenas <strong>${visitsRemaining}</strong> para desbloquear seu beneficio!</p>${trackingButton}<p style="margin: 0; color: #71717a; font-size: 14px; text-align: center;">Esperamos voce em breve!</p></td></tr><tr><td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;"><p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
-function buildRewardHtml(customer: any, programName: string, restaurantName: string, rewardDescription: string, formattedExpiry: string, requiredVisits: number): string {
+function buildRewardHtml(customer: any, programName: string, restaurantName: string, rewardDescription: string, formattedExpiry: string, requiredVisits: number, trackingUrl?: string): string {
   const name = customer.customer_name || "Cliente";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Recompensa Desbloqueada</title></head><body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(22, 163, 74, 0.15);"><tr><td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 16px 16px 0 0;"><h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Parabens! Recompensa desbloqueada!</h1><p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurantName}</p></td></tr><tr><td style="padding: 32px;"><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Ola <strong>${name}</strong>!</p><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Voce completou <strong>${requiredVisits} visitas</strong> no <strong>${restaurantName}</strong>!</p><p style="margin: 0 0 12px; color: #3f3f46; font-size: 16px;">Como prometido, voce ganhou:</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 16px 0;"><tr><td style="padding: 15px; background-color: #dcfce7; border-radius: 12px; text-align: center;"><p style="margin: 0; color: #166534; font-size: 18px; font-weight: bold;">${rewardDescription}</p></td></tr></table><p style="margin: 0 0 20px; color: #3f3f46; font-size: 14px;">Valido ate: <strong>${formattedExpiry}</strong></p><p style="margin: 0; color: #71717a; font-size: 14px; text-align: center;">Apresente este e-mail na sua proxima visita para resgatar seu premio!</p></td></tr><tr><td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;"><p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p></td></tr></table></td></tr></table></body></html>`;
+  const trackingButton = trackingUrl ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0;"><tr><td align="center"><a href="${trackingUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px;">Ver meu programa</a></td></tr></table>` : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Recompensa Desbloqueada</title></head><body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(22, 163, 74, 0.15);"><tr><td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 16px 16px 0 0;"><h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">Parabens! Recompensa desbloqueada!</h1><p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurantName}</p></td></tr><tr><td style="padding: 32px;"><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Ola <strong>${name}</strong>!</p><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Voce completou <strong>${requiredVisits} visitas</strong> no <strong>${restaurantName}</strong>!</p><p style="margin: 0 0 12px; color: #3f3f46; font-size: 16px;">Como prometido, voce ganhou:</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 16px 0;"><tr><td style="padding: 15px; background-color: #dcfce7; border-radius: 12px; text-align: center;"><p style="margin: 0; color: #166534; font-size: 18px; font-weight: bold;">${rewardDescription}</p></td></tr></table><p style="margin: 0 0 20px; color: #3f3f46; font-size: 14px;">Valido ate: <strong>${formattedExpiry}</strong></p>${trackingButton}<p style="margin: 0; color: #71717a; font-size: 14px; text-align: center;">Apresente este e-mail na sua proxima visita para resgatar seu premio!</p></td></tr><tr><td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;"><p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
-function buildReminderHtml(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number): string {
+function buildReminderHtml(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number, trackingUrl?: string): string {
   const name = customer.customer_name || "Cliente";
   const urgencyColor = remaining <= 2 ? "#dc2626" : remaining <= 3 ? "#f97316" : "#eab308";
   const urgencyBg = remaining <= 2 ? "#fef2f2" : remaining <= 3 ? "#fff7ed" : "#fefce8";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Faltam ${remaining} visitas!</title></head><body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.12);"><tr><td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;"><h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700;">Faltam apenas ${remaining} visitas!</h1><p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurantName}</p></td></tr><tr><td style="padding: 32px;"><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Ola <strong>${name}</strong>!</p><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Voce esta quase la! Ja acumulou <strong>${currentVisits} de ${requiredVisits} visitas</strong> no <strong>${programName}</strong>.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 16px 0;"><tr><td style="padding: 20px; background-color: ${urgencyBg}; border-left: 4px solid ${urgencyColor}; border-radius: 8px;"><p style="margin: 0 0 8px; color: ${urgencyColor}; font-size: 24px; font-weight: bold; text-align: center;">Faltam ${remaining}!</p><p style="margin: 0; color: #3f3f46; font-size: 14px; text-align: center;">Visite o <strong>${restaurantName}</strong> e acumule mais cliques</p></td></tr></table><p style="margin: 20px 0 8px; color: #3f3f46; font-size: 15px;">Sua recompensa ao completar:</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 8px 0 20px;"><tr><td style="padding: 15px; background-color: #fff7ed; border-radius: 12px; text-align: center;"><p style="margin: 0; color: #9a3412; font-size: 18px; font-weight: bold;">${rewardDescription}</p></td></tr></table><p style="margin: 0; color: #71717a; font-size: 14px; text-align: center;">Nos vemos em breve!</p></td></tr><tr><td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;"><p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p></td></tr></table></td></tr></table></body></html>`;
+  const trackingButton = trackingUrl ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0;"><tr><td align="center"><a href="${trackingUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px;">Ver meu programa</a></td></tr></table>` : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Faltam ${remaining} visitas!</title></head><body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #fef6ee;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef6ee; padding: 40px 20px;"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(249, 115, 22, 0.12);"><tr><td style="padding: 32px 32px 24px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px 16px 0 0;"><h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700;">Faltam apenas ${remaining} visitas!</h1><p style="margin: 8px 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px;">${restaurantName}</p></td></tr><tr><td style="padding: 32px;"><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Ola <strong>${name}</strong>!</p><p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">Voce esta quase la! Ja acumulou <strong>${currentVisits} de ${requiredVisits} visitas</strong> no <strong>${programName}</strong>.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 16px 0;"><tr><td style="padding: 20px; background-color: ${urgencyBg}; border-left: 4px solid ${urgencyColor}; border-radius: 8px;"><p style="margin: 0 0 8px; color: ${urgencyColor}; font-size: 24px; font-weight: bold; text-align: center;">Faltam ${remaining}!</p><p style="margin: 0; color: #3f3f46; font-size: 14px; text-align: center;">Visite o <strong>${restaurantName}</strong> e acumule mais cliques</p></td></tr></table><p style="margin: 20px 0 8px; color: #3f3f46; font-size: 15px;">Sua recompensa ao completar:</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 8px 0 20px;"><tr><td style="padding: 15px; background-color: #fff7ed; border-radius: 12px; text-align: center;"><p style="margin: 0; color: #9a3412; font-size: 18px; font-weight: bold;">${rewardDescription}</p></td></tr></table>${trackingButton}<p style="margin: 0; color: #71717a; font-size: 14px; text-align: center;">Nos vemos em breve!</p></td></tr><tr><td style="padding: 24px 32px; background-color: #fafafa; border-radius: 0 0 16px 16px; text-align: center;"><p style="margin: 0; color: #a1a1aa; font-size: 12px;">Este e-mail foi enviado pelo ${restaurantName}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
-async function sendActivationEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, currentVisits: number, visitsRemaining: number): Promise<boolean> {
+async function sendActivationEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, currentVisits: number, visitsRemaining: number, trackingUrl?: string): Promise<boolean> {
   const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
   const subject = sanitizeSubject(`Voce entrou no ${programName} - ${restaurantName}`);
-  const html = buildActivationHtml(customer, programName, restaurantName, requiredVisits, rewardDescription, currentVisits, visitsRemaining);
-  const text = `Voce entrou no ${programName} do ${restaurantName}!\n\nOla ${customer.customer_name || "Cliente"}!\nA cada visita concluida, voce acumula 1 clique.\nAo completar ${requiredVisits} visitas, voce ganha: ${rewardDescription}\nAtualmente voce ja tem ${currentVisits} visitas. Faltam ${visitsRemaining}!\n\nEsperamos voce em breve!\nEquipe ${restaurantName}`;
+  const html = buildActivationHtml(customer, programName, restaurantName, requiredVisits, rewardDescription, currentVisits, visitsRemaining, trackingUrl);
+  const text = `Voce entrou no ${programName} do ${restaurantName}!\n\nOla ${customer.customer_name || "Cliente"}!\nA cada visita concluida, voce acumula 1 clique.\nAo completar ${requiredVisits} visitas, voce ganha: ${rewardDescription}\nAtualmente voce ja tem ${currentVisits} visitas. Faltam ${visitsRemaining}!\n\n${trackingUrl ? `Acompanhe seu progresso: ${trackingUrl}\n\n` : ''}Esperamos voce em breve!\nEquipe ${restaurantName}`;
 
   console.log("[loyalty-enroll] Sending ACTIVATION email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
   // SMS + WhatsApp
-  const smsText = `${restaurantName}: Voce entrou no ${programName}! Complete ${requiredVisits} visitas e ganhe: ${rewardDescription}. Voce ja tem ${currentVisits}. Faltam ${visitsRemaining}!`;
+  const smsText = `${restaurantName}: Voce entrou no ${programName}! Complete ${requiredVisits} visitas e ganhe: ${rewardDescription}. Voce ja tem ${currentVisits}. Faltam ${visitsRemaining}!${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
   await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
@@ -242,19 +246,19 @@ async function sendActivationEmail(customer: any, programName: string, restauran
   return true;
 }
 
-async function sendRewardEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, rewardValidityDays: number): Promise<boolean> {
+async function sendRewardEmail(customer: any, programName: string, restaurantName: string, requiredVisits: number, rewardDescription: string, rewardValidityDays: number, trackingUrl?: string): Promise<boolean> {
   const expiresDate = new Date(Date.now() + rewardValidityDays * 24 * 60 * 60 * 1000);
   const formattedExpiry = expiresDate.toLocaleDateString("pt-BR");
   const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
   const subject = sanitizeSubject(`Recompensa desbloqueada - ${restaurantName}`);
-  const html = buildRewardHtml(customer, programName, restaurantName, rewardDescription, formattedExpiry, requiredVisits);
-  const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nVoce completou ${requiredVisits} visitas.\nVoce ganhou: ${rewardDescription}\nValido ate: ${formattedExpiry}\n\nApresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
+  const html = buildRewardHtml(customer, programName, restaurantName, rewardDescription, formattedExpiry, requiredVisits, trackingUrl);
+  const text = `Parabens! Recompensa desbloqueada no ${restaurantName}!\n\nVoce completou ${requiredVisits} visitas.\nVoce ganhou: ${rewardDescription}\nValido ate: ${formattedExpiry}\n\n${trackingUrl ? `Veja seu programa: ${trackingUrl}\n\n` : ''}Apresente este e-mail na sua proxima visita!\nEquipe ${restaurantName}`;
 
   console.log("[loyalty-enroll] Sending REWARD email:", JSON.stringify({ to: customer.customer_email, from: fromAddress, subject }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
   // SMS + WhatsApp
-  const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}. Apresente esta mensagem na sua proxima visita!`;
+  const smsText = `${restaurantName}: Parabens! Voce completou ${requiredVisits} visitas e ganhou: ${rewardDescription}. Valido ate ${formattedExpiry}.${trackingUrl ? ` Veja: ${trackingUrl}` : ''} Apresente esta mensagem na sua proxima visita!`;
   await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
@@ -265,17 +269,17 @@ async function sendRewardEmail(customer: any, programName: string, restaurantNam
   return true;
 }
 
-async function sendReminderEmail(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number): Promise<boolean> {
+async function sendReminderEmail(customer: any, programName: string, restaurantName: string, rewardDescription: string, currentVisits: number, requiredVisits: number, remaining: number, trackingUrl?: string): Promise<boolean> {
   const fromAddress = `Ofertas MesaClik <${RESEND_FROM_MARKETING}>`;
   const subject = sanitizeSubject(`Faltam ${remaining} visitas para sua recompensa - ${restaurantName}`);
-  const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining);
-  const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\nNos vemos em breve!\nEquipe ${restaurantName}`;
+  const html = buildReminderHtml(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining, trackingUrl);
+  const text = `Faltam apenas ${remaining} visitas!\n\nOla ${customer.customer_name || "Cliente"}!\nVoce ja tem ${currentVisits} de ${requiredVisits} visitas no ${programName} do ${restaurantName}.\nSua recompensa: ${rewardDescription}\n\n${trackingUrl ? `Acompanhe: ${trackingUrl}\n\n` : ''}Nos vemos em breve!\nEquipe ${restaurantName}`;
 
   console.log("[loyalty-enroll] Sending REMINDER email:", JSON.stringify({ to: customer.customer_email, remaining }));
   const result = await sendEmailViaResend(customer.customer_email, subject, html, fromAddress, text, buildMarketingHeaders());
 
   // SMS + WhatsApp
-  const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!`;
+  const smsText = `${restaurantName}: Faltam apenas ${remaining} visitas para sua recompensa: ${rewardDescription}. Voce ja tem ${currentVisits} de ${requiredVisits}!${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
   await sendSmsAndWhatsApp(customer.customer_phone, smsText);
 
   if (result.error) {
@@ -293,12 +297,15 @@ async function processReminders(supabase: any, statusRow: any, customer: any, pr
   const remaining = requiredVisits - currentVisits;
   if (remaining < 2 || remaining > 5) return 0;
 
+  // Build tracking URL from token
+  const trackingUrl = statusRow?.loyalty_token ? `${TRACKING_BASE_URL}/${statusRow.loyalty_token}` : undefined;
+
   let emailsSent = 0;
   const reminderField = `reminder_${remaining}_sent`;
   const alreadySent = statusRow?.[reminderField] === true;
 
   if (!alreadySent) {
-    const sent = await sendReminderEmail(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining);
+    const sent = await sendReminderEmail(customer, programName, restaurantName, rewardDescription, currentVisits, requiredVisits, remaining, trackingUrl);
     if (sent) {
       await supabase.from("customer_loyalty_status").update({ [reminderField]: true }).eq("id", statusRow.id);
       emailsSent++;
@@ -426,9 +433,11 @@ Deno.serve(async (req) => {
           reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
         }).eq("id", existing.id);
 
+        const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
+
         if (!existing.activation_email_sent && cust.customer_email) {
           const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
-          const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining);
+          const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
           if (sent) {
             await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("id", existing.id);
             emailsSent++;
@@ -436,7 +445,7 @@ Deno.serve(async (req) => {
         }
 
         if (rewardUnlocked && !existing.reward_email_sent && cust.customer_email) {
-          const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+          const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
           if (sent) {
             await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
             emailsSent++;
@@ -456,15 +465,17 @@ Deno.serve(async (req) => {
           activation_email_sent: false, reward_email_sent: false,
         }).select("*").single();
 
+        const trackingUrl = newStatus?.loyalty_token ? `${TRACKING_BASE_URL}/${newStatus.loyalty_token}` : undefined;
+
         if (cust.customer_email) {
           const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
-          const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining);
+          const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
           if (sent) {
             await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
             emailsSent++;
           }
           if (rewardUnlocked) {
-            const rewardSent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+            const rewardSent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
             if (rewardSent) {
               await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
               emailsSent++;
@@ -539,35 +550,39 @@ Deno.serve(async (req) => {
             reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
           }).eq("id", existing.id);
 
+          const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
+
           if (rewardUnlocked && !existing.reward_email_sent && cust.marketing_optin && cust.customer_email) {
-            const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+            const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
             if (sent) {
               await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", existing.id);
               emailsSent++;
             }
           }
 
-          // Process reminders for active customers
           if (!rewardUnlocked) {
             emailsSent += await processReminders(supabase, existing, cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits);
           }
         } else {
-          await supabase.from("customer_loyalty_status").insert({
+          const { data: newStat } = await supabase.from("customer_loyalty_status").insert({
             restaurant_id, customer_id: cust.id, current_visits: visits,
             reward_unlocked: rewardUnlocked,
             reward_unlocked_at: rewardUnlocked ? nowDate.toISOString() : null,
             reward_expires_at: rewardExpiresAt,
             activation_email_sent: false, reward_email_sent: false,
-          });
+          }).select("loyalty_token").single();
+
+          const trackingUrl = newStat?.loyalty_token ? `${TRACKING_BASE_URL}/${newStat.loyalty_token}` : undefined;
+
           if (cust.marketing_optin && cust.customer_email) {
             const visitsRemaining = Math.max(0, effective.requiredVisits - visits);
-            const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining);
+            const sent = await sendActivationEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits, visitsRemaining, trackingUrl);
             if (sent) {
               await supabase.from("customer_loyalty_status").update({ activation_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
               emailsSent++;
             }
             if (rewardUnlocked) {
-              const rewardSent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+              const rewardSent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
               if (rewardSent) {
                 await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("restaurant_id", restaurant_id).eq("customer_id", cust.id);
                 emailsSent++;

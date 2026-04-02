@@ -44,6 +44,9 @@ import PoliticaPrivacidade from "./pages/legal/PoliticaPrivacidade";
 import MarketingOptIn from "./pages/marketing/MarketingOptIn";
 import MarketingUnsubscribe from "./pages/marketing/MarketingUnsubscribe";
 
+// Clube MesaClik (público)
+import ClubeFidelidade from "./pages/clube/ClubeFidelidade";
+
 import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient();
@@ -124,6 +127,10 @@ const App = () => {
 
         {/* Rotas públicas marketing (sem DashboardLayout) */}
         <Route path="/marketing/optin" element={<MarketingOptIn />} />
+        <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
+
+        {/* Clube MesaClik - acompanhamento público de fidelidade */}
+        <Route path="/clube/:token" element={<ClubeFidelidade />} />
         <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
 
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
