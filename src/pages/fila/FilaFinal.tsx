@@ -179,8 +179,8 @@ export default function FilaFinal() {
       return;
     }
 
-    // Se não tem email, apenas confirmar consent e seguir
-    if (!queueInfo.customer_email) {
+    // Se não tem email real, apenas confirmar consent e seguir
+    if (!queueInfo.customer_email || queueInfo.customer_email.endsWith('@phone.local')) {
       setConsentConfirmed(true);
       return;
     }

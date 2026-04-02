@@ -248,8 +248,8 @@ export default function ReservaFinal() {
   const handleConfirmConsent = async () => {
     if (!reservationInfo) return;
 
-    // Se não tem email, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
-    if (!reservationInfo.customer_email) {
+    // Se não tem email real, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
+    if (!reservationInfo.customer_email || reservationInfo.customer_email.endsWith('@phone.local')) {
       setConsentConfirmed(true);
       return;
     }
