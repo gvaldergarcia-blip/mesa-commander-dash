@@ -117,6 +117,13 @@ export default function ReservaFinal() {
     fetchReservationInfo();
   }, [fetchReservationInfo]);
 
+  // Auto-confirmar consentimento se não tem email (telefone é obrigatório, email opcional)
+  useEffect(() => {
+    if (reservationInfo && !reservationInfo.customer_email) {
+      setConsentConfirmed(true);
+    }
+  }, [reservationInfo]);
+
   // Ref para controlar o último status (evita toasts duplicados)
   const lastStatusRef = useRef<string | null>(null);
 
@@ -238,7 +245,13 @@ export default function ReservaFinal() {
   // IMPORTANTE: Usa RPC SECURITY DEFINER para garantir que o upsert funcione
   // mesmo em páginas públicas sem autenticação (anon key + RLS)
   const handleConfirmConsent = async () => {
-    if (!reservationInfo || !reservationInfo.customer_email) return;
+    if (!reservationInfo) return;
+
+    // Se não tem email, apenas confirmar consent e seguir (telefone é obrigatório, email opcional)
+    if (!reservationInfo.customer_email) {
+      setConsentConfirmed(true);
+      return;
+    }
     
     setSavingConsent(true);
     try {
