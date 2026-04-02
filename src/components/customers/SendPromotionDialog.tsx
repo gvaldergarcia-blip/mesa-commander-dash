@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Send, Megaphone, Gift, MessageSquare, Upload, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +62,7 @@ export function SendPromotionDialog({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFilePickerOpenRef = useRef(false);
   const { toast } = useToast();
 
   const resetForm = () => {
@@ -76,12 +77,38 @@ export function SendPromotionDialog({
     setImagePreview(null);
   };
 
+  const releaseFilePickerLock = useCallback(() => {
+    window.setTimeout(() => {
+      isFilePickerOpenRef.current = false;
+    }, 0);
+  }, []);
+
+  const openImagePicker = () => {
+    isFilePickerOpenRef.current = true;
+    window.addEventListener('focus', releaseFilePickerLock, { once: true });
+    fileInputRef.current?.click();
+  };
+
+  const handleDialogChange = (nextOpen: boolean) => {
+    if (!nextOpen && isFilePickerOpenRef.current) {
+      return;
+    }
+
+    if (!nextOpen) {
+      resetForm();
+    }
+
+    onOpenChange(nextOpen);
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isFilePickerOpenRef.current = false;
     const file = e.target.files?.[0];
     if (!file) return;
 
     // Validar tipo
     if (!file.type.startsWith('image/')) {
+      e.target.value = '';
       toast({
         title: 'Arquivo inválido',
         description: 'Por favor, selecione uma imagem (JPG, PNG, etc.)',
@@ -92,6 +119,7 @@ export function SendPromotionDialog({
 
     // Validar tamanho (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
+      e.target.value = '';
       toast({
         title: 'Imagem muito grande',
         description: 'A imagem deve ter no máximo 5MB',
@@ -188,11 +216,15 @@ export function SendPromotionDialog({
     (promotionType !== 'coupon' || couponCode.trim()) && !uploadingImage;
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open) resetForm();
-      onOpenChange(open);
-    }}>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleDialogChange}>
+      <DialogContent
+        className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto"
+        onInteractOutside={(event) => {
+          if (isFilePickerOpenRef.current) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-primary" />
@@ -336,7 +368,7 @@ export function SendPromotionDialog({
                     type="button"
                     variant="outline"
                     className="w-full h-20 border-dashed flex flex-col gap-1"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={openImagePicker}
                   >
                     <Upload className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
@@ -375,7 +407,7 @@ export function SendPromotionDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleDialogChange(false)}
             disabled={isSubmitting}
           >
             Cancelar
