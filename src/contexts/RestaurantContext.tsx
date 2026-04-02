@@ -323,9 +323,9 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         restaurant,
         restaurantId: restaurant?.id ?? null,
         user,
-        userRole: userRole || (isPreviewEnvironment() && restaurant ? 'admin' : null),
+        userRole,
         isLoading,
-        isAuthenticated: !!user || (isPreviewEnvironment() && !!restaurant),
+        isAuthenticated: !!user,
         error,
         refetch,
       }}
