@@ -129,6 +129,10 @@ const App = () => {
         <Route path="/marketing/optin" element={<MarketingOptIn />} />
         <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
 
+        {/* Clube MesaClik - acompanhamento público de fidelidade */}
+        <Route path="/clube/:token" element={<ClubeFidelidade />} />
+        <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
+
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={
           <RestaurantProvider>
