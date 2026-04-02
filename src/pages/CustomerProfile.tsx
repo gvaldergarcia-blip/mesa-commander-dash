@@ -55,6 +55,50 @@ export default function CustomerProfile() {
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('timeline');
 
+  // Fallback: fetch history directly from tables when edge function times out
+  const fetchHistoryFallback = async (customerId: string, restId: string, email?: string, phone?: string) => {
+    const [visitsRes, emailLogsRes] = await Promise.all([
+      supabase
+        .from('customer_visits')
+        .select('id, visit_date, source, notes, created_at')
+        .eq('restaurant_id', restId)
+        .eq('customer_id', customerId)
+        .order('visit_date', { ascending: false })
+        .limit(200),
+      email
+        ? supabase
+            .from('email_logs')
+            .select('id, email, subject, source, status, created_at, coupon_code, sent_at')
+            .eq('restaurant_id', restId)
+            .eq('email', email)
+            .order('created_at', { ascending: false })
+            .limit(50)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const visitHistory = (visitsRes.data || []).map((v: any) => ({
+      id: v.id, type: 'visit', date: v.visit_date, source: v.source,
+      notes: v.notes, created_at: v.created_at, status: 'completed',
+    }));
+
+    const promotionHistory = ((emailLogsRes as any).data || []).map((e: any) => ({
+      id: e.id, type: 'promotion', email: e.email, subject: e.subject,
+      source: e.source, status: e.status, coupon_code: e.coupon_code,
+      sent_at: e.sent_at, created_at: e.created_at, date: e.created_at,
+    }));
+
+    return {
+      queue_history: [],
+      reservation_history: [],
+      visit_history: visitHistory,
+      promotion_history: promotionHistory,
+      metrics: null,
+      alerts: [],
+      score: null,
+      trend: null,
+    };
+  };
+
   useEffect(() => {
     if (customerId) fetchCustomerData(customerId);
   }, [customerId]);
@@ -131,17 +175,36 @@ export default function CustomerProfile() {
       setCustomer(finalCustomer);
       setNotes(customerInfo.notes || '');
 
-      // Fetch history via edge function
-      const { data, error } = await supabase.functions.invoke('get-customer-history', {
-        body: {
-          customer_id: id,
-          restaurant_id: restaurantId || '',
-          email: customerInfo.email || '',
-          phone: customerInfo.phone && customerInfo.phone !== '—' ? customerInfo.phone : '',
-        },
-      });
-      if (!error && data) {
-        setHistoryData(data);
+      // Fetch history - try edge function first, fallback to direct queries
+      let historyLoaded = false;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const { data, error } = await supabase.functions.invoke('get-customer-history', {
+          body: {
+            customer_id: id,
+            restaurant_id: restaurantId || '',
+            email: customerInfo.email || '',
+            phone: customerInfo.phone && customerInfo.phone !== '—' ? customerInfo.phone : '',
+          },
+        });
+        clearTimeout(timeout);
+        if (!error && data) {
+          setHistoryData(data);
+          historyLoaded = true;
+        }
+      } catch (edgeFnErr) {
+        console.warn('Edge function timeout/error, using fallback:', edgeFnErr);
+      }
+
+      // Fallback: fetch directly from tables if edge function failed
+      if (!historyLoaded && restaurantId) {
+        try {
+          const fallback = await fetchHistoryFallback(id, restaurantId, customerInfo.email, customerInfo.phone);
+          setHistoryData(fallback);
+        } catch (fallbackErr) {
+          console.error('Fallback history fetch failed:', fallbackErr);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar cliente:', error);
