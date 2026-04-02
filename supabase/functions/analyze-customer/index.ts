@@ -13,7 +13,7 @@ const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:8080",
 ];
-const PREVIEW_ORIGIN_RE = /^https:\/\/.*\.lovable\.app$/;
+const PREVIEW_ORIGIN_RE = /^https:\/\/.*\.(lovable\.app|lovableproject\.com)$/;
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") || "";
