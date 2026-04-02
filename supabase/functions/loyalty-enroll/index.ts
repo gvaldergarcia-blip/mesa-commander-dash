@@ -719,15 +719,25 @@ Deno.serve(async (req) => {
             : null,
         }).eq("id", statusRow.id);
 
+        const trackingUrl = statusRow.loyalty_token ? `${TRACKING_BASE_URL}/${statusRow.loyalty_token}` : undefined;
+
         if (rewardUnlocked && !statusRow.reward_email_sent && cust.marketing_optin && (cust.customer_email || cust.customer_phone)) {
-          const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays);
+          const sent = await sendRewardEmail(cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, effective.rewardValidityDays, trackingUrl);
           if (sent) {
             await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", statusRow.id);
             emailsSent++;
           }
         }
 
-        // Process reminders
+        // Send visit confirmation SMS with tracking link (every visit)
+        if (!rewardUnlocked && cust.customer_phone) {
+          const remaining = effective.requiredVisits - visits;
+          const visitSmsText = `${restaurantName}: Visita registrada! Voce tem ${visits} de ${effective.requiredVisits} visitas no ${program.program_name}. Faltam ${remaining} para: ${effective.rewardDescription}.${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
+          console.log("[loyalty-enroll] Sending visit confirmation SMS for check_reward");
+          await sendSmsAndWhatsApp(cust.customer_phone, visitSmsText);
+        }
+
+        // Process reminder emails
         if (!rewardUnlocked) {
           emailsSent += await processReminders(supabase, statusRow, cust, program.program_name, restaurantName, effective.requiredVisits, effective.rewardDescription, visits);
         }
