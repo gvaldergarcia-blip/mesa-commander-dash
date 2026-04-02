@@ -174,7 +174,13 @@ export default function FilaFinal() {
 
   // Handler para confirmar consentimento e ver posição
   const handleConfirmConsent = async () => {
-    if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id || !queueInfo?.customer_email) {
+    if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id) {
+      return;
+    }
+
+    // Se não tem email, apenas confirmar consent e seguir
+    if (!queueInfo.customer_email) {
+      setConsentConfirmed(true);
       return;
     }
 
