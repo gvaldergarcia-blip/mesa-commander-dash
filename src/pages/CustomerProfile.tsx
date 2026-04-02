@@ -57,7 +57,7 @@ export default function CustomerProfile() {
 
   // Fallback: fetch history directly from tables when edge function times out
   const fetchHistoryFallback = async (customerId: string, restId: string, email?: string, phone?: string) => {
-    const [visitsRes, emailLogsRes] = await Promise.all([
+    const [visitsRes, emailLogsRes, queueRes, reservationRes] = await Promise.all([
       supabase
         .from('customer_visits')
         .select('id, visit_date, source, notes, created_at')
@@ -74,6 +74,24 @@ export default function CustomerProfile() {
             .order('created_at', { ascending: false })
             .limit(50)
         : Promise.resolve({ data: [] }),
+      phone
+        ? supabase
+            .from('queue_entries')
+            .select('id, customer_name, phone, party_size, status, created_at, called_at, seated_at, canceled_at, queue_id')
+            .eq('phone', phone)
+            .in('status', ['seated', 'completed', 'called', 'waiting'])
+            .order('created_at', { ascending: false })
+            .limit(200)
+        : Promise.resolve({ data: [] }),
+      email
+        ? supabase
+            .from('reservations')
+            .select('id, customer_name, party_size, status, reservation_datetime, created_at')
+            .eq('restaurant_id', restId)
+            .eq('customer_email', email)
+            .order('reservation_datetime', { ascending: false })
+            .limit(200)
+        : Promise.resolve({ data: [] }),
     ]);
 
     const visitHistory = (visitsRes.data || []).map((v: any) => ({
@@ -87,12 +105,57 @@ export default function CustomerProfile() {
       sent_at: e.sent_at, created_at: e.created_at, date: e.created_at,
     }));
 
+    const queueHistory = ((queueRes as any).data || []).map((q: any) => ({
+      id: q.id, type: 'queue', date: q.created_at, status: q.status,
+      party_size: q.party_size, created_at: q.created_at,
+    }));
+
+    const reservationHistory = ((reservationRes as any).data || []).map((r: any) => ({
+      id: r.id, type: 'reservation', date: r.reservation_datetime, status: r.status,
+      party_size: r.party_size, created_at: r.created_at,
+    }));
+
+    // Build monthly_evolution from all data
+    const monthMap: Record<string, { queue: number; reservation: number; manual: number }> = {};
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      monthMap[key] = { queue: 0, reservation: 0, manual: 0 };
+    }
+
+    for (const v of visitsRes.data || []) {
+      const key = v.visit_date?.substring(0, 7);
+      if (key && monthMap[key]) {
+        if (v.source === 'queue') monthMap[key].queue++;
+        else if (v.source === 'reservation') monthMap[key].reservation++;
+        else monthMap[key].manual++;
+      }
+    }
+    for (const q of (queueRes as any).data || []) {
+      const key = q.created_at?.substring(0, 7);
+      if (key && monthMap[key] && !visitHistory.some((v: any) => v.source === 'queue' && v.date?.substring(0, 7) === key)) {
+        // Only count if not already counted via visits
+      }
+    }
+
+    const monthly_evolution = Object.entries(monthMap).map(([key, val]) => {
+      const d = new Date(key + '-01');
+      return {
+        month: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', ''),
+        queue: val.queue,
+        reservation: val.reservation,
+        manual: val.manual,
+      };
+    });
+
     return {
-      queue_history: [],
-      reservation_history: [],
+      queue_history: queueHistory,
+      reservation_history: reservationHistory,
       visit_history: visitHistory,
       promotion_history: promotionHistory,
-      metrics: null,
+      metrics: { monthly_evolution },
       alerts: [],
       score: null,
       trend: null,
