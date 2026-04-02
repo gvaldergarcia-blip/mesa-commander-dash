@@ -6,7 +6,8 @@ const RESEND_FROM_MARKETING =
   Deno.env.get("RESEND_FROM_EMAIL") ||
   "ofertas@mesaclik.com.br";
 
-const FUNCTION_VERSION = "2026-03-10_v8_per_customer_reminders";
+const FUNCTION_VERSION = "2026-04-02_v9_tracking_link";
+const TRACKING_BASE_URL = Deno.env.get("LOYALTY_TRACKING_URL") || "https://mesa-commander-dash.lovable.app/clube";
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
 // ── CORS ──
