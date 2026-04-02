@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueueRealtime } from './useQueueRealtime';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { getSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
+import { sanitizeOptionalEmail } from '@/utils/customerIdentifiers';
 
 type QueueEntry = {
   entry_id: string;
@@ -81,6 +82,9 @@ export function useQueue() {
       if (!restaurantId) {
         throw new Error('Restaurant ID não configurado');
       }
+
+      const phoneDigits = entry.phone.replace(/\D/g, '');
+      const sanitizedEmail = sanitizeOptionalEmail(entry.email);
       
       // Buscar fila do restaurante pelo tipo
       const targetType = entry.queue_type || 'normal';
@@ -142,8 +146,8 @@ export function useQueue() {
           p_restaurant_id: restaurantId,
           p_queue_id: activeQueue.id,
           p_customer_name: entry.customer_name,
-          p_customer_phone: entry.phone.replace(/\D/g, ''),
-          p_customer_email: entry.email || null,
+          p_customer_phone: phoneDigits,
+          p_customer_email: sanitizedEmail,
           p_party_size: entry.people,
           p_notes: entry.notes || null,
         });
@@ -175,7 +179,7 @@ export function useQueue() {
       try {
         await supabase.rpc('upsert_restaurant_customer', {
           p_restaurant_id: restaurantId,
-          p_email: entry.email || `${entry.phone.replace(/\D/g, '')}@phone.local`,
+          p_email: sanitizedEmail || `${phoneDigits}@phone.local`,
           p_name: entry.customer_name,
           p_phone: entry.phone,
           p_source: 'queue',
@@ -216,10 +220,10 @@ export function useQueue() {
         }
 
         // Também enviar email se fornecido
-        if (entry.email) {
+        if (sanitizedEmail) {
           const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-queue-email', {
             body: {
-              email: entry.email,
+              email: sanitizedEmail,
               customer_name: entry.customer_name,
               restaurant_name: restaurantName,
               position: 0,

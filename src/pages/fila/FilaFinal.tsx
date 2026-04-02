@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
 import { QueueConsentForm } from '@/components/queue/QueueConsentForm';
 import { useQueueConsent } from '@/hooks/useQueueConsent';
+import { resolveCustomerConsentEmail } from '@/utils/customerIdentifiers';
 
 interface QueueInfo {
   ticket_id: string;
@@ -32,18 +33,6 @@ interface QueueInfo {
   customer_name?: string;
   tolerance_minutes?: number;
 }
-
-const normalizePhone = (phone?: string | null) => (phone || '').replace(/\D/g, '');
-
-const resolveCustomerConsentEmail = (email?: string | null, phone?: string | null) => {
-  const normalizedEmail = email?.trim().toLowerCase() || '';
-  if (normalizedEmail) return normalizedEmail;
-
-  const phoneDigits = normalizePhone(phone);
-  if (phoneDigits.length >= 10) return `${phoneDigits}@phone.local`;
-
-  return null;
-};
 
 export default function FilaFinal() {
   const [searchParams] = useSearchParams();
@@ -183,7 +172,7 @@ export default function FilaFinal() {
     if (queueInfo) {
       loadConsents();
     }
-  }, [queueInfo?.restaurant_id, queueInfo?.ticket_id, queueInfo?.customer_email, fetchConsents]);
+  }, [queueInfo?.restaurant_id, queueInfo?.ticket_id, queueInfo?.customer_email, queueInfo?.customer_phone, fetchConsents]);
 
   // Handler para mudança no checkbox de termos (apenas UI, não salva ainda)
   const handleTermsChange = (accepted: boolean) => {
