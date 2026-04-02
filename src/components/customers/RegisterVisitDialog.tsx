@@ -249,6 +249,24 @@ export function RegisterVisitDialog({
       const result = data as any;
       if (!result?.success) throw new Error(result?.error || 'Erro ao registrar');
 
+      if (result?.customer_id) {
+        try {
+          const { data: loyaltyData, error: loyaltyError } = await supabase.functions.invoke('loyalty-enroll', {
+            body: {
+              restaurant_id: restaurantId,
+              action: 'check_reward',
+              customer_id: result.customer_id,
+            },
+          });
+
+          if (loyaltyError || loyaltyData?.error) {
+            console.warn('[RegisterVisitDialog] loyalty-enroll check_reward falhou:', loyaltyError || loyaltyData?.error);
+          }
+        } catch (loyaltyError) {
+          console.warn('[RegisterVisitDialog] Erro ao acionar loyalty-enroll:', loyaltyError);
+        }
+      }
+
       toast({
         title: '✅ Visita registrada!',
         description: `Visita de ${foundCustomer.customer_name || name || email} registrada com sucesso`,

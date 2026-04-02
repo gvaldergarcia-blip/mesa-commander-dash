@@ -6,8 +6,9 @@ const RESEND_FROM_MARKETING =
   Deno.env.get("RESEND_FROM_EMAIL") ||
   "ofertas@mesaclik.com.br";
 
-const FUNCTION_VERSION = "2026-04-02_v9_tracking_link";
-const TRACKING_BASE_URL = Deno.env.get("LOYALTY_TRACKING_URL") || "https://mesa-commander-dash.lovable.app/clube";
+const FUNCTION_VERSION = "2026-04-02_v10_sms_fix";
+const PUBLIC_APP_URL = Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("VITE_PUBLIC_APP_URL");
+const TRACKING_BASE_URL = Deno.env.get("LOYALTY_TRACKING_URL") || (PUBLIC_APP_URL ? `${PUBLIC_APP_URL.replace(/\/$/, "")}/clube` : "https://mesaclik.com.br/clube");
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
 // ── CORS ──
@@ -463,7 +464,7 @@ Deno.serve(async (req) => {
 
       const { data: cust, error: custError } = await supabase
         .from("restaurant_customers")
-        .select("id, customer_name, customer_email, customer_phone, total_queue_visits, total_reservation_visits, marketing_optin")
+        .select("id, customer_name, customer_email, customer_phone, total_manual_visits, total_queue_visits, total_reservation_visits, marketing_optin")
         .eq("id", body.customer_id)
         .eq("restaurant_id", restaurant_id)
         .single();
@@ -481,6 +482,7 @@ Deno.serve(async (req) => {
       await supabase.from("restaurant_customers").update({ loyalty_program_active: true }).eq("id", cust.id);
 
       let visits = 0;
+      visits += (cust.total_manual_visits || 0);
       if (program.count_queue) visits += (cust.total_queue_visits || 0);
       if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
 
@@ -584,7 +586,7 @@ Deno.serve(async (req) => {
 
       const { data: customers, error: custListError } = await supabase
         .from("restaurant_customers")
-        .select("id, customer_name, customer_email, customer_phone, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
+        .select("id, customer_name, customer_email, customer_phone, total_manual_visits, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
         .eq("restaurant_id", restaurant_id);
 
       if (custListError) {
@@ -604,6 +606,7 @@ Deno.serve(async (req) => {
         }
 
         let visits = 0;
+        visits += (cust.total_manual_visits || 0);
         if (program.count_queue) visits += (cust.total_queue_visits || 0);
         if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
 
@@ -681,7 +684,7 @@ Deno.serve(async (req) => {
 
       const { data: cust } = await supabase
         .from("restaurant_customers")
-        .select("id, customer_name, customer_email, customer_phone, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
+        .select("id, customer_name, customer_email, customer_phone, total_manual_visits, total_queue_visits, total_reservation_visits, marketing_optin, loyalty_program_active")
         .eq("id", body.customer_id)
         .eq("restaurant_id", restaurant_id)
         .single();
@@ -694,6 +697,7 @@ Deno.serve(async (req) => {
       }
 
       let visits = 0;
+      visits += (cust.total_manual_visits || 0);
       if (program.count_queue) visits += (cust.total_queue_visits || 0);
       if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
 
