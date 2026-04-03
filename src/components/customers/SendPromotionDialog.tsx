@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Send, Megaphone, Gift, MessageSquare, Upload, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
