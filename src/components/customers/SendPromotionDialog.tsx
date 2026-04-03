@@ -390,7 +390,7 @@ export function SendPromotionDialog({
                     type="button"
                     variant="outline"
                     className="w-full h-20 border-dashed flex flex-col gap-1"
-                    onClick={openImagePicker}
+                    onClick={(e) => openImagePicker(e)}
                   >
                     <Upload className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
