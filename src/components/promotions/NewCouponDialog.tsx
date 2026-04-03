@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   const [price, setPrice] = useState(0);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFilePickerOpenRef = useRef(false);
 
   // Calcular duração e preço quando as datas mudarem
   useEffect(() => {
@@ -75,7 +76,24 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
     };
   }, [filePreviewUrl]);
 
+  const releaseFilePickerLock = useCallback(() => {
+    window.setTimeout(() => {
+      isFilePickerOpenRef.current = false;
+    }, 500);
+  }, []);
+
+  const openFilePicker = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    isFilePickerOpenRef.current = true;
+    window.addEventListener('focus', releaseFilePickerLock, { once: true });
+    fileInputRef.current?.click();
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    isFilePickerOpenRef.current = false;
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -326,8 +344,27 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={(nextOpen) => {
+          if (!nextOpen && isFilePickerOpenRef.current) return;
+          if (!nextOpen && loading) return;
+          if (!nextOpen) resetForm();
+          onOpenChange(nextOpen);
+        }}>
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-y-auto"
+          onInteractOutside={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+          onFocusOutside={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Novo Cupom Pago</DialogTitle>
           </DialogHeader>
@@ -403,7 +440,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
                 <div className="mt-2">
                   {!uploadedFile ? (
                     <div
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={(e) => openFilePicker(e)}
                       className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
                     >
                       <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
