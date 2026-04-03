@@ -588,11 +588,14 @@ Deno.serve(async (req) => {
         }
       } else {
         const { data: newStatus } = await supabase.from("customer_loyalty_status").insert({
-          restaurant_id, customer_id: cust.id, current_visits: visits,
-          reward_unlocked: rewardUnlocked,
-          reward_unlocked_at: rewardUnlocked ? nowDate.toISOString() : null,
-          reward_expires_at: rewardExpiresAt,
+          restaurant_id, customer_id: cust.id, current_visits: 0,
+          reward_unlocked: false,
+          reward_unlocked_at: null,
+          reward_expires_at: null,
           activation_email_sent: false, reward_email_sent: false,
+          custom_required_visits: customRequiredVisits,
+          custom_reward_description: customRewardDescription,
+          custom_reward_validity_days: customRewardValidityDays,
         }).select("*").single();
 
         const trackingUrl = newStatus?.loyalty_token ? `${TRACKING_BASE_URL}/${newStatus.loyalty_token}` : undefined;
