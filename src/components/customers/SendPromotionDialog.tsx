@@ -65,6 +65,7 @@ export function SendPromotionDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFilePickerOpenRef = useRef(false);
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
 
   const resetForm = () => {
     setPromotionType('message');
