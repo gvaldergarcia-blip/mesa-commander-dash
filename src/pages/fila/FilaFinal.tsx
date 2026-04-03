@@ -220,7 +220,7 @@ export default function FilaFinal() {
 
   const config = statusConfig[queueInfo.status] || statusConfig.waiting;
   const StatusIcon = config.icon;
-  const showPosition = termsAccepted || consentSaved;
+  const showPosition = consentSaved;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
