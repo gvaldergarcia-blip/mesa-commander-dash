@@ -76,7 +76,24 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
     };
   }, [filePreviewUrl]);
 
+  const releaseFilePickerLock = useCallback(() => {
+    window.setTimeout(() => {
+      isFilePickerOpenRef.current = false;
+    }, 500);
+  }, []);
+
+  const openFilePicker = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    isFilePickerOpenRef.current = true;
+    window.addEventListener('focus', releaseFilePickerLock, { once: true });
+    fileInputRef.current?.click();
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    isFilePickerOpenRef.current = false;
     const file = event.target.files?.[0];
     if (!file) return;
 
