@@ -64,7 +64,7 @@ export function LoyaltySettings() {
                   <p className="font-medium text-sm">3. Recompensa</p>
                   <p className="text-xs text-muted-foreground">
                     Ao atingir a meta de visitas, o cliente desbloqueia a recompensa configurada 
-                    e recebe uma notificação automática por SMS e WhatsApp.
+                    e recebe uma notificação automática por SMS e E-mail.
                   </p>
                 </div>
               </div>
