@@ -522,12 +522,15 @@ Deno.serve(async (req) => {
 
       await supabase.from("restaurant_customers").update({ loyalty_program_active: true }).eq("id", cust.id);
 
-      let visits = 0;
-      visits += (cust.total_manual_visits || 0);
-      if (program.count_queue) visits += (cust.total_queue_visits || 0);
-      if (program.count_reservations) visits += (cust.total_reservation_visits || 0);
+      // Always start at 0 visits on activation
+      const visits = 0;
 
-      // Check for existing status to get per-customer overrides
+      // Accept per-customer config from the request body
+      const customRequiredVisits = body.custom_required_visits ?? null;
+      const customRewardDescription = body.custom_reward_description ?? null;
+      const customRewardValidityDays = body.custom_reward_validity_days ?? null;
+
+      // Check for existing status
       const { data: existing } = await supabase
         .from("customer_loyalty_status")
         .select("*")
@@ -535,8 +538,14 @@ Deno.serve(async (req) => {
         .eq("customer_id", cust.id)
         .maybeSingle();
 
-      const effective = getEffectiveValues(existing, program);
-      const rewardUnlocked = visits >= effective.requiredVisits;
+      // Build effective values using request body overrides
+      const effectiveOverride = {
+        custom_required_visits: customRequiredVisits,
+        custom_reward_description: customRewardDescription,
+        custom_reward_validity_days: customRewardValidityDays,
+      };
+      const effective = getEffectiveValues(existing ?? effectiveOverride, program);
+      const rewardUnlocked = false; // Always false since visits = 0
       const nowDate = new Date();
       const rewardExpiresAt = rewardUnlocked
         ? new Date(nowDate.getTime() + effective.rewardValidityDays * 24 * 60 * 60 * 1000).toISOString()
@@ -548,10 +557,13 @@ Deno.serve(async (req) => {
 
       if (existing) {
         await supabase.from("customer_loyalty_status").update({
-          current_visits: visits,
-          reward_unlocked: rewardUnlocked,
-          reward_unlocked_at: rewardUnlocked && !existing.reward_unlocked ? nowDate.toISOString() : undefined,
-          reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
+          current_visits: 0,
+          reward_unlocked: false,
+          reward_unlocked_at: null,
+          reward_expires_at: null,
+          custom_required_visits: customRequiredVisits ?? existing.custom_required_visits,
+          custom_reward_description: customRewardDescription ?? existing.custom_reward_description,
+          custom_reward_validity_days: customRewardValidityDays ?? existing.custom_reward_validity_days,
         }).eq("id", existing.id);
 
         const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
@@ -579,11 +591,14 @@ Deno.serve(async (req) => {
         }
       } else {
         const { data: newStatus } = await supabase.from("customer_loyalty_status").insert({
-          restaurant_id, customer_id: cust.id, current_visits: visits,
-          reward_unlocked: rewardUnlocked,
-          reward_unlocked_at: rewardUnlocked ? nowDate.toISOString() : null,
-          reward_expires_at: rewardExpiresAt,
+          restaurant_id, customer_id: cust.id, current_visits: 0,
+          reward_unlocked: false,
+          reward_unlocked_at: null,
+          reward_expires_at: null,
           activation_email_sent: false, reward_email_sent: false,
+          custom_required_visits: customRequiredVisits,
+          custom_reward_description: customRewardDescription,
+          custom_reward_validity_days: customRewardValidityDays,
         }).select("*").single();
 
         const trackingUrl = newStatus?.loyalty_token ? `${TRACKING_BASE_URL}/${newStatus.loyalty_token}` : undefined;
