@@ -6,9 +6,49 @@ const RESEND_FROM_MARKETING =
   Deno.env.get("RESEND_FROM_EMAIL") ||
   "ofertas@mesaclik.com.br";
 
-const FUNCTION_VERSION = "2026-04-02_v10_sms_fix";
-const PUBLIC_APP_URL = Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("VITE_PUBLIC_APP_URL");
-const TRACKING_BASE_URL = Deno.env.get("LOYALTY_TRACKING_URL") || (PUBLIC_APP_URL ? `${PUBLIC_APP_URL.replace(/\/$/, "")}/clube` : "https://mesaclik.com.br/clube");
+const FUNCTION_VERSION = "2026-04-03_v11_loyalty_tracking_domain_fix";
+const DEFAULT_TRACKING_APP_URL = "https://app.mesaclik.com.br";
+const LEGACY_TRACKING_URLS = new Set([
+  "https://mesaclik.com.br",
+  "https://www.mesaclik.com.br",
+]);
+
+function trimTrailingSlashes(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function normalizePublicAppUrl(rawValue?: string | null): string {
+  if (!rawValue?.trim()) {
+    return DEFAULT_TRACKING_APP_URL;
+  }
+
+  const normalized = trimTrailingSlashes(rawValue.trim());
+
+  if (LEGACY_TRACKING_URLS.has(normalized)) {
+    return DEFAULT_TRACKING_APP_URL;
+  }
+
+  return normalized;
+}
+
+function normalizeTrackingBaseUrl(rawValue?: string | null, publicAppUrl?: string | null): string {
+  const normalized = rawValue?.trim() ? trimTrailingSlashes(rawValue.trim()) : null;
+
+  if (!normalized) {
+    return `${normalizePublicAppUrl(publicAppUrl)}/clube`;
+  }
+
+  const normalizedWithoutClubPath = normalized.replace(/\/clube$/, "");
+
+  if (LEGACY_TRACKING_URLS.has(normalized) || LEGACY_TRACKING_URLS.has(normalizedWithoutClubPath)) {
+    return `${DEFAULT_TRACKING_APP_URL}/clube`;
+  }
+
+  return normalized.endsWith("/clube") ? normalized : `${normalized}/clube`;
+}
+
+const PUBLIC_APP_URL = normalizePublicAppUrl(Deno.env.get("PUBLIC_APP_URL") || Deno.env.get("VITE_PUBLIC_APP_URL"));
+const TRACKING_BASE_URL = normalizeTrackingBaseUrl(Deno.env.get("LOYALTY_TRACKING_URL"), PUBLIC_APP_URL);
 const REQUIRE_JWT = (Deno.env.get("REQUIRE_JWT_LOYALTY_ENROLL") ?? "true") === "true";
 
 // ── CORS ──
@@ -453,7 +493,7 @@ Deno.serve(async (req) => {
     const body: EnrollRequest = await req.json();
     const { restaurant_id, action } = body;
 
-    console.log("[loyalty-enroll] version:", FUNCTION_VERSION, "invoked:", JSON.stringify({ action, restaurant_id, customer_id: body.customer_id, userId }));
+    console.log("[loyalty-enroll] version:", FUNCTION_VERSION, "invoked:", JSON.stringify({ action, restaurant_id, customer_id: body.customer_id, userId, tracking_base_url: TRACKING_BASE_URL }));
 
     // 2. Input validation
     if (!restaurant_id || typeof restaurant_id !== "string") {
