@@ -166,6 +166,7 @@ export function SendPromotionDialog({
         .from('promotion-images')
         .upload(filePath, imageFile, {
           cacheControl: '3600',
+          contentType: imageFile.type,
           upsert: false,
         });
 
@@ -173,11 +174,19 @@ export function SendPromotionDialog({
         throw uploadError;
       }
 
-      const { data: urlData } = supabase.storage
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('promotion-images')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365);
 
-      return urlData.publicUrl;
+      if (signedUrlError) {
+        console.warn('Falling back to public URL for promotion image:', signedUrlError);
+        const { data: urlData } = supabase.storage
+          .from('promotion-images')
+          .getPublicUrl(filePath);
+        return urlData.publicUrl;
+      }
+
+      return signedUrlData.signedUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
       toast({
