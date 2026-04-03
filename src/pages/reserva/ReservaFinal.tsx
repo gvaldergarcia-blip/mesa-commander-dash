@@ -253,6 +253,7 @@ export default function ReservaFinal() {
     if (!reservationInfo) return;
 
     // Libera a próxima tela imediatamente ao clicar, sem esperar persistência
+    setTermsAccepted(true);
     setConsentConfirmed(true);
     setSavingConsent(false);
 
@@ -459,7 +460,7 @@ export default function ReservaFinal() {
               Para visualizar os detalhes da sua reserva, por favor aceite nossos termos.
             </p>
 
-            {/* Checkbox de termos (obrigatório) */}
+            {/* Checkbox de termos */}
             <div className="flex items-start space-x-3 p-4 bg-muted/50 rounded-lg border">
               <Checkbox
                 id="terms-consent"
@@ -493,8 +494,8 @@ export default function ReservaFinal() {
                   </Link>{' '}
                   do MesaClik.
                 </Label>
-                <p className="text-xs text-destructive font-medium">
-                  * Obrigatório para continuar
+                <p className="text-xs text-muted-foreground font-medium">
+                  Ao tocar em "Ver minha reserva", você aceita os termos acima.
                 </p>
               </div>
             </div>
@@ -523,7 +524,7 @@ export default function ReservaFinal() {
 
             <Button
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
-              disabled={!termsAccepted || savingConsent}
+              disabled={savingConsent}
               onClick={handleConfirmConsent}
             >
               {savingConsent ? (
@@ -536,11 +537,9 @@ export default function ReservaFinal() {
               )}
             </Button>
 
-            {!termsAccepted && (
-              <p className="text-center text-xs text-muted-foreground">
-                Marque a caixa de termos acima para continuar
-              </p>
-            )}
+            <p className="text-center text-xs text-muted-foreground">
+              Toque em "Ver minha reserva" para continuar agora.
+            </p>
           </CardContent>
         </Card>
       </div>
