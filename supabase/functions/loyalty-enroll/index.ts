@@ -557,10 +557,13 @@ Deno.serve(async (req) => {
 
       if (existing) {
         await supabase.from("customer_loyalty_status").update({
-          current_visits: visits,
-          reward_unlocked: rewardUnlocked,
-          reward_unlocked_at: rewardUnlocked && !existing.reward_unlocked ? nowDate.toISOString() : undefined,
-          reward_expires_at: rewardUnlocked ? rewardExpiresAt : null,
+          current_visits: 0,
+          reward_unlocked: false,
+          reward_unlocked_at: null,
+          reward_expires_at: null,
+          custom_required_visits: customRequiredVisits ?? existing.custom_required_visits,
+          custom_reward_description: customRewardDescription ?? existing.custom_reward_description,
+          custom_reward_validity_days: customRewardValidityDays ?? existing.custom_reward_validity_days,
         }).eq("id", existing.id);
 
         const trackingUrl = existing.loyalty_token ? `${TRACKING_BASE_URL}/${existing.loyalty_token}` : undefined;
