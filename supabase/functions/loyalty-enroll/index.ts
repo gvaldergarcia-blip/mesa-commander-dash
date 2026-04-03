@@ -812,9 +812,15 @@ Deno.serve(async (req) => {
             await supabase.from("customer_loyalty_status").update({ reward_email_sent: true }).eq("id", statusRow.id);
             emailsSent++;
           }
+          // SMS for reward unlock
+          if (cust.customer_phone) {
+            const rewardSmsText = `${restaurantName}: Parabens! Voce completou ${effective.requiredVisits} visitas no ${program.program_name} e desbloqueou: ${effective.rewardDescription}! Apresente na proxima visita.${trackingUrl ? ` Detalhes: ${trackingUrl}` : ''}`;
+            console.log("[loyalty-enroll] Sending reward unlock SMS");
+            await sendSmsAndWhatsApp(cust.customer_phone, rewardSmsText);
+          }
         }
 
-        // Send visit confirmation SMS with tracking link (every visit)
+        // Send visit confirmation SMS with tracking link (every visit, when reward not yet unlocked)
         if (!rewardUnlocked && cust.customer_phone) {
           const remaining = effective.requiredVisits - visits;
           const visitSmsText = `${restaurantName}: Visita registrada! Voce tem ${visits} de ${effective.requiredVisits} visitas no ${program.program_name}. Faltam ${remaining} para: ${effective.rewardDescription}.${trackingUrl ? ` Acompanhe: ${trackingUrl}` : ''}`;
