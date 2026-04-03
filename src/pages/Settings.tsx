@@ -771,7 +771,7 @@ function SettingsContent() {
 
         {/* Tab: Programa Clique (Fidelidade) */}
         <TabsContent value="loyalty">
-          <LoyaltySettings restaurantId={restaurantId || ''} />
+          <LoyaltySettings />
         </TabsContent>
 
 
