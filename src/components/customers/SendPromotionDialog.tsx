@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
-import { Send, Megaphone, Gift, MessageSquare, Upload, X, Image } from 'lucide-react';
+import { useState } from 'react';
+import { Send, Megaphone, Gift, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRestaurant } from '@/contexts/RestaurantContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,8 +21,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RestaurantCustomer } from '@/hooks/useRestaurantCustomers';
-import { supabase } from '@/lib/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 type PromotionType = 'message' | 'banner' | 'coupon';
 
@@ -59,13 +56,6 @@ export function SendPromotionDialog({
   const [ctaUrl, setCtaUrl] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const isFilePickerOpenRef = useRef(false);
-  const { toast } = useToast();
-  const { restaurantId } = useRestaurant();
 
   const resetForm = () => {
     setPromotionType('message');
@@ -75,154 +65,25 @@ export function SendPromotionDialog({
     setCtaUrl('');
     setCouponCode('');
     setExpiresAt('');
-    setImageFile(null);
-    setImagePreview(null);
-  };
-
-  const openImagePicker = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    isFilePickerOpenRef.current = true;
-    // Release lock after a generous delay to cover slow file pickers
-    const releaseTimer = window.setTimeout(() => {
-      isFilePickerOpenRef.current = false;
-    }, 5000);
-    // If a file is selected, the onChange handler clears the lock immediately
-    // Store timer so onChange can clear it
-    (fileInputRef as any)._releaseTimer = releaseTimer;
-    fileInputRef.current?.click();
   };
 
   const handleDialogChange = (nextOpen: boolean) => {
-    if (!nextOpen && isFilePickerOpenRef.current) {
-      return;
-    }
-    if (!nextOpen && uploadingImage) {
-      return;
-    }
-
     if (!nextOpen) {
       resetForm();
     }
-
     onOpenChange(nextOpen);
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Clear the release timer and lock immediately
-    if ((fileInputRef as any)._releaseTimer) {
-      clearTimeout((fileInputRef as any)._releaseTimer);
-    }
-    isFilePickerOpenRef.current = false;
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validar tipo
-    if (!file.type.startsWith('image/')) {
-      e.target.value = '';
-      toast({
-        title: 'Arquivo inválido',
-        description: 'Por favor, selecione uma imagem (JPG, PNG, etc.)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validar tamanho (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      e.target.value = '';
-      toast({
-        title: 'Imagem muito grande',
-        description: 'A imagem deve ter no máximo 5MB',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const uploadImage = async (): Promise<string | null> => {
-    if (!imageFile) return null;
-
-    setUploadingImage(true);
-    try {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${restaurantId}/promotions/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('promotion-images')
-        .upload(filePath, imageFile, {
-          cacheControl: '3600',
-          contentType: imageFile.type,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('promotion-images')
-        .createSignedUrl(filePath, 60 * 60 * 24 * 365);
-
-      if (signedUrlError) {
-        console.warn('Falling back to public URL for promotion image:', signedUrlError);
-        const { data: urlData } = supabase.storage
-          .from('promotion-images')
-          .getPublicUrl(filePath);
-        return urlData.publicUrl;
-      }
-
-      return signedUrlData.signedUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast({
-        title: 'Erro ao enviar imagem',
-        description: 'Não foi possível fazer upload da imagem',
-        variant: 'destructive',
-      });
-      return null;
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
   const handleSubmit = async () => {
-    // Upload image if present
-    let imageUrl: string | undefined;
-    if (imageFile) {
-      const uploadedUrl = await uploadImage();
-      if (uploadedUrl) {
-        imageUrl = uploadedUrl;
-      }
-    }
-
     await onSubmit({
       title: title || `Promoção para ${customer.customer_name || customer.customer_email}`,
       subject,
       message,
-      ctaText: ctaUrl ? 'Ver oferta' : undefined, // Sempre "Ver oferta"
+      ctaText: ctaUrl ? 'Ver oferta' : undefined,
       ctaUrl: ctaUrl || undefined,
       couponCode: promotionType === 'coupon' ? couponCode : undefined,
       expiresAt: expiresAt || undefined,
-      imageUrl,
+      imageUrl: ctaUrl || undefined,
       recipients: [{
         email: customer.customer_email,
         phone: customer.customer_phone || undefined,
@@ -234,34 +95,12 @@ export function SendPromotionDialog({
     onOpenChange(false);
   };
 
-  const isFormValid = subject.trim() && message.trim() && 
-    (promotionType !== 'coupon' || couponCode.trim()) && !uploadingImage;
+  const isFormValid = subject.trim() && message.trim() &&
+    (promotionType !== 'coupon' || couponCode.trim());
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent
-        className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto"
-        onInteractOutside={(event) => {
-          if (isFilePickerOpenRef.current || uploadingImage) {
-            event.preventDefault();
-          }
-        }}
-        onEscapeKeyDown={(event) => {
-          if (isFilePickerOpenRef.current || uploadingImage) {
-            event.preventDefault();
-          }
-        }}
-        onPointerDownOutside={(event) => {
-          if (isFilePickerOpenRef.current || uploadingImage) {
-            event.preventDefault();
-          }
-        }}
-        onFocusOutside={(event) => {
-          if (isFilePickerOpenRef.current || uploadingImage) {
-            event.preventDefault();
-          }
-        }}
-      >
+      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-primary" />
@@ -371,73 +210,20 @@ export function SendPromotionDialog({
           )}
 
           {(promotionType === 'banner' || promotionType === 'coupon') && (
-            <>
-              {/* Upload de imagem */}
-              <div className="space-y-2">
-                <Label>Imagem do banner (opcional)</Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
-                
-                {imagePreview ? (
-                  <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-full max-h-40 object-cover rounded-lg border"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-6 w-6"
-                      onClick={removeImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-20 border-dashed flex flex-col gap-1"
-                    onClick={(e) => openImagePicker(e)}
-                  >
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      Clique para anexar imagem
-                    </span>
-                  </Button>
-                )}
+            <div className="space-y-2">
+              <Label htmlFor="ctaUrl">Link da imagem (opcional)</Label>
+              <Input
+                id="ctaUrl"
+                placeholder="https://..."
+                value={ctaUrl}
+                onChange={(e) => setCtaUrl(e.target.value)}
+              />
+              {ctaUrl && (
                 <p className="text-xs text-muted-foreground">
-                  JPG, PNG até 5MB
+                  O botão "Ver oferta" será exibido no e-mail
                 </p>
-
-                <div className="flex items-center justify-center my-2">
-                  <span className="text-sm text-muted-foreground font-medium">ou</span>
-                </div>
-              </div>
-
-              {/* Link do botão */}
-              <div className="space-y-2">
-                <Label htmlFor="ctaUrl">Link da imagem (opcional)</Label>
-                <Input
-                  id="ctaUrl"
-                  placeholder="https://..."
-                  value={ctaUrl}
-                  onChange={(e) => setCtaUrl(e.target.value)}
-                />
-                {ctaUrl && (
-                  <p className="text-xs text-muted-foreground">
-                    O botão "Ver oferta" será exibido no e-mail
-                  </p>
-                )}
-              </div>
-            </>
+              )}
+            </div>
           )}
         </div>
 
