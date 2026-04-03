@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { data: program, error: progError } = await supabase
+    let { data: program, error: progError } = await supabase
       .from("restaurant_loyalty_program")
       .select("*")
       .eq("restaurant_id", restaurant_id)
@@ -487,11 +487,36 @@ Deno.serve(async (req) => {
       console.error("[loyalty-enroll] Error fetching program:", progError);
       throw progError;
     }
-    if (!program || !program.is_active) {
-      console.log("[loyalty-enroll] Program not active for restaurant:", restaurant_id);
-      return new Response(JSON.stringify({ message: "Program not active" }), {
-        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+
+    // Auto-create program if it doesn't exist (since config is now per-customer)
+    if (!program) {
+      console.log("[loyalty-enroll] Auto-creating loyalty program for restaurant:", restaurant_id);
+      const { data: newProg, error: createErr } = await supabase
+        .from("restaurant_loyalty_program")
+        .upsert({
+          restaurant_id: restaurant_id,
+          is_active: true,
+          program_name: "Clube MesaClik",
+          required_visits: 10,
+          count_queue: true,
+          count_reservations: true,
+          reward_description: "Recompensa especial",
+          reward_validity_days: 30,
+        }, { onConflict: "restaurant_id" })
+        .select("*")
+        .single();
+
+      if (createErr || !newProg) {
+        console.error("[loyalty-enroll] Error auto-creating program:", createErr);
+        return new Response(JSON.stringify({ error: "Failed to create loyalty program" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      program = newProg;
+    } else if (!program.is_active) {
+      // Activate if exists but inactive
+      await supabase.from("restaurant_loyalty_program").update({ is_active: true }).eq("restaurant_id", restaurant_id);
+      program.is_active = true;
     }
 
     const { data: restaurant } = await supabase.from("restaurants").select("name").eq("id", restaurant_id).single();
