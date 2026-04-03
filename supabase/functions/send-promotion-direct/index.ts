@@ -178,7 +178,8 @@ interface PromotionEmailRequest {
 async function sendTwilioMessage(
   to: string,
   body: string,
-  channel: 'sms' | 'whatsapp'
+  channel: 'sms' | 'whatsapp',
+  mediaUrl?: string
 ): Promise<{ success: boolean; sid?: string; error?: string; channel: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
@@ -195,6 +196,16 @@ async function sendTwilioMessage(
   const GATEWAY_URL = 'https://connector-gateway.lovable.dev/twilio';
 
   try {
+    const payload = new URLSearchParams({
+      To: formattedTo,
+      From: formattedFrom,
+      Body: body,
+    });
+
+    if (mediaUrl && channel === 'whatsapp') {
+      payload.append('MediaUrl', mediaUrl);
+    }
+
     const response = await fetch(`${GATEWAY_URL}/Messages.json`, {
       method: "POST",
       headers: {
@@ -202,11 +213,7 @@ async function sendTwilioMessage(
         "X-Connection-Api-Key": TWILIO_API_KEY,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({
-        To: formattedTo,
-        From: formattedFrom,
-        Body: body,
-      }),
+      body: payload,
     });
 
     const data = await response.json();
@@ -240,7 +247,7 @@ const buildPromotionHtml = (data: PromotionEmailRequest): string => {
     : null;
 
   const imageBlock = image_url
-    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;"><tr><td align="center"><img src="${image_url}" alt="Imagem da promoção" style="max-width: 100%; height: auto; border-radius: 12px; display: block;" /></td></tr></table>`
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;"><tr><td align="center"><img src="${image_url}" alt="Imagem da promoção" style="max-width: 100%; height: auto; border-radius: 12px; display: block;" /></td></tr><tr><td align="center" style="padding-top: 12px;"><a href="${image_url}" style="color: #ea580c; font-size: 13px; font-weight: 600; text-decoration: underline;">Abrir imagem da promoção</a></td></tr></table>`
     : "";
 
   const couponBlock = coupon_code
@@ -287,6 +294,7 @@ Deno.serve(async (req) => {
     console.log("send-promotion-direct version:", FUNCTION_VERSION, "user:", auth.user.id);
 
     const requestData: PromotionEmailRequest = await req.json();
+    requestData.image_url = requestData.image_url?.trim() || undefined;
 
     console.log("Received promotion email request:", JSON.stringify({
       to_email: requestData.to_email,
@@ -295,6 +303,7 @@ Deno.serve(async (req) => {
       coupon_code: requestData.coupon_code || null,
       expires_at: requestData.expires_at || null,
       message_length: requestData.message?.length || 0,
+      has_image: Boolean(requestData.image_url),
     }));
 
     if (!requestData.to_phone || !requestData.subject || !requestData.message) {
@@ -310,12 +319,14 @@ Deno.serve(async (req) => {
     let emailLastEvent: string | null = null;
 
     const restaurantName = requestData.restaurant_name || "MesaClik";
+    const deliveryImageUrl = requestData.image_url;
     const msgBody = [
       `${restaurantName}: ${requestData.message}`,
       requestData.coupon_code ? `Cupom: ${requestData.coupon_code}` : undefined,
       requestData.expires_at
         ? `Valido ate ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
         : undefined,
+      deliveryImageUrl ? `Imagem: ${deliveryImageUrl}` : undefined,
       requestData.cta_url ? `${requestData.cta_url}` : undefined,
     ]
       .filter(Boolean)
@@ -324,7 +335,7 @@ Deno.serve(async (req) => {
 
     const [smsResult, whatsappResult] = await Promise.all([
       sendTwilioMessage(requestData.to_phone, msgBody, 'sms'),
-      sendTwilioMessage(requestData.to_phone, msgBody, 'whatsapp'),
+      sendTwilioMessage(requestData.to_phone, msgBody, 'whatsapp', deliveryImageUrl),
     ]);
 
     if (smsResult.success) smsSid = smsResult.sid;
@@ -359,6 +370,7 @@ Deno.serve(async (req) => {
         requestData.expires_at
           ? `Validade: ${new Date(requestData.expires_at).toLocaleDateString("pt-BR")}`
           : undefined,
+        requestData.image_url ? `\nImagem: ${requestData.image_url}` : undefined,
         requestData.cta_url ? `\nVer oferta: ${requestData.cta_url}` : undefined,
         unsubUrl
           ? `\nCancelar recebimento: ${unsubUrl}`
