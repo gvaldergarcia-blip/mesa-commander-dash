@@ -157,14 +157,44 @@ export const useLoyaltyProgram = (restaurantId: string) => {
   const fetchCustomerLoyalty = async (customerId: string): Promise<{ program: LoyaltyProgram | null; status: CustomerLoyaltyStatus | null }> => {
     if (!restaurantId) return { program: null, status: null };
     try {
-      const { data: prog } = await supabase
+      // Try to find existing program
+      let { data: prog } = await supabase
         .from("restaurant_loyalty_program" as any)
         .select("*")
         .eq("restaurant_id", restaurantId)
-        .eq("is_active", true)
         .maybeSingle();
 
-      if (!prog) return { program: null, status: null };
+      // Auto-create program if it doesn't exist
+      if (!prog) {
+        const { data: newProg, error: createErr } = await supabase
+          .from("restaurant_loyalty_program" as any)
+          .upsert({
+            restaurant_id: restaurantId,
+            is_active: true,
+            program_name: "Clube MesaClik",
+            required_visits: 10,
+            count_queue: true,
+            count_reservations: true,
+            reward_description: "Recompensa especial",
+            reward_validity_days: 30,
+          } as any, { onConflict: "restaurant_id" })
+          .select("*")
+          .single();
+
+        if (!createErr && newProg) {
+          prog = newProg;
+        } else {
+          console.error("[useLoyaltyProgram] Error auto-creating program:", createErr);
+          return { program: null, status: null };
+        }
+      } else if (!prog.is_active) {
+        // Activate if it exists but is inactive
+        await supabase
+          .from("restaurant_loyalty_program" as any)
+          .update({ is_active: true } as any)
+          .eq("restaurant_id", restaurantId);
+        prog.is_active = true;
+      }
 
       const { data: stat } = await supabase
         .from("customer_loyalty_status" as any)
