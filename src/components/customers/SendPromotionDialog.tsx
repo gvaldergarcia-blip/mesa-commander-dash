@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Send, Megaphone, Gift, MessageSquare, Upload, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useRestaurant } from '@/contexts/RestaurantContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,6 +65,7 @@ export function SendPromotionDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFilePickerOpenRef = useRef(false);
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
 
   const resetForm = () => {
     setPromotionType('message');
@@ -158,7 +160,7 @@ export function SendPromotionDialog({
     try {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `promotions/${fileName}`;
+      const filePath = `${restaurantId}/promotions/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('promotion-images')
