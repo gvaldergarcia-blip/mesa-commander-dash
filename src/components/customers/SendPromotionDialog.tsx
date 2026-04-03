@@ -78,9 +78,9 @@ export function SendPromotionDialog({
   };
 
   const releaseFilePickerLock = useCallback(() => {
-    window.setTimeout(() => {
+    window.setTimeout(() => {  
       isFilePickerOpenRef.current = false;
-    }, 0);
+    }, 500);
   }, []);
 
   const openImagePicker = () => {
@@ -91,6 +91,9 @@ export function SendPromotionDialog({
 
   const handleDialogChange = (nextOpen: boolean) => {
     if (!nextOpen && isFilePickerOpenRef.current) {
+      return;
+    }
+    if (!nextOpen && uploadingImage) {
       return;
     }
 
@@ -220,7 +223,22 @@ export function SendPromotionDialog({
       <DialogContent
         className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto"
         onInteractOutside={(event) => {
-          if (isFilePickerOpenRef.current) {
+          if (isFilePickerOpenRef.current || uploadingImage) {
+            event.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          if (isFilePickerOpenRef.current || uploadingImage) {
+            event.preventDefault();
+          }
+        }}
+        onPointerDownOutside={(event) => {
+          if (isFilePickerOpenRef.current || uploadingImage) {
+            event.preventDefault();
+          }
+        }}
+        onFocusOutside={(event) => {
+          if (isFilePickerOpenRef.current || uploadingImage) {
             event.preventDefault();
           }
         }}

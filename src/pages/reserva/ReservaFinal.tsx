@@ -442,116 +442,64 @@ export default function ReservaFinal() {
   const isCanceled = reservationInfo.status === 'canceled' || reservationInfo.status === 'no_show';
   const canCancel = ['pending', 'confirmed'].includes(reservationInfo.status);
 
-  // Tela de consentimento
-  if (!consentConfirmed) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl border-0">
-          <CardHeader className="text-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-t-lg pb-6">
-            <ShieldCheck className="h-12 w-12 mx-auto mb-2" />
-            <CardTitle className="text-2xl font-bold text-white">Sua Reserva</CardTitle>
-            <CardDescription className="text-white/90 text-base">
-              {reservationInfo.restaurant_name}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-6 pt-6">
-            <p className="text-center text-muted-foreground">
-              Para visualizar os detalhes da sua reserva, por favor aceite nossos termos.
-            </p>
-
-            {/* Checkbox de termos */}
-            <div className="flex items-start space-x-3 p-4 bg-muted/50 rounded-lg border">
-              <Checkbox
-                id="terms-consent"
-                checked={termsAccepted}
-                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-                disabled={savingConsent}
-                className="mt-0.5"
-              />
-              <div className="space-y-1">
-                <Label
-                  htmlFor="terms-consent"
-                  className="text-sm font-medium leading-tight cursor-pointer"
-                >
-                  Li e aceito os{' '}
-                  <Link
-                    to="/termos"
-                    target="_blank"
-                    className="text-orange-600 hover:text-orange-700 underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Termos de Uso
-                  </Link>{' '}
-                  e a{' '}
-                  <Link
-                    to="/privacidade"
-                    target="_blank"
-                    className="text-orange-600 hover:text-orange-700 underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Política de Privacidade
-                  </Link>{' '}
-                  do MesaClik.
-                </Label>
-                <p className="text-xs text-muted-foreground font-medium">
-                  Ao tocar em "Ver minha reserva", você aceita os termos acima.
-                </p>
-              </div>
-            </div>
-
-            {/* Checkbox de ofertas (opcional) */}
-            <div className="flex items-start space-x-3 p-4 bg-orange-50/50 rounded-lg border border-orange-200/50">
-              <Checkbox
-                id="offers-consent"
-                checked={offersOptIn}
-                onCheckedChange={(checked) => setOffersOptIn(checked === true)}
-                disabled={savingConsent}
-                className="mt-0.5"
-              />
-              <div className="space-y-1">
-                <Label
-                  htmlFor="offers-consent"
-                  className="text-sm font-medium leading-tight cursor-pointer"
-                >
-                  Quero receber ofertas e novidades somente por SMS.
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Opcional - comunicações apenas por SMS. Você pode cancelar a qualquer momento.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
-              disabled={savingConsent}
-              onClick={handleConfirmConsent}
-            >
-              {savingConsent ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Carregando...
-                </>
-              ) : (
-                '📋 Ver minha reserva'
-              )}
-            </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Toque em "Ver minha reserva" para continuar agora.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Tela principal da reserva
+  // Tela principal da reserva (tudo em uma tela só)
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background p-4 py-8">
       <div className="max-w-md mx-auto space-y-4">
+        {/* Consentimento inline - só aparece se não confirmou ainda */}
+        {!consentConfirmed && (
+          <Card className="shadow-lg border-orange-200">
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center mb-2">
+                <ShieldCheck className="h-8 w-8 mx-auto text-orange-500 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Aceite os termos para ver os detalhes da reserva
+                </p>
+              </div>
+
+              <div className="flex items-start space-x-3 p-4 bg-muted/50 rounded-lg border">
+                <Checkbox
+                  id="terms-reserva"
+                  checked={termsAccepted}
+                  onCheckedChange={(c) => setTermsAccepted(c === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="terms-reserva" className="text-sm font-medium leading-tight cursor-pointer">
+                  Li e aceito os{' '}
+                  <Link to="/termos" target="_blank" className="text-orange-600 underline" onClick={e => e.stopPropagation()}>Termos de Uso</Link>{' '}
+                  e a{' '}
+                  <Link to="/privacidade" target="_blank" className="text-orange-600 underline" onClick={e => e.stopPropagation()}>Política de Privacidade</Link>.
+                </Label>
+              </div>
+
+              <div className="flex items-start space-x-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <Checkbox
+                  id="marketing-reserva"
+                  checked={offersOptIn}
+                  onCheckedChange={(c) => setOffersOptIn(c === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="marketing-reserva" className="text-sm font-medium leading-tight cursor-pointer">
+                    Quero receber ofertas e novidades por SMS.
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Opcional. Cancele a qualquer momento.</p>
+                </div>
+              </div>
+
+              <Button
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-5"
+                disabled={!termsAccepted}
+                onClick={handleConfirmConsent}
+              >
+                📋 Ver detalhes da reserva
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Header com status */}
-        <Card className="shadow-xl border-0 overflow-hidden">
+        <Card className={`shadow-xl border-0 overflow-hidden ${!consentConfirmed ? 'blur-sm pointer-events-none select-none' : ''}`}>
           <CardHeader className={`text-center space-y-2 ${isCanceled ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-500 to-orange-600'} text-white pb-6`}>
             <div className="text-4xl mb-2">{isCanceled ? '❌' : '✅'}</div>
             <CardTitle className="text-2xl font-bold text-white">
@@ -565,7 +513,7 @@ export default function ReservaFinal() {
         </Card>
 
         {/* Bloco Restaurante */}
-        <Card className="shadow-lg">
+        <Card className={`shadow-lg ${!consentConfirmed ? 'blur-sm pointer-events-none select-none' : ''}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <MapPin className="h-5 w-5 text-orange-600" />
@@ -603,7 +551,7 @@ export default function ReservaFinal() {
         </Card>
 
         {/* Bloco Reserva */}
-        <Card className="shadow-lg">
+        <Card className={`shadow-lg ${!consentConfirmed ? 'blur-sm pointer-events-none select-none' : ''}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <FileText className="h-5 w-5 text-orange-600" />
@@ -668,7 +616,7 @@ export default function ReservaFinal() {
         </Card>
 
         {/* Bloco Ações */}
-        <Card className="shadow-lg">
+        <Card className={`shadow-lg ${!consentConfirmed ? 'blur-sm pointer-events-none select-none' : ''}`}>
           <CardContent className="pt-6 space-y-3">
             {/* Abrir no Google Maps */}
             {reservationInfo.restaurant_address && (
