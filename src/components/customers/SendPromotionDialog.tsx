@@ -59,41 +59,7 @@ export function SendPromotionDialog({
   const [ctaUrl, setCtaUrl] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const isFilePickerOpenRef = useRef(false);
   const { toast } = useToast();
-  const { restaurantId } = useRestaurant();
-
-  const resetForm = () => {
-    setPromotionType('message');
-    setTitle('');
-    setSubject('');
-    setMessage('');
-    setCtaUrl('');
-    setCouponCode('');
-    setExpiresAt('');
-    setImageFile(null);
-    setImagePreview(null);
-  };
-
-  const openImagePicker = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    isFilePickerOpenRef.current = true;
-    // Release lock after a generous delay to cover slow file pickers
-    const releaseTimer = window.setTimeout(() => {
-      isFilePickerOpenRef.current = false;
-    }, 5000);
-    // If a file is selected, the onChange handler clears the lock immediately
-    // Store timer so onChange can clear it
-    (fileInputRef as any)._releaseTimer = releaseTimer;
-    fileInputRef.current?.click();
-  };
 
   const handleDialogChange = (nextOpen: boolean) => {
     if (!nextOpen && isFilePickerOpenRef.current) {
