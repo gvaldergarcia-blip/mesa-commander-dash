@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Send, Megaphone, Gift, MessageSquare, Upload, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -79,19 +79,19 @@ export function SendPromotionDialog({
     setImagePreview(null);
   };
 
-  const releaseFilePickerLock = useCallback(() => {
-    window.setTimeout(() => {  
-      isFilePickerOpenRef.current = false;
-    }, 500);
-  }, []);
-
   const openImagePicker = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     isFilePickerOpenRef.current = true;
-    window.addEventListener('focus', releaseFilePickerLock, { once: true });
+    // Release lock after a generous delay to cover slow file pickers
+    const releaseTimer = window.setTimeout(() => {
+      isFilePickerOpenRef.current = false;
+    }, 5000);
+    // If a file is selected, the onChange handler clears the lock immediately
+    // Store timer so onChange can clear it
+    (fileInputRef as any)._releaseTimer = releaseTimer;
     fileInputRef.current?.click();
   };
 
@@ -111,6 +111,10 @@ export function SendPromotionDialog({
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Clear the release timer and lock immediately
+    if ((fileInputRef as any)._releaseTimer) {
+      clearTimeout((fileInputRef as any)._releaseTimer);
+    }
     isFilePickerOpenRef.current = false;
     const file = e.target.files?.[0];
     if (!file) return;
