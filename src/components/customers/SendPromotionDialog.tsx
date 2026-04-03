@@ -79,19 +79,19 @@ export function SendPromotionDialog({
     setImagePreview(null);
   };
 
-  const releaseFilePickerLock = useCallback(() => {
-    window.setTimeout(() => {  
-      isFilePickerOpenRef.current = false;
-    }, 500);
-  }, []);
-
   const openImagePicker = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     isFilePickerOpenRef.current = true;
-    window.addEventListener('focus', releaseFilePickerLock, { once: true });
+    // Release lock after a generous delay to cover slow file pickers
+    const releaseTimer = window.setTimeout(() => {
+      isFilePickerOpenRef.current = false;
+    }, 5000);
+    // If a file is selected, the onChange handler clears the lock immediately
+    // Store timer so onChange can clear it
+    (fileInputRef as any)._releaseTimer = releaseTimer;
     fileInputRef.current?.click();
   };
 
