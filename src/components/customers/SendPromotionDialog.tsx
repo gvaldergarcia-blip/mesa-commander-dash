@@ -111,8 +111,11 @@ export function SendPromotionDialog({
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Clear the release timer and lock immediately
+    if ((fileInputRef as any)._releaseTimer) {
+      clearTimeout((fileInputRef as any)._releaseTimer);
+    }
     isFilePickerOpenRef.current = false;
-    const file = e.target.files?.[0];
     if (!file) return;
 
     // Validar tipo
