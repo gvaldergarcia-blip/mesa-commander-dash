@@ -435,7 +435,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
                 <div className="mt-2">
                   {!uploadedFile ? (
                     <div
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={(e) => openFilePicker(e)}
                       className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
                     >
                       <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
