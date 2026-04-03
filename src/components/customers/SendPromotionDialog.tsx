@@ -116,6 +116,7 @@ export function SendPromotionDialog({
       clearTimeout((fileInputRef as any)._releaseTimer);
     }
     isFilePickerOpenRef.current = false;
+    const file = e.target.files?.[0];
     if (!file) return;
 
     // Validar tipo
