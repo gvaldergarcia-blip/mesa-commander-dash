@@ -48,6 +48,7 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   const [price, setPrice] = useState(0);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFilePickerOpenRef = useRef(false);
 
   // Calcular duração e preço quando as datas mudarem
   useEffect(() => {
