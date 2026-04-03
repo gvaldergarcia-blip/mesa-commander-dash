@@ -345,7 +345,21 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-y-auto"
+          onInteractOutside={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+          onFocusOutside={(event) => {
+            if (isFilePickerOpenRef.current || loading) event.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Novo Cupom Pago</DialogTitle>
           </DialogHeader>
