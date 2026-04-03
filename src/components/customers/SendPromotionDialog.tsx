@@ -83,7 +83,11 @@ export function SendPromotionDialog({
     }, 500);
   }, []);
 
-  const openImagePicker = () => {
+  const openImagePicker = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     isFilePickerOpenRef.current = true;
     window.addEventListener('focus', releaseFilePickerLock, { once: true });
     fileInputRef.current?.click();
