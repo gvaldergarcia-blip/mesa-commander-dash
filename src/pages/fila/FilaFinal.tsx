@@ -196,11 +196,16 @@ export default function FilaFinal() {
 
   // Handler para confirmar consentimento e ver posição
   const handleConfirmConsent = async () => {
-    if (!queueInfo?.restaurant_id || !queueInfo?.ticket_id) {
+    if (!queueInfo) {
       return;
     }
 
+    setLocalTermsAccepted(true);
     openTrackingView();
+
+    if (!queueInfo.restaurant_id || !queueInfo.ticket_id) {
+      return;
+    }
 
     const customerConsentEmail = resolveCustomerConsentEmail(queueInfo.customer_email, queueInfo.customer_phone);
 
@@ -216,7 +221,7 @@ export default function FilaFinal() {
           queueInfo.ticket_id,
           customerConsentEmail,
           queueInfo.customer_name,
-          localTermsAccepted,
+          true,
           queueInfo.customer_phone,
           localMarketingOptin
         );
@@ -398,7 +403,7 @@ export default function FilaFinal() {
             <Button
               type="button"
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-6"
-              disabled={!localTermsAccepted || savingConsent}
+               disabled={savingConsent}
               onClick={handleConfirmConsent}
             >
               {savingConsent ? (
@@ -411,11 +416,9 @@ export default function FilaFinal() {
               )}
             </Button>
 
-            {!localTermsAccepted && (
-              <p className="text-center text-xs text-muted-foreground">
-                Marque a caixa acima para continuar
-              </p>
-            )}
+             <p className="text-center text-xs text-muted-foreground">
+               Toque em continuar para abrir sua posição agora.
+             </p>
 
             <div className="text-center">
               <button

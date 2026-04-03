@@ -62,7 +62,7 @@ export function QueueConsentForm({
             do MesaClik.
           </Label>
           <p className="text-xs text-muted-foreground">
-            * Obrigatório para continuar
+            Ao tocar em continuar, você aceita os termos acima.
           </p>
         </div>
       </div>
