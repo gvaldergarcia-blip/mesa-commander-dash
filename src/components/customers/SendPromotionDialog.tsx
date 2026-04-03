@@ -371,58 +371,6 @@ export function SendPromotionDialog({
           )}
 
           {(promotionType === 'banner' || promotionType === 'coupon') && (
-            <>
-              {/* Upload de imagem */}
-              <div className="space-y-2">
-                <Label>Imagem do banner (opcional)</Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
-                
-                {imagePreview ? (
-                  <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-full max-h-40 object-cover rounded-lg border"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-6 w-6"
-                      onClick={removeImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-20 border-dashed flex flex-col gap-1"
-                    onClick={(e) => openImagePicker(e)}
-                  >
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      Clique para anexar imagem
-                    </span>
-                  </Button>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  JPG, PNG até 5MB
-                </p>
-
-                <div className="flex items-center justify-center my-2">
-                  <span className="text-sm text-muted-foreground font-medium">ou</span>
-                </div>
-              </div>
-
-              {/* Link do botão */}
               <div className="space-y-2">
                 <Label htmlFor="ctaUrl">Link da imagem (opcional)</Label>
                 <Input
@@ -437,7 +385,6 @@ export function SendPromotionDialog({
                   </p>
                 )}
               </div>
-            </>
           )}
         </div>
 
