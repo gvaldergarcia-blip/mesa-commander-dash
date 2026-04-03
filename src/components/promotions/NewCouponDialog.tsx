@@ -344,7 +344,12 @@ export function NewCouponDialog({ open, onOpenChange }: NewCouponDialogProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={(nextOpen) => {
+          if (!nextOpen && isFilePickerOpenRef.current) return;
+          if (!nextOpen && loading) return;
+          if (!nextOpen) resetForm();
+          onOpenChange(nextOpen);
+        }}>
         <DialogContent
           className="max-w-2xl max-h-[85vh] overflow-y-auto"
           onInteractOutside={(event) => {
