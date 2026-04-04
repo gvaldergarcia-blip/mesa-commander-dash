@@ -228,11 +228,17 @@ function SettingsContent() {
         .from('restaurants')
         .getPublicUrl(filePath);
 
-      form.setValue('menu_image_url', publicUrl);
+      const isPdf = fileExt === 'pdf';
+      if (isPdf) {
+        form.setValue('menu_url', publicUrl);
+        form.setValue('menu_image_url', '');
+      } else {
+        form.setValue('menu_image_url', publicUrl);
+      }
 
       toast({
-        title: "Imagem do cardápio enviada",
-        description: "A imagem do cardápio foi carregada com sucesso.",
+        title: isPdf ? "PDF do cardápio enviado" : "Imagem do cardápio enviada",
+        description: isPdf ? "O PDF do cardápio foi carregado com sucesso." : "A imagem do cardápio foi carregada com sucesso.",
       });
     } catch (error) {
       console.error('Error uploading menu image:', error);
