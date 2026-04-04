@@ -689,10 +689,10 @@ function SettingsContent() {
                                   Enviando...
                                 </>
                               ) : (
-                                <>
-                                  <ImageIcon className="mr-2 h-4 w-4" />
-                                  Anexar Imagem
-                                </>
+                                 <>
+                                   <ImageIcon className="mr-2 h-4 w-4" />
+                                   Anexar PDF/Imagem
+                                 </>
                               )}
                             </Button>
                           </div>
