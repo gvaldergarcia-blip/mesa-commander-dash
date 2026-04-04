@@ -214,9 +214,9 @@ function SettingsContent() {
     try {
       setUploadingMenuImage(true);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${restaurantId}-menu-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileName = `menu-${Date.now()}.${fileExt}`;
+      const filePath = `${restaurantId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('restaurants')
@@ -228,11 +228,17 @@ function SettingsContent() {
         .from('restaurants')
         .getPublicUrl(filePath);
 
-      form.setValue('menu_image_url', publicUrl);
+      const isPdf = fileExt === 'pdf';
+      if (isPdf) {
+        form.setValue('menu_url', publicUrl);
+        form.setValue('menu_image_url', '');
+      } else {
+        form.setValue('menu_image_url', publicUrl);
+      }
 
       toast({
-        title: "Imagem do cardápio enviada",
-        description: "A imagem do cardápio foi carregada com sucesso.",
+        title: isPdf ? "PDF do cardápio enviado" : "Imagem do cardápio enviada",
+        description: isPdf ? "O PDF do cardápio foi carregado com sucesso." : "A imagem do cardápio foi carregada com sucesso.",
       });
     } catch (error) {
       console.error('Error uploading menu image:', error);
@@ -669,7 +675,7 @@ function SettingsContent() {
                               onClick={() => {
                                 const input = document.createElement('input');
                                 input.type = 'file';
-                                input.accept = 'image/*';
+                                input.accept = 'image/*,application/pdf';
                                 input.onchange = (e) => {
                                   const file = (e.target as HTMLInputElement).files?.[0];
                                   if (file) handleMenuImageUpload(file);
@@ -683,16 +689,16 @@ function SettingsContent() {
                                   Enviando...
                                 </>
                               ) : (
-                                <>
-                                  <ImageIcon className="mr-2 h-4 w-4" />
-                                  Anexar Imagem
-                                </>
+                                 <>
+                                   <ImageIcon className="mr-2 h-4 w-4" />
+                                   Anexar PDF/Imagem
+                                 </>
                               )}
                             </Button>
                           </div>
-                          <FormDescription>
-                            Cole o link do cardápio ou anexe uma imagem
-                          </FormDescription>
+                           <FormDescription>
+                             Cole o link do cardápio ou anexe um PDF/imagem
+                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
