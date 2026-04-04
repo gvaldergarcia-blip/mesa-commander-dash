@@ -675,7 +675,7 @@ function SettingsContent() {
                               onClick={() => {
                                 const input = document.createElement('input');
                                 input.type = 'file';
-                                input.accept = 'image/*';
+                                input.accept = 'image/*,application/pdf';
                                 input.onchange = (e) => {
                                   const file = (e.target as HTMLInputElement).files?.[0];
                                   if (file) handleMenuImageUpload(file);
