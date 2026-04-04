@@ -6,6 +6,7 @@ interface Restaurant {
   id: string;
   name: string;
   image_url: string | null;
+  logo_url: string | null;
   address_line: string | null;
   cuisine: string;
   owner_id: string | null;
@@ -31,6 +32,7 @@ const DEFAULT_RESTAURANT: Restaurant = {
   id: DEFAULT_RESTAURANT_ID,
   name: 'Mocotó',
   image_url: null,
+  logo_url: null,
   address_line: null,
   cuisine: 'Outros',
   owner_id: null,
@@ -121,13 +123,24 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         return;
       }
       
-      // 3. Buscar dados do restaurante (public.restaurants - sincronizado via trigger)
-      const { data: restaurantData, error: restaurantError } = await (supabase as any)
-        .schema('public')
-        .from('restaurants')
-        .select('id, name, image_url, address_line, cuisine, owner_id')
-        .eq('id', targetRestaurantId)
-        .single();
+      // 3. Buscar dados do restaurante e complementar com a logo real salva no schema mesaclik
+      const [restaurantResult, restaurantBrandingResult] = await Promise.all([
+        (supabase as any)
+          .schema('public')
+          .from('restaurants')
+          .select('id, name, image_url, address_line, cuisine, owner_id')
+          .eq('id', targetRestaurantId)
+          .single(),
+        (supabase as any)
+          .schema('mesaclik')
+          .from('restaurants')
+          .select('logo_url')
+          .eq('id', targetRestaurantId)
+          .maybeSingle(),
+      ]);
+
+      const { data: restaurantData, error: restaurantError } = restaurantResult;
+      const { data: restaurantBrandingData } = restaurantBrandingResult;
       
       if (restaurantError) {
         console.error('[RestaurantContext] Error:', restaurantError);
@@ -136,7 +149,10 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       }
       
       console.log('[RestaurantContext] Restaurante resolvido:', restaurantData?.name, 'para userId:', userId);
-      setRestaurant(restaurantData);
+      setRestaurant({
+        ...restaurantData,
+        logo_url: restaurantBrandingData?.logo_url ?? null,
+      });
       
     } catch (err) {
       console.error('[RestaurantContext] Unexpected error:', err);
@@ -149,18 +165,36 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       setError(null);
       setUserRole('admin');
 
-      const { data: restaurantData, error: restaurantError } = await (supabase as any)
-        .schema('public')
-        .from('restaurants')
-        .select('id, name, image_url, address_line, cuisine, owner_id')
-        .eq('id', DEFAULT_RESTAURANT_ID)
-        .maybeSingle();
+      const [restaurantResult, restaurantBrandingResult] = await Promise.all([
+        (supabase as any)
+          .schema('public')
+          .from('restaurants')
+          .select('id, name, image_url, address_line, cuisine, owner_id')
+          .eq('id', DEFAULT_RESTAURANT_ID)
+          .maybeSingle(),
+        (supabase as any)
+          .schema('mesaclik')
+          .from('restaurants')
+          .select('logo_url')
+          .eq('id', DEFAULT_RESTAURANT_ID)
+          .maybeSingle(),
+      ]);
+
+      const { data: restaurantData, error: restaurantError } = restaurantResult;
+      const { data: restaurantBrandingData } = restaurantBrandingResult;
 
       if (restaurantError) {
         console.warn('[RestaurantContext] Preview fallback usando restaurante local:', restaurantError);
       }
 
-      setRestaurant(restaurantData ?? DEFAULT_RESTAURANT);
+      setRestaurant(
+        restaurantData
+          ? {
+              ...restaurantData,
+              logo_url: restaurantBrandingData?.logo_url ?? null,
+            }
+          : DEFAULT_RESTAURANT
+      );
     } catch (err) {
       console.warn('[RestaurantContext] Preview fallback local ativado:', err);
       setRestaurant(DEFAULT_RESTAURANT);
