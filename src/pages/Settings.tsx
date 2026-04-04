@@ -696,9 +696,9 @@ function SettingsContent() {
                               )}
                             </Button>
                           </div>
-                          <FormDescription>
-                            Cole o link do cardápio ou anexe uma imagem
-                          </FormDescription>
+                           <FormDescription>
+                             Cole o link do cardápio ou anexe um PDF/imagem
+                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
