@@ -128,7 +128,7 @@ CRITICAL RULES:
 - Focus on the dish name, headline, and a compelling CTA`;
     }
     if (includeLogo && logoUrl) {
-      promptText += `\n- Include the restaurant logo in the top-left corner of the image (small and elegant).`;
+      promptText += `\n- LOGO INSTRUCTION: The restaurant logo image is attached below. Place this EXACT logo in the top-left corner of the image, small and elegant. Do NOT recreate or redraw the logo — use the attached logo image as-is.`;
     }
 
     if (includeAddress && address) {
@@ -141,14 +141,22 @@ CRITICAL RULES:
 
     promptText += `\n\nDO NOT include any watermarks or logos other than the restaurant name.`;
 
-    console.log("Generating promo image for:", dishName, "at", restaurantName, "hasDiscount:", hasDiscount, "withRef:", !!referenceImage);
+    console.log("Generating promo image for:", dishName, "at", restaurantName, "hasDiscount:", hasDiscount, "withRef:", !!referenceImage, "withLogo:", !!(includeLogo && logoUrl));
 
-    const userContent: any = referenceImage
-      ? [
-          { type: "text", text: promptText },
-          { type: "image_url", image_url: { url: referenceImage } },
-        ]
-      : promptText;
+    // Build multimodal content with images
+    const contentParts: any[] = [{ type: "text", text: promptText }];
+    
+    // Add logo image if enabled
+    if (includeLogo && logoUrl) {
+      contentParts.push({ type: "image_url", image_url: { url: logoUrl } });
+    }
+    
+    // Add reference image if provided
+    if (referenceImage) {
+      contentParts.push({ type: "image_url", image_url: { url: referenceImage } });
+    }
+    
+    const userContent: any = contentParts.length === 1 ? promptText : contentParts;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
