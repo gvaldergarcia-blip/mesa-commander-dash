@@ -214,9 +214,9 @@ function SettingsContent() {
     try {
       setUploadingMenuImage(true);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${restaurantId}-menu-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileName = `menu-${Date.now()}.${fileExt}`;
+      const filePath = `${restaurantId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('restaurants')
