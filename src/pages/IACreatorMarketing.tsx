@@ -506,7 +506,7 @@ export default function IACreatorMarketing() {
   const [editableLegenda, setEditableLegenda] = useState("");
   const [textConfirmed, setTextConfirmed] = useState(false);
 
-  const hasLogo = !!restaurant?.image_url;
+  const hasLogo = !!restaurant?.logo_url;
   const hasAddress = !!(restaurant?.address_line);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -617,7 +617,7 @@ export default function IACreatorMarketing() {
         hasDiscount: form.hasDiscount,
         includeLogo: form.includeLogo && hasLogo,
         includeAddress: form.includeAddress && hasAddress,
-        logoUrl: form.includeLogo && hasLogo ? restaurant?.image_url : undefined,
+        logoUrl: form.includeLogo && hasLogo ? restaurant?.logo_url : undefined,
         address: form.includeAddress && hasAddress ? restaurant?.address_line : undefined,
         referenceImage: referenceImage || undefined,
         restaurantId: restaurant?.id || undefined,

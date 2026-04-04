@@ -63,7 +63,7 @@ function SettingsContent() {
   // const { loading: authLoading, isAuthenticated } = useRequireAuth({ requireAdmin: true });
   const authLoading = false;
   const isAuthenticated = true;
-  const { restaurantId } = useRestaurant();
+  const { restaurantId, refetch } = useRestaurant();
   const { toast } = useToast();
   const { hasModule } = useModules();
   const [loading, setLoading] = useState(true);
@@ -314,6 +314,8 @@ function SettingsContent() {
       console.log('[Settings] Update result:', { error });
 
       if (error) throw error;
+
+      await refetch();
 
       toast({
         title: "Dados atualizados com sucesso",
