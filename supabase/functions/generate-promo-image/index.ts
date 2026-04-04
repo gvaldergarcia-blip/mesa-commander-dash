@@ -94,7 +94,18 @@ CRITICAL RULES:
 - Do NOT place random words, letters, or decorative text on top of the food/dish itself
 - Do NOT use quotation marks or typographic quotes around any text
 - Keep the dish photo clean and unobstructed — text goes around or above/below the dish, never covering it
-- All overlay text must be in designated text areas, not scattered over the food`;
+- All overlay text must be in designated text areas, not scattered over the food
+
+SPELLING & TEXT ACCURACY (EXTREMELY IMPORTANT):
+- ALL text in the image MUST be spelled EXACTLY as provided above — copy each word letter by letter
+- The language is Brazilian Portuguese — do NOT mix with Spanish or other languages
+- Double-check every single word before rendering. Common mistakes to AVOID:
+  - "com" NOT "con", "uma" NOT "una", "venha" NOT "vena", "já" NOT "jâ"
+  - "aproveite" NOT "aprov·ite", "saborear" NOT "saboraure", "melhor" NOT "mehor"
+  - "a família" NOT "ofamília", "região" NOT "regiãn"
+- If you are unsure about the correct spelling of ANY word, use FEWER words instead of misspelling them
+- Keep text MINIMAL — prefer 3-5 words per text element maximum
+- It is BETTER to have less text that is correct than more text with errors`;
     } else {
       promptText = `Create a professional Instagram post image for a restaurant.
 
@@ -125,7 +136,18 @@ CRITICAL RULES:
 - Do NOT use quotation marks or typographic quotes around any text
 - Keep the dish photo clean and unobstructed — text goes around or above/below the dish, never covering it
 - All overlay text must be in designated text areas, not scattered over the food
-- Focus on the dish name, headline, and a compelling CTA`;
+- Focus on the dish name, headline, and a compelling CTA
+
+SPELLING & TEXT ACCURACY (EXTREMELY IMPORTANT):
+- ALL text in the image MUST be spelled EXACTLY as provided above — copy each word letter by letter
+- The language is Brazilian Portuguese — do NOT mix with Spanish or other languages
+- Double-check every single word before rendering. Common mistakes to AVOID:
+  - "com" NOT "con", "uma" NOT "una", "venha" NOT "vena", "já" NOT "jâ"
+  - "aproveite" NOT "aprov·ite", "saborear" NOT "saboraure", "melhor" NOT "mehor"
+  - "a família" NOT "ofamília", "região" NOT "regiãn"
+- If you are unsure about the correct spelling of ANY word, use FEWER words instead of misspelling them
+- Keep text MINIMAL — prefer 3-5 words per text element maximum
+- It is BETTER to have less text that is correct than more text with errors`;
     }
     if (includeLogo && logoUrl) {
       promptText += `\n- LOGO INSTRUCTION: The restaurant logo image is attached below. Place this EXACT logo in the top-left corner of the image, small and elegant. Do NOT recreate or redraw the logo — use the attached logo image as-is.`;
@@ -167,7 +189,7 @@ CRITICAL RULES:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
+          model: "google/gemini-3-pro-image-preview",
           messages: [{ role: "user", content: userContent }],
           modalities: ["image", "text"],
         }),
