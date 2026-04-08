@@ -3266,16 +3266,24 @@ export type Database = {
               p_start_date: string
             }
             Returns: {
+              cancel_reason: string
               canceled_at: string
+              canceled_by: string
               completed_at: string
               confirmed_at: string
               created_at: string
+              customer_email: string
               id: string
+              name: string
               no_show_at: string
+              notes: string
               party_size: number
               phone: string
               reserved_for: string
+              restaurant_id: string
               status: string
+              updated_at: string
+              user_id: string
             }[]
           }
       get_reservations_panel: {
