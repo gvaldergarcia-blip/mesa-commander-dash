@@ -52,6 +52,7 @@ import { ReservationStatusChart } from "@/components/reports/ReservationStatusCh
 import { QueueHourlyChart } from "@/components/reports/QueueHourlyChart";
 import { QueuePerformanceCard } from "@/components/reports/QueuePerformanceCard";
 import { ReservationPerformanceCard } from "@/components/reports/ReservationPerformanceCard";
+import { QrCodeReportsCard } from "@/components/reports/QrCodeReportsCard";
 
 type PeriodType = 'today' | '7days' | '30days' | '90days';
 type SourceType = 'all' | 'queue' | 'reservations';
@@ -280,6 +281,12 @@ function ReportsContent() {
           </CardContent>
         </Card>
       )}
+
+      {/* QR Code Metrics */}
+      <QrCodeReportsCard
+        startDate={getPeriodDates().startDate.toISOString()}
+        endDate={getPeriodDates().endDate.toISOString()}
+      />
 
       {/* Resumo Rápido - Totais e Picos */}
       <PeakInfoCard
