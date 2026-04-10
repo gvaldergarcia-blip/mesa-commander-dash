@@ -26,7 +26,7 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
 
   const baseUrl = getSiteBaseUrl();
   const url = type === 'fila'
-    ? `${baseUrl}/fila/qr/${restaurantId}`
+    ? `${baseUrl}/fila/${restaurantId}`
     : `${baseUrl}/cadastro/${restaurantId}`;
 
   const title = type === 'fila' ? 'QR Code da Fila' : 'QR Code de Cadastro';

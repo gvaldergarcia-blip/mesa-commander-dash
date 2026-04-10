@@ -119,6 +119,7 @@ const App = () => {
         <Route path="/fila/verificar" element={<FilaVerificar />} />
         <Route path="/fila/final" element={<FilaFinal />} />
         <Route path="/fila/qr/:restaurantId" element={<FilaQrEntrar />} />
+        <Route path="/fila/:restaurantId" element={<FilaQrEntrar />} />
 
         {/* Rota pública de Cadastro via QR */}
         <Route path="/cadastro/:restaurantId" element={<CadastroQr />} />
