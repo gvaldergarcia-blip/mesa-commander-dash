@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Users, UserPlus, ClipboardCheck } from "lucide-react";
+import { Send, Users, UserPlus, ClipboardCheck, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
@@ -17,6 +17,7 @@ import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialo
 import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
 import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
+import { QrCodeModal } from "@/components/qrcode/QrCodeModal";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 function CustomersPageContent() {

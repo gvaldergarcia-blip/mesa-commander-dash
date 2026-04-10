@@ -637,6 +637,17 @@ function QueueContent() {
           </CardContent>
         </Card>
       )}
+
+      {/* QR Code Modal */}
+      {restaurantId && (
+        <QrCodeModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          restaurantId={restaurantId}
+          restaurantName={restaurants?.[0]?.name || 'Restaurante'}
+          type="fila"
+        />
+      )}
     </div>
   );
 }
