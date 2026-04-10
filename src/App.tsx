@@ -32,6 +32,10 @@ import { FEATURE_FLAGS } from "./config/feature-flags";
 import FilaEntrar from "./pages/fila/FilaEntrar";
 import FilaVerificar from "./pages/fila/FilaVerificar";
 import FilaFinal from "./pages/fila/FilaFinal";
+import FilaQrEntrar from "./pages/fila/FilaQrEntrar";
+
+// Página de Cadastro via QR (pública)
+import CadastroQr from "./pages/cadastro/CadastroQr";
 
 // Página de Reserva (pública)
 import ReservaFinal from "./pages/reserva/ReservaFinal";
@@ -114,6 +118,10 @@ const App = () => {
         <Route path="/fila/entrar" element={<FilaEntrar />} />
         <Route path="/fila/verificar" element={<FilaVerificar />} />
         <Route path="/fila/final" element={<FilaFinal />} />
+        <Route path="/fila/qr/:restaurantId" element={<FilaQrEntrar />} />
+
+        {/* Rota pública de Cadastro via QR */}
+        <Route path="/cadastro/:restaurantId" element={<CadastroQr />} />
 
         {/* Rota pública de Reserva */}
         <Route path="/reserva/final" element={<ReservaFinal />} />
