@@ -382,6 +382,16 @@ function CustomersPageContent() {
         onOpenChange={setVisitDialogOpen}
         onSuccess={refetch}
       />
+
+      {restaurantId && (
+        <QrCodeModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          restaurantId={restaurantId}
+          restaurantName={restaurant?.name || 'Restaurante'}
+          type="cadastro"
+        />
+      )}
     </div>
   );
 }
