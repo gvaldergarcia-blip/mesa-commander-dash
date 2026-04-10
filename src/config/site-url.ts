@@ -15,5 +15,5 @@ export function getSiteBaseUrl(): string {
     return window.location.origin;
   }
 
-  return 'https://mesaclik.com.br';
+  return 'https://app.mesaclik.com.br';
 }
