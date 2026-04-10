@@ -36,7 +36,7 @@ function CustomersPageContent() {
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
-  
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers();
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(restaurantId || '');
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
@@ -224,6 +224,10 @@ function CustomersPageContent() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setQrModalOpen(true)} className="gap-2">
+            <QrCode className="h-4 w-4" />
+            QR Code de Cadastro
+          </Button>
           <Button variant="outline" onClick={() => setVisitDialogOpen(true)} className="gap-2">
             <ClipboardCheck className="h-4 w-4" />
             Registrar Visita
