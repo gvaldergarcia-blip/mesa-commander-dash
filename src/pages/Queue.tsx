@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle, QrCode } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
@@ -15,6 +15,7 @@ import { VipBadge } from "@/components/queue/VipBadge";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { QueueAlert } from "@/components/queue/QueueAlert";
 import { ClearQueueDialog } from "@/components/queue/ClearQueueDialog";
+import { QrCodeModal } from "@/components/qrcode/QrCodeModal";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { 
   Dialog,
@@ -58,6 +59,7 @@ function QueueContent() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -269,6 +271,10 @@ function QueueContent() {
           <p className="text-muted-foreground">Gerencie a fila em tempo real</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setQrModalOpen(true)}>
+            <QrCode className="w-4 h-4 mr-2" />
+            QR Code da Fila
+          </Button>
           <ClearQueueDialog 
             onConfirm={clearQueue}
             isLoading={loading}
