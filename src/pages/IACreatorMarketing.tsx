@@ -280,13 +280,24 @@ function GalleryTab({
     fetchAssets();
   }, [restaurantId]);
 
-  const handleDownload = (imageUrl: string, dishName: string) => {
-    const link = document.createElement("a");
-    link.href = imageUrl;
-    link.download = `promo-${dishName.replace(/\s+/g, "-").toLowerCase()}.png`;
-    link.target = "_blank";
-    link.click();
-    toast.success("Download iniciado!");
+  const handleDownload = async (imageUrl: string, dishName: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `promo-${dishName.replace(/\s+/g, "-").toLowerCase()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      toast.success("Download iniciado!");
+    } catch {
+      window.open(imageUrl, "_blank");
+      toast.info("Abrindo imagem em nova aba");
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -653,14 +664,25 @@ export default function IACreatorMarketing() {
     }
   };
 
-  const handleDownloadImage = () => {
+  const handleDownloadImage = async () => {
     if (!generatedImage) return;
-    const link = document.createElement("a");
-    link.href = generatedImage;
-    link.download = `promo-${form.nomePrato.replace(/\s+/g, "-").toLowerCase()}.png`;
-    link.target = "_blank";
-    link.click();
-    toast.success("Download iniciado!");
+    try {
+      const response = await fetch(generatedImage);
+      if (!response.ok) throw new Error("Download failed");
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `promo-${form.nomePrato.replace(/\s+/g, "-").toLowerCase()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      toast.success("Download iniciado!");
+    } catch {
+      window.open(generatedImage, "_blank");
+      toast.info("Abrindo imagem em nova aba");
+    }
   };
 
   const handleCopyAll = () => {
