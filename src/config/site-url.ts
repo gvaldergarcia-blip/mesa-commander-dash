@@ -1,19 +1,33 @@
+const OFFICIAL_APP_URL = 'https://app.mesaclik.com.br';
+const LEGACY_ROOT_DOMAINS = new Set([
+  'https://mesaclik.com.br',
+  'https://www.mesaclik.com.br',
+]);
+
+function normalizePublicAppUrl(url?: string | null): string | null {
+  if (!url) return null;
+
+  const normalized = url.replace(/\/$/, '');
+  if (LEGACY_ROOT_DOMAINS.has(normalized)) {
+    return OFFICIAL_APP_URL;
+  }
+
+  return normalized;
+}
+
 /**
- * Retorna a base URL do app para links em SMS/email.
- * Usa o domínio customizado se configurado via env var,
- * senão usa o origin atual (lovable.app em produção).
+ * Retorna a base URL pública do app para links externos e QR Codes.
+ * Domínios legados do site institucional são normalizados para o app oficial.
  */
 export function getSiteBaseUrl(): string {
-  // Se houver domínio customizado configurado, usar ele
-  const customDomain = import.meta.env.VITE_PUBLIC_APP_URL;
+  const customDomain = normalizePublicAppUrl(import.meta.env.VITE_PUBLIC_APP_URL);
   if (customDomain) {
-    return customDomain.replace(/\/$/, '');
+    return customDomain;
   }
 
-  // Fallback: usar o origin atual (funciona em lovable.app e qualquer outro host)
   if (typeof window !== 'undefined') {
-    return window.location.origin;
+    return normalizePublicAppUrl(window.location.origin) ?? OFFICIAL_APP_URL;
   }
 
-  return 'https://app.mesaclik.com.br';
+  return OFFICIAL_APP_URL;
 }
