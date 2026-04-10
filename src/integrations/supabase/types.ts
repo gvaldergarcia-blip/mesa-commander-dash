@@ -1453,6 +1453,30 @@ export type Database = {
         }
         Relationships: []
       }
+      qr_codes: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          restaurant_id: string
+          type: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          restaurant_id: string
+          type: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          restaurant_id?: string
+          type?: string
+        }
+        Relationships: []
+      }
       queue_admin_logs: {
         Row: {
           action: string
@@ -3348,6 +3372,30 @@ export type Database = {
         Returns: boolean
       }
       marketing_unsubscribe: { Args: { p_token: string }; Returns: Json }
+      qr_get_restaurant_info: {
+        Args: { p_restaurant_id: string }
+        Returns: Json
+      }
+      qr_join_queue: {
+        Args: {
+          p_marketing_optin?: boolean
+          p_name: string
+          p_phone: string
+          p_restaurant_id: string
+          p_terms_accepted?: boolean
+        }
+        Returns: Json
+      }
+      qr_register_customer: {
+        Args: {
+          p_marketing_optin?: boolean
+          p_name: string
+          p_phone: string
+          p_restaurant_id: string
+          p_terms_accepted?: boolean
+        }
+        Returns: Json
+      }
       register_customer_visit: {
         Args: {
           p_email?: string
