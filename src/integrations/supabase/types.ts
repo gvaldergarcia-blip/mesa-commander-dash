@@ -668,6 +668,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          birthday: string | null
           created_at: string
           email: string | null
           first_visit_at: string | null
@@ -686,6 +687,7 @@ export type Database = {
           vip_status: boolean
         }
         Insert: {
+          birthday?: string | null
           created_at?: string
           email?: string | null
           first_visit_at?: string | null
@@ -704,6 +706,7 @@ export type Database = {
           vip_status?: boolean
         }
         Update: {
+          birthday?: string | null
           created_at?: string
           email?: string | null
           first_visit_at?: string | null
@@ -3376,26 +3379,53 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: Json
       }
-      qr_join_queue: {
-        Args: {
-          p_marketing_optin?: boolean
-          p_name: string
-          p_phone: string
-          p_restaurant_id: string
-          p_terms_accepted?: boolean
-        }
-        Returns: Json
-      }
-      qr_register_customer: {
-        Args: {
-          p_marketing_optin?: boolean
-          p_name: string
-          p_phone: string
-          p_restaurant_id: string
-          p_terms_accepted?: boolean
-        }
-        Returns: Json
-      }
+      qr_join_queue:
+        | {
+            Args: {
+              p_marketing_optin?: boolean
+              p_name: string
+              p_phone: string
+              p_restaurant_id: string
+              p_terms_accepted?: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_birthday?: string
+              p_email?: string
+              p_marketing_optin?: boolean
+              p_name: string
+              p_party_size?: number
+              p_phone: string
+              p_restaurant_id: string
+              p_terms_accepted?: boolean
+            }
+            Returns: Json
+          }
+      qr_register_customer:
+        | {
+            Args: {
+              p_marketing_optin?: boolean
+              p_name: string
+              p_phone: string
+              p_restaurant_id: string
+              p_terms_accepted?: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_birthday?: string
+              p_email?: string
+              p_marketing_optin?: boolean
+              p_name: string
+              p_phone: string
+              p_restaurant_id: string
+              p_terms_accepted?: boolean
+            }
+            Returns: Json
+          }
       register_customer_visit: {
         Args: {
           p_email?: string

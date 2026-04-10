@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Users, CheckCircle2 } from 'lucide-react';
-import { RestaurantLogo } from '@/components/common/RestaurantLogo';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Users } from 'lucide-react';
 
 interface RestaurantInfo {
   name: string;
@@ -25,6 +25,9 @@ export default function FilaQrEntrar() {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [birthday, setBirthday] = useState('');
+  const [partySize, setPartySize] = useState('1');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingOptin, setMarketingOptin] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,13 +69,19 @@ export default function FilaQrEntrar() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('qr_join_queue', {
+      const rpcParams: Record<string, unknown> = {
         p_restaurant_id: restaurantId,
         p_name: name.trim(),
         p_phone: phoneDigits,
         p_marketing_optin: marketingOptin,
         p_terms_accepted: termsAccepted,
-      });
+        p_party_size: parseInt(partySize, 10),
+      };
+
+      if (email.trim()) rpcParams.p_email = email.trim();
+      if (birthday) rpcParams.p_birthday = birthday;
+
+      const { data, error } = await supabase.rpc('qr_join_queue', rpcParams as any);
 
       if (error || !data?.success) {
         console.error('Erro ao entrar na fila:', error || data?.error);
@@ -81,7 +90,6 @@ export default function FilaQrEntrar() {
         return;
       }
 
-      // Redirect to existing queue tracking page
       navigate(`/fila/final?ticket=${data.entry_id}`);
     } catch (err) {
       console.error('Erro:', err);
@@ -114,7 +122,7 @@ export default function FilaQrEntrar() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg border-0">
         <CardHeader className="text-center space-y-3 pb-2">
           {restaurantInfo?.logo_url ? (
@@ -137,7 +145,7 @@ export default function FilaQrEntrar() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome completo</Label>
+              <Label htmlFor="name">Nome completo *</Label>
               <Input
                 id="name"
                 placeholder="Seu nome"
@@ -149,14 +157,52 @@ export default function FilaQrEntrar() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">Telefone *</Label>
               <Input
                 id="phone"
                 type="tel"
+                inputMode="numeric"
                 placeholder="(11) 99999-9999"
                 value={phone}
                 onChange={(e) => setPhone(formatPhone(e.target.value))}
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="party-size">Quantas pessoas no grupo? *</Label>
+              <Select value={partySize} onValueChange={setPartySize}>
+                <SelectTrigger id="party-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n} {n === 1 ? 'pessoa' : 'pessoas'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="birthday">Data de aniversário <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+              <Input
+                id="birthday"
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
               />
             </div>
 
@@ -186,7 +232,7 @@ export default function FilaQrEntrar() {
                 onCheckedChange={(checked) => setMarketingOptin(checked === true)}
               />
               <Label htmlFor="marketing" className="text-xs leading-tight cursor-pointer">
-                Aceito receber promoções do restaurante por e-mail
+                Quero receber promoções e novidades do restaurante
               </Label>
             </div>
 
@@ -207,6 +253,8 @@ export default function FilaQrEntrar() {
           </form>
         </CardContent>
       </Card>
+
+      <p className="text-xs text-muted-foreground mt-4 opacity-60">Powered by MesaClik</p>
     </div>
   );
 }

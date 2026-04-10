@@ -23,6 +23,8 @@ export default function CadastroQr() {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [birthday, setBirthday] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingOptin, setMarketingOptin] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -65,13 +67,18 @@ export default function CadastroQr() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('qr_register_customer', {
+      const rpcParams: Record<string, unknown> = {
         p_restaurant_id: restaurantId,
         p_name: name.trim(),
         p_phone: phoneDigits,
         p_marketing_optin: marketingOptin,
         p_terms_accepted: termsAccepted,
-      });
+      };
+
+      if (email.trim()) rpcParams.p_email = email.trim();
+      if (birthday) rpcParams.p_birthday = birthday;
+
+      const { data, error } = await supabase.rpc('qr_register_customer', rpcParams as any);
 
       if (error || !data?.success) {
         console.error('Erro ao cadastrar:', error || data?.error);
@@ -113,7 +120,7 @@ export default function CadastroQr() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg border-0 text-center">
           <CardHeader className="space-y-4">
             {restaurantInfo?.logo_url ? (
@@ -128,16 +135,17 @@ export default function CadastroQr() {
             </div>
             <CardTitle className="text-xl">Cadastro realizado com sucesso!</CardTitle>
             <p className="text-muted-foreground text-sm">
-              Você já faz parte do clube de clientes do <strong>{restaurantInfo?.name}</strong>.
+              Bem-vindo ao clube de clientes do <strong>{restaurantInfo?.name}</strong>.
             </p>
           </CardHeader>
         </Card>
+        <p className="text-xs text-muted-foreground mt-4 opacity-60">Powered by MesaClik</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-background flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-lg border-0">
         <CardHeader className="text-center space-y-3 pb-2">
           {restaurantInfo?.logo_url ? (
@@ -160,7 +168,7 @@ export default function CadastroQr() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome completo</Label>
+              <Label htmlFor="name">Nome completo *</Label>
               <Input
                 id="name"
                 placeholder="Seu nome"
@@ -172,14 +180,36 @@ export default function CadastroQr() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">Telefone *</Label>
               <Input
                 id="phone"
                 type="tel"
+                inputMode="numeric"
                 placeholder="(11) 99999-9999"
                 value={phone}
                 onChange={(e) => setPhone(formatPhone(e.target.value))}
                 required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="birthday">Data de aniversário <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+              <Input
+                id="birthday"
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
               />
             </div>
 
@@ -209,7 +239,7 @@ export default function CadastroQr() {
                 onCheckedChange={(checked) => setMarketingOptin(checked === true)}
               />
               <Label htmlFor="marketing" className="text-xs leading-tight cursor-pointer">
-                Aceito receber promoções do restaurante por e-mail
+                Quero receber promoções e novidades do restaurante
               </Label>
             </div>
 
@@ -230,6 +260,8 @@ export default function CadastroQr() {
           </form>
         </CardContent>
       </Card>
+
+      <p className="text-xs text-muted-foreground mt-4 opacity-60">Powered by MesaClik</p>
     </div>
   );
 }
