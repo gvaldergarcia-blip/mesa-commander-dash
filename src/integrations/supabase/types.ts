@@ -3382,6 +3382,19 @@ export type Database = {
       qr_join_queue:
         | {
             Args: {
+              p_birthday?: string
+              p_email?: string
+              p_marketing_optin?: boolean
+              p_name: string
+              p_party_size?: number
+              p_phone: string
+              p_restaurant_id: string
+              p_terms_accepted?: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
               p_marketing_optin?: boolean
               p_name: string
               p_phone: string
