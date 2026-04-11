@@ -204,6 +204,8 @@ function QueueContent() {
       return;
     }
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await addToQueue({
         customer_name: newCustomerName,
@@ -223,6 +225,8 @@ function QueueContent() {
       setIsAddDialogOpen(false);
     } catch (err) {
       // Error already handled by addToQueue
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
