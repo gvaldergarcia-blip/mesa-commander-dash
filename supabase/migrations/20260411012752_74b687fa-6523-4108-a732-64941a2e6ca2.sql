@@ -1,0 +1,1 @@
+ALTER TABLE mesaclik.queue_entries ALTER COLUMN user_id DROP NOT NULL;

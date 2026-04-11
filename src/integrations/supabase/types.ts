@@ -3379,30 +3379,19 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: Json
       }
-      qr_join_queue:
-        | {
-            Args: {
-              p_marketing_optin?: boolean
-              p_name: string
-              p_phone: string
-              p_restaurant_id: string
-              p_terms_accepted?: boolean
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_birthday?: string
-              p_email?: string
-              p_marketing_optin?: boolean
-              p_name: string
-              p_party_size?: number
-              p_phone: string
-              p_restaurant_id: string
-              p_terms_accepted?: boolean
-            }
-            Returns: Json
-          }
+      qr_join_queue: {
+        Args: {
+          p_birthday?: string
+          p_email?: string
+          p_marketing_optin?: boolean
+          p_name: string
+          p_party_size?: number
+          p_phone: string
+          p_restaurant_id: string
+          p_terms_accepted?: boolean
+        }
+        Returns: Json
+      }
       qr_register_customer:
         | {
             Args: {
@@ -3468,46 +3457,21 @@ export type Database = {
         Args: { p_email?: string; p_name: string; p_phone: string }
         Returns: string
       }
-      upsert_restaurant_customer:
-        | {
-            Args: {
-              p_email: string
-              p_marketing_optin?: boolean
-              p_name?: string
-              p_phone?: string
-              p_privacy_version?: string
-              p_restaurant_id: string
-              p_source?: string
-              p_terms_accepted?: boolean
-              p_terms_version?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_email: string
-              p_marketing_optin?: boolean
-              p_name?: string
-              p_phone?: string
-              p_restaurant_id: string
-              p_source?: string
-              p_terms_accepted?: boolean
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_email: string
-              p_marketing_optin?: boolean
-              p_name?: string
-              p_opt_in_source?: string
-              p_phone?: string
-              p_restaurant_id: string
-              p_source?: string
-              p_terms_accepted?: boolean
-            }
-            Returns: string
-          }
+      upsert_restaurant_customer: {
+        Args: {
+          p_email: string
+          p_marketing_optin?: boolean
+          p_name?: string
+          p_opt_in_source?: string
+          p_phone?: string
+          p_privacy_version?: string
+          p_restaurant_id: string
+          p_source?: string
+          p_terms_accepted?: boolean
+          p_terms_version?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "owner" | "manager" | "user"
