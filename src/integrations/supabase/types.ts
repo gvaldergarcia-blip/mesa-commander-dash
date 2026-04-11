@@ -3392,29 +3392,18 @@ export type Database = {
         }
         Returns: Json
       }
-      qr_register_customer:
-        | {
-            Args: {
-              p_marketing_optin?: boolean
-              p_name: string
-              p_phone: string
-              p_restaurant_id: string
-              p_terms_accepted?: boolean
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_birthday?: string
-              p_email?: string
-              p_marketing_optin?: boolean
-              p_name: string
-              p_phone: string
-              p_restaurant_id: string
-              p_terms_accepted?: boolean
-            }
-            Returns: Json
-          }
+      qr_register_customer: {
+        Args: {
+          p_birthday?: string
+          p_email?: string
+          p_marketing_optin?: boolean
+          p_name: string
+          p_phone: string
+          p_restaurant_id: string
+          p_terms_accepted?: boolean
+        }
+        Returns: Json
+      }
       register_customer_visit: {
         Args: {
           p_email?: string
