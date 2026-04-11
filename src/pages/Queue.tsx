@@ -68,6 +68,7 @@ function QueueContent() {
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const calculateWaitTime = (createdAt: string) => {
     const created = new Date(createdAt);
