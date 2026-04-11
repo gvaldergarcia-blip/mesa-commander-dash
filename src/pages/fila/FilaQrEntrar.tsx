@@ -6,7 +6,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getSiteBaseUrl } from '@/config/site-url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,18 +60,6 @@ export default function FilaQrEntrar() {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
-  const navigateToQueueStatus = (entryId: string) => {
-    const finalUrl = new URL('/fila/final', getSiteBaseUrl());
-    finalUrl.searchParams.set('ticket', entryId);
-
-    if (typeof window !== 'undefined' && window.location.origin !== finalUrl.origin) {
-      window.location.replace(finalUrl.toString());
-      return;
-    }
-
-    navigate(`${finalUrl.pathname}${finalUrl.search}`, { replace: true });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!restaurantId || !name.trim() || !phone || !termsAccepted) return;
@@ -82,17 +69,16 @@ export default function FilaQrEntrar() {
 
     setLoading(true);
     try {
-      const rpcParams: Record<string, unknown> = {
+      const rpcParams = {
         p_restaurant_id: restaurantId,
         p_name: name.trim(),
         p_phone: phoneDigits,
         p_marketing_optin: marketingOptin,
         p_terms_accepted: termsAccepted,
         p_party_size: parseInt(partySize, 10),
+        p_email: email.trim() || null,
+        p_birthday: birthday || null,
       };
-
-      if (email.trim()) rpcParams.p_email = email.trim();
-      if (birthday) rpcParams.p_birthday = birthday;
 
       const { data, error } = await supabase.rpc('qr_join_queue', rpcParams as any);
 
@@ -103,7 +89,7 @@ export default function FilaQrEntrar() {
         return;
       }
 
-      navigateToQueueStatus(data.entry_id);
+      navigate(`/fila/final?ticket=${data.entry_id}`, { replace: true });
     } catch (err) {
       console.error('Erro:', err);
       alert('Erro ao entrar na fila. Tente novamente.');
