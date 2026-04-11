@@ -67,16 +67,15 @@ export default function CadastroQr() {
 
     setLoading(true);
     try {
-      const rpcParams: Record<string, unknown> = {
+      const rpcParams = {
         p_restaurant_id: restaurantId,
         p_name: name.trim(),
         p_phone: phoneDigits,
         p_marketing_optin: marketingOptin,
         p_terms_accepted: termsAccepted,
+        p_email: email.trim() || null,
+        p_birthday: birthday || null,
       };
-
-      if (email.trim()) rpcParams.p_email = email.trim();
-      if (birthday) rpcParams.p_birthday = birthday;
 
       const { data, error } = await supabase.rpc('qr_register_customer', rpcParams as any);
 
