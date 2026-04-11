@@ -68,6 +68,7 @@ function QueueContent() {
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const calculateWaitTime = (createdAt: string) => {
     const created = new Date(createdAt);
@@ -203,6 +204,8 @@ function QueueContent() {
       return;
     }
     
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await addToQueue({
         customer_name: newCustomerName,
@@ -222,6 +225,8 @@ function QueueContent() {
       setIsAddDialogOpen(false);
     } catch (err) {
       // Error already handled by addToQueue
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -325,8 +330,9 @@ function QueueContent() {
                 <Button 
                   className="w-full"
                   onClick={handleAddToQueue}
+                  disabled={isSubmitting}
                 >
-                  Adicionar à Fila
+                  {isSubmitting ? 'Adicionando...' : 'Adicionar à Fila'}
                 </Button>
               </div>
             </DialogContent>
