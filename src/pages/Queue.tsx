@@ -330,8 +330,9 @@ function QueueContent() {
                 <Button 
                   className="w-full"
                   onClick={handleAddToQueue}
+                  disabled={isSubmitting}
                 >
-                  Adicionar à Fila
+                  {isSubmitting ? 'Adicionando...' : 'Adicionar à Fila'}
                 </Button>
               </div>
             </DialogContent>
