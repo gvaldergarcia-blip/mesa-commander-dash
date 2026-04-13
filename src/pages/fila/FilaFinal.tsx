@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell, ShieldCheck, Shield } from 'lucide-react';
+import { Loader2, Users, Clock, XCircle, CheckCircle2, Bell, ShieldCheck, Shield, UtensilsCrossed } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getSizeGroup, getSizeGroupLabel } from '@/utils/queueUtils';
 import { resolveCustomerConsentEmail } from '@/utils/customerIdentifiers';
@@ -22,6 +22,7 @@ interface QueueInfo {
   restaurant_id: string;
   restaurant_name: string;
   restaurant_logo_url?: string | null;
+  restaurant_menu_url?: string | null;
   status: 'waiting' | 'called' | 'seated' | 'canceled' | 'no_show';
   position: number | null;
   party_size: number;
@@ -84,6 +85,7 @@ export default function FilaFinal() {
         restaurant_id: data.restaurant_id || restauranteIdParam || '',
         restaurant_name: data.restaurant_name || 'Restaurante',
         restaurant_logo_url: data.restaurant_logo_url || null,
+        restaurant_menu_url: data.restaurant_menu_url || null,
         status: data.status || 'waiting',
         position: typeof data.position === 'number' ? data.position : null,
         party_size: partySize,
@@ -327,6 +329,20 @@ export default function FilaFinal() {
               <p className="text-center text-sm text-muted-foreground">
                 Fique de olho! Avisaremos quando for a sua vez.
               </p>
+
+              {/* Botão Ver Cardápio */}
+              {queueInfo.restaurant_menu_url && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                  asChild
+                >
+                  <a href={queueInfo.restaurant_menu_url} target="_blank" rel="noopener noreferrer">
+                    <UtensilsCrossed className="h-4 w-4" />
+                    Ver Cardápio
+                  </a>
+                </Button>
+              )}
             </>
           )}
 

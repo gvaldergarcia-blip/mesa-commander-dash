@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
     const { data: restaurantMesaclik } = await supabase
       .schema('mesaclik')
       .from('restaurants')
-      .select('name, logo_url')
+      .select('name, logo_url, menu_url')
       .eq('id', restaurant_id)
       .maybeSingle();
 
@@ -162,6 +162,7 @@ Deno.serve(async (req) => {
 
     const restaurant_name = restaurantMesaclik?.name || restaurantPublic?.name || 'Restaurante';
     const restaurant_logo_url = restaurantMesaclik?.logo_url || null;
+    const restaurant_menu_url = restaurantMesaclik?.menu_url || null;
     const shouldUseFullQueueWindow = !!entryData
       && (entryData.status === 'waiting' || entryData.status === 'called')
       && entryData.created_at < cutoff;
@@ -246,6 +247,7 @@ Deno.serve(async (req) => {
       restaurant_id,
       restaurant_name,
       restaurant_logo_url,
+      restaurant_menu_url,
       queue_id: entryData?.queue_id ?? null,
       status: entryData?.status ?? null,
       party_size: entryData?.party_size ?? null,
