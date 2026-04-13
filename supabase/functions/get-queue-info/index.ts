@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
       restaurant_id: string;
       status: string;
       party_size: number;
+      position: number | null;
       created_at: string;
       name: string | null;
       email: string | null;
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
       const { data: entry, error: entryError } = await supabase
         .schema('mesaclik')
         .from('queue_entries')
-        .select('id, queue_id, restaurant_id, status, party_size, created_at, name, email, phone')
+        .select('id, queue_id, restaurant_id, status, party_size, position, created_at, name, email, phone')
         .eq('id', ticket_id)
         .maybeSingle();
 
@@ -97,7 +98,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (entry.created_at < cutoff) {
+      const isActiveEntry = entry.status === 'waiting' || entry.status === 'called';
+
+      if (!isActiveEntry && entry.created_at < cutoff) {
         return new Response(
           JSON.stringify({ found: false }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -159,6 +162,9 @@ Deno.serve(async (req) => {
 
     const restaurant_name = restaurantMesaclik?.name || restaurantPublic?.name || 'Restaurante';
     const restaurant_logo_url = restaurantMesaclik?.logo_url || null;
+    const shouldUseFullQueueWindow = !!entryData
+      && (entryData.status === 'waiting' || entryData.status === 'called')
+      && entryData.created_at < cutoff;
 
     let waitingQuery = supabase
       .schema('mesaclik')
@@ -166,9 +172,12 @@ Deno.serve(async (req) => {
       .select('id, queue_id, party_size, created_at, name, phone')
       .eq('restaurant_id', restaurant_id)
       .eq('status', 'waiting')
-      .gte('created_at', cutoff)
       .order('created_at', { ascending: true })
       .order('id', { ascending: true });
+
+    if (!shouldUseFullQueueWindow) {
+      waitingQuery = waitingQuery.gte('created_at', cutoff);
+    }
 
     if (entryData?.queue_id) {
       waitingQuery = waitingQuery.eq('queue_id', entryData.queue_id);
@@ -218,6 +227,8 @@ Deno.serve(async (req) => {
         const index = sameBucket.findIndex((e) => e.id === ticket_id);
         if (index !== -1) {
           position = index + 1;
+        } else if (typeof entryData.position === 'number') {
+          position = entryData.position;
         }
       }
     }
