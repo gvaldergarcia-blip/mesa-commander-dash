@@ -6,7 +6,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getSiteBaseUrl } from '@/config/site-url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -97,14 +96,7 @@ export default function FilaQrEntrar() {
         return;
       }
 
-      const finalUrl = `${getSiteBaseUrl()}/fila/final?ticket=${encodeURIComponent(ticket)}&restauranteId=${encodeURIComponent(restaurantId)}`;
-
-      if (typeof window !== 'undefined' && window.location.origin !== getSiteBaseUrl()) {
-        window.location.replace(finalUrl);
-        return;
-      }
-
-      navigate(`/fila/final?ticket=${encodeURIComponent(ticket)}&restauranteId=${encodeURIComponent(restaurantId)}`, { replace: true });
+      navigate(`/fila/final?ticket=${encodeURIComponent(ticket)}&restauranteId=${encodeURIComponent(restaurantId!)}`, { replace: true });
     } catch (err) {
       console.error('Erro:', err);
       alert('Erro ao entrar na fila. Tente novamente.');
