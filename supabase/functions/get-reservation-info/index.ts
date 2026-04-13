@@ -123,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch restaurant info from mesaclik schema (same as reservations)
     const { data: restaurant, error: restaurantError } = await supabaseAdmin
       .from("restaurants")
-      .select("id, name, address_line, city, cuisine, logo_url")
+      .select("id, name, address_line, city, cuisine, logo_url, menu_url")
       .eq("id", reservation.restaurant_id)
       .single();
 
@@ -166,6 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
       restaurant_address: fullAddress,
       restaurant_cuisine: restaurant?.cuisine || null,
       restaurant_logo_url: restaurant?.logo_url || null,
+      restaurant_menu_url: restaurant?.menu_url || null,
       customer_name: reservation.name, // mesaclik uses 'name' instead of 'customer_name'
       customer_email: reservation.customer_email,
       phone: reservation.phone,
