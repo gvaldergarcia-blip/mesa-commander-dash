@@ -424,6 +424,39 @@ function QueueContent() {
         </CardContent>
       </Card>
 
+      {/* Filtro por Status - Blocos visuais */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {([
+          { value: 'all', label: 'Todos os status', icon: Users, color: 'text-foreground' },
+          { value: 'waiting', label: 'Aguardando', icon: Clock, color: 'text-amber-600' },
+          { value: 'called', label: 'Chamados', icon: Phone, color: 'text-blue-600' },
+          { value: 'seated', label: 'Sentados', icon: CheckCircle, color: 'text-green-600' },
+          { value: 'canceled', label: 'Cancelados', icon: XCircle, color: 'text-destructive' },
+        ] as const).map(({ value, label, icon: Icon, color }) => {
+          const count = value === 'all' 
+            ? activeEntries.length 
+            : activeEntries.filter(e => e.status === value).length;
+          const isActive = statusFilter === value;
+          return (
+            <button
+              key={value}
+              onClick={() => setStatusFilter(isActive && value !== 'all' ? 'all' : value)}
+              className={`p-3 rounded-lg border text-left transition-all flex items-center gap-3 ${
+                isActive
+                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                  : 'border-border hover:border-primary/50 bg-card'
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : color}`} />
+              <div>
+                <div className="text-lg font-bold">{count}</div>
+                <div className="text-xs text-muted-foreground">{label}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <Card>
         <CardHeader>
