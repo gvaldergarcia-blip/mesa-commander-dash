@@ -23,7 +23,8 @@ import {
   ShieldCheck,
   Navigation,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  UtensilsCrossed
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -46,6 +47,7 @@ interface ReservationInfo {
   restaurant_address: string | null;
   restaurant_cuisine: string | null;
   restaurant_logo_url: string | null;
+  restaurant_menu_url: string | null;
   customer_name: string;
   customer_email: string | null;
   phone: string | null;
@@ -618,6 +620,20 @@ export default function ReservaFinal() {
         {/* Bloco Ações */}
         <Card className={`shadow-lg ${!consentConfirmed ? 'blur-sm pointer-events-none select-none' : ''}`}>
           <CardContent className="pt-6 space-y-3">
+            {/* Ver Cardápio */}
+            {reservationInfo.restaurant_menu_url && (
+              <Button
+                variant="outline"
+                className="w-full gap-2 border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                asChild
+              >
+                <a href={reservationInfo.restaurant_menu_url} target="_blank" rel="noopener noreferrer">
+                  <UtensilsCrossed className="h-4 w-4" />
+                  Ver Cardápio
+                </a>
+              </Button>
+            )}
+
             {/* Abrir no Google Maps */}
             {reservationInfo.restaurant_address && (
               <Button
