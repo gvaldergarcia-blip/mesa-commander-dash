@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle, QrCode } from "lucide-react";
+import { useState, useEffect, useMemo, Component, type ReactNode, type ErrorInfo } from "react";
+import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle, QrCode, RefreshCw } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
