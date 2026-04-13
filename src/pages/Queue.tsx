@@ -69,6 +69,7 @@ function QueueContent() {
   const [newPartySize, setNewPartySize] = useState("2");
   const [newNotes, setNewNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isInitialLoading = loading && queueEntries.length === 0;
 
   const calculateWaitTime = (createdAt: string) => {
     const created = new Date(createdAt);
@@ -230,7 +231,7 @@ function QueueContent() {
     }
   };
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <div className="p-6">
         <p>Carregando...</p>
@@ -434,6 +435,11 @@ function QueueContent() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
+                  type="search"
+                  name="queue-search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Buscar por nome ou email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
