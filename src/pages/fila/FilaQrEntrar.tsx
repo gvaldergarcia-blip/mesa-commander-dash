@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Users } from 'lucide-react';
+import { getSiteBaseUrl } from '@/config/site-url';
 
 interface RestaurantInfo {
   name: string;
@@ -60,6 +61,22 @@ export default function FilaQrEntrar() {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
+  const navigateToQueueStatus = (entryId: string) => {
+    const finalUrl = new URL('/fila/final', getSiteBaseUrl());
+    finalUrl.searchParams.set('ticket', entryId);
+
+    if (restaurantId) {
+      finalUrl.searchParams.set('restauranteId', restaurantId);
+    }
+
+    if (typeof window !== 'undefined' && window.location.origin !== finalUrl.origin) {
+      window.location.replace(finalUrl.toString());
+      return;
+    }
+
+    navigate(`${finalUrl.pathname}${finalUrl.search}`, { replace: true });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!restaurantId || !name.trim() || !phone || !termsAccepted) return;
@@ -89,7 +106,13 @@ export default function FilaQrEntrar() {
         return;
       }
 
-      navigate(`/fila/final?ticket=${data.entry_id}`, { replace: true });
+      if (!data?.entry_id) {
+        alert('Não foi possível abrir sua posição na fila. Tente novamente.');
+        setLoading(false);
+        return;
+      }
+
+      navigateToQueueStatus(data.entry_id);
     } catch (err) {
       console.error('Erro:', err);
       alert('Erro ao entrar na fila. Tente novamente.');
