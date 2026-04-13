@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle, QrCode } from "lucide-react";
+import { useState, useEffect, useMemo, Component, type ReactNode, type ErrorInfo } from "react";
+import { Plus, Search, Filter, Clock, Users, Phone, CheckCircle, XCircle, AlertTriangle, QrCode, RefreshCw } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useQueueEnhanced } from "@/hooks/useQueueEnhanced";
 import { useQueueWaitTimeAverages } from "@/hooks/useQueueWaitTimeAverages";
@@ -658,10 +658,42 @@ function QueueContent() {
   );
 }
 
+class QueueErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[Queue] Error boundary caught:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <AlertTriangle className="h-12 w-12 text-amber-500" />
+          <p className="text-muted-foreground">Ocorreu um erro ao carregar a fila.</p>
+          <Button variant="outline" onClick={() => { this.setState({ hasError: false }); }}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Tentar novamente
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function Queue() {
   return (
     <ProtectedRoute>
-      <QueueContent />
+      <QueueErrorBoundary>
+        <QueueContent />
+      </QueueErrorBoundary>
     </ProtectedRoute>
   );
 }
