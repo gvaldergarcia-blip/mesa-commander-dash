@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getSiteBaseUrl } from '@/config/site-url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Users } from 'lucide-react';
-import { getSiteBaseUrl } from '@/config/site-url';
 
 interface RestaurantInfo {
   name: string;
@@ -61,22 +61,6 @@ export default function FilaQrEntrar() {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
-  const navigateToQueueStatus = (entryId: string) => {
-    const finalUrl = new URL('/fila/final', getSiteBaseUrl());
-    finalUrl.searchParams.set('ticket', entryId);
-
-    if (restaurantId) {
-      finalUrl.searchParams.set('restauranteId', restaurantId);
-    }
-
-    if (typeof window !== 'undefined' && window.location.origin !== finalUrl.origin) {
-      window.location.replace(finalUrl.toString());
-      return;
-    }
-
-    navigate(`${finalUrl.pathname}${finalUrl.search}`, { replace: true });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!restaurantId || !name.trim() || !phone || !termsAccepted) return;
@@ -106,13 +90,21 @@ export default function FilaQrEntrar() {
         return;
       }
 
-      if (!data?.entry_id) {
-        alert('Não foi possível abrir sua posição na fila. Tente novamente.');
+      const ticket = data.entry_id ? String(data.entry_id) : '';
+      if (!ticket) {
+        alert('Não foi possível localizar sua entrada na fila. Tente novamente.');
         setLoading(false);
         return;
       }
 
-      navigateToQueueStatus(data.entry_id);
+      const finalUrl = `${getSiteBaseUrl()}/fila/final?ticket=${encodeURIComponent(ticket)}&restauranteId=${encodeURIComponent(restaurantId)}`;
+
+      if (typeof window !== 'undefined' && window.location.origin !== getSiteBaseUrl()) {
+        window.location.replace(finalUrl);
+        return;
+      }
+
+      navigate(`/fila/final?ticket=${encodeURIComponent(ticket)}&restauranteId=${encodeURIComponent(restaurantId)}`, { replace: true });
     } catch (err) {
       console.error('Erro:', err);
       alert('Erro ao entrar na fila. Tente novamente.');
