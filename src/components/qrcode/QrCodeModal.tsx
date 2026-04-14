@@ -17,19 +17,27 @@ interface QrCodeModalProps {
   restaurantId: string;
   restaurantName: string;
   type: 'fila' | 'cadastro';
+  queueType?: 'normal' | 'exclusive';
+  exclusiveQueueName?: string;
 }
 
-export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, type }: QrCodeModalProps) {
+export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, type, queueType = 'normal', exclusiveQueueName }: QrCodeModalProps) {
   const { toast } = useToast();
   const qrRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
   const baseUrl = getSiteBaseUrl();
-  const url = type === 'fila'
+  const basePath = type === 'fila'
     ? `${baseUrl}/fila/${restaurantId}`
     : `${baseUrl}/cadastro/${restaurantId}`;
+  const url = type === 'fila' && queueType === 'exclusive'
+    ? `${basePath}?tipo=exclusiva`
+    : basePath;
 
-  const title = type === 'fila' ? 'QR Code da Fila' : 'QR Code de Cadastro';
+  const queueLabel = queueType === 'exclusive' && exclusiveQueueName ? exclusiveQueueName : '';
+  const title = type === 'fila'
+    ? (queueType === 'exclusive' ? `QR Code - ${queueLabel || 'Fila Exclusiva'}` : 'QR Code da Fila')
+    : 'QR Code de Cadastro';
   const description = type === 'fila'
     ? 'Clientes escaneiam para entrar na fila automaticamente'
     : 'Clientes escaneiam para se cadastrar automaticamente';

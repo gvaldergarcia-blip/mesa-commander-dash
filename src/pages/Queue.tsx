@@ -60,6 +60,7 @@ function QueueContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalQueueType, setQrModalQueueType] = useState<'normal' | 'exclusive'>('normal');
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -277,10 +278,16 @@ function QueueContent() {
           <p className="text-muted-foreground">Gerencie a fila em tempo real</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setQrModalOpen(true)}>
+          <Button variant="outline" onClick={() => { setQrModalQueueType('normal'); setQrModalOpen(true); }}>
             <QrCode className="w-4 h-4 mr-2" />
-            QR Code da Fila
+            QR Code Fila
           </Button>
+          {hasExclusiveQueue && (
+            <Button variant="outline" onClick={() => { setQrModalQueueType('exclusive'); setQrModalOpen(true); }}>
+              <QrCode className="w-4 h-4 mr-2" />
+              QR {exclusiveQueueName}
+            </Button>
+          )}
           <ClearQueueDialog 
             onConfirm={clearQueue}
             isLoading={loading}
@@ -691,6 +698,8 @@ function QueueContent() {
           restaurantId={restaurantId}
           restaurantName={restaurants?.[0]?.name || 'Restaurante'}
           type="fila"
+          queueType={qrModalQueueType}
+          exclusiveQueueName={exclusiveQueueName}
         />
       )}
     </div>
