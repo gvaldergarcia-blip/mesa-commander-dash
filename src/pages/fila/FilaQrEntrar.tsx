@@ -4,7 +4,7 @@
  * NÃO requer autenticação
  */
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,9 @@ interface RestaurantInfo {
 
 export default function FilaQrEntrar() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queueType = searchParams.get('tipo') === 'exclusiva' ? 'exclusive' : 'normal';
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -78,6 +80,7 @@ export default function FilaQrEntrar() {
         p_party_size: parseInt(partySize, 10),
         p_email: email.trim() || null,
         p_birthday: birthday || null,
+        p_queue_type: queueType,
       };
 
       const { data, error } = await supabase.rpc('qr_join_queue', rpcParams as any);
