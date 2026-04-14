@@ -60,6 +60,7 @@ function QueueContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalQueueType, setQrModalQueueType] = useState<'normal' | 'exclusive'>('normal');
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [partySizeFilter, setPartySizeFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
