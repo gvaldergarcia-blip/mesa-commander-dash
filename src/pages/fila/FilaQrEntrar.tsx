@@ -17,6 +17,7 @@ import { Loader2, Users } from 'lucide-react';
 interface RestaurantInfo {
   name: string;
   logo_url: string | null;
+  max_party_size: number;
 }
 
 export default function FilaQrEntrar() {
@@ -48,7 +49,7 @@ export default function FilaQrEntrar() {
       if (error || !data?.success) {
         setInvalid(true);
       } else {
-        setRestaurantInfo({ name: data.name, logo_url: data.logo_url });
+        setRestaurantInfo({ name: data.name, logo_url: data.logo_url, max_party_size: data.max_party_size ?? 8 });
       }
       setValidating(false);
     };
@@ -185,7 +186,7 @@ export default function FilaQrEntrar() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                  {Array.from({ length: restaurantInfo?.max_party_size ?? 8 }, (_, i) => i + 1).map(n => (
                     <SelectItem key={n} value={String(n)}>
                       {n} {n === 1 ? 'pessoa' : 'pessoas'}
                     </SelectItem>
