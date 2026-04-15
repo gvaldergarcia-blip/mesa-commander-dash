@@ -261,8 +261,8 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
                       type="number"
                       min={2}
                       max={50}
-                      value={editVisits}
-                      onChange={(e) => { setEditVisits(parseInt(e.target.value) || 10); setConfigSaved(false); }}
+                      value={editVisits || ''}
+                      onChange={(e) => { setEditVisits(e.target.value === '' ? 0 : parseInt(e.target.value)); setConfigSaved(false); }}
                       className="mt-1 h-8 text-sm"
                     />
                   </div>
@@ -272,8 +272,8 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
                       type="number"
                       min={7}
                       max={365}
-                      value={editValidity}
-                      onChange={(e) => { setEditValidity(parseInt(e.target.value) || 30); setConfigSaved(false); }}
+                      value={editValidity || ''}
+                      onChange={(e) => { setEditValidity(e.target.value === '' ? 0 : parseInt(e.target.value)); setConfigSaved(false); }}
                       className="mt-1 h-8 text-sm"
                     />
                   </div>
@@ -368,8 +368,8 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
                         type="number"
                         min={2}
                         max={50}
-                        value={editVisits}
-                        onChange={(e) => setEditVisits(parseInt(e.target.value) || 10)}
+                        value={editVisits || ''}
+                        onChange={(e) => setEditVisits(e.target.value === '' ? 0 : parseInt(e.target.value))}
                         className="mt-1 h-8 text-sm"
                       />
                     </div>
@@ -379,8 +379,8 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
                         type="number"
                         min={7}
                         max={365}
-                        value={editValidity}
-                        onChange={(e) => setEditValidity(parseInt(e.target.value) || 30)}
+                        value={editValidity || ''}
+                        onChange={(e) => setEditValidity(e.target.value === '' ? 0 : parseInt(e.target.value))}
                         className="mt-1 h-8 text-sm"
                       />
                     </div>
