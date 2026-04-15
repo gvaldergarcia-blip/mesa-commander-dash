@@ -125,16 +125,27 @@ ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganh
     const canvas = qrRef.current?.querySelector('canvas');
     if (!canvas) return;
 
-    // Create a printable HTML page and trigger print
     const imgData = canvas.toDataURL('image/png');
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
     const label = type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganhe benefícios exclusivos';
-
     const logoUrl = `${window.location.origin}/images/mesaclik-logo-branding.jpg`;
 
-    printWindow.document.write(`
+    // Usar iframe oculto para evitar travamento da janela principal
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-10000px';
+    iframe.style.left = '-10000px';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(`
       <!DOCTYPE html>
       <html>
       <head>
@@ -161,13 +172,20 @@ ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganh
           <p class="url">${url}</p>
           <img class="logo" src="${logoUrl}" alt="MesaClik" />
         </div>
-        <script>
-          window.onload = function() { window.print(); };
-        </script>
       </body>
       </html>
     `);
-    printWindow.document.close();
+    iframeDoc.close();
+
+    // Aguardar carregamento e disparar print sem bloquear a thread principal
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      // Remover iframe após impressão
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 500);
   }, [restaurantName, type, url]);
 
   return (
