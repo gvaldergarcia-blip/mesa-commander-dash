@@ -149,7 +149,7 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
           h1 { margin-top: 24px; font-size: 28px; color: #111; }
           p { margin-top: 8px; font-size: 18px; color: #666; }
           .url { margin-top: 16px; font-size: 12px; color: #999; word-break: break-all; }
-          .logo { margin-top: 24px; height: 40px; }
+          .logo { margin-top: 24px; max-width: 260px; height: auto; }
           @media print {
             body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
           }
