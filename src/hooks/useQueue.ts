@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueueRealtime } from './useQueueRealtime';
@@ -33,13 +33,18 @@ export function useQueue() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const initialLoadDone = useRef(false);
+
   const fetchQueue = useCallback(async () => {
     if (!restaurantId) {
       setLoading(false);
       return;
     }
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on realtime refetches
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      }
       setError(null);
       
       // Usar RPC para buscar entradas (bypassa RLS com SECURITY DEFINER)
@@ -57,6 +62,7 @@ export function useQueue() {
       setError(message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [restaurantId]);
 
