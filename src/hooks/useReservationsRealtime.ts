@@ -52,10 +52,10 @@ export function useReservationsRealtime(onUpdate: () => void) {
 
     setupChannel();
 
-    // Polling fallback a cada 3 segundos para garantir sincronização
+    // Polling fallback a cada 15 segundos para garantir sincronização
     const pollingInterval = setInterval(() => {
       onUpdateRef.current();
-    }, 3000);
+    }, 15000);
 
     return () => {
       if (dbChannel) {
