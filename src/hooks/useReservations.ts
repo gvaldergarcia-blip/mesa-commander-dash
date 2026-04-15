@@ -50,8 +50,7 @@ export function useReservations() {
       return;
     }
     try {
-      setLoading(true);
-      console.log('[useReservations] Buscando reservas via RPC para restaurante:', restaurantId);
+      // Silenciar logs de polling para evitar poluição do console
       
       // Usar RPC para evitar problemas de RLS
       const { data, error } = await supabase.rpc('get_reservations_panel', {
@@ -63,7 +62,6 @@ export function useReservations() {
         throw error;
       }
       
-      console.log('[useReservations] Dados brutos recebidos:', data?.length || 0, 'reservas');
       
       // Mapear campos da RPC para o formato esperado pelo frontend
       const mappedData = (data || []).map((row: any) => ({
@@ -81,10 +79,6 @@ export function useReservations() {
         updated_at: row.updated_at,
       }));
 
-      console.log('[useReservations] Reservas mapeadas:', mappedData?.length);
-      if (mappedData.length > 0) {
-        console.log('[useReservations] Primeira reserva:', mappedData[0]);
-      }
       
       setReservations(mappedData);
       setError(null);
