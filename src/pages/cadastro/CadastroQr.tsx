@@ -160,7 +160,7 @@ export default function CadastroQr() {
           )}
           <div>
             <CardTitle className="text-xl">{restaurantInfo?.name}</CardTitle>
-            <p className="text-muted-foreground text-sm mt-1">Cadastre-se como cliente</p>
+            <p className="text-muted-foreground text-sm mt-1">Escaneie e ganhe benefícios exclusivos</p>
           </div>
         </CardHeader>
 

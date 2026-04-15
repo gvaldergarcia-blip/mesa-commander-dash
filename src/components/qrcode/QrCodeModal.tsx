@@ -42,7 +42,7 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
     : 'QR Code de Cadastro';
   const description = type === 'fila'
     ? 'Clientes escaneiam para entrar na fila automaticamente'
-    : 'Clientes escaneiam para se cadastrar automaticamente';
+    : 'Escaneie e ganhe benefícios exclusivos';
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(url);
@@ -84,7 +84,7 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
 
       ctx.font = '18px sans-serif';
       ctx.fillStyle = '#666666';
-      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar', totalWidth / 2, size + padding + 70);
+ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganhe benefícios exclusivos', totalWidth / 2, size + padding + 70);
 
       // MesaClik logo
       ctx.drawImage(logoImg, (totalWidth - logoWidth) / 2, size + padding + 86, logoWidth, logoHeight);
@@ -114,7 +114,7 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
       ctx.fillText(restaurantName, totalWidth / 2, size + padding + 40);
       ctx.font = '18px sans-serif';
       ctx.fillStyle = '#666666';
-      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar', totalWidth / 2, size + padding + 70);
+      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganhe benefícios exclusivos', totalWidth / 2, size + padding + 70);
       const link = document.createElement('a');
       link.download = `qrcode-${type}-${restaurantName.replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = exportCanvas.toDataURL('image/png');
@@ -132,7 +132,7 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const label = type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar';
+    const label = type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganhe benefícios exclusivos';
 
     const logoUrl = `${window.location.origin}/images/mesaclik-logo-branding.jpg`;
 
