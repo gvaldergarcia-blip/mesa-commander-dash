@@ -60,9 +60,11 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
     logoImg.onload = () => {
       const size = 600;
       const padding = 40;
-      const logoHeight = 50;
-      const logoWidth = Math.round((logoImg.naturalWidth / logoImg.naturalHeight) * logoHeight);
-      const totalHeight = size + padding * 2 + 90 + logoHeight + 16;
+      const maxLogoWidth = size - 40; // leave some margin vs QR
+      const logoAspect = logoImg.naturalWidth / logoImg.naturalHeight;
+      const logoWidth = Math.min(maxLogoWidth, Math.round(logoAspect * 90));
+      const logoHeight = Math.round(logoWidth / logoAspect);
+      const totalHeight = size + padding * 2 + 90 + logoHeight + 24;
       const totalWidth = size + padding * 2;
 
       const exportCanvas = document.createElement('canvas');
