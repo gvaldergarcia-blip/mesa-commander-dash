@@ -55,40 +55,70 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
     const canvas = qrRef.current?.querySelector('canvas');
     if (!canvas) return;
 
-    // Create a larger canvas with padding and text
-    const size = 600;
-    const padding = 40;
-    const totalHeight = size + padding * 2 + 80;
-    const totalWidth = size + padding * 2;
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    logoImg.onload = () => {
+      const size = 600;
+      const padding = 40;
+      const logoHeight = 50;
+      const logoWidth = Math.round((logoImg.naturalWidth / logoImg.naturalHeight) * logoHeight);
+      const totalHeight = size + padding * 2 + 90 + logoHeight + 16;
+      const totalWidth = size + padding * 2;
 
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = totalWidth;
-    exportCanvas.height = totalHeight;
-    const ctx = exportCanvas.getContext('2d');
-    if (!ctx) return;
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = totalWidth;
+      exportCanvas.height = totalHeight;
+      const ctx = exportCanvas.getContext('2d');
+      if (!ctx) return;
 
-    // White background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, totalWidth, totalHeight);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, totalWidth, totalHeight);
+      ctx.drawImage(canvas, padding, padding, size, size);
 
-    // Draw QR code scaled up
-    ctx.drawImage(canvas, padding, padding, size, size);
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(restaurantName, totalWidth / 2, size + padding + 40);
 
-    // Restaurant name below
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(restaurantName, totalWidth / 2, size + padding + 40);
+      ctx.font = '18px sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar', totalWidth / 2, size + padding + 70);
 
-    // Type label
-    ctx.font = '18px sans-serif';
-    ctx.fillStyle = '#666666';
-    ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar', totalWidth / 2, size + padding + 70);
+      // MesaClik logo
+      ctx.drawImage(logoImg, (totalWidth - logoWidth) / 2, size + padding + 86, logoWidth, logoHeight);
 
-    const link = document.createElement('a');
-    link.download = `qrcode-${type}-${restaurantName.replace(/\s+/g, '-').toLowerCase()}.png`;
-    link.href = exportCanvas.toDataURL('image/png');
-    link.click();
+      const link = document.createElement('a');
+      link.download = `qrcode-${type}-${restaurantName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+    };
+    logoImg.onerror = () => {
+      // Fallback without logo
+      const size = 600;
+      const padding = 40;
+      const totalHeight = size + padding * 2 + 80;
+      const totalWidth = size + padding * 2;
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = totalWidth;
+      exportCanvas.height = totalHeight;
+      const ctx = exportCanvas.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, totalWidth, totalHeight);
+      ctx.drawImage(canvas, padding, padding, size, size);
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(restaurantName, totalWidth / 2, size + padding + 40);
+      ctx.font = '18px sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar', totalWidth / 2, size + padding + 70);
+      const link = document.createElement('a');
+      link.download = `qrcode-${type}-${restaurantName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+    };
+    logoImg.src = '/images/mesaclik-logo-branding.jpg';
   }, [restaurantName, type]);
 
   const handleDownloadPdf = useCallback(async () => {
@@ -102,6 +132,8 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
 
     const label = type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie para se cadastrar';
 
+    const logoUrl = `${window.location.origin}/images/mesaclik-logo-branding.jpg`;
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -111,10 +143,11 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; }
           .container { text-align: center; padding: 40px; }
-          img { width: 300px; height: 300px; }
+          .qr { width: 300px; height: 300px; }
           h1 { margin-top: 24px; font-size: 28px; color: #111; }
           p { margin-top: 8px; font-size: 18px; color: #666; }
           .url { margin-top: 16px; font-size: 12px; color: #999; word-break: break-all; }
+          .logo { margin-top: 24px; height: 40px; }
           @media print {
             body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
           }
@@ -122,10 +155,11 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
       </head>
       <body>
         <div class="container">
-          <img src="${imgData}" alt="QR Code" />
+          <img class="qr" src="${imgData}" alt="QR Code" />
           <h1>${restaurantName}</h1>
           <p>${label}</p>
           <p class="url">${url}</p>
+          <img class="logo" src="${logoUrl}" alt="MesaClik" />
         </div>
         <script>
           window.onload = function() { window.print(); };
