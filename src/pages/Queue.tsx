@@ -325,9 +325,13 @@ function QueueContent() {
                     <SelectValue placeholder="Número de pessoas" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: MAX_PARTY_SIZE }, (_, i) => i + 1).map(n => (
-                      <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
-                    ))}
+                    {loadingSettings ? (
+                      <SelectItem value="2" disabled>Carregando...</SelectItem>
+                    ) : (
+                      Array.from({ length: MAX_PARTY_SIZE }, (_, i) => i + 1).map(n => (
+                        <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <Input 
