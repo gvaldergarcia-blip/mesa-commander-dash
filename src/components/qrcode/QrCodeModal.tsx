@@ -26,7 +26,9 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
   const qrRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
-  const baseUrl = getSiteBaseUrl();
+  const previewOrigin = typeof window !== 'undefined' ? window.location.origin.replace(/\/$/, '') : null;
+  const isPreviewEnvironment = !!previewOrigin && /(?:lovable\.app|lovableproject\.com)$/i.test(new URL(previewOrigin).hostname);
+  const baseUrl = isPreviewEnvironment ? previewOrigin : getSiteBaseUrl();
   const basePath = type === 'fila'
     ? `${baseUrl}/fila/${restaurantId}`
     : `${baseUrl}/cadastro/${restaurantId}`;
