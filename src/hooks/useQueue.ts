@@ -316,8 +316,8 @@ export function useQueue() {
         }
       }
 
-      // Enviar email quando cliente é CHAMADO (mesmo padrão da reserva que envia em status changes)
-      if (status === 'called' && entryData.email) {
+      // Enviar SMS + email quando cliente é CHAMADO
+      if (status === 'called') {
         try {
           // Buscar nome do restaurante
           const { data: restaurantData } = await supabase
@@ -331,31 +331,55 @@ export function useQueue() {
           const { getSiteBaseUrl } = await import('@/config/site-url');
           const queueUrl = `${getSiteBaseUrl()}/fila/final?ticket=${entryId}`;
 
-          console.log('[useQueue] Enviando email de chamada:', {
-            email: entryData.email,
-            restaurant_name: restaurantName,
-            type: 'called',
-          });
+          // Buscar tolerância configurada
+          const { data: settingsData } = await supabase
+            .schema('mesaclik')
+            .from('queue_settings')
+            .select('tolerance_minutes')
+            .eq('restaurant_id', restaurantId)
+            .maybeSingle();
+          const toleranceMinutes = settingsData?.tolerance_minutes ?? 10;
 
-          const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-queue-email', {
-            body: {
-              email: entryData.email,
-              customer_name: entryData.name,
-              restaurant_name: restaurantName,
-              position: 0,
-              party_size: entryData.party_size,
-              type: 'called',
-              queue_url: queueUrl,
-            },
-          });
-
-          if (emailError) {
-            console.warn('[useQueue] Erro ao enviar email de chamada (não crítico):', emailError);
-          } else {
-            console.log('[useQueue] Email de chamada enviado com sucesso:', emailResponse);
+          // Enviar SMS de chamada (se houver telefone)
+          if (entryData.phone) {
+            try {
+              const { toE164 } = await import('@/components/ui/phone-input');
+              const smsMessage = `${restaurantName}: Sua mesa está pronta! Você tem ${toleranceMinutes} minutos para chegar. Acompanhe: ${queueUrl}`;
+              const { error: smsError } = await supabase.functions.invoke('send-sms', {
+                body: {
+                  to: toE164(entryData.phone),
+                  message: smsMessage,
+                },
+              });
+              if (smsError) {
+                console.warn('[useQueue] Erro ao enviar SMS de chamada (não crítico):', smsError);
+              } else {
+                console.log('[useQueue] SMS de chamada enviado com sucesso');
+              }
+            } catch (smsErr) {
+              console.warn('[useQueue] Erro ao enviar SMS de chamada (não crítico):', smsErr);
+            }
           }
-        } catch (emailError) {
-          console.warn('[useQueue] Erro ao enviar email de chamada (não crítico):', emailError);
+
+          // Enviar email (se houver)
+          if (entryData.email) {
+            const { error: emailError } = await supabase.functions.invoke('send-queue-email', {
+              body: {
+                email: entryData.email,
+                customer_name: entryData.name,
+                restaurant_name: restaurantName,
+                position: 0,
+                party_size: entryData.party_size,
+                type: 'called',
+                queue_url: queueUrl,
+              },
+            });
+            if (emailError) {
+              console.warn('[useQueue] Erro ao enviar email de chamada (não crítico):', emailError);
+            }
+          }
+        } catch (notifyError) {
+          console.warn('[useQueue] Erro ao enviar notificações de chamada (não crítico):', notifyError);
         }
       }
 
