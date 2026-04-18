@@ -109,8 +109,8 @@ export function SmartCustomerSearch({ onCustomerRegistered }: Props) {
       }
 
       toast({
-        title: "Visita registrada com sucesso ✓",
-        description: `Visita de ${customer.customer_name || "cliente"} registrada.`,
+        title: "+1 visita registrada ✓",
+        description: `${customer.customer_name || "Cliente"} agora tem ${(customer.total_visits || 0) + 1} visita(s). Clube MesaClik atualizado.`,
       });
       onCustomerRegistered?.();
       navigate(`/customers/${customer.id}`);
