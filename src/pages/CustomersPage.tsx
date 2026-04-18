@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Users, UserPlus, ClipboardCheck, QrCode } from "lucide-react";
+import { Send, Users, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
@@ -14,9 +14,8 @@ import { CustomerStrategicKPIs } from "@/components/customers/CustomerStrategicK
 import { CustomerListPremium } from "@/components/customers/CustomerListPremium";
 import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
-import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
-import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
+import { SmartCustomerSearch } from "@/components/customers/SmartCustomerSearch";
 import { QrCodeModal } from "@/components/qrcode/QrCodeModal";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
@@ -228,16 +227,11 @@ function CustomersPageContent() {
             <QrCode className="h-4 w-4" />
             QR Code de Cadastro
           </Button>
-          <Button variant="outline" onClick={() => setVisitDialogOpen(true)} className="gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Registrar Visita
-          </Button>
-          <Button onClick={() => setCreateCustomerOpen(true)} className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            Cadastrar cliente
-          </Button>
         </div>
       </div>
+
+      {/* Busca inteligente de cliente */}
+      <SmartCustomerSearch onCustomerRegistered={refetch} />
 
       {/* Strategic KPIs */}
       <CustomerStrategicKPIs

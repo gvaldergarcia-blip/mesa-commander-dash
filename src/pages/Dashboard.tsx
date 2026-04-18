@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck, UserPlus } from "lucide-react";
+import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +13,7 @@ import { useReservations } from "@/hooks/useReservations";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
-import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
-import { useRestaurantCustomers } from "@/hooks/useRestaurantCustomers";
+import { SmartCustomerSearch } from "@/components/customers/SmartCustomerSearch";
 import { 
   Dialog,
   DialogContent,
@@ -43,9 +41,6 @@ function DashboardContent() {
   
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
-  const [isVisitDialogOpen, setIsVisitDialogOpen] = useState(false);
-  const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
-  const { refetch: refetchCustomers } = useRestaurantCustomers();
   
   // Queue dialog state
   const [queueName, setQueueName] = useState("");
@@ -349,30 +344,6 @@ function DashboardContent() {
               </Dialog>
             )}
             
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={() => setIsVisitDialogOpen(true)}
-            >
-              <ClipboardCheck className="w-4 h-4 mr-2" />
-              Registrar Visita
-            </Button>
-            
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={() => setIsCreateCustomerOpen(true)}
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Cadastrar Cliente
-            </Button>
-            
-            <CreateCustomerDialog
-              open={isCreateCustomerOpen}
-              onOpenChange={setIsCreateCustomerOpen}
-              onSuccess={refetchCustomers}
-            />
-            
             {/* Botão de Promoção - condicionado à feature flag */}
             {FEATURE_FLAGS.CUPONS_ENABLED && (
               <Button 
@@ -417,10 +388,6 @@ function DashboardContent() {
         </Card>
       )}
 
-      <RegisterVisitDialog
-        open={isVisitDialogOpen}
-        onOpenChange={setIsVisitDialogOpen}
-      />
     </div>
   );
 }
