@@ -1,0 +1,373 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList, ShieldUser, Users,
+} from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import {
+  useChecklistCategories, useChecklistItems, useChecklistCompletionsToday,
+  useSeedDefaultCategories, useDeleteItem, useCompleteItem, uploadChecklistPhoto,
+  ChecklistItem, ChecklistCategory,
+} from '@/hooks/useChecklists';
+import { useRestaurant } from '@/contexts/RestaurantContext';
+import { QrCodeDialog } from '@/components/checklists/QrCodeDialog';
+import { AddItemDialog } from '@/components/checklists/AddItemDialog';
+import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
+import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+type Mode = 'gestor' | 'equipe';
+
+export default function ChecklistsPage() {
+  const { restaurantId, restaurant } = useRestaurant();
+  const [mode, setMode] = useState<Mode>('gestor');
+  const { data: categories = [], isLoading: loadingCats } = useChecklistCategories();
+  const { data: items = [] } = useChecklistItems();
+  const { data: completions = [] } = useChecklistCompletionsToday();
+  const seed = useSeedDefaultCategories();
+
+  const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [qrItem, setQrItem] = useState<ChecklistItem | null>(null);
+  const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
+  const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
+  const [addCatOpen, setAddCatOpen] = useState(false);
+
+  // Auto-seed first time
+  useEffect(() => {
+    if (!loadingCats && categories.length === 0 && restaurantId && !seed.isPending) {
+      seed.mutate();
+    }
+  }, [loadingCats, categories.length, restaurantId]);
+
+  useEffect(() => {
+    if (!activeCat && categories.length > 0) setActiveCat(categories[0].id);
+  }, [categories, activeCat]);
+
+  const completedItemIds = useMemo(() => new Set(completions.map((c) => c.item_id)), [completions]);
+  const itemCompletion = useMemo(() => {
+    const map = new Map<string, typeof completions[number]>();
+    for (const c of completions) if (!map.has(c.item_id)) map.set(c.item_id, c);
+    return map;
+  }, [completions]);
+
+  const totalProgress = items.length === 0 ? 0 : Math.round((completedItemIds.size / items.length) * 100);
+
+  return (
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <ClipboardList className="h-6 w-6 text-primary" />
+            Checklists
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Operação diária do {restaurant?.name ?? 'restaurante'} — abertura, fechamento e padrões.
+          </p>
+        </div>
+        <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as Mode)} className="border rounded-lg p-1 bg-muted/30">
+          <ToggleGroupItem value="gestor" className="gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+            <ShieldUser className="h-4 w-4" /> Gestor
+          </ToggleGroupItem>
+          <ToggleGroupItem value="equipe" className="gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+            <Users className="h-4 w-4" /> Equipe
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      {/* Progress */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium">Progresso de hoje</p>
+            <span className="text-sm font-semibold text-primary">{totalProgress}%</span>
+          </div>
+          <Progress value={totalProgress} className="h-2" />
+          <p className="text-xs text-muted-foreground mt-2">
+            {completedItemIds.size} de {items.length} itens concluídos
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Tabs por categoria */}
+      {categories.length > 0 && activeCat && (
+        <Tabs value={activeCat} onValueChange={setActiveCat}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <TabsList className="flex-wrap h-auto">
+              {categories.map((c) => (
+                <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>
+              ))}
+            </TabsList>
+            {mode === 'gestor' && (
+              <Button variant="outline" size="sm" onClick={() => setAddCatOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" /> Novo Checklist
+              </Button>
+            )}
+          </div>
+
+          {categories.map((category) => {
+            const catItems = items.filter((i) => i.category_id === category.id);
+            return (
+              <TabsContent key={category.id} value={category.id} className="space-y-4 mt-4">
+                <CategoryPanel
+                  mode={mode}
+                  category={category}
+                  items={catItems}
+                  completedItemIds={completedItemIds}
+                  itemCompletion={itemCompletion}
+                  onOpenQr={setQrItem}
+                  onOpenScan={setScanItem}
+                  onAddItem={() => setAddItemForCat(category)}
+                />
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      )}
+
+      {/* Activity log */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Atividade recente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {completions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma atividade registrada hoje.</p>
+          ) : (
+            <ul className="space-y-2 max-h-72 overflow-auto">
+              {completions.slice(0, 30).map((c) => {
+                const it = items.find((i) => i.id === c.item_id);
+                return (
+                  <li key={c.id} className="flex items-center gap-3 text-sm border-b last:border-0 pb-2 last:pb-0">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                    <span className="font-medium flex-1 truncate">{it?.name ?? 'Item'}</span>
+                    <span className="text-muted-foreground">{c.completed_by_name ?? 'Equipe'}</span>
+                    <span className="text-muted-foreground tabular-nums">{format(new Date(c.completed_at), 'HH:mm', { locale: ptBR })}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialogs */}
+      <QrCodeDialog
+        open={!!qrItem}
+        onOpenChange={(o) => !o && setQrItem(null)}
+        item={qrItem}
+        category={qrItem ? categories.find((c) => c.id === qrItem.category_id) ?? null : null}
+      />
+      <ScanQrDialog
+        open={!!scanItem}
+        onOpenChange={(o) => !o && setScanItem(null)}
+        item={scanItem}
+        onScanned={() => {}}
+      />
+      <AddItemDialog
+        open={!!addItemForCat}
+        onOpenChange={(o) => !o && setAddItemForCat(null)}
+        categoryId={addItemForCat?.id ?? ''}
+        categoryName={addItemForCat?.name ?? ''}
+      />
+      <AddCategoryDialog open={addCatOpen} onOpenChange={setAddCatOpen} />
+    </div>
+  );
+}
+
+interface CategoryPanelProps {
+  mode: Mode;
+  category: ChecklistCategory;
+  items: ChecklistItem[];
+  completedItemIds: Set<string>;
+  itemCompletion: Map<string, any>;
+  onOpenQr: (item: ChecklistItem) => void;
+  onOpenScan: (item: ChecklistItem) => void;
+  onAddItem: () => void;
+}
+
+function CategoryPanel({
+  mode, category, items, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem,
+}: CategoryPanelProps) {
+  const printAll = () => {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    const blocks = items.map((it) => {
+      const value = JSON.stringify({ type: 'mesaclik-checklist', item_id: it.id });
+      return `<div class="card"><div id="qr-${it.id}"></div><h3>${it.name}</h3><p>${category.name}</p></div>`;
+    }).join('');
+    w.document.write(`<!doctype html><html><head><title>QRs ${category.name}</title>
+      <style>body{font-family:Inter,sans-serif;padding:24px;}h1{font-size:18px}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+      .card{border:1px dashed #999;padding:16px;text-align:center;border-radius:8px}
+      .card h3{font-size:13px;margin:8px 0 2px}.card p{color:#666;font-size:11px;margin:0}
+      </style></head><body>
+      <h1>QRs — ${category.name}</h1><div class="grid">${blocks}</div>
+      <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+      <script>
+        const items = ${JSON.stringify(items.map((i) => ({ id: i.id, val: JSON.stringify({ type: 'mesaclik-checklist', item_id: i.id }) })))};
+        Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 160 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
+          .then(() => setTimeout(() => window.print(), 400));
+      </script>
+      </body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="text-base">{category.name}</CardTitle>
+        <div className="flex gap-2">
+          {mode === 'gestor' && items.length > 0 && (
+            <Button variant="outline" size="sm" onClick={printAll}>
+              <Printer className="mr-1 h-4 w-4" /> Imprimir todos os QRs
+            </Button>
+          )}
+          {mode === 'gestor' && (
+            <Button size="sm" onClick={onAddItem}>
+              <Plus className="mr-1 h-4 w-4" /> Adicionar Item
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            Nenhum item nesta categoria. {mode === 'gestor' && 'Clique em "Adicionar Item" para começar.'}
+          </p>
+        ) : (
+          <ul className="divide-y">
+            {items.map((it) => (
+              <ItemRow
+                key={it.id}
+                mode={mode}
+                item={it}
+                done={completedItemIds.has(it.id)}
+                completion={itemCompletion.get(it.id)}
+                onOpenQr={() => onOpenQr(it)}
+                onOpenScan={() => onOpenScan(it)}
+              />
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface ItemRowProps {
+  mode: Mode;
+  item: ChecklistItem;
+  done: boolean;
+  completion: any;
+  onOpenQr: () => void;
+  onOpenScan: () => void;
+}
+
+function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRowProps) {
+  const { restaurantId } = useRestaurant();
+  const complete = useCompleteItem();
+  const del = useDeleteItem();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleScan = () => {
+    onOpenScan();
+    // when scan dialog finishes, mark complete
+    setTimeout(() => {
+      complete.mutate({ item_id: item.id, via_qr: true });
+    }, 1850);
+  };
+
+  const handleConclude = async () => {
+    if (item.requires_photo) {
+      fileRef.current?.click();
+      return;
+    }
+    complete.mutate({ item_id: item.id, via_qr: false });
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f || !restaurantId) return;
+    try {
+      setUploading(true);
+      const url = await uploadChecklistPhoto(f, restaurantId);
+      await complete.mutateAsync({ item_id: item.id, via_qr: false, photo_url: url });
+      toast.success('Foto enviada e item concluído');
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Falha no upload');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <li className="py-3 flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        {item.is_critical && !done && (
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-70" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+          </span>
+        )}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={cn('font-medium text-sm truncate', done && 'line-through text-muted-foreground')}>
+              {item.name}
+            </span>
+            {item.is_critical && (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Crítico</Badge>
+            )}
+            {item.requires_photo && (
+              <Camera className="h-3.5 w-3.5 text-muted-foreground" aria-label="Exige foto" />
+            )}
+          </div>
+          {done && completion && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              <CheckCircle2 className="inline h-3 w-3 text-green-500 mr-1" />
+              {completion.completed_by_name ?? 'Equipe'} • {format(new Date(completion.completed_at), 'HH:mm', { locale: ptBR })}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {mode === 'gestor' ? (
+          <>
+            <Button size="sm" variant="outline" onClick={onOpenQr}>
+              <QrCode className="mr-1 h-4 w-4" /> Gerar QR
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => del.mutate(item.id)} aria-label="Remover">
+              <Trash2 className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </>
+        ) : done ? (
+          <Badge variant="secondary" className="gap-1">
+            <CheckCircle2 className="h-3 w-3 text-green-500" /> Concluído
+          </Badge>
+        ) : (
+          <>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+            <Button size="sm" variant="outline" onClick={handleScan}>
+              <ScanLine className="mr-1 h-4 w-4" /> Escanear QR
+            </Button>
+            <Button size="sm" onClick={handleConclude} disabled={uploading || complete.isPending}>
+              {item.requires_photo ? <Camera className="mr-1 h-4 w-4" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
+              {uploading ? 'Enviando…' : 'Concluir'}
+            </Button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
