@@ -17,12 +17,21 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
   const [name, setName] = useState('');
   const [critical, setCritical] = useState(false);
   const [photo, setPhoto] = useState(false);
+  const [hasQr, setHasQr] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
   const create = useCreateItem();
 
   const handleSave = async () => {
     if (!name.trim()) return;
-    await create.mutateAsync({ category_id: categoryId, name: name.trim(), is_critical: critical, requires_photo: photo });
-    setName(''); setCritical(false); setPhoto(false);
+    await create.mutateAsync({
+      category_id: categoryId,
+      name: name.trim(),
+      is_critical: critical,
+      requires_photo: photo,
+      has_qr: hasQr,
+      scheduled_time: scheduledTime || null,
+    });
+    setName(''); setCritical(false); setPhoto(false); setHasQr(false); setScheduledTime('');
     onOpenChange(false);
   };
 
@@ -37,19 +46,35 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
             <Label>Nome do item</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Verificar temperatura geladeira" />
           </div>
+          <div className="space-y-2">
+            <Label>Horário previsto (opcional)</Label>
+            <Input
+              type="time"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
+              className="dark:[&::-webkit-calendar-picker-indicator]:invert"
+            />
+          </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <Label className="text-sm">Item crítico</Label>
+              <Label className="text-sm">É crítico</Label>
               <p className="text-xs text-muted-foreground">Destaca como prioritário</p>
             </div>
             <Switch checked={critical} onCheckedChange={setCritical} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
-              <Label className="text-sm">Exige foto</Label>
+              <Label className="text-sm">Exige foto como evidência</Label>
               <p className="text-xs text-muted-foreground">Equipe precisa enviar imagem</p>
             </div>
             <Switch checked={photo} onCheckedChange={setPhoto} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <Label className="text-sm">Validação por QR Code</Label>
+              <p className="text-xs text-muted-foreground">Equipe escaneia QR físico para concluir</p>
+            </div>
+            <Switch checked={hasQr} onCheckedChange={setHasQr} />
           </div>
         </div>
         <DialogFooter>
