@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList, ShieldUser, Users,
+  Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList, ShieldCheck, Users,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { format } from 'date-fns';
@@ -75,7 +75,7 @@ export default function ChecklistsPage() {
         </div>
         <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as Mode)} className="border rounded-lg p-1 bg-muted/30">
           <ToggleGroupItem value="gestor" className="gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-            <ShieldUser className="h-4 w-4" /> Gestor
+            <ShieldCheck className="h-4 w-4" /> Gestor
           </ToggleGroupItem>
           <ToggleGroupItem value="equipe" className="gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
             <Users className="h-4 w-4" /> Equipe

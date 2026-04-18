@@ -17,6 +17,7 @@ import {
   Sun,
   LogOut,
   Film,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ const allNavigation = [
   { name: "MesaClik Studio", href: "/marketing/creator", icon: Sparkles, requiresFeature: null, requiresModule: null, adminOnly: true },
   
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null, adminOnly: true },
+  { name: "Checklists", href: "/checklists", icon: ClipboardList, requiresFeature: null, requiresModule: null, adminOnly: false },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null, adminOnly: true },
 ];
 

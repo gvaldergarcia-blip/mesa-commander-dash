@@ -22,6 +22,7 @@ import Coupons from "./pages/Coupons";
 import Intelligence from "./pages/Intelligence";
 import VideoGenerator from "./pages/VideoGenerator";
 import IACreatorMarketing from "./pages/IACreatorMarketing";
+import ChecklistsPage from "./pages/ChecklistsPage";
 
 
 import NotFound from "./pages/NotFound";
@@ -196,6 +197,7 @@ const App = () => {
                       <IACreatorMarketing />
                     </RoleGuard>
                   } />
+                  <Route path="/checklists" element={<ChecklistsPage />} />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
