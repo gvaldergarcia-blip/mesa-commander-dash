@@ -1,61 +1,55 @@
 import { useState } from "react";
-import { Clock, Users, Calendar, TrendingUp, UserCheck, Megaphone, Plus, ClipboardCheck, UserPlus } from "lucide-react";
+import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { useDashboardMetricsReal } from "@/hooks/useDashboardMetricsReal";
 import { useQueue } from "@/hooks/useQueue";
-
 import { useReservations } from "@/hooks/useReservations";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
 import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { useRestaurantCustomers } from "@/hooks/useRestaurantCustomers";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 
 function DashboardContent() {
   const { restaurants, loading: loadingRestaurants } = useRestaurants();
-  const { metrics, recentActivity, loading: loadingMetrics } = useDashboardMetricsReal();
+  const { metrics, recentActivity } = useDashboardMetricsReal();
   const { addToQueue } = useQueue();
   const { createReservation } = useReservations();
   const navigate = useNavigate();
   const { hasModule } = useModules();
-  
+
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
-  const [isVisitDialogOpen, setIsVisitDialogOpen] = useState(false);
   const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
   const { refetch: refetchCustomers } = useRestaurantCustomers();
-  
-  // Queue dialog state
+
   const [queueName, setQueueName] = useState("");
   const [queuePhone, setQueuePhone] = useState("");
   const [queueEmail, setQueueEmail] = useState("");
   const [queuePeople, setQueuePeople] = useState("2");
   const [queueNotes, setQueueNotes] = useState("");
   const [queueBirthday, setQueueBirthday] = useState("");
-  
-  // Reservation dialog state
+
   const [resName, setResName] = useState("");
   const [resPhone, setResPhone] = useState("");
   const [resEmail, setResEmail] = useState("");
@@ -64,10 +58,10 @@ function DashboardContent() {
   const [resPeople, setResPeople] = useState("2");
   const [resNotes, setResNotes] = useState("");
   const [resBirthday, setResBirthday] = useState("");
-  
+
   const handleAddQueue = async () => {
     if (!queueName || !queuePhone) return;
-    
+
     await addToQueue({
       customer_name: queueName,
       phone: queuePhone,
@@ -75,8 +69,7 @@ function DashboardContent() {
       people: parseInt(queuePeople),
       notes: queueNotes || undefined,
     });
-    
-    // Reset
+
     setQueueName("");
     setQueuePhone("");
     setQueueEmail("");
@@ -85,12 +78,12 @@ function DashboardContent() {
     setQueueBirthday("");
     setIsQueueDialogOpen(false);
   };
-  
+
   const handleAddReservation = async () => {
     if (!resName || !resPhone || !resDate || !resTime) return;
-    
+
     const dateTime = `${resDate}T${resTime}:00`;
-    
+
     await createReservation({
       customer_name: resName,
       customer_phone: resPhone,
@@ -99,8 +92,7 @@ function DashboardContent() {
       people: parseInt(resPeople),
       notes: resNotes || undefined,
     });
-    
-    // Reset
+
     setResName("");
     setResPhone("");
     setResEmail("");
@@ -110,16 +102,14 @@ function DashboardContent() {
     setResNotes("");
     setIsReservationDialogOpen(false);
   };
-  
-  
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Painel</h1>
           <p className="text-muted-foreground">
-            {loadingRestaurants ? 'Carregando...' : `${restaurants.length} restaurante(s) conectado(s)`}
+            {loadingRestaurants ? "Carregando..." : `${restaurants.length} restaurante(s) conectado(s)`}
           </p>
         </div>
         <div className="flex space-x-3">
@@ -127,16 +117,15 @@ function DashboardContent() {
             <Calendar className="w-4 h-4 mr-2" />
             Hoje
           </Button>
-          <Button onClick={() => navigate('/reports')}>
+          <Button onClick={() => navigate("/reports")}>
             <TrendingUp className="w-4 h-4 mr-2" />
             Relatório Semanal
           </Button>
         </div>
       </div>
 
-      {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {hasModule('fila') && (
+        {hasModule("fila") && (
           <>
             <MetricCard
               title="Grupos na Fila"
@@ -152,7 +141,7 @@ function DashboardContent() {
             />
           </>
         )}
-        {hasModule('reserva') && (
+        {hasModule("reserva") && (
           <MetricCard
             title="Reservas Hoje"
             value={metrics.reservationsToday.toString()}
@@ -169,9 +158,7 @@ function DashboardContent() {
         />
       </div>
 
-      {/* Recent Activity & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Recent Activity */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -181,16 +168,12 @@ function DashboardContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             {recentActivity.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
-                Nenhuma atividade recente
-              </p>
+              <p className="text-muted-foreground text-center py-4">Nenhuma atividade recente</p>
             ) : (
               recentActivity.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                   <div className="flex items-center space-x-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      activity.type === 'queue' ? 'bg-warning' : 'bg-success'
-                    }`} />
+                    <div className={`w-2 h-2 rounded-full ${activity.type === "queue" ? "bg-warning" : "bg-success"}`} />
                     <div>
                       <p className="font-medium text-sm">{activity.customer}</p>
                       <p className="text-xs text-muted-foreground">{activity.action}</p>
@@ -206,7 +189,6 @@ function DashboardContent() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -215,7 +197,7 @@ function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {hasModule('fila') && (
+            {hasModule("fila") && (
               <Dialog open={isQueueDialogOpen} onOpenChange={setIsQueueDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full justify-start" variant="outline">
@@ -228,55 +210,32 @@ function DashboardContent() {
                     <DialogTitle>Adicionar Cliente à Fila</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <Input 
-                      placeholder="Nome do cliente"
-                      value={queueName}
-                      onChange={(e) => setQueueName(e.target.value)}
-                    />
-                    <PhoneInput
-                      value={queuePhone}
-                      onChange={setQueuePhone}
-                    />
-                    <Input 
-                      type="email"
-                      placeholder="E-mail (opcional)"
-                      value={queueEmail}
-                      onChange={(e) => setQueueEmail(e.target.value)}
-                    />
+                    <Input placeholder="Nome do cliente" value={queueName} onChange={(e) => setQueueName(e.target.value)} />
+                    <PhoneInput value={queuePhone} onChange={setQueuePhone} />
+                    <Input type="email" placeholder="E-mail (opcional)" value={queueEmail} onChange={(e) => setQueueEmail(e.target.value)} />
                     <Select value={queuePeople} onValueChange={setQueuePeople}>
                       <SelectTrigger>
                         <SelectValue placeholder="Pessoas" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[1,2,3,4,5,6,7,8].map(n => (
-                          <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                          <SelectItem key={n} value={n.toString()}>
+                            {n} {n === 1 ? "pessoa" : "pessoas"}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input 
-                      placeholder="Observações (opcional)"
-                      value={queueNotes}
-                      onChange={(e) => setQueueNotes(e.target.value)}
-                    />
-                    <Input 
-                      type="date"
-                      placeholder="Data de aniversário (opcional)"
-                      value={queueBirthday}
-                      onChange={(e) => setQueueBirthday(e.target.value)}
-                    />
-                    <Button 
-                      className="w-full"
-                      onClick={handleAddQueue}
-                      disabled={!queueName || !queuePhone}
-                    >
+                    <Input placeholder="Observações (opcional)" value={queueNotes} onChange={(e) => setQueueNotes(e.target.value)} />
+                    <Input type="date" placeholder="Data de aniversário (opcional)" value={queueBirthday} onChange={(e) => setQueueBirthday(e.target.value)} />
+                    <Button className="w-full" onClick={handleAddQueue} disabled={!queueName || !queuePhone}>
                       Adicionar
                     </Button>
                   </div>
                 </DialogContent>
               </Dialog>
             )}
-            
-            {hasModule('reserva') && (
+
+            {hasModule("reserva") && (
               <Dialog open={isReservationDialogOpen} onOpenChange={setIsReservationDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full justify-start" variant="outline">
@@ -289,97 +248,44 @@ function DashboardContent() {
                     <DialogTitle>Criar Nova Reserva</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <Input 
-                      placeholder="Nome do cliente"
-                      value={resName}
-                      onChange={(e) => setResName(e.target.value)}
-                    />
-                    <PhoneInput 
-                      value={resPhone}
-                      onChange={setResPhone}
-                    />
-                    <Input 
-                      type="email"
-                      placeholder="E-mail (opcional)"
-                      value={resEmail}
-                      onChange={(e) => setResEmail(e.target.value)}
-                    />
+                    <Input placeholder="Nome do cliente" value={resName} onChange={(e) => setResName(e.target.value)} />
+                    <PhoneInput value={resPhone} onChange={setResPhone} />
+                    <Input type="email" placeholder="E-mail (opcional)" value={resEmail} onChange={(e) => setResEmail(e.target.value)} />
                     <div className="grid grid-cols-2 gap-4">
-                      <Input 
-                        type="date"
-                        value={resDate}
-                        onChange={(e) => setResDate(e.target.value)}
-                      />
-                      <Input 
-                        type="time"
-                        value={resTime}
-                        onChange={(e) => setResTime(e.target.value)}
-                      />
+                      <Input type="date" value={resDate} onChange={(e) => setResDate(e.target.value)} />
+                      <Input type="time" value={resTime} onChange={(e) => setResTime(e.target.value)} />
                     </div>
                     <Select value={resPeople} onValueChange={setResPeople}>
                       <SelectTrigger>
                         <SelectValue placeholder="Pessoas" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[1,2,3,4,5,6].map(n => (
-                          <SelectItem key={n} value={n.toString()}>{n} {n === 1 ? 'pessoa' : 'pessoas'}</SelectItem>
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                          <SelectItem key={n} value={n.toString()}>
+                            {n} {n === 1 ? "pessoa" : "pessoas"}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input 
-                      placeholder="Observações especiais (opcional)"
-                      value={resNotes}
-                      onChange={(e) => setResNotes(e.target.value)}
-                    />
-                    <Input 
-                      type="date"
-                      placeholder="Data de aniversário (opcional)"
-                      value={resBirthday}
-                      onChange={(e) => setResBirthday(e.target.value)}
-                    />
-                    <Button 
-                      className="w-full"
-                      onClick={handleAddReservation}
-                      disabled={!resName || !resPhone || !resDate || !resTime}
-                    >
+                    <Input placeholder="Observações especiais (opcional)" value={resNotes} onChange={(e) => setResNotes(e.target.value)} />
+                    <Input type="date" placeholder="Data de aniversário (opcional)" value={resBirthday} onChange={(e) => setResBirthday(e.target.value)} />
+                    <Button className="w-full" onClick={handleAddReservation} disabled={!resName || !resPhone || !resDate || !resTime}>
                       Criar Reserva
                     </Button>
                   </div>
                 </DialogContent>
               </Dialog>
             )}
-            
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={() => setIsVisitDialogOpen(true)}
-            >
-              <ClipboardCheck className="w-4 h-4 mr-2" />
-              Registrar Visita
-            </Button>
-            
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={() => setIsCreateCustomerOpen(true)}
-            >
+
+            <Button className="w-full justify-start" variant="outline" onClick={() => setIsCreateCustomerOpen(true)}>
               <UserPlus className="w-4 h-4 mr-2" />
               Cadastrar Cliente
             </Button>
-            
-            <CreateCustomerDialog
-              open={isCreateCustomerOpen}
-              onOpenChange={setIsCreateCustomerOpen}
-              onSuccess={refetchCustomers}
-            />
-            
-            {/* Botão de Promoção - condicionado à feature flag */}
+
+            <CreateCustomerDialog open={isCreateCustomerOpen} onOpenChange={setIsCreateCustomerOpen} onSuccess={refetchCustomers} />
+
             {FEATURE_FLAGS.CUPONS_ENABLED && (
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={() => navigate('/promotions')}
-              >
+              <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/promotions")}>
                 <Megaphone className="w-4 h-4 mr-2" />
                 Enviar Promoção
               </Button>
@@ -388,8 +294,7 @@ function DashboardContent() {
         </Card>
       </div>
 
-      {/* Queue Status Overview — only if has fila module */}
-      {hasModule('fila') && (
+      {hasModule("fila") && (
         <Card>
           <CardHeader>
             <CardTitle>Status da Fila Atual</CardTitle>
@@ -416,11 +321,6 @@ function DashboardContent() {
           </CardContent>
         </Card>
       )}
-
-      <RegisterVisitDialog
-        open={isVisitDialogOpen}
-        onOpenChange={setIsVisitDialogOpen}
-      />
     </div>
   );
 }

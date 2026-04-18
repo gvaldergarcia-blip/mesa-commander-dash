@@ -26,9 +26,6 @@ import { CustomerInsights } from "@/components/customers/CustomerInsightsCard";
 import { CustomerAIAnalysis } from "@/components/customers/CustomerAIAnalysis";
 import { CustomerLoyaltyCard } from "@/components/customers/CustomerLoyaltyCard";
 
-// ... keep existing code
-
-
 type CustomerStatus = 'vip' | 'frequent' | 'new' | 'at_risk' | 'active';
 
 const statusConfig: Record<CustomerStatus, { label: string; className: string; icon: typeof Star }> = {
@@ -600,11 +597,6 @@ export default function CustomerProfile() {
                   {!customer.marketing_opt_in && <Badge variant="secondary" className="ml-auto text-xs">Sem opt-in</Badge>}
                 </Button>
                 <Button
-                  className="w-full justify-start gap-2"
-                  variant="outline"
-                  disabled={togglingVip}
-                  onClick={handleToggleVip}
-                >
                   className="w-full justify-start gap-2"
                   variant="outline"
                   disabled={togglingVip}
