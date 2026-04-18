@@ -33,8 +33,6 @@ function CustomersPageContent() {
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
-  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [visitDialogOpen, setVisitDialogOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers();
   const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(restaurantId || '');
@@ -364,18 +362,6 @@ function CustomersPageContent() {
           isSubmitting={sendingPromotion}
         />
       )}
-
-      <CreateCustomerDialog
-        open={createCustomerOpen}
-        onOpenChange={setCreateCustomerOpen}
-        onSuccess={refetch}
-      />
-
-      <RegisterVisitDialog
-        open={visitDialogOpen}
-        onOpenChange={setVisitDialogOpen}
-        onSuccess={refetch}
-      />
 
       {restaurantId && (
         <QrCodeModal
