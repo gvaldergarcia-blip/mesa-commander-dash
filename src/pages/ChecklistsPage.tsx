@@ -256,7 +256,7 @@ function CategoryPanel({
       <h1>QRs — ${category.name}</h1><div class="grid">${blocks}</div>
       <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
       <script>
-        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: JSON.stringify({ type: 'mesaclik-checklist', item_id: i.id }) })))};
+        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: i.id })))};
         Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 180 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
           .then(() => setTimeout(() => window.print(), 400));
       </script>

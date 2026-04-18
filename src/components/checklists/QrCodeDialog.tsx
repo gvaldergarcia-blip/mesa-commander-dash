@@ -30,7 +30,8 @@ export function QrCodeDialog({ open, onOpenChange, item, category }: Props) {
 
   if (!item || !category) return null;
 
-  const qrValue = JSON.stringify({ type: 'mesaclik-checklist', item_id: item.id });
+  // QR content = bare item ID (so the camera scanner can match it directly)
+  const qrValue = item.id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
