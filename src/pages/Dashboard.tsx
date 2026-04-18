@@ -129,9 +129,6 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Busca inteligente de cliente */}
-      <SmartCustomerSearch />
-
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {hasModule('fila') && (
