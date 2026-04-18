@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ChecklistItem } from '@/hooks/useChecklists';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
@@ -9,106 +9,122 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: ChecklistItem | null;
-  /** Called only when the scanned QR matches this item's ID. */
   onScanned: () => void;
 }
 
 type Phase = 'starting' | 'scanning' | 'success' | 'invalid' | 'error';
 
 const REGION_ID = 'checklist-qr-reader';
+const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 
-/**
- * Real camera QR reader using html5-qrcode.
- * Validates that the scanned content equals the item.id; otherwise shows error.
- */
 export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
   const [phase, setPhase] = useState<Phase>('starting');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const stoppedRef = useRef(false);
 
-  // Extract the bare item id from any QR payload (supports legacy JSON or plain UUID)
   const extractId = (raw: string): string => {
-    const t = raw.trim();
+    const value = raw.trim();
+
     try {
-      const parsed = JSON.parse(t);
-      if (parsed && typeof parsed === 'object' && typeof parsed.item_id === 'string') {
-        return parsed.item_id;
-      }
-    } catch { /* not JSON, fall through */ }
-    return t;
+      const parsed = JSON.parse(value);
+      const jsonId = parsed?.item_id || parsed?.itemId || parsed?.id;
+      if (typeof jsonId === 'string') return jsonId.trim();
+    } catch {
+      // ignore
+    }
+
+    try {
+      const url = new URL(value);
+      const queryId = url.searchParams.get('item_id') || url.searchParams.get('itemId') || url.searchParams.get('id');
+      if (queryId) return queryId.trim();
+
+      const pathnameMatch = url.pathname.match(UUID_REGEX);
+      if (pathnameMatch?.[0]) return pathnameMatch[0];
+
+      const hashMatch = url.hash.match(UUID_REGEX);
+      if (hashMatch?.[0]) return hashMatch[0];
+    } catch {
+      // not a URL
+    }
+
+    const inlineMatch = value.match(UUID_REGEX);
+    return inlineMatch?.[0] ?? value;
   };
 
   const stopScanner = async () => {
     if (stoppedRef.current) return;
     stoppedRef.current = true;
-    const s = scannerRef.current;
+    const scanner = scannerRef.current;
     scannerRef.current = null;
-    if (!s) return;
+    if (!scanner) return;
     try {
-      if (s.isScanning) await s.stop();
-      await s.clear();
-    } catch { /* ignore */ }
+      if (scanner.isScanning) await scanner.stop();
+      await scanner.clear();
+    } catch {
+      // ignore scanner teardown noise
+    }
+  };
+
+  const handleDecoded = async (decodedText: string) => {
+    if (!item) return;
+    const scannedId = extractId(decodedText);
+
+    if (scannedId === item.id) {
+      setPhase('success');
+      await stopScanner();
+      onScanned();
+      window.setTimeout(() => onOpenChange(false), 900);
+      return;
+    }
+
+    setPhase('invalid');
+    await stopScanner();
+  };
+
+  const startScanner = async (preferExactEnvironment = true) => {
+    const scanner = new Html5Qrcode(REGION_ID, false);
+    scannerRef.current = scanner;
+
+    const constraints = preferExactEnvironment
+      ? ({ facingMode: { exact: 'environment' } } as MediaTrackConstraints)
+      : ({ facingMode: 'environment' } as MediaTrackConstraints);
+
+    await scanner.start(
+      constraints,
+      {
+        fps: 10,
+        qrbox: { width: 240, height: 240 },
+        aspectRatio: 1,
+        disableFlip: false,
+      },
+      handleDecoded,
+      () => {},
+    );
+
+    setPhase('scanning');
   };
 
   useEffect(() => {
     if (!open || !item) return;
+
+    let cancelled = false;
     stoppedRef.current = false;
     setPhase('starting');
     setErrorMsg('');
 
-    let cancelled = false;
-
-    const start = async () => {
+    const boot = async () => {
       try {
-        // Wait one tick for the DOM region to mount
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise((resolve) => setTimeout(resolve, 60));
         if (cancelled) return;
-        const html5 = new Html5Qrcode(REGION_ID, /* verbose */ false);
-        scannerRef.current = html5;
 
-        await html5.start(
-          { facingMode: { exact: 'environment' } as any },
-          { fps: 10, qrbox: { width: 240, height: 240 } },
-          async (decodedText) => {
-            const scannedId = extractId(decodedText);
-            if (scannedId === item.id) {
-              setPhase('success');
-              await stopScanner();
-              onScanned();
-              setTimeout(() => onOpenChange(false), 1100);
-            } else {
-              setPhase('invalid');
-              await stopScanner();
-            }
-          },
-          () => { /* per-frame fail callback — silent */ },
-        ).catch(async (err) => {
-          // Fallback: try without exact constraint (some browsers / desktops)
-          try {
-            await html5.start(
-              { facingMode: 'environment' },
-              { fps: 10, qrbox: { width: 240, height: 240 } },
-              async (decodedText) => {
-                const scannedId = extractId(decodedText);
-                if (scannedId === item.id) {
-                  setPhase('success');
-                  await stopScanner();
-                  onScanned();
-                  setTimeout(() => onOpenChange(false), 1100);
-                } else {
-                  setPhase('invalid');
-                  await stopScanner();
-                }
-              },
-              () => {},
-            );
-          } catch (e2: any) {
-            throw err ?? e2;
-          }
-        });
-
-        if (!cancelled) setPhase('scanning');
+        try {
+          await startScanner(true);
+        } catch {
+          await stopScanner();
+          stoppedRef.current = false;
+          await startScanner(false);
+        }
       } catch (err: any) {
         console.error('[ScanQrDialog] camera error', err);
         setErrorMsg(err?.message ?? 'Não foi possível acessar a câmera.');
@@ -116,13 +132,12 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
       }
     };
 
-    start();
+    boot();
 
     return () => {
       cancelled = true;
-      stopScanner();
+      void stopScanner();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item?.id]);
 
   const handleRetry = async () => {
@@ -130,70 +145,56 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
     stoppedRef.current = false;
     setPhase('starting');
     setErrorMsg('');
-    // Trigger restart by closing/reopening effect deps — simplest: reload via setPhase + small delay
-    setTimeout(() => {
-      // Re-run by toggling: easiest is to re-mount via key in parent, but here we just kick the effect
-      // by manually calling start again.
-      const html5 = new Html5Qrcode(REGION_ID, false);
-      scannerRef.current = html5;
-      html5
-        .start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 240, height: 240 } },
-          async (decodedText) => {
-            if (!item) return;
-            const t = decodedText.trim();
-            let scannedId = t;
-            try { const p = JSON.parse(t); if (p?.item_id) scannedId = p.item_id; } catch { /* noop */ }
-            if (scannedId === item.id) {
-              setPhase('success');
-              await stopScanner();
-              onScanned();
-              setTimeout(() => onOpenChange(false), 1100);
-            } else {
-              setPhase('invalid');
-              await stopScanner();
-            }
-          },
-          () => {},
-        )
-        .then(() => setPhase('scanning'))
-        .catch((e) => {
-          setErrorMsg(e?.message ?? 'Falha ao reiniciar a câmera.');
-          setPhase('error');
-        });
-    }, 100);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      await startScanner(false);
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? 'Falha ao reiniciar a câmera.');
+      setPhase('error');
+    }
   };
 
   const title =
-    phase === 'success' ? 'QR validado com sucesso ✓'
-    : phase === 'invalid' ? 'QR Code inválido para este item'
-    : phase === 'error' ? 'Erro de câmera'
-    : phase === 'starting' ? 'Iniciando câmera…'
-    : 'Aponte para o QR Code';
+    phase === 'success'
+      ? 'QR validado com sucesso ✓'
+      : phase === 'invalid'
+        ? 'QR Code inválido para este item'
+        : phase === 'error'
+          ? 'Erro de câmera'
+          : phase === 'starting'
+            ? 'Iniciando câmera…'
+            : 'Aponte para o QR Code';
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) stopScanner(); onOpenChange(o); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) void stopScanner();
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Escaneie o QR físico deste item. O app valida o ID internamente e não abre links externos.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-2">
-          {/* Camera region — html5-qrcode injects a <video> here */}
           <div className="relative w-full max-w-[300px] aspect-square rounded-lg overflow-hidden bg-black border-2 border-primary/40">
             <div id={REGION_ID} className="w-full h-full" />
 
-            {/* Overlay states */}
             {phase === 'starting' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 text-sm gap-2">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 Iniciando câmera…
               </div>
             )}
+
             {phase === 'scanning' && (
               <>
-                {/* Scan frame + animated line */}
                 <div className="pointer-events-none absolute inset-6 border-2 border-primary/70 rounded-md" />
                 <div
                   className="pointer-events-none absolute left-6 right-6 h-0.5 bg-primary shadow-[0_0_16px_hsl(var(--primary))] animate-[scanline_1.6s_ease-in-out_infinite]"
@@ -201,18 +202,23 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
                 />
               </>
             )}
+
             {phase === 'success' && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/90">
                 <CheckCircle2 className="h-20 w-20 text-green-500" />
               </div>
             )}
+
             {phase === 'invalid' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/90 text-center px-4">
                 <XCircle className="h-14 w-14 text-destructive" />
                 <p className="text-sm font-medium">QR Code inválido para este item</p>
-                <p className="text-xs text-muted-foreground">Verifique se o QR colado no local corresponde ao item selecionado.</p>
+                <p className="text-xs text-muted-foreground">
+                  O sistema aceita ID puro, JSON antigo e QR antigo com URL, mas precisa encontrar o UUID deste item.
+                </p>
               </div>
             )}
+
             {phase === 'error' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/95 text-center px-4">
                 <XCircle className="h-12 w-12 text-destructive" />
