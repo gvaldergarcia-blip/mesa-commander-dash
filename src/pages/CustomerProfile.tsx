@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Mail, Calendar, TrendingUp, Clock, Star,
   CheckCircle2, XCircle, Users, Send, Edit, MessageSquare,
-  BarChart3, History, Loader2, ClipboardCheck
+  BarChart3, History, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
-import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
 import { CustomerAlerts } from "@/components/customers/CustomerAlerts";
 import { CustomerScore } from "@/components/customers/CustomerScoreCard";
 import { CustomerActivityChart } from "@/components/customers/CustomerActivityChart";
@@ -52,7 +51,6 @@ export default function CustomerProfile() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [togglingVip, setTogglingVip] = useState(false);
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
-  const [visitDialogOpen, setVisitDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('timeline');
 
   // Fallback: fetch history directly from tables when edge function times out
@@ -601,13 +599,6 @@ export default function CustomerProfile() {
                 <Button
                   className="w-full justify-start gap-2"
                   variant="outline"
-                  onClick={() => setVisitDialogOpen(true)}
-                >
-                  <ClipboardCheck className="w-4 h-4" /> Registrar visita
-                </Button>
-                <Button
-                  className="w-full justify-start gap-2"
-                  variant="outline"
                   disabled={togglingVip}
                   onClick={handleToggleVip}
                 >
@@ -674,15 +665,6 @@ export default function CustomerProfile() {
         />
       )}
 
-      {/* Visit Dialog */}
-      <RegisterVisitDialog
-        open={visitDialogOpen}
-        onOpenChange={setVisitDialogOpen}
-        prefillEmail={customer?.email || undefined}
-        prefillName={customer?.name || undefined}
-        prefillPhone={customer?.phone || undefined}
-        onSuccess={() => window.location.reload()}
-      />
     </div>
   );
 

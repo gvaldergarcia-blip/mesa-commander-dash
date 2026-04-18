@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Users, UserPlus, ClipboardCheck, QrCode } from "lucide-react";
+import { Send, Users, UserPlus, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurantCustomers, CustomerFilter, SourceFilter, MarketingFilter, PeriodFilter, RestaurantCustomer } from "@/hooks/useRestaurantCustomers";
@@ -16,7 +16,6 @@ import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClea
 import { CreateCampaignDialog } from "@/components/customers/CreateCampaignDialog";
 import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { SendPromotionDialog } from "@/components/customers/SendPromotionDialog";
-import { RegisterVisitDialog } from "@/components/customers/RegisterVisitDialog";
 import { QrCodeModal } from "@/components/qrcode/QrCodeModal";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
@@ -29,135 +28,119 @@ function CustomersPageContent() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [marketingFilter, setMarketingFilter] = useState<MarketingFilter>("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
-  const [sortBy, setSortBy] = useState<'name' | 'visits' | 'lastVisit' | 'birthday'>('lastVisit');
+  const [sortBy, setSortBy] = useState<"name" | "visits" | "lastVisit" | "birthday">("lastVisit");
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
   const [promotionDialogOpen, setPromotionDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<RestaurantCustomer | null>(null);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [visitDialogOpen, setVisitDialogOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const { customers, loading, getKPIs, filterCustomers, getMarketingEligible, refetch } = useRestaurantCustomers();
-  const { campaigns, createCampaign, sendCampaign, getStats } = useRestaurantCampaigns(restaurantId || '');
+  const { createCampaign, sendCampaign } = useRestaurantCampaigns(restaurantId || "");
   const { sendPromotion, sending: sendingPromotion } = useSendPromotion();
-  useCustomerInsights(restaurantId || '');
+  useCustomerInsights(restaurantId || "");
 
-  // Gera insights em tempo real para cada cliente
   const customerInsightsMap = useMemo(() => {
     const map = new Map<string, ReturnType<typeof generateInsightsForCustomer>>();
-    customers.forEach(customer => {
+    customers.forEach((customer) => {
       const insights = generateInsightsForCustomer(customer);
-      if (insights.length > 0) {
-        map.set(customer.id, insights);
-      }
+      if (insights.length > 0) map.set(customer.id, insights);
     });
     return map;
   }, [customers]);
 
-  // Função para obter mensagem de insight
   const getInsightMessage = (customer: RestaurantCustomer): string | null => {
-    // Priority-based insight messages
-    if (customer.is_birthday_soon) return '🎂 Aniversário em breve! Envie uma oferta especial';
-    if (customer.is_birthday_month) return '🎂 Aniversariante do mês';
-    
+    if (customer.is_birthday_soon) return "🎂 Aniversário em breve! Envie uma oferta especial";
+    if (customer.is_birthday_month) return "🎂 Aniversariante do mês";
+
     const insights = customerInsightsMap.get(customer.id);
     if (!insights || insights.length === 0) {
-      // Fallback insights from computed data
-      if (customer.origin === 'both') return 'Usa fila e reserva — cliente engajado';
-      if (customer.total_visits >= 5 && !customer.vip) return 'Alto potencial para VIP';
+      if (customer.origin === "both") return "Usa fila e reserva — cliente engajado";
+      if (customer.total_visits >= 5 && !customer.vip) return "Alto potencial para VIP";
       return null;
     }
-    
+
     const insight = insights[0];
     switch (insight.insight_type) {
-      case 'vip_missing':
-        return 'VIP sem visita recente. Hora de uma oferta especial!';
-      case 'inactive':
+      case "vip_missing":
+        return "VIP sem visita recente. Hora de uma oferta especial!";
+      case "inactive":
         return `Inativo há ${customer.days_since_last_visit}d. Hora de reativar`;
-      case 'recurrent':
+      case "recurrent":
         return `${customer.total_visits} visitas — candidato a VIP!`;
-      case 'new_customer':
-        return 'Cliente novo! Boas-vindas podem fidelizar';
+      case "new_customer":
+        return "Cliente novo! Boas-vindas podem fidelizar";
       default:
         return null;
     }
   };
 
-  // Filtrar e ordenar clientes
   const filteredCustomers = useMemo(() => {
     const filtered = filterCustomers(statusFilter, sourceFilter, marketingFilter, periodFilter, searchTerm);
-    
+
     return filtered.sort((a, b) => {
-      if (sortBy === 'name') {
-        return (a.customer_name || '').localeCompare(b.customer_name || '');
-      } else if (sortBy === 'visits') {
+      if (sortBy === "name") {
+        return (a.customer_name || "").localeCompare(b.customer_name || "");
+      }
+      if (sortBy === "visits") {
         return b.total_visits - a.total_visits;
-      } else if (sortBy === 'birthday') {
-        // Sort by upcoming birthday
+      }
+      if (sortBy === "birthday") {
         const now = new Date();
         const getNextBday = (d: string | null) => {
           if (!d) return Infinity;
-          const bday = new Date(d + 'T00:00:00');
+          const bday = new Date(`${d}T00:00:00`);
           const next = new Date(now.getFullYear(), bday.getMonth(), bday.getDate());
           if (next < now) next.setFullYear(now.getFullYear() + 1);
           return next.getTime() - now.getTime();
         };
         return getNextBday(a.birthday) - getNextBday(b.birthday);
-      } else {
-        const dateA = new Date(a.last_seen_at).getTime();
-        const dateB = new Date(b.last_seen_at).getTime();
-        return dateB - dateA;
       }
+      return new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime();
     });
   }, [filterCustomers, statusFilter, sourceFilter, marketingFilter, periodFilter, searchTerm, sortBy]);
 
-  const kpis = getKPIs();
-  const campaignStats = getStats();
+  const kpiData = getKPIs();
   const eligibleCustomers = getMarketingEligible();
 
-  // Calcular KPIs estratégicos
-  const strategicKPIs = useMemo(() => {
-    const kpiData = getKPIs();
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
-    return {
+  const strategicKPIs = useMemo(
+    () => ({
       activeCustomers: kpiData.active,
-      frequentCustomers: customers.filter(c => c.total_visits >= 3 && !c.vip).length,
-      highValueCustomers: kpiData.vip + customers.filter(c => c.total_visits >= 10 && !c.vip).length,
+      frequentCustomers: customers.filter((c) => c.total_visits >= 3 && !c.vip).length,
+      highValueCustomers: kpiData.vip + customers.filter((c) => c.total_visits >= 10 && !c.vip).length,
       marketingOptIn: kpiData.marketingOptIn,
       atRiskCustomers: kpiData.inactive,
       recurrentCustomers: kpiData.recurrent,
       birthdayThisMonth: kpiData.birthdayThisMonth,
-    };
-  }, [customers, getKPIs]);
+    }),
+    [customers, kpiData],
+  );
 
   const handleFilterClick = (filter: string) => {
-    // Reset other filters first
-    setSourceFilter('all');
-    setMarketingFilter('all');
-    setPeriodFilter('all');
-    
+    setSourceFilter("all");
+    setMarketingFilter("all");
+    setPeriodFilter("all");
+
     switch (filter) {
-      case 'active':
-        setStatusFilter('active');
+      case "active":
+        setStatusFilter("active");
         break;
-      case 'vip':
-      case 'frequent':
-        setStatusFilter('vip');
+      case "vip":
+      case "frequent":
+        setStatusFilter("vip");
         break;
-      case 'inactive':
-        setStatusFilter('inactive');
+      case "inactive":
+        setStatusFilter("inactive");
         break;
-      case 'marketing':
-        setStatusFilter('all');
-        setMarketingFilter('opt-in');
+      case "marketing":
+        setStatusFilter("all");
+        setMarketingFilter("opt-in");
         break;
-      case 'recurrent':
-        setStatusFilter('recurrent');
+      case "recurrent":
+        setStatusFilter("recurrent");
         break;
-      case 'birthday':
-        setStatusFilter('birthday');
+      case "birthday":
+        setStatusFilter("birthday");
         break;
     }
   };
@@ -184,9 +167,7 @@ function CustomersPageContent() {
         expires_at: data.expiresAt,
       });
 
-      if (campaign) {
-        await sendCampaign(campaign.id, data.recipients);
-      }
+      if (campaign) await sendCampaign(campaign.id, data.recipients);
     } finally {
       setIsSubmittingCampaign(false);
     }
@@ -196,16 +177,16 @@ function CustomersPageContent() {
     return (
       <div className="p-6 space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-8 bg-muted rounded w-1/4" />
           <div className="grid grid-cols-5 gap-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-28 bg-muted rounded-lg"></div>
+              <div key={i} className="h-28 bg-muted rounded-lg" />
             ))}
           </div>
-          <div className="h-12 bg-muted rounded"></div>
+          <div className="h-12 bg-muted rounded" />
           <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-20 bg-muted rounded-lg"></div>
+              <div key={i} className="h-20 bg-muted rounded-lg" />
             ))}
           </div>
         </div>
@@ -215,22 +196,15 @@ function CustomersPageContent() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-          <p className="text-muted-foreground mt-1">
-            CRM completo • {customers.length} clientes cadastrados
-          </p>
+          <p className="text-muted-foreground mt-1">CRM completo • {customers.length} clientes cadastrados</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setQrModalOpen(true)} className="gap-2">
             <QrCode className="h-4 w-4" />
             QR Code de Cadastro
-          </Button>
-          <Button variant="outline" onClick={() => setVisitDialogOpen(true)} className="gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Registrar Visita
           </Button>
           <Button onClick={() => setCreateCustomerOpen(true)} className="gap-2">
             <UserPlus className="h-4 w-4" />
@@ -239,7 +213,6 @@ function CustomersPageContent() {
         </div>
       </div>
 
-      {/* Strategic KPIs */}
       <CustomerStrategicKPIs
         activeCustomers={strategicKPIs.activeCustomers}
         frequentCustomers={strategicKPIs.frequentCustomers}
@@ -251,7 +224,6 @@ function CustomersPageContent() {
         onFilterClick={handleFilterClick}
       />
 
-      {/* Filters */}
       <Card className="border-dashed">
         <CardContent className="p-4">
           <CustomerFiltersClean
@@ -271,12 +243,9 @@ function CustomersPageContent() {
         </CardContent>
       </Card>
 
-      {/* Customer List Premium */}
       <CustomerListPremium
         customers={filteredCustomers}
-        onViewProfile={(customerId) => {
-          navigate(`/customers/${customerId}`);
-        }}
+        onViewProfile={(customerId) => navigate(`/customers/${customerId}`)}
         onSendPromotion={(customer) => {
           setSelectedCustomer(customer);
           setPromotionDialogOpen(true);
@@ -308,28 +277,27 @@ function CustomersPageContent() {
         getInsightMessage={getInsightMessage}
       />
 
-      {/* Dialogs */}
       <CreateCampaignDialog
         open={campaignDialogOpen}
         onOpenChange={setCampaignDialogOpen}
         eligibleCustomers={eligibleCustomers}
-          onSubmit={async (data) => {
-            await handleCreateCampaign({
-              title: data.title,
-              subject: data.subject,
-              message: data.message,
-              ctaText: data.ctaText,
-              ctaUrl: data.ctaUrl,
-              couponCode: data.couponCode,
-              expiresAt: data.expiresAt,
-              recipients: data.recipients.map((recipient) => ({
-                email: recipient.email || '',
-                phone: recipient.phone,
-                name: recipient.name,
-                customerId: recipient.customerId,
-              })),
-            });
-          }}
+        onSubmit={async (data) => {
+          await handleCreateCampaign({
+            title: data.title,
+            subject: data.subject,
+            message: data.message,
+            ctaText: data.ctaText,
+            ctaUrl: data.ctaUrl,
+            couponCode: data.couponCode,
+            expiresAt: data.expiresAt,
+            recipients: data.recipients.map((recipient) => ({
+              email: recipient.email || "",
+              phone: recipient.phone,
+              name: recipient.name,
+              customerId: recipient.customerId,
+            })),
+          });
+        }}
         isSubmitting={isSubmittingCampaign}
       />
 
@@ -339,7 +307,6 @@ function CustomersPageContent() {
           onOpenChange={setPromotionDialogOpen}
           customer={selectedCustomer}
           onSubmit={async (data) => {
-            // Fetch unsubscribe_token for this customer
             let unsubToken: string | undefined;
             if (restaurantId) {
               const { data: tokenData } = await supabase
@@ -371,24 +338,14 @@ function CustomersPageContent() {
         />
       )}
 
-      <CreateCustomerDialog
-        open={createCustomerOpen}
-        onOpenChange={setCreateCustomerOpen}
-        onSuccess={refetch}
-      />
-
-      <RegisterVisitDialog
-        open={visitDialogOpen}
-        onOpenChange={setVisitDialogOpen}
-        onSuccess={refetch}
-      />
+      <CreateCustomerDialog open={createCustomerOpen} onOpenChange={setCreateCustomerOpen} onSuccess={refetch} />
 
       {restaurantId && (
         <QrCodeModal
           open={qrModalOpen}
           onOpenChange={setQrModalOpen}
           restaurantId={restaurantId}
-          restaurantName={restaurant?.name || 'Restaurante'}
+          restaurantName={restaurant?.name || "Restaurante"}
           type="cadastro"
         />
       )}
