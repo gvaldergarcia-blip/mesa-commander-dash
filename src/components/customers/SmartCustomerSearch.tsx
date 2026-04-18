@@ -157,7 +157,7 @@ export function SmartCustomerSearch({ onCustomerRegistered }: Props) {
           {results.length > 0 && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
               <p className="text-xs text-muted-foreground px-1">
-                {results.length} cliente(s) encontrado(s) — clique para registrar visita:
+                {results.length} cliente(s) encontrado(s) — clique para adicionar +1 visita:
               </p>
               {results.map((customer) => (
                 <button
