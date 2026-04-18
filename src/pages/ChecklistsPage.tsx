@@ -342,16 +342,26 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
   const [uploading, setUploading] = useState(false);
   const [pendingScanComplete, setPendingScanComplete] = useState(false);
 
-  // After QR scan animation finishes, either prompt for photo or complete directly
+  // After QR scan succeeds (real camera read), either prompt for photo or complete directly
   const handleScanFinished = () => {
     if (item.requires_photo) {
       setPendingScanComplete(true);
-      // open file picker after dialog closes
-      setTimeout(() => fileRef.current?.click(), 950);
+      setTimeout(() => fileRef.current?.click(), 200);
     } else {
       complete.mutate({ item_id: item.id, via_qr: true });
     }
   };
+
+  // Listen for the global scan-success event and react when it's for this item
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.itemId === item.id) handleScanFinished();
+    };
+    window.addEventListener('checklist:scan-success', handler);
+    return () => window.removeEventListener('checklist:scan-success', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
 
   const handleConclude = async () => {
     if (item.requires_photo) {
