@@ -57,11 +57,19 @@ export default function ChecklistsPage() {
   const [addCatOpen, setAddCatOpen] = useState(false);
 
   // Auto-seed first time
+  const seededRef = useRef(false);
   useEffect(() => {
-    if (!loadingCats && categories.length === 0 && restaurantId && !seed.isPending) {
-      seed.mutate();
+    if (!loadingCats && categories.length === 0 && restaurantId && !seed.isPending && !seededRef.current) {
+      seededRef.current = true;
+      seed.mutate(undefined, {
+        onError: (e: any) => {
+          console.error('[Checklists] auto-seed failed:', e);
+          toast.error('Não foi possível criar as categorias padrão. Tente "Nova Categoria".');
+          seededRef.current = false;
+        },
+      });
     }
-  }, [loadingCats, categories.length, restaurantId]);
+  }, [loadingCats, categories.length, restaurantId, seed]);
 
   useEffect(() => {
     if (!activeCat && categories.length > 0) setActiveCat(categories[0].id);
