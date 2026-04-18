@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -8,6 +9,7 @@ export interface ChecklistCategory {
   restaurant_id: string;
   name: string;
   slug: string;
+  icon: string;
   display_order: number;
   created_at: string;
 }
@@ -20,6 +22,8 @@ export interface ChecklistItem {
   description: string | null;
   is_critical: boolean;
   requires_photo: boolean;
+  has_qr: boolean;
+  scheduled_time: string | null;
   display_order: number;
   active: boolean;
   created_at: string;
@@ -93,16 +97,44 @@ export function useChecklistCompletionsToday() {
       if (error) throw error;
       return (data ?? []) as ChecklistCompletion[];
     },
-    refetchInterval: 15000,
   });
 }
 
+/**
+ * Real-time subscription: invalidates queries when any checklist table changes
+ * for the current restaurant. Replaces polling for instant Manager↔Team sync.
+ */
+export function useChecklistRealtime() {
+  const { restaurantId } = useRestaurant();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    const channel = supabase
+      .channel(`checklists-${restaurantId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_categories', filter: `restaurant_id=eq.${restaurantId}` }, () => {
+        qc.invalidateQueries({ queryKey: ['checklist-categories', restaurantId] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_items', filter: `restaurant_id=eq.${restaurantId}` }, () => {
+        qc.invalidateQueries({ queryKey: ['checklist-items', restaurantId] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_completions', filter: `restaurant_id=eq.${restaurantId}` }, () => {
+        qc.invalidateQueries({ queryKey: ['checklist-completions', restaurantId, today()] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurantId, qc]);
+}
+
 const DEFAULT_CATEGORIES = [
-  { name: 'Abertura', slug: 'abertura', display_order: 1 },
-  { name: 'Fechamento', slug: 'fechamento', display_order: 2 },
-  { name: 'Higienização', slug: 'higienizacao', display_order: 3 },
-  { name: 'Temperatura', slug: 'temperatura', display_order: 4 },
-  { name: 'Recebimento', slug: 'recebimento', display_order: 5 },
+  { name: 'Abertura', slug: 'abertura', display_order: 1, icon: 'Sunrise' },
+  { name: 'Fechamento', slug: 'fechamento', display_order: 2, icon: 'Moon' },
+  { name: 'Higienização', slug: 'higienizacao', display_order: 3, icon: 'Sparkles' },
+  { name: 'Temperatura', slug: 'temperatura', display_order: 4, icon: 'Thermometer' },
+  { name: 'Recebimento', slug: 'recebimento', display_order: 5, icon: 'PackageCheck' },
 ];
 
 export function useSeedDefaultCategories() {
@@ -127,12 +159,12 @@ export function useCreateCategory() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (input: { name: string; icon: string }) => {
       if (!restaurantId) throw new Error('Sem restaurante');
-      const slug = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+      const slug = input.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
       const { error } = await (supabase as any)
         .from('checklist_categories')
-        .insert({ restaurant_id: restaurantId, name, slug, display_order: 99 });
+        .insert({ restaurant_id: restaurantId, name: input.name, slug, icon: input.icon, display_order: 99 });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -148,7 +180,14 @@ export function useCreateItem() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { category_id: string; name: string; is_critical: boolean; requires_photo: boolean }) => {
+    mutationFn: async (input: {
+      category_id: string;
+      name: string;
+      is_critical: boolean;
+      requires_photo: boolean;
+      has_qr: boolean;
+      scheduled_time?: string | null;
+    }) => {
       if (!restaurantId) throw new Error('Sem restaurante');
       const { error } = await (supabase as any)
         .from('checklist_items')
@@ -158,6 +197,8 @@ export function useCreateItem() {
           name: input.name,
           is_critical: input.is_critical,
           requires_photo: input.requires_photo,
+          has_qr: input.has_qr,
+          scheduled_time: input.scheduled_time || null,
         });
       if (error) throw error;
     },

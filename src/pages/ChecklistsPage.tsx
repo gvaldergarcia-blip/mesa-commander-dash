@@ -6,15 +6,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList, ShieldCheck, Users,
+  Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList,
+  ShieldCheck, Users, Clock, Sunrise, Moon, Sparkles, Thermometer, PackageCheck,
+  Utensils, Coffee, Wine, Refrigerator, Brush, AlertTriangle, Truck, type LucideIcon,
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   useChecklistCategories, useChecklistItems, useChecklistCompletionsToday,
   useSeedDefaultCategories, useDeleteItem, useCompleteItem, uploadChecklistPhoto,
-  ChecklistItem, ChecklistCategory,
+  useChecklistRealtime,
+  ChecklistItem, ChecklistCategory, ChecklistCompletion,
 } from '@/hooks/useChecklists';
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { QrCodeDialog } from '@/components/checklists/QrCodeDialog';
@@ -26,9 +28,23 @@ import { toast } from 'sonner';
 
 type Mode = 'gestor' | 'equipe';
 
+const ICON_MAP: Record<string, LucideIcon> = {
+  ClipboardList, Sunrise, Moon, Sparkles, Thermometer, PackageCheck,
+  Utensils, Coffee, Wine, Refrigerator, Brush, ShieldCheck, AlertTriangle, Truck,
+};
+
+const renderIcon = (name: string | null | undefined, className = 'h-4 w-4') => {
+  const Icon = ICON_MAP[name ?? 'ClipboardList'] ?? ClipboardList;
+  return <Icon className={className} />;
+};
+
 export default function ChecklistsPage() {
   const { restaurantId, restaurant } = useRestaurant();
   const [mode, setMode] = useState<Mode>('gestor');
+
+  // Realtime sync — invalidates queries on any change
+  useChecklistRealtime();
+
   const { data: categories = [], isLoading: loadingCats } = useChecklistCategories();
   const { data: items = [] } = useChecklistItems();
   const { data: completions = [] } = useChecklistCompletionsToday();
@@ -53,7 +69,7 @@ export default function ChecklistsPage() {
 
   const completedItemIds = useMemo(() => new Set(completions.map((c) => c.item_id)), [completions]);
   const itemCompletion = useMemo(() => {
-    const map = new Map<string, typeof completions[number]>();
+    const map = new Map<string, ChecklistCompletion>();
     for (const c of completions) if (!map.has(c.item_id)) map.set(c.item_id, c);
     return map;
   }, [completions]);
@@ -83,11 +99,11 @@ export default function ChecklistsPage() {
         </ToggleGroup>
       </div>
 
-      {/* Progress */}
+      {/* Progress geral */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium">Progresso de hoje</p>
+            <p className="text-sm font-medium">Progresso geral de hoje</p>
             <span className="text-sm font-semibold text-primary">{totalProgress}%</span>
           </div>
           <Progress value={totalProgress} className="h-2" />
@@ -103,24 +119,31 @@ export default function ChecklistsPage() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <TabsList className="flex-wrap h-auto">
               {categories.map((c) => (
-                <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>
+                <TabsTrigger key={c.id} value={c.id} className="gap-1.5">
+                  {renderIcon(c.icon, 'h-3.5 w-3.5')}
+                  {c.name}
+                </TabsTrigger>
               ))}
             </TabsList>
             {mode === 'gestor' && (
               <Button variant="outline" size="sm" onClick={() => setAddCatOpen(true)}>
-                <Plus className="mr-1 h-4 w-4" /> Novo Checklist
+                <Plus className="mr-1 h-4 w-4" /> Nova Categoria
               </Button>
             )}
           </div>
 
           {categories.map((category) => {
             const catItems = items.filter((i) => i.category_id === category.id);
+            const catDone = catItems.filter((i) => completedItemIds.has(i.id)).length;
+            const catProgress = catItems.length === 0 ? 0 : Math.round((catDone / catItems.length) * 100);
             return (
               <TabsContent key={category.id} value={category.id} className="space-y-4 mt-4">
                 <CategoryPanel
                   mode={mode}
                   category={category}
                   items={catItems}
+                  progress={catProgress}
+                  doneCount={catDone}
                   completedItemIds={completedItemIds}
                   itemCompletion={itemCompletion}
                   onOpenQr={setQrItem}
@@ -143,7 +166,7 @@ export default function ChecklistsPage() {
             <p className="text-sm text-muted-foreground">Nenhuma atividade registrada hoje.</p>
           ) : (
             <ul className="space-y-2 max-h-72 overflow-auto">
-              {completions.slice(0, 30).map((c) => {
+              {completions.slice(0, 10).map((c) => {
                 const it = items.find((i) => i.id === c.item_id);
                 return (
                   <li key={c.id} className="flex items-center gap-3 text-sm border-b last:border-0 pb-2 last:pb-0">
@@ -187,56 +210,84 @@ interface CategoryPanelProps {
   mode: Mode;
   category: ChecklistCategory;
   items: ChecklistItem[];
+  progress: number;
+  doneCount: number;
   completedItemIds: Set<string>;
-  itemCompletion: Map<string, any>;
+  itemCompletion: Map<string, ChecklistCompletion>;
   onOpenQr: (item: ChecklistItem) => void;
   onOpenScan: (item: ChecklistItem) => void;
   onAddItem: () => void;
 }
 
 function CategoryPanel({
-  mode, category, items, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem,
+  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem,
 }: CategoryPanelProps) {
   const printAll = () => {
+    const qrItems = items.filter((i) => i.has_qr);
+    if (qrItems.length === 0) {
+      toast.error('Nenhum item desta categoria possui QR Code.');
+      return;
+    }
     const w = window.open('', '_blank', 'width=900,height=700');
     if (!w) return;
-    const blocks = items.map((it) => {
-      const value = JSON.stringify({ type: 'mesaclik-checklist', item_id: it.id });
-      return `<div class="card"><div id="qr-${it.id}"></div><h3>${it.name}</h3><p>${category.name}</p></div>`;
-    }).join('');
+    const blocks = qrItems.map((it) =>
+      `<div class="card"><div id="qr-${it.id}"></div><h3>${it.name}</h3><p>${category.name}</p></div>`
+    ).join('');
     w.document.write(`<!doctype html><html><head><title>QRs ${category.name}</title>
-      <style>body{font-family:Inter,sans-serif;padding:24px;}h1{font-size:18px}
-      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-      .card{border:1px dashed #999;padding:16px;text-align:center;border-radius:8px}
-      .card h3{font-size:13px;margin:8px 0 2px}.card p{color:#666;font-size:11px;margin:0}
+      <style>
+        body{font-family:Inter,system-ui,sans-serif;padding:24px;color:#111}
+        h1{font-size:20px;margin:0 0 16px}
+        .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0}
+        .card{border-right:1px dashed #999;border-bottom:1px dashed #999;padding:24px;text-align:center}
+        .card:nth-child(2n){border-right:none}
+        .card h3{font-size:14px;margin:12px 0 4px;font-weight:600}
+        .card p{color:#666;font-size:12px;margin:0}
+        canvas{margin:0 auto}
+        @media print { .card{break-inside:avoid} }
       </style></head><body>
       <h1>QRs — ${category.name}</h1><div class="grid">${blocks}</div>
       <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
       <script>
-        const items = ${JSON.stringify(items.map((i) => ({ id: i.id, val: JSON.stringify({ type: 'mesaclik-checklist', item_id: i.id }) })))};
-        Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 160 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
+        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: JSON.stringify({ type: 'mesaclik-checklist', item_id: i.id }) })))};
+        Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 180 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
           .then(() => setTimeout(() => window.print(), 400));
       </script>
       </body></html>`);
     w.document.close();
   };
 
+  const hasAnyQr = items.some((i) => i.has_qr);
+
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">{category.name}</CardTitle>
-        <div className="flex gap-2">
-          {mode === 'gestor' && items.length > 0 && (
-            <Button variant="outline" size="sm" onClick={printAll}>
-              <Printer className="mr-1 h-4 w-4" /> Imprimir todos os QRs
-            </Button>
-          )}
-          {mode === 'gestor' && (
-            <Button size="sm" onClick={onAddItem}>
-              <Plus className="mr-1 h-4 w-4" /> Adicionar Item
-            </Button>
-          )}
+      <CardHeader className="space-y-3">
+        <div className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            {renderIcon(category.icon, 'h-4 w-4 text-primary')}
+            {category.name}
+          </CardTitle>
+          <div className="flex gap-2">
+            {mode === 'gestor' && hasAnyQr && (
+              <Button variant="outline" size="sm" onClick={printAll}>
+                <Printer className="mr-1 h-4 w-4" /> Imprimir todos os QRs
+              </Button>
+            )}
+            {mode === 'gestor' && (
+              <Button size="sm" onClick={onAddItem}>
+                <Plus className="mr-1 h-4 w-4" /> Adicionar Item
+              </Button>
+            )}
+          </div>
         </div>
+        {items.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-muted-foreground">{doneCount} de {items.length} concluídos</span>
+              <span className="text-xs font-semibold text-primary">{progress}%</span>
+            </div>
+            <Progress value={progress} className="h-1.5" />
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
@@ -267,7 +318,7 @@ interface ItemRowProps {
   mode: Mode;
   item: ChecklistItem;
   done: boolean;
-  completion: any;
+  completion: ChecklistCompletion | undefined;
   onOpenQr: () => void;
   onOpenScan: () => void;
 }
@@ -278,13 +329,17 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
   const del = useDeleteItem();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingScanComplete, setPendingScanComplete] = useState(false);
 
-  const handleScan = () => {
-    onOpenScan();
-    // when scan dialog finishes, mark complete
-    setTimeout(() => {
+  // After QR scan animation finishes, either prompt for photo or complete directly
+  const handleScanFinished = () => {
+    if (item.requires_photo) {
+      setPendingScanComplete(true);
+      // open file picker after dialog closes
+      setTimeout(() => fileRef.current?.click(), 950);
+    } else {
       complete.mutate({ item_id: item.id, via_qr: true });
-    }, 1850);
+    }
   };
 
   const handleConclude = async () => {
@@ -297,16 +352,20 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (!f || !restaurantId) return;
+    if (!f || !restaurantId) {
+      setPendingScanComplete(false);
+      return;
+    }
     try {
       setUploading(true);
       const url = await uploadChecklistPhoto(f, restaurantId);
-      await complete.mutateAsync({ item_id: item.id, via_qr: false, photo_url: url });
+      await complete.mutateAsync({ item_id: item.id, via_qr: pendingScanComplete, photo_url: url });
       toast.success('Foto enviada e item concluído');
     } catch (err: any) {
       toast.error(err?.message ?? 'Falha no upload');
     } finally {
       setUploading(false);
+      setPendingScanComplete(false);
       e.target.value = '';
     }
   };
@@ -315,7 +374,7 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
     <li className="py-3 flex items-center gap-3 flex-wrap">
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {item.is_critical && !done && (
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
+          <span className="relative flex h-2.5 w-2.5 shrink-0" aria-label="Item crítico pendente">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-70" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
           </span>
@@ -326,10 +385,18 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
               {item.name}
             </span>
             {item.is_critical && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">Crítico</Badge>
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">CRÍTICO</Badge>
             )}
             {item.requires_photo && (
               <Camera className="h-3.5 w-3.5 text-muted-foreground" aria-label="Exige foto" />
+            )}
+            {item.has_qr && (
+              <QrCode className="h-3.5 w-3.5 text-muted-foreground" aria-label="Validação por QR" />
+            )}
+            {item.scheduled_time && (
+              <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" /> {item.scheduled_time}
+              </span>
             )}
           </div>
           {done && completion && (
@@ -344,9 +411,11 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
       <div className="flex items-center gap-2">
         {mode === 'gestor' ? (
           <>
-            <Button size="sm" variant="outline" onClick={onOpenQr}>
-              <QrCode className="mr-1 h-4 w-4" /> Gerar QR
-            </Button>
+            {item.has_qr && (
+              <Button size="sm" variant="outline" onClick={onOpenQr}>
+                <QrCode className="mr-1 h-4 w-4" /> Gerar QR
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={() => del.mutate(item.id)} aria-label="Remover">
               <Trash2 className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -358,13 +427,16 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
         ) : (
           <>
             <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
-            <Button size="sm" variant="outline" onClick={handleScan}>
-              <ScanLine className="mr-1 h-4 w-4" /> Escanear QR
-            </Button>
-            <Button size="sm" onClick={handleConclude} disabled={uploading || complete.isPending}>
-              {item.requires_photo ? <Camera className="mr-1 h-4 w-4" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
-              {uploading ? 'Enviando…' : 'Concluir'}
-            </Button>
+            {item.has_qr ? (
+              <Button size="sm" variant="outline" onClick={() => { onOpenScan(); setTimeout(handleScanFinished, 1850); }}>
+                <ScanLine className="mr-1 h-4 w-4" /> Escanear QR
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleConclude} disabled={uploading || complete.isPending}>
+                {item.requires_photo ? <Camera className="mr-1 h-4 w-4" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
+                {uploading ? 'Enviando…' : 'Concluir'}
+              </Button>
+            )}
           </>
         )}
       </div>

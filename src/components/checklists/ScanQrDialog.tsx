@@ -28,7 +28,7 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>{phase === 'done' ? 'Concluído!' : 'Escaneando QR…'}</DialogTitle>
+          <DialogTitle>{phase === 'done' ? 'QR validado com sucesso ✓' : 'Escaneando QR…'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-6">
           <div className="relative h-48 w-48 rounded-lg border-2 border-dashed border-primary/40 overflow-hidden bg-muted/30">

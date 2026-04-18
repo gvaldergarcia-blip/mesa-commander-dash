@@ -297,6 +297,7 @@ export type Database = {
         Row: {
           created_at: string
           display_order: number
+          icon: string
           id: string
           name: string
           restaurant_id: string
@@ -306,6 +307,7 @@ export type Database = {
         Insert: {
           created_at?: string
           display_order?: number
+          icon?: string
           id?: string
           name: string
           restaurant_id: string
@@ -315,6 +317,7 @@ export type Database = {
         Update: {
           created_at?: string
           display_order?: number
+          icon?: string
           id?: string
           name?: string
           restaurant_id?: string
@@ -380,11 +383,13 @@ export type Database = {
           created_at: string
           description: string | null
           display_order: number
+          has_qr: boolean
           id: string
           is_critical: boolean
           name: string
           requires_photo: boolean
           restaurant_id: string
+          scheduled_time: string | null
           updated_at: string
         }
         Insert: {
@@ -393,11 +398,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number
+          has_qr?: boolean
           id?: string
           is_critical?: boolean
           name: string
           requires_photo?: boolean
           restaurant_id: string
+          scheduled_time?: string | null
           updated_at?: string
         }
         Update: {
@@ -406,11 +413,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number
+          has_qr?: boolean
           id?: string
           is_critical?: boolean
           name?: string
           requires_photo?: boolean
           restaurant_id?: string
+          scheduled_time?: string | null
           updated_at?: string
         }
         Relationships: [
