@@ -5,6 +5,7 @@ import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Badge } from "@/components/ui/badge";
 import { CouponsCarousel } from "@/components/coupons/CouponsCarousel";
+import { SmartCustomerSearch } from "@/components/customers/SmartCustomerSearch";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Index() {
@@ -59,6 +60,9 @@ export default function Index() {
           icon={TrendingUp}
         />
       </div>
+
+      {/* Busca inteligente de cliente */}
+      <SmartCustomerSearch />
 
       {/* Cupons Ativos */}
       <CouponsCarousel />

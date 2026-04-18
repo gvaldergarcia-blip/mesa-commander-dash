@@ -16,6 +16,7 @@ import {
 import { CustomerKPIs } from "@/components/customers/CustomerKPIs";
 import { CustomerFilters } from "@/components/customers/CustomerFilters";
 import { CustomerStatusBadge } from "@/components/customers/CustomerStatusBadge";
+import { SmartCustomerSearch } from "@/components/customers/SmartCustomerSearch";
 
 export default function Customers() {
   const navigate = useNavigate();
@@ -114,6 +115,9 @@ export default function Customers() {
           </span>
         </div>
       </div>
+
+      {/* Busca inteligente */}
+      <SmartCustomerSearch />
 
       {/* KPIs */}
       <CustomerKPIs
