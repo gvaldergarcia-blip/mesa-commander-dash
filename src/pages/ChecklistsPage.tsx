@@ -201,7 +201,10 @@ export default function ChecklistsPage() {
         open={!!scanItem}
         onOpenChange={(o) => !o && setScanItem(null)}
         item={scanItem}
-        onScanned={() => {}}
+        onScanned={() => {
+          // Notify the row to run its completion + photo flow
+          window.dispatchEvent(new CustomEvent('checklist:scan-success', { detail: { itemId: scanItem?.id } }));
+        }}
       />
       <AddItemDialog
         open={!!addItemForCat}
@@ -436,7 +439,7 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
           <>
             <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
             {item.has_qr ? (
-              <Button size="sm" variant="outline" onClick={() => { onOpenScan(); setTimeout(handleScanFinished, 1850); }}>
+              <Button size="sm" variant="outline" onClick={onOpenScan}>
                 <ScanLine className="mr-1 h-4 w-4" /> Escanear QR
               </Button>
             ) : (
