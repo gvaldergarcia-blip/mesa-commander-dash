@@ -293,6 +293,136 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+          restaurant_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+          restaurant_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+          restaurant_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      checklist_completions: {
+        Row: {
+          completed_at: string
+          completed_by: string | null
+          completed_by_name: string | null
+          completion_date: string
+          created_at: string
+          id: string
+          item_id: string
+          notes: string | null
+          photo_url: string | null
+          restaurant_id: string
+          via_qr: boolean
+        }
+        Insert: {
+          completed_at?: string
+          completed_by?: string | null
+          completed_by_name?: string | null
+          completion_date?: string
+          created_at?: string
+          id?: string
+          item_id: string
+          notes?: string | null
+          photo_url?: string | null
+          restaurant_id: string
+          via_qr?: boolean
+        }
+        Update: {
+          completed_at?: string
+          completed_by?: string | null
+          completed_by_name?: string | null
+          completion_date?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          notes?: string | null
+          photo_url?: string | null
+          restaurant_id?: string
+          via_qr?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_completions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_items: {
+        Row: {
+          active: boolean
+          category_id: string
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_critical: boolean
+          name: string
+          requires_photo: boolean
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_critical?: boolean
+          name: string
+          requires_photo?: boolean
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_critical?: boolean
+          name?: string
+          requires_photo?: boolean
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes_restaurante: {
         Row: {
           created_at: string
@@ -3366,6 +3496,10 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: never; Returns: boolean }
+      is_restaurant_admin: {
+        Args: { _restaurant_id: string }
+        Returns: boolean
+      }
       is_restaurant_authorized: {
         Args: { p_restaurant_id: string }
         Returns: boolean
