@@ -201,7 +201,10 @@ export default function ChecklistsPage() {
         open={!!scanItem}
         onOpenChange={(o) => !o && setScanItem(null)}
         item={scanItem}
-        onScanned={() => {}}
+        onScanned={() => {
+          // Notify the row to run its completion + photo flow
+          window.dispatchEvent(new CustomEvent('checklist:scan-success', { detail: { itemId: scanItem?.id } }));
+        }}
       />
       <AddItemDialog
         open={!!addItemForCat}
@@ -256,7 +259,7 @@ function CategoryPanel({
       <h1>QRs — ${category.name}</h1><div class="grid">${blocks}</div>
       <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
       <script>
-        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: JSON.stringify({ type: 'mesaclik-checklist', item_id: i.id }) })))};
+        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: i.id })))};
         Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 180 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
           .then(() => setTimeout(() => window.print(), 400));
       </script>
@@ -339,16 +342,26 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
   const [uploading, setUploading] = useState(false);
   const [pendingScanComplete, setPendingScanComplete] = useState(false);
 
-  // After QR scan animation finishes, either prompt for photo or complete directly
+  // After QR scan succeeds (real camera read), either prompt for photo or complete directly
   const handleScanFinished = () => {
     if (item.requires_photo) {
       setPendingScanComplete(true);
-      // open file picker after dialog closes
-      setTimeout(() => fileRef.current?.click(), 950);
+      setTimeout(() => fileRef.current?.click(), 200);
     } else {
       complete.mutate({ item_id: item.id, via_qr: true });
     }
   };
+
+  // Listen for the global scan-success event and react when it's for this item
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.itemId === item.id) handleScanFinished();
+    };
+    window.addEventListener('checklist:scan-success', handler);
+    return () => window.removeEventListener('checklist:scan-success', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
 
   const handleConclude = async () => {
     if (item.requires_photo) {
@@ -436,7 +449,7 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
           <>
             <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
             {item.has_qr ? (
-              <Button size="sm" variant="outline" onClick={() => { onOpenScan(); setTimeout(handleScanFinished, 1850); }}>
+              <Button size="sm" variant="outline" onClick={onOpenScan}>
                 <ScanLine className="mr-1 h-4 w-4" /> Escanear QR
               </Button>
             ) : (
