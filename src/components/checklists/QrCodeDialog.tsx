@@ -4,7 +4,6 @@ import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useRef } from 'react';
 import { ChecklistItem, ChecklistCategory } from '@/hooks/useChecklists';
-import { getSiteBaseUrl } from '@/config/site-url';
 
 interface Props {
   open: boolean;
@@ -31,7 +30,9 @@ export function QrCodeDialog({ open, onOpenChange, item, category }: Props) {
 
   if (!item || !category) return null;
 
-  const qrValue = `${getSiteBaseUrl()}/checklists/scan/${item.id}`;
+  // QR contém APENAS o ID puro do item. Assim só é interpretado pelo scanner
+  // interno do app (tela verde de validação). Câmeras nativas não abrirão URL.
+  const qrValue = item.id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,7 +40,7 @@ export function QrCodeDialog({ open, onOpenChange, item, category }: Props) {
         <DialogHeader>
           <DialogTitle>QR Code do item</DialogTitle>
           <DialogDescription>
-            Ao escanear, o MesaClik abre e valida esta atividade automaticamente.
+            Imprima e cole no local. Use o scanner do app (modo Equipe → Escanear) para validar.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4" ref={ref}>
