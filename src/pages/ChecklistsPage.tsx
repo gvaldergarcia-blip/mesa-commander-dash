@@ -178,13 +178,13 @@ export default function ChecklistsPage() {
   const totalProgress = items.length === 0 ? 0 : Math.round((completedItemIds.size / items.length) * 100);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto">
       {validatedItemName && <ChecklistValidationSuccess itemName={validatedItemName} />}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-primary" />
             Checklists
           </h1>
@@ -192,7 +192,7 @@ export default function ChecklistsPage() {
             Operação diária do {restaurant?.name ?? 'restaurante'} — abertura, fechamento e padrões.
           </p>
         </div>
-        <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as Mode)} className="border rounded-lg p-1 bg-muted/30">
+        <ToggleGroup type="single" value={mode} onValueChange={(v) => v && setMode(v as Mode)} className="border rounded-lg p-1 bg-muted/30 self-start md:self-auto">
           <ToggleGroupItem value="gestor" className="gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
             <ShieldCheck className="h-4 w-4" /> Gestor
           </ToggleGroupItem>
@@ -204,11 +204,11 @@ export default function ChecklistsPage() {
 
       {/* Progress geral */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 md:pt-6 px-4 md:px-6">
           <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium">Progresso geral de hoje</p>
-              <Badge variant="outline" className="gap-1.5 capitalize">
+              <Badge variant="outline" className="gap-1.5 capitalize hidden sm:inline-flex">
                 <CalendarDays className="h-3 w-3" />
                 {todayLabel}
               </Badge>
@@ -216,26 +216,32 @@ export default function ChecklistsPage() {
             <span className="text-sm font-semibold text-primary">{totalProgress}%</span>
           </div>
           <Progress value={totalProgress} className="h-2" />
-          <p className="text-xs text-muted-foreground mt-2">
-            {completedItemIds.size} de {items.length} itens concluídos
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {completedItemIds.size} de {items.length} itens concluídos
+            </p>
+            <Badge variant="outline" className="gap-1.5 capitalize sm:hidden text-[10px]">
+              <CalendarDays className="h-3 w-3" />
+              {todayLabel}
+            </Badge>
+          </div>
         </CardContent>
       </Card>
 
       {/* Tabs por categoria */}
       {categories.length > 0 && activeCat && (
         <Tabs value={activeCat} onValueChange={setActiveCat}>
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <TabsList className="flex-wrap h-auto">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <TabsList className="flex-wrap h-auto justify-start max-w-full overflow-x-auto">
               {categories.map((c) => (
-                <TabsTrigger key={c.id} value={c.id} className="gap-1.5">
+                <TabsTrigger key={c.id} value={c.id} className="gap-1.5 text-xs md:text-sm">
                   {renderIcon(c.icon, 'h-3.5 w-3.5')}
                   {c.name}
                 </TabsTrigger>
               ))}
             </TabsList>
             {mode === 'gestor' && (
-              <Button variant="outline" size="sm" onClick={() => setAddCatOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => setAddCatOpen(true)} className="self-start md:self-auto">
                 <Plus className="mr-1 h-4 w-4" /> Nova Categoria
               </Button>
             )}
