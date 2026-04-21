@@ -203,6 +203,7 @@ const App = () => {
                     </RoleGuard>
                   } />
                   <Route path="/checklists" element={<ChecklistsPage />} />
+                  <Route path="/etiquetas" element={<EtiquetasPage />} />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
