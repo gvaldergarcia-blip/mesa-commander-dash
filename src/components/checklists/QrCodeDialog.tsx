@@ -4,6 +4,7 @@ import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useRef } from 'react';
 import { ChecklistItem, ChecklistCategory } from '@/hooks/useChecklists';
+import { getSiteBaseUrl } from '@/config/site-url';
 
 interface Props {
   open: boolean;
