@@ -18,6 +18,7 @@ import {
   LogOut,
   Film,
   ClipboardList,
+  Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const allNavigation = [
   
   { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null, adminOnly: true },
   { name: "Checklists", href: "/checklists", icon: ClipboardList, requiresFeature: null, requiresModule: null, adminOnly: false },
+  { name: "Etiquetas", href: "/etiquetas", icon: Tag, requiresFeature: null, requiresModule: null, adminOnly: false },
   { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null, adminOnly: true },
 ];
 
