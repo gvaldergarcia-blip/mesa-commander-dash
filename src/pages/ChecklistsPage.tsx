@@ -27,6 +27,8 @@ import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { ChecklistValidationSuccess } from '@/components/checklists/ChecklistValidationSuccess';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 type Mode = 'gestor' | 'equipe';
 
@@ -288,11 +290,18 @@ function CategoryPanel({
       toast.error('Nenhum item desta categoria possui QR Code.');
       return;
     }
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) return;
-    const blocks = qrItems.map((it) =>
-      `<div class="card"><div id="qr-${it.id}"></div><h3>${it.name}</h3><p>${category.name}</p></div>`
-    ).join('');
+    if (!w) {
+      toast.error('O navegador bloqueou a janela. Permita pop-ups e tente novamente.');
+      return;
+    }
+    const blocks = qrItems.map((it) => {
+      const svg = renderToStaticMarkup(
+        <QRCodeSVG value={`${origin}/checklists/scan/${it.id}`} size={180} level="M" />
+      );
+      return `<div class="card">${svg}<h3>${it.name}</h3><p>${category.name}</p></div>`;
+    }).join('');
     w.document.write(`<!doctype html><html><head><title>QRs ${category.name}</title>
       <style>
         body{font-family:Inter,system-ui,sans-serif;padding:24px;color:#111}
@@ -302,16 +311,11 @@ function CategoryPanel({
         .card:nth-child(2n){border-right:none}
         .card h3{font-size:14px;margin:12px 0 4px;font-weight:600}
         .card p{color:#666;font-size:12px;margin:0}
-        canvas{margin:0 auto}
+        svg{margin:0 auto;display:block}
         @media print { .card{break-inside:avoid} }
       </style></head><body>
       <h1>QRs — ${category.name}</h1><div class="grid">${blocks}</div>
-      <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-      <script>
-        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: `${typeof window !== 'undefined' ? window.location.origin : ''}/checklists/scan/${i.id}` })))};
-        Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 180 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
-          .then(() => setTimeout(() => window.print(), 400));
-      </script>
+      <script>window.onload=function(){setTimeout(function(){window.print();},300);};</script>
       </body></html>`);
     w.document.close();
   };
