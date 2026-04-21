@@ -3,11 +3,12 @@
  * Inclui: QR Code, link copiável e download PNG.
  */
 import { useState, useRef, useCallback } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
+import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Copy, Download, Check, QrCode } from 'lucide-react';
+import { Copy, Download, Check, QrCode, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getSiteBaseUrl } from '@/config/site-url';
 
