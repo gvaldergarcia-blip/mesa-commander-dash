@@ -391,19 +391,19 @@ function CategoryPanel({
   return (
     <Card>
       <CardHeader className="space-y-3">
-        <div className="flex flex-row items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <CardTitle className="text-base flex items-center gap-2">
             {renderIcon(category.icon, 'h-4 w-4 text-primary')}
             {category.name}
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {mode === 'gestor' && hasAnyQr && (
-              <Button variant="outline" size="sm" onClick={printAll}>
-                <Printer className="mr-1 h-4 w-4" /> Imprimir todos os QRs
+              <Button variant="outline" size="sm" onClick={printAll} className="flex-1 sm:flex-none">
+                <Printer className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Imprimir todos os QRs</span><span className="sm:hidden">Imprimir QRs</span>
               </Button>
             )}
             {mode === 'gestor' && (
-              <Button size="sm" onClick={onAddItem}>
+              <Button size="sm" onClick={onAddItem} className="flex-1 sm:flex-none">
                 <Plus className="mr-1 h-4 w-4" /> Adicionar Item
               </Button>
             )}
