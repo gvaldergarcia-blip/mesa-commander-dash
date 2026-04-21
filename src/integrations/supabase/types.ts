@@ -1383,6 +1383,36 @@ export type Database = {
         }
         Relationships: []
       }
+      label_products: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          restaurant_id: string
+          updated_at: string
+          validity_days: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          restaurant_id: string
+          updated_at?: string
+          validity_days: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          restaurant_id?: string
+          updated_at?: string
+          validity_days?: number
+        }
+        Relationships: []
+      }
       marketing_posts: {
         Row: {
           created_at: string
