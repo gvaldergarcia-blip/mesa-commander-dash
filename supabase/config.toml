@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.generate-post-copy]
 verify_jwt = false
+
+[functions.validate-checklist-qr]
+verify_jwt = false
