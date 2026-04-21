@@ -24,6 +24,7 @@ import { QrCodeDialog } from '@/components/checklists/QrCodeDialog';
 import { AddItemDialog } from '@/components/checklists/AddItemDialog';
 import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
+import { ChecklistValidationSuccess } from '@/components/checklists/ChecklistValidationSuccess';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -59,6 +60,7 @@ export default function ChecklistsPage() {
   const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
   const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  const [validatedItemName, setValidatedItemName] = useState<string | null>(null);
   const handledRouteScanRef = useRef<string | null>(null);
 
   // Auto-seed first time
@@ -96,9 +98,17 @@ export default function ChecklistsPage() {
     setMode('equipe');
     setActiveCat(item.category_id);
 
+    const showSuccessScreen = () => {
+      setValidatedItemName(item.name);
+      window.setTimeout(() => {
+        setValidatedItemName(null);
+        navigate('/checklists', { replace: true });
+      }, 1800);
+    };
+
     if (completedItemIds.has(item.id)) {
       toast.success('Esta atividade já foi validada hoje');
-      navigate('/checklists', { replace: true });
+      showSuccessScreen();
       return;
     }
 
@@ -107,7 +117,7 @@ export default function ChecklistsPage() {
       {
         onSuccess: () => {
           toast.success('QR validado e atividade concluída');
-          navigate('/checklists', { replace: true });
+          showSuccessScreen();
         },
         onError: () => {
           handledRouteScanRef.current = null;
