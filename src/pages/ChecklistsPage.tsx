@@ -24,6 +24,7 @@ import { QrCodeDialog } from '@/components/checklists/QrCodeDialog';
 import { AddItemDialog } from '@/components/checklists/AddItemDialog';
 import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
+import { ChecklistValidationSuccess } from '@/components/checklists/ChecklistValidationSuccess';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -59,6 +60,7 @@ export default function ChecklistsPage() {
   const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
   const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  const [validatedItemName, setValidatedItemName] = useState<string | null>(null);
   const handledRouteScanRef = useRef<string | null>(null);
 
   // Auto-seed first time
@@ -96,9 +98,17 @@ export default function ChecklistsPage() {
     setMode('equipe');
     setActiveCat(item.category_id);
 
+    const showSuccessScreen = () => {
+      setValidatedItemName(item.name);
+      window.setTimeout(() => {
+        setValidatedItemName(null);
+        navigate('/checklists', { replace: true });
+      }, 1800);
+    };
+
     if (completedItemIds.has(item.id)) {
       toast.success('Esta atividade já foi validada hoje');
-      navigate('/checklists', { replace: true });
+      showSuccessScreen();
       return;
     }
 
@@ -107,7 +117,7 @@ export default function ChecklistsPage() {
       {
         onSuccess: () => {
           toast.success('QR validado e atividade concluída');
-          navigate('/checklists', { replace: true });
+          showSuccessScreen();
         },
         onError: () => {
           handledRouteScanRef.current = null;
@@ -120,6 +130,8 @@ export default function ChecklistsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {validatedItemName && <ChecklistValidationSuccess itemName={validatedItemName} />}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -239,6 +251,8 @@ export default function ChecklistsPage() {
           if (!scanItem) return;
           await complete.mutateAsync({ item_id: scanItem.id, via_qr: true });
           toast.success('QR validado e atividade concluída');
+          setValidatedItemName(scanItem.name);
+          window.setTimeout(() => setValidatedItemName(null), 1800);
         }}
       />
       <AddItemDialog
