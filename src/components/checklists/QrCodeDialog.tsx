@@ -31,8 +31,8 @@ export function QrCodeDialog({ open, onOpenChange, item, category }: Props) {
 
   if (!item || !category) return null;
 
-  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  const qrValue = `${currentOrigin}/checklists/scan/${item.id}`;
+  const baseUrl = getSiteBaseUrl();
+  const qrValue = `${baseUrl}/checklists/scan/${item.id}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
