@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList,
   ShieldCheck, Users, Clock, Sunrise, Moon, Sparkles, Thermometer, PackageCheck,
@@ -26,6 +26,7 @@ import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getSiteBaseUrl } from '@/config/site-url';
 
 type Mode = 'gestor' | 'equipe';
 
@@ -40,6 +41,8 @@ const renderIcon = (name: string | null | undefined, className = 'h-4 w-4') => {
 };
 
 export default function ChecklistsPage() {
+  const { itemId: routeScanItemId } = useParams<{ itemId?: string }>();
+  const navigate = useNavigate();
   const { restaurantId, restaurant } = useRestaurant();
   const [mode, setMode] = useState<Mode>('gestor');
 
