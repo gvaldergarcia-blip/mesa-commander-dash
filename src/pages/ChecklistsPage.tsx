@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList,
   ShieldCheck, Users, Clock, Sunrise, Moon, Sparkles, Thermometer, PackageCheck,
@@ -49,6 +50,7 @@ export default function ChecklistsPage() {
   const { data: items = [] } = useChecklistItems();
   const { data: completions = [] } = useChecklistCompletionsToday();
   const seed = useSeedDefaultCategories();
+  const complete = useCompleteItem();
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [qrItem, setQrItem] = useState<ChecklistItem | null>(null);
@@ -201,9 +203,10 @@ export default function ChecklistsPage() {
         open={!!scanItem}
         onOpenChange={(o) => !o && setScanItem(null)}
         item={scanItem}
-        onScanned={() => {
-          // Notify the row to run its completion + photo flow
-          window.dispatchEvent(new CustomEvent('checklist:scan-success', { detail: { itemId: scanItem?.id } }));
+        onScanned={async () => {
+          if (!scanItem) return;
+          await complete.mutateAsync({ item_id: scanItem.id, via_qr: true });
+          toast.success('QR validado e atividade concluída');
         }}
       />
       <AddItemDialog
