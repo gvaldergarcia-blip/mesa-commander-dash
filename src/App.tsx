@@ -198,6 +198,7 @@ const App = () => {
                     </RoleGuard>
                   } />
                   <Route path="/checklists" element={<ChecklistsPage />} />
+                  <Route path="/checklists/scan/:itemId" element={<ChecklistsPage />} />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
