@@ -124,6 +124,35 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
     logoImg.src = '/images/mesaclik-logo-branding.jpg';
   }, [restaurantName, type]);
 
+  const handlePrint = useCallback(() => {
+    const svg = renderToStaticMarkup(
+      <QRCodeSVG value={url} size={300} level="H" marginSize={2} />
+    );
+    const subtitle = type === 'fila'
+      ? (queueType === 'exclusive' ? `${queueLabel || 'Fila Exclusiva'} — Escaneie para entrar` : 'Escaneie para entrar na fila')
+      : 'Escaneie e ganhe benefícios exclusivos';
+    const w = window.open('', '_blank', 'width=520,height=720');
+    if (!w) {
+      toast({ title: 'Pop-up bloqueado', description: 'Permita pop-ups para imprimir o QR.', variant: 'destructive' });
+      return;
+    }
+    w.document.write(`<!doctype html><html><head><title>QR ${restaurantName}</title>
+      <style>
+        body{font-family:Inter,system-ui,sans-serif;text-align:center;padding:40px;margin:0;}
+        .qr{display:inline-block;padding:16px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;}
+        h1{font-size:22px;margin:24px 0 6px;color:#111}
+        p{color:#666;margin:0;font-size:14px}
+        @media print{ body{padding:20px} }
+      </style>
+      </head><body>
+      <div class="qr">${svg}</div>
+      <h1>${restaurantName}</h1>
+      <p>${subtitle}</p>
+      <script>window.onload=function(){setTimeout(function(){window.print();},150);};window.onafterprint=function(){window.close();};</script>
+      </body></html>`);
+    w.document.close();
+  }, [url, restaurantName, type, queueType, queueLabel, toast]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -155,10 +184,16 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
           </div>
 
           <div className="w-full">
-            <Button variant="outline" className="w-full" onClick={handleDownloadPng}>
-              <Download className="h-4 w-4 mr-2" />
-              Baixar PNG
-            </Button>
+            <div className="flex w-full gap-2">
+              <Button variant="outline" className="flex-1" onClick={handleDownloadPng}>
+                <Download className="h-4 w-4 mr-2" />
+                Baixar PNG
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
