@@ -298,10 +298,11 @@ interface CategoryPanelProps {
   onOpenQr: (item: ChecklistItem) => void;
   onOpenScan: (item: ChecklistItem) => void;
   onAddItem: () => void;
+  onEditItem: (item: ChecklistItem) => void;
 }
 
 function CategoryPanel({
-  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem,
+  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem, onEditItem,
 }: CategoryPanelProps) {
   const printAll = () => {
     const qrItems = items.filter((i) => i.has_qr);
@@ -388,6 +389,7 @@ function CategoryPanel({
                 completion={itemCompletion.get(it.id)}
                 onOpenQr={() => onOpenQr(it)}
                 onOpenScan={() => onOpenScan(it)}
+                onEdit={() => onEditItem(it)}
               />
             ))}
           </ul>
@@ -404,9 +406,10 @@ interface ItemRowProps {
   completion: ChecklistCompletion | undefined;
   onOpenQr: () => void;
   onOpenScan: () => void;
+  onEdit: () => void;
 }
 
-function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRowProps) {
+function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }: ItemRowProps) {
   const { restaurantId } = useRestaurant();
   const complete = useCompleteItem();
   const del = useDeleteItem();
