@@ -215,8 +215,8 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
             )}
 
             {phase === 'success' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/90">
-                <CheckCircle2 className="h-20 w-20 text-green-500" />
+              <div className="absolute inset-0 flex items-center justify-center bg-success text-success-foreground">
+                <CheckCircle2 className="h-24 w-24" />
               </div>
             )}
 

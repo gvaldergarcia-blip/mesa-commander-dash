@@ -6,7 +6,7 @@ interface ChecklistValidationSuccessProps {
 
 export function ChecklistValidationSuccess({ itemName }: ChecklistValidationSuccessProps) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-success text-success-foreground px-6 text-center">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-success text-success-foreground px-6 text-center">
       <div className="rounded-full border-4 border-success-foreground/30 p-6 mb-6 animate-in zoom-in-75 duration-300">
         <CheckCircle2 className="h-28 w-28" strokeWidth={1.8} />
       </div>
