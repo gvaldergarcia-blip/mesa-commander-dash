@@ -9,7 +9,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: ChecklistItem | null;
-  onScanned: () => void;
+  onScanned: () => void | Promise<void>;
 }
 
 type Phase = 'starting' | 'scanning' | 'success' | 'invalid' | 'error';
@@ -22,6 +22,7 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const stoppedRef = useRef(false);
+  const handledRef = useRef(false);
 
   const extractId = (raw: string): string => {
     const value = raw.trim();
@@ -67,14 +68,22 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
   };
 
   const handleDecoded = async (decodedText: string) => {
-    if (!item) return;
+    if (!item || handledRef.current) return;
+    handledRef.current = true;
     const scannedId = extractId(decodedText);
 
     if (scannedId === item.id) {
-      setPhase('success');
-      await stopScanner();
-      onScanned();
-      window.setTimeout(() => onOpenChange(false), 900);
+      try {
+        setPhase('success');
+        await stopScanner();
+        await onScanned();
+        window.setTimeout(() => onOpenChange(false), 900);
+      } catch (err: any) {
+        console.error('[ScanQrDialog] completion error', err);
+        setErrorMsg(err?.message ?? 'QR lido, mas não foi possível concluir a atividade.');
+        setPhase('error');
+        handledRef.current = false;
+      }
       return;
     }
 
@@ -110,6 +119,7 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
 
     let cancelled = false;
     stoppedRef.current = false;
+    handledRef.current = false;
     setPhase('starting');
     setErrorMsg('');
 
@@ -143,6 +153,7 @@ export function ScanQrDialog({ open, onOpenChange, item, onScanned }: Props) {
   const handleRetry = async () => {
     await stopScanner();
     stoppedRef.current = false;
+    handledRef.current = false;
     setPhase('starting');
     setErrorMsg('');
 
