@@ -22,9 +22,11 @@ import {
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { QrCodeDialog } from '@/components/checklists/QrCodeDialog';
 import { AddItemDialog } from '@/components/checklists/AddItemDialog';
+import { EditItemDialog } from '@/components/checklists/EditItemDialog';
 import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { ChecklistValidationSuccess } from '@/components/checklists/ChecklistValidationSuccess';
+import { formatActiveDays } from '@/components/checklists/WeekdaysSelector';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -52,15 +54,26 @@ export default function ChecklistsPage() {
   useChecklistRealtime();
 
   const { data: categories = [], isLoading: loadingCats } = useChecklistCategories();
-  const { data: items = [] } = useChecklistItems();
+  const { data: allItems = [] } = useChecklistItems();
   const { data: completions = [] } = useChecklistCompletionsToday();
   const seed = useSeedDefaultCategories();
   const complete = useCompleteItem();
+
+  // Filter items by today's weekday (0=Sun, 1=Mon, ..., 6=Sat)
+  const todayWeekday = new Date().getDay();
+  const items = useMemo(
+    () => allItems.filter((i) => {
+      const days = i.active_days && i.active_days.length > 0 ? i.active_days : [0, 1, 2, 3, 4, 5, 6];
+      return days.includes(todayWeekday);
+    }),
+    [allItems, todayWeekday],
+  );
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [qrItem, setQrItem] = useState<ChecklistItem | null>(null);
   const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
   const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
+  const [editItem, setEditItem] = useState<ChecklistItem | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [validatedItemName, setValidatedItemName] = useState<string | null>(null);
   const handledRouteScanRef = useRef<string | null>(null);
@@ -92,8 +105,8 @@ export default function ChecklistsPage() {
   }, [completions]);
 
   useEffect(() => {
-    if (!routeScanItemId || handledRouteScanRef.current === routeScanItemId || items.length === 0) return;
-    const item = items.find((i) => i.id === routeScanItemId);
+    if (!routeScanItemId || handledRouteScanRef.current === routeScanItemId || allItems.length === 0) return;
+    const item = allItems.find((i) => i.id === routeScanItemId);
     if (!item) return;
 
     handledRouteScanRef.current = routeScanItemId;
@@ -126,7 +139,7 @@ export default function ChecklistsPage() {
         },
       },
     );
-  }, [routeScanItemId, items, completedItemIds, complete, navigate]);
+  }, [routeScanItemId, allItems, completedItemIds, complete, navigate]);
 
   const totalProgress = items.length === 0 ? 0 : Math.round((completedItemIds.size / items.length) * 100);
 
@@ -205,6 +218,7 @@ export default function ChecklistsPage() {
                   onOpenQr={setQrItem}
                   onOpenScan={setScanItem}
                   onAddItem={() => setAddItemForCat(category)}
+                  onEditItem={setEditItem}
                 />
               </TabsContent>
             );
@@ -262,6 +276,11 @@ export default function ChecklistsPage() {
         onOpenChange={(o) => !o && setAddItemForCat(null)}
         categoryId={addItemForCat?.id ?? ''}
         categoryName={addItemForCat?.name ?? ''}
+      />
+      <EditItemDialog
+        open={!!editItem}
+        onOpenChange={(o) => !o && setEditItem(null)}
+        item={editItem}
       />
       <AddCategoryDialog open={addCatOpen} onOpenChange={setAddCatOpen} />
     </div>
