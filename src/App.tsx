@@ -23,6 +23,7 @@ import Intelligence from "./pages/Intelligence";
 import VideoGenerator from "./pages/VideoGenerator";
 import IACreatorMarketing from "./pages/IACreatorMarketing";
 import ChecklistsPage from "./pages/ChecklistsPage";
+import ChecklistQrValidate from "./pages/ChecklistQrValidate";
 
 
 import NotFound from "./pages/NotFound";
@@ -198,7 +199,7 @@ const App = () => {
                     </RoleGuard>
                   } />
                   <Route path="/checklists" element={<ChecklistsPage />} />
-                  <Route path="/checklists/scan/:itemId" element={<ChecklistsPage />} />
+                  <Route path="/checklists/scan/:itemId" element={<ChecklistQrValidate />} />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
