@@ -4,6 +4,7 @@ import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useRef } from 'react';
 import { ChecklistItem, ChecklistCategory } from '@/hooks/useChecklists';
+import { getSiteBaseUrl } from '@/config/site-url';
 
 interface Props {
   open: boolean;
@@ -30,7 +31,7 @@ export function QrCodeDialog({ open, onOpenChange, item, category }: Props) {
 
   if (!item || !category) return null;
 
-  const qrValue = item.id;
+  const qrValue = `${getSiteBaseUrl()}/checklists/scan/${item.id}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -38,7 +39,7 @@ export function QrCodeDialog({ open, onOpenChange, item, category }: Props) {
         <DialogHeader>
           <DialogTitle>QR Code do item</DialogTitle>
           <DialogDescription>
-            Este QR contém somente o ID interno do item no Supabase, sem URL adicional.
+            Ao escanear, o MesaClik abre e valida esta atividade automaticamente.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4" ref={ref}>
