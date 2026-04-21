@@ -1,32 +1,42 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useCreateItem } from '@/hooks/useChecklists';
+import { useUpdateItem, ChecklistItem } from '@/hooks/useChecklists';
 import { WeekdaysSelector, ALL_DAYS } from './WeekdaysSelector';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  categoryId: string;
-  categoryName: string;
+  item: ChecklistItem | null;
 }
 
-export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: Props) {
+export function EditItemDialog({ open, onOpenChange, item }: Props) {
   const [name, setName] = useState('');
   const [critical, setCritical] = useState(false);
   const [photo, setPhoto] = useState(false);
   const [hasQr, setHasQr] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [activeDays, setActiveDays] = useState<number[]>(ALL_DAYS);
-  const create = useCreateItem();
+  const update = useUpdateItem();
+
+  useEffect(() => {
+    if (item) {
+      setName(item.name);
+      setCritical(item.is_critical);
+      setPhoto(item.requires_photo);
+      setHasQr(item.has_qr);
+      setScheduledTime(item.scheduled_time ?? '');
+      setActiveDays(item.active_days?.length ? item.active_days : ALL_DAYS);
+    }
+  }, [item]);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
-    await create.mutateAsync({
-      category_id: categoryId,
+    if (!item || !name.trim()) return;
+    await update.mutateAsync({
+      id: item.id,
       name: name.trim(),
       is_critical: critical,
       requires_photo: photo,
@@ -34,7 +44,6 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
       scheduled_time: scheduledTime || null,
       active_days: activeDays.length > 0 ? activeDays : ALL_DAYS,
     });
-    setName(''); setCritical(false); setPhoto(false); setHasQr(false); setScheduledTime(''); setActiveDays(ALL_DAYS);
     onOpenChange(false);
   };
 
@@ -42,12 +51,12 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo item — {categoryName}</DialogTitle>
+          <DialogTitle>Editar item</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Nome do item</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Verificar temperatura geladeira" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Horário previsto (opcional)</Label>
@@ -86,8 +95,8 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || create.isPending}>
-            {create.isPending ? 'Salvando…' : 'Adicionar'}
+          <Button onClick={handleSave} disabled={!name.trim() || update.isPending}>
+            {update.isPending ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>

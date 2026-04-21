@@ -9,7 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList,
   ShieldCheck, Users, Clock, Sunrise, Moon, Sparkles, Thermometer, PackageCheck,
-  Utensils, Coffee, Wine, Refrigerator, Brush, AlertTriangle, Truck, type LucideIcon,
+  Utensils, Coffee, Wine, Refrigerator, Brush, AlertTriangle, Truck, Pencil, CalendarDays, type LucideIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,9 +22,11 @@ import {
 import { useRestaurant } from '@/contexts/RestaurantContext';
 import { QrCodeDialog } from '@/components/checklists/QrCodeDialog';
 import { AddItemDialog } from '@/components/checklists/AddItemDialog';
+import { EditItemDialog } from '@/components/checklists/EditItemDialog';
 import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { ChecklistValidationSuccess } from '@/components/checklists/ChecklistValidationSuccess';
+import { formatActiveDays } from '@/components/checklists/WeekdaysSelector';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
@@ -52,15 +54,26 @@ export default function ChecklistsPage() {
   useChecklistRealtime();
 
   const { data: categories = [], isLoading: loadingCats } = useChecklistCategories();
-  const { data: items = [] } = useChecklistItems();
+  const { data: allItems = [] } = useChecklistItems();
   const { data: completions = [] } = useChecklistCompletionsToday();
   const seed = useSeedDefaultCategories();
   const complete = useCompleteItem();
+
+  // Filter items by today's weekday (0=Sun, 1=Mon, ..., 6=Sat)
+  const todayWeekday = new Date().getDay();
+  const items = useMemo(
+    () => allItems.filter((i) => {
+      const days = i.active_days && i.active_days.length > 0 ? i.active_days : [0, 1, 2, 3, 4, 5, 6];
+      return days.includes(todayWeekday);
+    }),
+    [allItems, todayWeekday],
+  );
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [qrItem, setQrItem] = useState<ChecklistItem | null>(null);
   const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
   const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
+  const [editItem, setEditItem] = useState<ChecklistItem | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
   const [validatedItemName, setValidatedItemName] = useState<string | null>(null);
   const handledRouteScanRef = useRef<string | null>(null);
@@ -92,8 +105,8 @@ export default function ChecklistsPage() {
   }, [completions]);
 
   useEffect(() => {
-    if (!routeScanItemId || handledRouteScanRef.current === routeScanItemId || items.length === 0) return;
-    const item = items.find((i) => i.id === routeScanItemId);
+    if (!routeScanItemId || handledRouteScanRef.current === routeScanItemId || allItems.length === 0) return;
+    const item = allItems.find((i) => i.id === routeScanItemId);
     if (!item) return;
 
     handledRouteScanRef.current = routeScanItemId;
@@ -126,7 +139,7 @@ export default function ChecklistsPage() {
         },
       },
     );
-  }, [routeScanItemId, items, completedItemIds, complete, navigate]);
+  }, [routeScanItemId, allItems, completedItemIds, complete, navigate]);
 
   const totalProgress = items.length === 0 ? 0 : Math.round((completedItemIds.size / items.length) * 100);
 
@@ -205,6 +218,7 @@ export default function ChecklistsPage() {
                   onOpenQr={setQrItem}
                   onOpenScan={setScanItem}
                   onAddItem={() => setAddItemForCat(category)}
+                  onEditItem={setEditItem}
                 />
               </TabsContent>
             );
@@ -263,6 +277,11 @@ export default function ChecklistsPage() {
         categoryId={addItemForCat?.id ?? ''}
         categoryName={addItemForCat?.name ?? ''}
       />
+      <EditItemDialog
+        open={!!editItem}
+        onOpenChange={(o) => !o && setEditItem(null)}
+        item={editItem}
+      />
       <AddCategoryDialog open={addCatOpen} onOpenChange={setAddCatOpen} />
     </div>
   );
@@ -279,10 +298,11 @@ interface CategoryPanelProps {
   onOpenQr: (item: ChecklistItem) => void;
   onOpenScan: (item: ChecklistItem) => void;
   onAddItem: () => void;
+  onEditItem: (item: ChecklistItem) => void;
 }
 
 function CategoryPanel({
-  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem,
+  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem, onEditItem,
 }: CategoryPanelProps) {
   const printAll = () => {
     const qrItems = items.filter((i) => i.has_qr);
@@ -369,6 +389,7 @@ function CategoryPanel({
                 completion={itemCompletion.get(it.id)}
                 onOpenQr={() => onOpenQr(it)}
                 onOpenScan={() => onOpenScan(it)}
+                onEdit={() => onEditItem(it)}
               />
             ))}
           </ul>
@@ -385,9 +406,10 @@ interface ItemRowProps {
   completion: ChecklistCompletion | undefined;
   onOpenQr: () => void;
   onOpenScan: () => void;
+  onEdit: () => void;
 }
 
-function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRowProps) {
+function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }: ItemRowProps) {
   const { restaurantId } = useRestaurant();
   const complete = useCompleteItem();
   const del = useDeleteItem();
@@ -473,6 +495,12 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
               </span>
             )}
           </div>
+          {mode === 'gestor' && (
+            <p className="text-[11px] text-muted-foreground mt-0.5 inline-flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" />
+              {formatActiveDays(item.active_days)}
+            </p>
+          )}
           {done && completion && (
             <p className="text-xs text-muted-foreground mt-0.5">
               <CheckCircle2 className="inline h-3 w-3 text-green-500 mr-1" />
@@ -490,6 +518,9 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan }: ItemRow
                 <QrCode className="mr-1 h-4 w-4" /> Gerar QR
               </Button>
             )}
+            <Button size="sm" variant="ghost" onClick={onEdit} aria-label="Editar item">
+              <Pencil className="h-4 w-4 text-muted-foreground" />
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => del.mutate(item.id)} aria-label="Remover">
               <Trash2 className="h-4 w-4 text-muted-foreground" />
             </Button>
