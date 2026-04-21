@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 
 import { useModules } from "@/contexts/ModulesContext";
@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
 import { useTheme } from "@/hooks/useTheme";
 import { useRestaurant } from "@/contexts/RestaurantContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const allNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null, requiresModule: null, adminOnly: false },
