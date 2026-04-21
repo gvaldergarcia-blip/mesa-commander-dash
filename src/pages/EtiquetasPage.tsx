@@ -29,7 +29,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { ProductFormDialog } from "@/components/labels/ProductFormDialog";
-import { LabelPrintSheet, PrintLabelData } from "@/components/labels/LabelPrintSheet";
+import { printLabels } from "@/components/labels/LabelPrintSheet";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,6 @@ export default function EtiquetasPage() {
   const [extraNotes, setExtraNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [now, setNow] = useState(new Date());
-  const [printData, setPrintData] = useState<PrintLabelData | null>(null);
 
   const selected = useMemo(
     () => products.find((p) => p.id === selectedId) || null,
@@ -99,7 +98,8 @@ export default function EtiquetasPage() {
 
   const handlePrint = () => {
     if (!selected || !expiryDate) return;
-    setPrintData({
+    // Imprime em iframe isolado — não trava o dashboard.
+    printLabels({
       productName: selected.name,
       manufactureDate: now,
       expiryDate,
@@ -107,10 +107,6 @@ export default function EtiquetasPage() {
       notes: extraNotes.trim() || null,
       quantity: Math.max(1, Math.min(10, quantity)),
     });
-    // Wait for the hidden print sheet to render before invoking print.
-    setTimeout(() => {
-      window.print();
-    }, 50);
   };
 
   return (
@@ -430,8 +426,6 @@ export default function EtiquetasPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Print sheet (hidden on screen, visible on print) */}
-      <LabelPrintSheet data={printData} />
     </div>
   );
 }
