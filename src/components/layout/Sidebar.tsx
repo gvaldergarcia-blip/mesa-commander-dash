@@ -48,6 +48,14 @@ export function Sidebar() {
   const { hasModule } = useModules();
   const { restaurant, userRole } = useRestaurant();
   const isAdmin = userRole === 'admin';
+  const isMobile = useIsMobile();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Close mobile drawer whenever the route changes
+  useEffect(() => {
+    if (isMobile) setMobileOpen(false);
+  }, [location.pathname, isMobile]);
   
   // Filtra itens de navegação com base nas feature flags, módulos e perfil
   const navigation = allNavigation.filter((item) => {
@@ -62,18 +70,17 @@ export function Sidebar() {
   // Obter inicial do nome do restaurante para fallback
   const restaurantInitial = restaurant?.name?.charAt(0)?.toUpperCase() || 'R';
 
-  return (
-    <aside className={cn(
-      "bg-sidebar-background text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
-      isCollapsed ? "w-16" : "w-64"
-    )}>
+  const sidebarContent = (forceExpanded = false) => {
+    const showLabels = forceExpanded || !isCollapsed;
+    return (
+      <>
       {/* Top Section: Header + Navigation */}
       <div>
         {/* Header */}
         <div className="flex items-center justify-between p-5 pb-4 border-b border-sidebar-border/50">
           <div className={cn(
             "flex items-center gap-3 transition-all duration-200",
-            isCollapsed && "opacity-0 w-0 overflow-hidden"
+            !showLabels && "opacity-0 w-0 overflow-hidden"
           )}>
             <div>
               <h1 className="text-base font-bold tracking-tight leading-none">
@@ -83,14 +90,25 @@ export function Sidebar() {
               <p className="text-[10px] text-sidebar-foreground/40 uppercase tracking-[0.15em] mt-0.5">Painel</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-          >
-            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-          </Button>
+          {forceExpanded ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileOpen(false)}
+              className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+            >
+              {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
 
         {/* Navigation */}
@@ -113,13 +131,13 @@ export function Sidebar() {
                 <item.icon className="h-[18px] w-[18px] shrink-0" />
                 <span className={cn(
                   "ml-3 transition-all duration-200",
-                  isCollapsed && "opacity-0 w-0 overflow-hidden ml-0"
+                  !showLabels && "opacity-0 w-0 overflow-hidden ml-0"
                 )}>
                   {item.name}
                 </span>
                 
                 {/* Tooltip for collapsed state */}
-                {isCollapsed && (
+                {!showLabels && (
                   <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-popover text-popover-foreground text-xs font-medium rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50 shadow-lg border">
                     {item.name}
                   </div>
@@ -138,7 +156,7 @@ export function Sidebar() {
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150",
             "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-            isCollapsed && "justify-center px-0"
+            !showLabels && "justify-center px-0"
           )}
         >
           {theme === "dark" ? (
@@ -148,7 +166,7 @@ export function Sidebar() {
           )}
           <span className={cn(
             "transition-all duration-200",
-            isCollapsed && "opacity-0 w-0 overflow-hidden"
+            !showLabels && "opacity-0 w-0 overflow-hidden"
           )}>
             {theme === "dark" ? "Modo Escuro" : "Modo Claro"}
           </span>
@@ -169,13 +187,13 @@ export function Sidebar() {
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150",
             "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10",
-            isCollapsed && "justify-center px-0"
+            !showLabels && "justify-center px-0"
           )}
         >
           <LogOut className="h-4 w-4 shrink-0" />
           <span className={cn(
             "transition-all duration-200",
-            isCollapsed && "opacity-0 w-0 overflow-hidden"
+            !showLabels && "opacity-0 w-0 overflow-hidden"
           )}>
             Sair
           </span>
@@ -184,7 +202,7 @@ export function Sidebar() {
         {/* Restaurant Info - Exibe nome e logo oficiais das Configurações */}
         <div className={cn(
           "flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30",
-          isCollapsed && "justify-center px-2"
+          !showLabels && "justify-center px-2"
         )}>
           {/* Avatar com logo ou inicial */}
           <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -208,7 +226,7 @@ export function Sidebar() {
           </div>
           <div className={cn(
             "min-w-0 transition-all duration-200",
-            isCollapsed && "opacity-0 w-0 overflow-hidden"
+            !showLabels && "opacity-0 w-0 overflow-hidden"
           )}>
             <p className="text-sm font-medium truncate text-sidebar-foreground">
               {restaurant?.name || 'Carregando...'}
@@ -219,6 +237,54 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+      </>
+    );
+  };
+
+  // Mobile: drawer (offcanvas) — sidebar is hidden by default and opens via hamburger
+  if (isMobile) {
+    return (
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent
+          side="left"
+          className="w-72 p-0 bg-sidebar-background text-sidebar-foreground border-sidebar-border [&>button]:hidden"
+        >
+          <div className="flex flex-col justify-between h-full">
+            {sidebarContent(true)}
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop & tablet (≥768px): unchanged sticky sidebar
+  return (
+    <aside className={cn(
+      "bg-sidebar-background text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
+      isCollapsed ? "w-16" : "w-64"
+    )}>
+      {sidebarContent(false)}
     </aside>
+  );
+}
+
+/**
+ * Hamburger trigger used by the DashboardLayout header on mobile.
+ * Lives here so it shares the same `mobileOpen` state via a custom event,
+ * keeping the API tiny without a context.
+ */
+export function MobileSidebarTrigger() {
+  const isMobile = useIsMobile();
+  if (!isMobile) return null;
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Abrir menu"
+      onClick={() => window.dispatchEvent(new CustomEvent('mesaclik:open-sidebar'))}
+      className="h-9 w-9 mr-auto"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
   );
 }
