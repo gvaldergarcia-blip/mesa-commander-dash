@@ -24,6 +24,7 @@ import VideoGenerator from "./pages/VideoGenerator";
 import IACreatorMarketing from "./pages/IACreatorMarketing";
 import ChecklistsPage from "./pages/ChecklistsPage";
 import ChecklistQrValidate from "./pages/ChecklistQrValidate";
+import EtiquetasPage from "./pages/EtiquetasPage";
 
 
 import NotFound from "./pages/NotFound";
