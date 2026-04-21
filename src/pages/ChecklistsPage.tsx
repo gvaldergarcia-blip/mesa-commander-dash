@@ -26,7 +26,6 @@ import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { getSiteBaseUrl } from '@/config/site-url';
 
 type Mode = 'gestor' | 'equipe';
 
