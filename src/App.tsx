@@ -144,16 +144,8 @@ const App = () => {
         <Route path="/clube/:token" element={<ClubeFidelidade />} />
         <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
 
-        {/* Validação de QR do checklist em tela cheia, sem DashboardLayout */}
-        <Route path="/checklists/scan/:itemId" element={
-          <RestaurantProvider>
-            <ModulesProvider>
-              <ProtectedRoute>
-                <ChecklistQrValidate />
-              </ProtectedRoute>
-            </ModulesProvider>
-          </RestaurantProvider>
-        } />
+        {/* Validação pública de QR do checklist (sem login, sem DashboardLayout) */}
+        <Route path="/checklists/scan/:itemId" element={<ChecklistQrValidate />} />
 
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={
