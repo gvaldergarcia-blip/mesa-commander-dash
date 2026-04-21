@@ -379,6 +379,7 @@ export type Database = {
       checklist_items: {
         Row: {
           active: boolean
+          active_days: number[]
           category_id: string
           created_at: string
           description: string | null
@@ -394,6 +395,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          active_days?: number[]
           category_id: string
           created_at?: string
           description?: string | null
@@ -409,6 +411,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          active_days?: number[]
           category_id?: string
           created_at?: string
           description?: string | null
