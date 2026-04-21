@@ -22,13 +22,10 @@ const escapeHtml = (s: string) =>
     .replace(/'/g, "&#39;");
 
 /**
- * Imprime as etiquetas em um IFRAME isolado.
+ * Imprime as etiquetas em uma janela limpa e isolada.
  *
- * Por que iframe? `window.print()` na janela principal força o navegador a
- * percorrer toda a árvore de DOM do dashboard (gráficos, sidebar, realtime),
- * o que TRAVA a tela por vários segundos em listas grandes. Imprimindo em
- * um iframe oculto, o navegador só processa o conteúdo das etiquetas — a UI
- * principal permanece responsiva.
+ * Isso evita travar o dashboard e é mais compatível com drivers Epson/Chrome
+ * do que imprimir a partir de um iframe oculto.
  */
 export function printLabels(data: PrintLabelData) {
   const labelsHtml = Array.from({ length: data.quantity })
@@ -54,11 +51,30 @@ export function printLabels(data: PrintLabelData) {
 <meta charset="utf-8" />
 <title>Etiquetas - ${escapeHtml(data.productName)}</title>
 <style>
-  @page { margin: 10mm; }
+  @page { size: auto; margin: 8mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000;
     font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; }
-  body { padding: 8mm; }
+  body { padding: 0; }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+  }
+  .toolbar button {
+    border: 1px solid #111;
+    background: #111;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .sheet { padding: 8mm; }
   .label {
     border: 1px solid #000;
     padding: 6mm;
@@ -85,55 +101,33 @@ export function printLabels(data: PrintLabelData) {
     border-top: 1px dashed #000;
     font-style: italic;
   }
+  @media print {
+    .toolbar { display: none !important; }
+    .sheet { padding: 0; }
+  }
 </style>
 </head>
-<body>${labelsHtml}</body>
+<body>
+  <div class="toolbar">
+    <span>Se a impressão não abrir automaticamente, clique:</span>
+    <button type="button" onclick="window.print()">Imprimir agora</button>
+  </div>
+  <main class="sheet">${labelsHtml}</main>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.focus(); window.print(); }, 250);
+    });
+  </script>
+</body>
 </html>`;
 
-  // Cria iframe oculto e imprime apenas seu conteúdo (não trava o dashboard).
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  iframe.style.opacity = "0";
-  iframe.style.pointerEvents = "none";
-  document.body.appendChild(iframe);
-
-  const cleanup = () => {
-    // Pequeno atraso para evitar abortar o diálogo de impressão.
-    setTimeout(() => {
-      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    }, 1000);
-  };
-
-  iframe.onload = () => {
-    try {
-      const win = iframe.contentWindow;
-      if (!win) {
-        cleanup();
-        return;
-      }
-      win.focus();
-      win.print();
-      // Após fechar o diálogo de impressão, remove o iframe.
-      win.onafterprint = cleanup;
-      // Fallback: garante remoção mesmo se onafterprint não disparar.
-      setTimeout(cleanup, 60000);
-    } catch {
-      cleanup();
-    }
-  };
-
-  const doc = iframe.contentDocument;
-  if (!doc) {
-    cleanup();
+  const printWindow = window.open("", "_blank", "width=720,height=900,noreferrer");
+  if (!printWindow) {
+    window.alert("O navegador bloqueou a janela de impressão. Permita pop-ups para imprimir as etiquetas.");
     return;
   }
-  doc.open();
-  doc.write(html);
-  doc.close();
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
 }
