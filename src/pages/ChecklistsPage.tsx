@@ -27,6 +27,8 @@ import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { ChecklistValidationSuccess } from '@/components/checklists/ChecklistValidationSuccess';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 type Mode = 'gestor' | 'equipe';
 
