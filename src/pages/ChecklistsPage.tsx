@@ -59,8 +59,42 @@ export default function ChecklistsPage() {
   const seed = useSeedDefaultCategories();
   const complete = useCompleteItem();
 
+  // Track current date — auto-refreshes when the day changes (midnight)
+  const [now, setNow] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const computeMsUntilMidnight = () => {
+      const n = new Date();
+      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 5, 0);
+      return next.getTime() - n.getTime();
+    };
+    let dayTimeout: number | undefined;
+    const scheduleNextMidnight = () => {
+      dayTimeout = window.setTimeout(() => {
+        setNow(new Date());
+        scheduleNextMidnight();
+      }, computeMsUntilMidnight());
+    };
+    scheduleNextMidnight();
+    // Refresh when tab becomes active again (handles laptop sleep / overnight tabs)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const current = new Date();
+        if (current.toDateString() !== now.toDateString()) setNow(current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      if (dayTimeout) window.clearTimeout(dayTimeout);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [now]);
+
   // Filter items by today's weekday (0=Sun, 1=Mon, ..., 6=Sat)
-  const todayWeekday = new Date().getDay();
+  const todayWeekday = now.getDay();
+  const todayLabel = useMemo(
+    () => format(now, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR }),
+    [now],
+  );
   const items = useMemo(
     () => allItems.filter((i) => {
       const days = i.active_days && i.active_days.length > 0 ? i.active_days : [0, 1, 2, 3, 4, 5, 6];
@@ -171,8 +205,14 @@ export default function ChecklistsPage() {
       {/* Progress geral */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium">Progresso geral de hoje</p>
+          <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Progresso geral de hoje</p>
+              <Badge variant="outline" className="gap-1.5 capitalize">
+                <CalendarDays className="h-3 w-3" />
+                {todayLabel}
+              </Badge>
+            </div>
             <span className="text-sm font-semibold text-primary">{totalProgress}%</span>
           </div>
           <Progress value={totalProgress} className="h-2" />
