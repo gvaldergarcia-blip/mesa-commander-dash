@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ import { AddCategoryDialog } from '@/components/checklists/AddCategoryDialog';
 import { ScanQrDialog } from '@/components/checklists/ScanQrDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getSiteBaseUrl } from '@/config/site-url';
 
 type Mode = 'gestor' | 'equipe';
 
@@ -39,6 +41,8 @@ const renderIcon = (name: string | null | undefined, className = 'h-4 w-4') => {
 };
 
 export default function ChecklistsPage() {
+  const { itemId: routeScanItemId } = useParams<{ itemId?: string }>();
+  const navigate = useNavigate();
   const { restaurantId, restaurant } = useRestaurant();
   const [mode, setMode] = useState<Mode>('gestor');
 
@@ -49,12 +53,14 @@ export default function ChecklistsPage() {
   const { data: items = [] } = useChecklistItems();
   const { data: completions = [] } = useChecklistCompletionsToday();
   const seed = useSeedDefaultCategories();
+  const complete = useCompleteItem();
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [qrItem, setQrItem] = useState<ChecklistItem | null>(null);
   const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
   const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  const handledRouteScanRef = useRef<string | null>(null);
 
   // Auto-seed first time
   const seededRef = useRef(false);
@@ -81,6 +87,35 @@ export default function ChecklistsPage() {
     for (const c of completions) if (!map.has(c.item_id)) map.set(c.item_id, c);
     return map;
   }, [completions]);
+
+  useEffect(() => {
+    if (!routeScanItemId || handledRouteScanRef.current === routeScanItemId || items.length === 0) return;
+    const item = items.find((i) => i.id === routeScanItemId);
+    if (!item) return;
+
+    handledRouteScanRef.current = routeScanItemId;
+    setMode('equipe');
+    setActiveCat(item.category_id);
+
+    if (completedItemIds.has(item.id)) {
+      toast.success('Esta atividade já foi validada hoje');
+      navigate('/checklists', { replace: true });
+      return;
+    }
+
+    complete.mutate(
+      { item_id: item.id, via_qr: true },
+      {
+        onSuccess: () => {
+          toast.success('QR validado e atividade concluída');
+          navigate('/checklists', { replace: true });
+        },
+        onError: () => {
+          handledRouteScanRef.current = null;
+        },
+      },
+    );
+  }, [routeScanItemId, items, completedItemIds, complete, navigate]);
 
   const totalProgress = items.length === 0 ? 0 : Math.round((completedItemIds.size / items.length) * 100);
 
@@ -201,9 +236,10 @@ export default function ChecklistsPage() {
         open={!!scanItem}
         onOpenChange={(o) => !o && setScanItem(null)}
         item={scanItem}
-        onScanned={() => {
-          // Notify the row to run its completion + photo flow
-          window.dispatchEvent(new CustomEvent('checklist:scan-success', { detail: { itemId: scanItem?.id } }));
+        onScanned={async () => {
+          if (!scanItem) return;
+          await complete.mutateAsync({ item_id: scanItem.id, via_qr: true });
+          toast.success('QR validado e atividade concluída');
         }}
       />
       <AddItemDialog
@@ -259,7 +295,7 @@ function CategoryPanel({
       <h1>QRs — ${category.name}</h1><div class="grid">${blocks}</div>
       <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
       <script>
-        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: i.id })))};
+        const items = ${JSON.stringify(qrItems.map((i) => ({ id: i.id, val: `${getSiteBaseUrl()}/checklists/scan/${i.id}` })))};
         Promise.all(items.map(i => QRCode.toCanvas(i.val, { width: 180 }).then(c => document.getElementById('qr-'+i.id).appendChild(c))))
           .then(() => setTimeout(() => window.print(), 400));
       </script>
