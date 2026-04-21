@@ -9,7 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Camera, QrCode, Plus, ScanLine, CheckCircle2, Trash2, Printer, ClipboardList,
   ShieldCheck, Users, Clock, Sunrise, Moon, Sparkles, Thermometer, PackageCheck,
-  Utensils, Coffee, Wine, Refrigerator, Brush, AlertTriangle, Truck, type LucideIcon,
+  Utensils, Coffee, Wine, Refrigerator, Brush, AlertTriangle, Truck, Pencil, CalendarDays, type LucideIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -495,6 +495,12 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }:
               </span>
             )}
           </div>
+          {mode === 'gestor' && (
+            <p className="text-[11px] text-muted-foreground mt-0.5 inline-flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" />
+              {formatActiveDays(item.active_days)}
+            </p>
+          )}
           {done && completion && (
             <p className="text-xs text-muted-foreground mt-0.5">
               <CheckCircle2 className="inline h-3 w-3 text-green-500 mr-1" />
@@ -512,6 +518,9 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }:
                 <QrCode className="mr-1 h-4 w-4" /> Gerar QR
               </Button>
             )}
+            <Button size="sm" variant="ghost" onClick={onEdit} aria-label="Editar item">
+              <Pencil className="h-4 w-4 text-muted-foreground" />
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => del.mutate(item.id)} aria-label="Remover">
               <Trash2 className="h-4 w-4 text-muted-foreground" />
             </Button>
