@@ -26,6 +26,7 @@ export interface ChecklistItem {
   scheduled_time: string | null;
   display_order: number;
   active: boolean;
+  active_days: number[];
   created_at: string;
 }
 
@@ -187,6 +188,7 @@ export function useCreateItem() {
       requires_photo: boolean;
       has_qr: boolean;
       scheduled_time?: string | null;
+      active_days?: number[];
     }) => {
       if (!restaurantId) throw new Error('Sem restaurante');
       const { error } = await (supabase as any)
@@ -199,6 +201,7 @@ export function useCreateItem() {
           requires_photo: input.requires_photo,
           has_qr: input.has_qr,
           scheduled_time: input.scheduled_time || null,
+          active_days: input.active_days ?? [0, 1, 2, 3, 4, 5, 6],
         });
       if (error) throw error;
     },
@@ -207,6 +210,33 @@ export function useCreateItem() {
       qc.invalidateQueries({ queryKey: ['checklist-items'] });
     },
     onError: (e: any) => toast.error(e.message ?? 'Erro ao adicionar item'),
+  });
+}
+
+export function useUpdateItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      name?: string;
+      is_critical?: boolean;
+      requires_photo?: boolean;
+      has_qr?: boolean;
+      scheduled_time?: string | null;
+      active_days?: number[];
+    }) => {
+      const { id, ...patch } = input;
+      const { error } = await (supabase as any)
+        .from('checklist_items')
+        .update(patch)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Item atualizado');
+      qc.invalidateQueries({ queryKey: ['checklist-items'] });
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Erro ao atualizar item'),
   });
 }
 

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useCreateItem } from '@/hooks/useChecklists';
+import { WeekdaysSelector, ALL_DAYS } from './WeekdaysSelector';
 
 interface Props {
   open: boolean;
@@ -19,6 +20,7 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
   const [photo, setPhoto] = useState(false);
   const [hasQr, setHasQr] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
+  const [activeDays, setActiveDays] = useState<number[]>(ALL_DAYS);
   const create = useCreateItem();
 
   const handleSave = async () => {
@@ -30,8 +32,9 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
       requires_photo: photo,
       has_qr: hasQr,
       scheduled_time: scheduledTime || null,
+      active_days: activeDays.length > 0 ? activeDays : ALL_DAYS,
     });
-    setName(''); setCritical(false); setPhoto(false); setHasQr(false); setScheduledTime('');
+    setName(''); setCritical(false); setPhoto(false); setHasQr(false); setScheduledTime(''); setActiveDays(ALL_DAYS);
     onOpenChange(false);
   };
 
@@ -54,6 +57,10 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
               onChange={(e) => setScheduledTime(e.target.value)}
               className="dark:[&::-webkit-calendar-picker-indicator]:invert"
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Repetir nos dias:</Label>
+            <WeekdaysSelector value={activeDays} onChange={setActiveDays} />
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
