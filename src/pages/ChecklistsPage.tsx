@@ -60,6 +60,7 @@ export default function ChecklistsPage() {
   const [scanItem, setScanItem] = useState<ChecklistItem | null>(null);
   const [addItemForCat, setAddItemForCat] = useState<ChecklistCategory | null>(null);
   const [addCatOpen, setAddCatOpen] = useState(false);
+  const handledRouteScanRef = useRef<string | null>(null);
 
   // Auto-seed first time
   const seededRef = useRef(false);
@@ -86,6 +87,35 @@ export default function ChecklistsPage() {
     for (const c of completions) if (!map.has(c.item_id)) map.set(c.item_id, c);
     return map;
   }, [completions]);
+
+  useEffect(() => {
+    if (!routeScanItemId || handledRouteScanRef.current === routeScanItemId || items.length === 0) return;
+    const item = items.find((i) => i.id === routeScanItemId);
+    if (!item) return;
+
+    handledRouteScanRef.current = routeScanItemId;
+    setMode('equipe');
+    setActiveCat(item.category_id);
+
+    if (completedItemIds.has(item.id)) {
+      toast.success('Esta atividade já foi validada hoje');
+      navigate('/checklists', { replace: true });
+      return;
+    }
+
+    complete.mutate(
+      { item_id: item.id, via_qr: true },
+      {
+        onSuccess: () => {
+          toast.success('QR validado e atividade concluída');
+          navigate('/checklists', { replace: true });
+        },
+        onError: () => {
+          handledRouteScanRef.current = null;
+        },
+      },
+    );
+  }, [routeScanItemId, items, completedItemIds, complete, navigate]);
 
   const totalProgress = items.length === 0 ? 0 : Math.round((completedItemIds.size / items.length) * 100);
 
