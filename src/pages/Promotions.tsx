@@ -233,14 +233,14 @@ export default function Promotions() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <p>Carregando promoções...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -348,7 +348,7 @@ export default function Promotions() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               <Megaphone className="h-5 w-5 text-primary" />
               <div>
@@ -359,7 +359,7 @@ export default function Promotions() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               <Calendar className="h-5 w-5 text-success" />
               <div>
@@ -370,7 +370,7 @@ export default function Promotions() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               <Mail className="h-5 w-5 text-accent" />
               <div>
@@ -381,7 +381,7 @@ export default function Promotions() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               <TrendingUp className="h-5 w-5 text-warning" />
               <div>

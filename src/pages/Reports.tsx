@@ -200,7 +200,7 @@ function ReportsContent() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -217,7 +217,7 @@ function ReportsContent() {
 
   if (!metrics) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -235,7 +235,7 @@ function ReportsContent() {
   const hasAnyData = hasQueueData || hasReservationData;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       {/* Header Premium */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>

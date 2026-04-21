@@ -234,14 +234,14 @@ function QueueContent() {
 
   if (isInitialLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <p>Carregando...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
       {/* Alerta de Fila Cheia */}
       <QueueAlert totalWaiting={totalWaiting} capacityLimit={QUEUE_CAPACITY_LIMIT} />
 
@@ -355,7 +355,7 @@ function QueueContent() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className={isQueueFull ? "border-2 border-destructive bg-destructive/5" : ""}>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               {isQueueFull ? (
                 <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -377,7 +377,7 @@ function QueueContent() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               <Users className="h-5 w-5 text-primary" />
               <div>
@@ -388,7 +388,7 @@ function QueueContent() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center space-x-2">
               <Clock className="h-5 w-5 text-primary" />
               <div>
@@ -555,7 +555,7 @@ function QueueContent() {
           
           return (
             <Card key={entry.entry_id} className={`hover:shadow-md transition-shadow ${isOverTolerance ? 'border-destructive/50 bg-destructive/5' : ''}`}>
-              <CardContent className="p-6">
+              <CardContent className="p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     {position && (
