@@ -333,7 +333,7 @@ export default function CustomerProfile() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/4" />
           <div className="h-40 bg-muted rounded-lg" />
@@ -347,7 +347,7 @@ export default function CustomerProfile() {
 
   if (!customer) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <Button variant="ghost" onClick={() => navigate('/customers')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
