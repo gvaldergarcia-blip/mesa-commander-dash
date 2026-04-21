@@ -205,8 +205,14 @@ export default function ChecklistsPage() {
       {/* Progress geral */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium">Progresso geral de hoje</p>
+          <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Progresso geral de hoje</p>
+              <Badge variant="outline" className="gap-1.5 capitalize">
+                <CalendarDays className="h-3 w-3" />
+                {todayLabel}
+              </Badge>
+            </div>
             <span className="text-sm font-semibold text-primary">{totalProgress}%</span>
           </div>
           <Progress value={totalProgress} className="h-2" />
