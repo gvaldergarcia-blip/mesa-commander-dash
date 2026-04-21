@@ -144,6 +144,17 @@ const App = () => {
         <Route path="/clube/:token" element={<ClubeFidelidade />} />
         <Route path="/marketing/unsubscribe" element={<MarketingUnsubscribe />} />
 
+        {/* Validação de QR do checklist em tela cheia, sem DashboardLayout */}
+        <Route path="/checklists/scan/:itemId" element={
+          <RestaurantProvider>
+            <ModulesProvider>
+              <ProtectedRoute>
+                <ChecklistQrValidate />
+              </ProtectedRoute>
+            </ModulesProvider>
+          </RestaurantProvider>
+        } />
+
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={
           <RestaurantProvider>
@@ -199,7 +210,6 @@ const App = () => {
                     </RoleGuard>
                   } />
                   <Route path="/checklists" element={<ChecklistsPage />} />
-                  <Route path="/checklists/scan/:itemId" element={<ChecklistQrValidate />} />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
