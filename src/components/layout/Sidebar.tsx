@@ -56,6 +56,14 @@ export function Sidebar() {
   useEffect(() => {
     if (isMobile) setMobileOpen(false);
   }, [location.pathname, isMobile]);
+
+  // Listen for global "open sidebar" events from the header hamburger
+  useEffect(() => {
+    if (!isMobile) return;
+    const open = () => setMobileOpen(true);
+    window.addEventListener('mesaclik:open-sidebar', open);
+    return () => window.removeEventListener('mesaclik:open-sidebar', open);
+  }, [isMobile]);
   
   // Filtra itens de navegação com base nas feature flags, módulos e perfil
   const navigation = allNavigation.filter((item) => {
