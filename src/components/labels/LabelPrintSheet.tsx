@@ -8,6 +8,7 @@ export interface PrintLabelData {
   responsible: string;
   notes?: string | null;
   quantity: number;
+  batch?: string | null;
 }
 
 const fmtDateTime = (d: Date) => format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -33,9 +34,14 @@ export function printLabels(data: PrintLabelData) {
       () => `
         <div class="label">
           <div class="name">${escapeHtml(data.productName)}</div>
-          <div class="row"><span class="k">Fabricação:</span> ${escapeHtml(fmtDateTime(data.manufactureDate))}</div>
-          <div class="row"><span class="k">Validade:</span> ${escapeHtml(fmtDate(data.expiryDate))}</div>
-          <div class="row"><span class="k">Responsável:</span> ${escapeHtml(data.responsible)}</div>
+          <div class="row"><span class="k">Fab:</span> ${escapeHtml(fmtDateTime(data.manufactureDate))}</div>
+          <div class="row"><span class="k">Val:</span> ${escapeHtml(fmtDate(data.expiryDate))}</div>
+          <div class="row"><span class="k">Resp:</span> ${escapeHtml(data.responsible)}</div>
+          ${
+            data.batch
+              ? `<div class="row"><span class="k">Lote:</span> ${escapeHtml(data.batch)}</div>`
+              : ""
+          }
           ${
             data.notes
               ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
@@ -51,7 +57,7 @@ export function printLabels(data: PrintLabelData) {
     .label-print-runtime { display: none !important; }
   }
   @media print {
-    @page { size: auto; margin: 8mm; }
+    @page { size: 80mm 40mm; margin: 0; }
     body > *:not(.label-print-runtime) { display: none !important; }
     .label-print-runtime, .label-print-runtime * { display: revert; visibility: visible; }
     .label-print-runtime {
@@ -65,30 +71,43 @@ export function printLabels(data: PrintLabelData) {
     }
     .label-print-sheet { padding: 0; }
   .label {
+    width: 80mm;
+    height: 40mm;
+    box-sizing: border-box;
     border: 1px solid #000;
-    padding: 6mm;
-    margin-bottom: 4mm;
+    padding: 2mm 3mm;
+    margin: 0;
     page-break-inside: avoid;
     break-inside: avoid;
-    font-size: 11pt;
-    line-height: 1.35;
+    page-break-after: always;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 8pt;
+    line-height: 1.2;
+    overflow: hidden;
   }
+  .label:last-child { page-break-after: auto; }
   .name {
-    font-size: 16pt;
+    font-size: 11pt;
     font-weight: 700;
     text-transform: uppercase;
     border-bottom: 1px solid #000;
-    padding-bottom: 2mm;
-    margin-bottom: 3mm;
-    letter-spacing: 0.5px;
+    padding-bottom: 1mm;
+    margin-bottom: 1.5mm;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .row { margin: 1mm 0; }
+  .row { margin: 0.5mm 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .k { font-weight: 700; }
   .notes {
-    margin-top: 2mm;
-    padding-top: 2mm;
+    margin-top: 1mm;
+    padding-top: 1mm;
     border-top: 1px dashed #000;
     font-style: italic;
+    font-size: 7pt;
+    line-height: 1.15;
   }
   }
   `;

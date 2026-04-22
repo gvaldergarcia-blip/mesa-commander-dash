@@ -52,6 +52,7 @@ export default function EtiquetasPage() {
   const [comboOpen, setComboOpen] = useState(false);
   const [responsible, setResponsible] = useState("");
   const [extraNotes, setExtraNotes] = useState("");
+  const [batch, setBatch] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [now, setNow] = useState(new Date());
 
@@ -105,6 +106,7 @@ export default function EtiquetasPage() {
       expiryDate,
       responsible: responsible.trim() || "—",
       notes: extraNotes.trim() || null,
+      batch: batch.trim() || null,
       quantity: Math.max(1, Math.min(10, quantity)),
     });
   };
