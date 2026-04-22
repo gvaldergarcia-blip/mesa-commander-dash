@@ -52,6 +52,7 @@ export default function EtiquetasPage() {
   const [comboOpen, setComboOpen] = useState(false);
   const [responsible, setResponsible] = useState("");
   const [extraNotes, setExtraNotes] = useState("");
+  const [batch, setBatch] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [now, setNow] = useState(new Date());
 
@@ -105,6 +106,7 @@ export default function EtiquetasPage() {
       expiryDate,
       responsible: responsible.trim() || "—",
       notes: extraNotes.trim() || null,
+      batch: batch.trim() || null,
       quantity: Math.max(1, Math.min(10, quantity)),
     });
   };
@@ -312,7 +314,19 @@ export default function EtiquetasPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="qty">Quantidade de etiquetas (1 a 10)</Label>
+                  <Label htmlFor="batch">Lote (opcional)</Label>
+                  <Input
+                    id="batch"
+                    value={batch}
+                    onChange={(e) => setBatch(e.target.value)}
+                    placeholder="Ex: L2026-001"
+                    maxLength={30}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 max-w-xs">
+                <Label htmlFor="qty">Quantidade de etiquetas (1 a 10)</Label>
                   <Input
                     id="qty"
                     type="number"
@@ -323,7 +337,6 @@ export default function EtiquetasPage() {
                       setQuantity(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))
                     }
                   />
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -353,31 +366,53 @@ export default function EtiquetasPage() {
           {selected && expiryDate && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Pré-visualização</CardTitle>
+                <CardTitle className="text-base">Pré-visualização (80×40 mm)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="border-2 border-foreground rounded-md p-5 bg-background max-w-sm">
-                  <p className="text-lg font-bold uppercase tracking-wide border-b border-foreground pb-2 mb-3">
+                <div
+                  className="border border-black bg-white text-black font-sans overflow-hidden"
+                  style={{
+                    width: "302px", // ≈ 80mm a 96dpi
+                    height: "151px", // ≈ 40mm
+                    padding: "8px 11px",
+                    fontSize: "11px",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  <p
+                    className="font-bold uppercase border-b border-black truncate"
+                    style={{ fontSize: "14px", paddingBottom: "3px", marginBottom: "5px", letterSpacing: "0.3px" }}
+                  >
                     {selected.name}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-bold">Fabricação:</span>{" "}
+                  <p className="truncate" style={{ margin: "1.5px 0" }}>
+                    <span className="font-bold">Fab:</span>{" "}
                     {format(now, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-bold">Validade:</span>{" "}
+                  <p className="truncate" style={{ margin: "1.5px 0" }}>
+                    <span className="font-bold">Val:</span>{" "}
                     {format(expiryDate, "dd/MM/yyyy", { locale: ptBR })}
                   </p>
-                  <p className="text-sm">
-                    <span className="font-bold">Responsável:</span>{" "}
-                    {responsible || "—"}
+                  <p className="truncate" style={{ margin: "1.5px 0" }}>
+                    <span className="font-bold">Resp:</span> {responsible || "—"}
                   </p>
+                  {batch && (
+                    <p className="truncate" style={{ margin: "1.5px 0" }}>
+                      <span className="font-bold">Lote:</span> {batch}
+                    </p>
+                  )}
                   {extraNotes && (
-                    <p className="text-xs italic mt-2 pt-2 border-t border-dashed border-foreground">
+                    <p
+                      className="italic border-t border-dashed border-black truncate"
+                      style={{ fontSize: "9px", marginTop: "3px", paddingTop: "2px", lineHeight: 1.15 }}
+                    >
                       <span className="font-bold not-italic">Obs:</span> {extraNotes}
                     </p>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  A etiqueta será impressa em fundo branco com texto preto, em página de 80×40 mm.
+                </p>
               </CardContent>
             </Card>
           )}
