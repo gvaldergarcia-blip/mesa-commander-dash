@@ -2429,6 +2429,83 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurant_dishes: {
+        Row: {
+          category: Database["public"]["Enums"]["dish_category"]
+          created_at: string
+          description: string | null
+          dish_photo_url: string | null
+          id: string
+          is_featured: boolean
+          last_used_at: string | null
+          name: string
+          price: number | null
+          restaurant_id: string
+          source: string
+          times_used_in_posts: number
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["dish_category"]
+          created_at?: string
+          description?: string | null
+          dish_photo_url?: string | null
+          id?: string
+          is_featured?: boolean
+          last_used_at?: string | null
+          name: string
+          price?: number | null
+          restaurant_id: string
+          source?: string
+          times_used_in_posts?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["dish_category"]
+          created_at?: string
+          description?: string | null
+          dish_photo_url?: string | null
+          id?: string
+          is_featured?: boolean
+          last_used_at?: string | null
+          name?: string
+          price?: number | null
+          restaurant_id?: string
+          source?: string
+          times_used_in_posts?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_hours: {
         Row: {
           close_time: string | null
@@ -2661,12 +2738,15 @@ export type Database = {
           is_featured_novidades: boolean
           is_featured_queue: boolean
           is_featured_reservation: boolean
+          menu_dishes_extracted_at: string | null
           menu_url: string | null
           name: string
           owner_id: string | null
           phone: string | null
           plan_modules: string
           plan_status: string | null
+          social_autopilot_categories: string[]
+          social_autopilot_enabled: boolean
           status: string
           stripe_customer_id: string | null
           stripe_price_id: string | null
@@ -2695,12 +2775,15 @@ export type Database = {
           is_featured_novidades?: boolean
           is_featured_queue?: boolean
           is_featured_reservation?: boolean
+          menu_dishes_extracted_at?: string | null
           menu_url?: string | null
           name: string
           owner_id?: string | null
           phone?: string | null
           plan_modules?: string
           plan_status?: string | null
+          social_autopilot_categories?: string[]
+          social_autopilot_enabled?: boolean
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
@@ -2729,12 +2812,15 @@ export type Database = {
           is_featured_novidades?: boolean
           is_featured_queue?: boolean
           is_featured_reservation?: boolean
+          menu_dishes_extracted_at?: string | null
           menu_url?: string | null
           name?: string
           owner_id?: string | null
           phone?: string | null
           plan_modules?: string
           plan_status?: string | null
+          social_autopilot_categories?: string[]
+          social_autopilot_enabled?: boolean
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
@@ -2907,6 +2993,174 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_post_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["social_chat_role"]
+          suggestion_id: string
+          version_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["social_chat_role"]
+          suggestion_id: string
+          version_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["social_chat_role"]
+          suggestion_id?: string
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_post_chat_messages_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "social_post_suggestions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_chat_messages_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "social_post_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_post_suggestions: {
+        Row: {
+          approved_at: string | null
+          context_data: Json
+          copy_text: string | null
+          created_at: string
+          current_version_id: string | null
+          dish_id: string | null
+          id: string
+          posted_at: string | null
+          restaurant_id: string
+          status: Database["public"]["Enums"]["social_suggestion_status"]
+          suggested_for_date: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          context_data?: Json
+          copy_text?: string | null
+          created_at?: string
+          current_version_id?: string | null
+          dish_id?: string | null
+          id?: string
+          posted_at?: string | null
+          restaurant_id: string
+          status?: Database["public"]["Enums"]["social_suggestion_status"]
+          suggested_for_date?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          context_data?: Json
+          copy_text?: string | null
+          created_at?: string
+          current_version_id?: string | null
+          dish_id?: string | null
+          id?: string
+          posted_at?: string | null
+          restaurant_id?: string
+          status?: Database["public"]["Enums"]["social_suggestion_status"]
+          suggested_for_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_current_version"
+            columns: ["current_version_id"]
+            isOneToOne: false
+            referencedRelation: "social_post_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_suggestions_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_suggestions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_suggestions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_suggestions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_post_suggestions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_post_versions: {
+        Row: {
+          created_at: string
+          edit_instruction: string | null
+          id: string
+          image_url: string
+          prompt_used: string | null
+          suggestion_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          edit_instruction?: string | null
+          id?: string
+          image_url: string
+          prompt_used?: string | null
+          suggestion_id: string
+          version_number: number
+        }
+        Update: {
+          created_at?: string
+          edit_instruction?: string | null
+          id?: string
+          image_url?: string
+          prompt_used?: string | null
+          suggestion_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_post_versions_suggestion_id_fkey"
+            columns: ["suggestion_id"]
+            isOneToOne: false
+            referencedRelation: "social_post_suggestions"
             referencedColumns: ["id"]
           },
         ]
@@ -3676,6 +3930,12 @@ export type Database = {
         | "Outros"
         | "Cervejaria"
         | "Árabe"
+      dish_category:
+        | "entrada"
+        | "prato_principal"
+        | "sobremesa"
+        | "bebida"
+        | "outro"
       email_status:
         | "sent"
         | "delivered"
@@ -3697,6 +3957,8 @@ export type Database = {
         | "seated"
         | "completed"
         | "canceled"
+      social_chat_role: "user" | "ai" | "system"
+      social_suggestion_status: "pending" | "approved" | "dismissed" | "posted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3861,6 +4123,13 @@ export const Constants = {
         "Cervejaria",
         "Árabe",
       ],
+      dish_category: [
+        "entrada",
+        "prato_principal",
+        "sobremesa",
+        "bebida",
+        "outro",
+      ],
       email_status: [
         "sent",
         "delivered",
@@ -3885,6 +4154,8 @@ export const Constants = {
         "completed",
         "canceled",
       ],
+      social_chat_role: ["user", "ai", "system"],
+      social_suggestion_status: ["pending", "approved", "dismissed", "posted"],
     },
   },
 } as const
