@@ -1168,6 +1168,57 @@ export default function IACreatorMarketing() {
                                 <Sparkles className="w-3.5 h-3.5" /> Regenerar
                               </Button>
                             </div>
+
+                            <div className="rounded-lg border bg-muted/10 p-3 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Bot className="w-4 h-4 text-primary" />
+                                <p className="text-sm font-medium">Chat de ajuste da imagem</p>
+                              </div>
+
+                              <div ref={studioScrollRef} className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                {studioMessages.map((message) => (
+                                  <div
+                                    key={message.id}
+                                    className={`rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary/10 ml-6" : "bg-background mr-6 border"}`}
+                                  >
+                                    {message.role === "ai" ? (
+                                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1">
+                                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                                      </div>
+                                    ) : (
+                                      <p className="whitespace-pre-wrap">{message.content}</p>
+                                    )}
+                                  </div>
+                                ))}
+
+                                {isRefiningStudio && (
+                                  <div className="rounded-lg px-3 py-2 text-sm bg-background mr-6 border flex items-center gap-2">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Ajustando sua imagem...
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-2">
+                                <textarea
+                                  value={studioPrompt}
+                                  onChange={(e) => setStudioPrompt(e.target.value)}
+                                  placeholder='Ex: "deixa o prato maior", "escurece o fundo", "troca o texto da arte para promoção de sexta"'
+                                  className="w-full min-h-[88px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    onClick={handleStudioRefine}
+                                    disabled={!generatedAssetId || !studioPrompt.trim() || isRefiningStudio}
+                                    className="gap-2"
+                                  >
+                                    <Send className="w-4 h-4" /> Enviar ajuste
+                                  </Button>
+                                  {!generatedAssetId && (
+                                    <p className="text-xs text-muted-foreground">Aguarde a arte ser salva para liberar o chat.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center py-10 gap-2">
