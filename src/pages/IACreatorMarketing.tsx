@@ -28,7 +28,9 @@ import {
   Filter,
   Settings,
   Bot,
+  Send,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +97,12 @@ interface PromotionAsset {
   caption_text: string | null;
   status: string;
   created_at: string;
+}
+
+interface StudioChatMessage {
+  id: string;
+  role: "user" | "ai";
+  content: string;
 }
 
 // ─── Content Generator (local, no API) ───────────────────────────
