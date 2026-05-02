@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
@@ -28,7 +28,9 @@ import {
   Filter,
   Settings,
   Bot,
+  Send,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +97,12 @@ interface PromotionAsset {
   caption_text: string | null;
   status: string;
   created_at: string;
+}
+
+interface StudioChatMessage {
+  id: string;
+  role: "user" | "ai";
+  content: string;
 }
 
 // ─── Content Generator (local, no API) ───────────────────────────
@@ -507,10 +515,15 @@ export default function IACreatorMarketing() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showForm, setShowForm] = useState(true);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedAssetId, setGeneratedAssetId] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("criar");
+  const [studioMessages, setStudioMessages] = useState<StudioChatMessage[]>([]);
+  const [studioPrompt, setStudioPrompt] = useState("");
+  const [isRefiningStudio, setIsRefiningStudio] = useState(false);
+  const studioScrollRef = useRef<HTMLDivElement>(null);
 
   // Editable text overrides — restaurant can customize before image generation
   const [editableHeadline, setEditableHeadline] = useState("");
@@ -593,6 +606,9 @@ export default function IACreatorMarketing() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGeneratedImage(null);
+    setGeneratedAssetId(null);
+    setStudioMessages([]);
+    setStudioPrompt("");
     setTextConfirmed(false);
     await new Promise((r) => setTimeout(r, 600));
     const content = generateContent(
@@ -654,6 +670,14 @@ export default function IACreatorMarketing() {
 
       if (data?.imageUrl) {
         setGeneratedImage(data.imageUrl);
+        setGeneratedAssetId(data.assetId || null);
+        setStudioMessages([
+          {
+            id: crypto.randomUUID(),
+            role: "ai",
+            content: "Arte pronta. Agora me diga no chat exatamente o que você quer ajustar nessa imagem.",
+          },
+        ]);
         toast.success("Imagem promocional gerada e salva!");
       } else {
         toast.error("Não foi possível gerar a imagem.");
@@ -692,6 +716,46 @@ export default function IACreatorMarketing() {
     const fullText = `📌 HEADLINE:\n${result.headline}\n\n📝 SUBHEADLINE:\n${result.subheadline}\n\n💰 PREÇO:\n${result.precoDestaque}\n\n🎯 CTA:\n${result.cta}\n\n📱 LEGENDA INSTAGRAM:\n${result.legenda}\n\n# HASHTAGS:\n${result.hashtags.join(" ")}\n\n🎨 ELEMENTOS VISUAIS:\n${result.elementosVisuais.join("\n")}\n\n${result.storyVariacao}`;
     navigator.clipboard.writeText(fullText);
     toast.success("Todo o conteúdo copiado!");
+  };
+
+  useEffect(() => {
+    if (studioScrollRef.current) {
+      studioScrollRef.current.scrollTop = studioScrollRef.current.scrollHeight;
+    }
+  }, [studioMessages, isRefiningStudio]);
+
+  const handleStudioRefine = async () => {
+    if (!generatedAssetId || !studioPrompt.trim() || isRefiningStudio) return;
+
+    const instruction = studioPrompt.trim();
+    setStudioPrompt("");
+    setStudioMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: instruction }]);
+    setIsRefiningStudio(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("social-refine-image", {
+        body: { assetId: generatedAssetId, instruction },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.image_url) setGeneratedImage(data.image_url);
+      if (data?.copy_text) setEditableLegenda(data.copy_text);
+
+      setStudioMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "ai",
+          content: data?.ai_message || "Ajuste concluído.",
+        },
+      ]);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao ajustar a imagem");
+    } finally {
+      setIsRefiningStudio(false);
+    }
   };
 
   return (
@@ -1103,6 +1167,57 @@ export default function IACreatorMarketing() {
                               <Button onClick={generatePromoImage} variant="outline" size="sm" className="gap-1.5">
                                 <Sparkles className="w-3.5 h-3.5" /> Regenerar
                               </Button>
+                            </div>
+
+                            <div className="rounded-lg border bg-muted/10 p-3 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Bot className="w-4 h-4 text-primary" />
+                                <p className="text-sm font-medium">Chat de ajuste da imagem</p>
+                              </div>
+
+                              <div ref={studioScrollRef} className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                {studioMessages.map((message) => (
+                                  <div
+                                    key={message.id}
+                                    className={`rounded-lg px-3 py-2 text-sm ${message.role === "user" ? "bg-primary/10 ml-6" : "bg-background mr-6 border"}`}
+                                  >
+                                    {message.role === "ai" ? (
+                                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1">
+                                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                                      </div>
+                                    ) : (
+                                      <p className="whitespace-pre-wrap">{message.content}</p>
+                                    )}
+                                  </div>
+                                ))}
+
+                                {isRefiningStudio && (
+                                  <div className="rounded-lg px-3 py-2 text-sm bg-background mr-6 border flex items-center gap-2">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Ajustando sua imagem...
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-2">
+                                <textarea
+                                  value={studioPrompt}
+                                  onChange={(e) => setStudioPrompt(e.target.value)}
+                                  placeholder='Ex: "deixa o prato maior", "escurece o fundo", "troca o texto da arte para promoção de sexta"'
+                                  className="w-full min-h-[88px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    onClick={handleStudioRefine}
+                                    disabled={!generatedAssetId || !studioPrompt.trim() || isRefiningStudio}
+                                    className="gap-2"
+                                  >
+                                    <Send className="w-4 h-4" /> Enviar ajuste
+                                  </Button>
+                                  {!generatedAssetId && (
+                                    <p className="text-xs text-muted-foreground">Aguarde a arte ser salva para liberar o chat.</p>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ) : (

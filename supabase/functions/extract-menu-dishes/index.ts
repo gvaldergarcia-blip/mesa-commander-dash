@@ -31,7 +31,7 @@ serve(async (req) => {
     if (!restaurantId) return new Response(JSON.stringify({ error: "restaurantId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Validate ownership
-    const { data: rest } = await admin.from("restaurants").select("id, owner_id, name, menu_url").eq("id", restaurantId).maybeSingle();
+    const { data: rest } = await admin.from("restaurants").select("id, owner_id, name, menu_url, menu_image_url").eq("id", restaurantId).maybeSingle();
     if (!rest) return new Response(JSON.stringify({ error: "Restaurant not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (rest.owner_id !== user.id) {
       // also allow platform admin
@@ -39,7 +39,8 @@ serve(async (req) => {
       if (!isAdm) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if (!rest.menu_url) {
+    const menuSource = rest.menu_url || rest.menu_image_url;
+    if (!menuSource) {
       return new Response(JSON.stringify({ error: "Cardápio não cadastrado. Configure em Settings → Cardápio." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -78,7 +79,7 @@ IMPORTANTE:
             role: "user",
             content: [
               { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: rest.menu_url } },
+              { type: "image_url", image_url: { url: menuSource } },
             ],
           },
         ],

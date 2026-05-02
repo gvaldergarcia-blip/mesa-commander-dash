@@ -67,7 +67,7 @@ const CATEGORY_LABELS: Record<Dish["category"], string> = {
 const ALL_CATEGORIES: Dish["category"][] = ["entrada", "prato_principal", "sobremesa", "bebida", "outro"];
 
 export default function AutopilotTab() {
-  const { restaurant, refetchRestaurant } = useRestaurant() as any;
+  const { restaurant, refetch } = useRestaurant() as any;
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -79,7 +79,7 @@ export default function AutopilotTab() {
   const [chatSuggestionId, setChatSuggestionId] = useState<string | null>(null);
 
   const restaurantId = restaurant?.id;
-  const hasMenu = !!restaurant?.menu_url;
+  const hasMenu = !!restaurant?.menu_url || !!restaurant?.menu_image_url;
   const extractedAt = restaurant?.menu_dishes_extracted_at;
   const autopilotOn = !!restaurant?.social_autopilot_enabled;
   const enabledCats: string[] = restaurant?.social_autopilot_categories || ["prato_principal"];
@@ -138,7 +138,7 @@ export default function AutopilotTab() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`${data.count} pratos extraídos do cardápio!`);
-      await refetchRestaurant?.();
+      await refetch?.();
       await loadAll();
     } catch (e: any) {
       toast.error(e.message || "Erro ao analisar cardápio");
@@ -173,7 +173,7 @@ export default function AutopilotTab() {
   const updateAutopilotEnabled = async (enabled: boolean) => {
     const { error } = await supabase.from("restaurants").update({ social_autopilot_enabled: enabled }).eq("id", restaurantId);
     if (error) return toast.error("Erro");
-    await refetchRestaurant?.();
+    await refetch?.();
     toast.success(enabled ? "Auto-pilot ativado" : "Auto-pilot desativado");
   };
 
@@ -181,7 +181,7 @@ export default function AutopilotTab() {
     const next = enabledCats.includes(cat) ? enabledCats.filter((c) => c !== cat) : [...enabledCats, cat];
     const { error } = await supabase.from("restaurants").update({ social_autopilot_categories: next }).eq("id", restaurantId);
     if (error) return toast.error("Erro");
-    await refetchRestaurant?.();
+    await refetch?.();
   };
 
   const handleGenerateNow = async () => {
