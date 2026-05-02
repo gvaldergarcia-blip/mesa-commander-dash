@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles,
@@ -515,10 +515,15 @@ export default function IACreatorMarketing() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showForm, setShowForm] = useState(true);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedAssetId, setGeneratedAssetId] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("criar");
+  const [studioMessages, setStudioMessages] = useState<StudioChatMessage[]>([]);
+  const [studioPrompt, setStudioPrompt] = useState("");
+  const [isRefiningStudio, setIsRefiningStudio] = useState(false);
+  const studioScrollRef = useRef<HTMLDivElement>(null);
 
   // Editable text overrides — restaurant can customize before image generation
   const [editableHeadline, setEditableHeadline] = useState("");
@@ -601,6 +606,9 @@ export default function IACreatorMarketing() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGeneratedImage(null);
+    setGeneratedAssetId(null);
+    setStudioMessages([]);
+    setStudioPrompt("");
     setTextConfirmed(false);
     await new Promise((r) => setTimeout(r, 600));
     const content = generateContent(
@@ -662,6 +670,14 @@ export default function IACreatorMarketing() {
 
       if (data?.imageUrl) {
         setGeneratedImage(data.imageUrl);
+        setGeneratedAssetId(data.assetId || null);
+        setStudioMessages([
+          {
+            id: crypto.randomUUID(),
+            role: "ai",
+            content: "Arte pronta. Agora me diga no chat exatamente o que você quer ajustar nessa imagem.",
+          },
+        ]);
         toast.success("Imagem promocional gerada e salva!");
       } else {
         toast.error("Não foi possível gerar a imagem.");
@@ -700,6 +716,46 @@ export default function IACreatorMarketing() {
     const fullText = `📌 HEADLINE:\n${result.headline}\n\n📝 SUBHEADLINE:\n${result.subheadline}\n\n💰 PREÇO:\n${result.precoDestaque}\n\n🎯 CTA:\n${result.cta}\n\n📱 LEGENDA INSTAGRAM:\n${result.legenda}\n\n# HASHTAGS:\n${result.hashtags.join(" ")}\n\n🎨 ELEMENTOS VISUAIS:\n${result.elementosVisuais.join("\n")}\n\n${result.storyVariacao}`;
     navigator.clipboard.writeText(fullText);
     toast.success("Todo o conteúdo copiado!");
+  };
+
+  useEffect(() => {
+    if (studioScrollRef.current) {
+      studioScrollRef.current.scrollTop = studioScrollRef.current.scrollHeight;
+    }
+  }, [studioMessages, isRefiningStudio]);
+
+  const handleStudioRefine = async () => {
+    if (!generatedAssetId || !studioPrompt.trim() || isRefiningStudio) return;
+
+    const instruction = studioPrompt.trim();
+    setStudioPrompt("");
+    setStudioMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content: instruction }]);
+    setIsRefiningStudio(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("social-refine-image", {
+        body: { assetId: generatedAssetId, instruction },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.image_url) setGeneratedImage(data.image_url);
+      if (data?.copy_text) setEditableLegenda(data.copy_text);
+
+      setStudioMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "ai",
+          content: data?.ai_message || "Ajuste concluído.",
+        },
+      ]);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao ajustar a imagem");
+    } finally {
+      setIsRefiningStudio(false);
+    }
   };
 
   return (
