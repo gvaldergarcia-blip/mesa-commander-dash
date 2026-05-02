@@ -76,7 +76,7 @@ export default function AutopilotTab() {
   const [pendingVersion, setPendingVersion] = useState<Version | null>(null);
   const [approvedSugs, setApprovedSugs] = useState<Array<Suggestion & { version: Version | null }>>([]);
   const [extracting, setExtracting] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatSuggestionId, setChatSuggestionId] = useState<string | null>(null);
 
   const restaurantId = restaurant?.id;
   const hasMenu = !!restaurant?.menu_url;
@@ -338,8 +338,23 @@ export default function AutopilotTab() {
           version={pendingVersion}
           onApprove={() => handleApprove("approve")}
           onDismiss={() => handleApprove("dismiss")}
-          onOpenChat={() => setChatOpen(true)}
+          onOpenChat={() => setChatSuggestionId(pendingSug.id)}
         />
+      )}
+
+      {/* Sem post nenhum: incentivar gerar */}
+      {!pendingSug && approvedSugs.length === 0 && eligibleDishesCount > 0 && (
+        <Card className="border-dashed">
+          <CardContent className="p-6 text-center space-y-3">
+            <Bot className="w-8 h-8 text-primary mx-auto" />
+            <div>
+              <p className="font-medium">Nenhum post gerado ainda</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Clique em <strong>"Gerar agora (teste)"</strong> acima pra criar uma arte. Depois você pode abrir o chat e pedir qualquer ajuste pra IA.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Aprovados (fila) */}
@@ -349,7 +364,7 @@ export default function AutopilotTab() {
             <Check className="w-4 h-4 text-green-600" /> Prontos pra postar ({approvedSugs.length})
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {approvedSugs.map((s) => <ApprovedCard key={s.id} item={s} onChange={loadAll} />)}
+            {approvedSugs.map((s) => <ApprovedCard key={s.id} item={s} onChange={loadAll} onEdit={() => setChatSuggestionId(s.id)} />)}
           </div>
         </div>
       )}
@@ -381,11 +396,11 @@ export default function AutopilotTab() {
       </div>
 
       {/* Chat dialog */}
-      {chatOpen && pendingSug && (
+      {chatSuggestionId && (
         <ChatRefineDialog
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          suggestionId={pendingSug.id}
+          open={!!chatSuggestionId}
+          onClose={() => setChatSuggestionId(null)}
+          suggestionId={chatSuggestionId}
           onAfterRefine={loadAll}
         />
       )}
@@ -465,7 +480,7 @@ function PendingSuggestionCard({ suggestion, version, onApprove, onDismiss, onOp
   );
 }
 
-function ApprovedCard({ item, onChange }: { item: Suggestion & { version: Version | null }; onChange: () => void }) {
+function ApprovedCard({ item, onChange, onEdit }: { item: Suggestion & { version: Version | null }; onChange: () => void; onEdit: () => void }) {
   const handleDownload = async () => {
     if (!item.version?.image_url) return;
     try {
@@ -493,7 +508,8 @@ function ApprovedCard({ item, onChange }: { item: Suggestion & { version: Versio
       {item.version?.image_url && <img src={item.version.image_url} alt="" className="w-full aspect-square object-cover" />}
       <CardContent className="p-2 space-y-2">
         <p className="text-[10px] text-muted-foreground">{item.suggested_for_date}</p>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-4 gap-1">
+          <Button size="sm" variant="ghost" onClick={onEdit} title="Editar com IA" className="h-7 px-1 text-primary"><Bot className="w-3 h-3" /></Button>
           <Button size="sm" variant="ghost" onClick={handleDownload} className="h-7 px-1"><Download className="w-3 h-3" /></Button>
           <Button size="sm" variant="ghost" onClick={handleCopy} className="h-7 px-1"><Copy className="w-3 h-3" /></Button>
           <Button size="sm" variant="ghost" onClick={handleDelete} className="h-7 px-1 text-destructive"><Trash2 className="w-3 h-3" /></Button>
