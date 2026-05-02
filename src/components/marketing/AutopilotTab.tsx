@@ -76,7 +76,7 @@ export default function AutopilotTab() {
   const [pendingVersion, setPendingVersion] = useState<Version | null>(null);
   const [approvedSugs, setApprovedSugs] = useState<Array<Suggestion & { version: Version | null }>>([]);
   const [extracting, setExtracting] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatSuggestionId, setChatSuggestionId] = useState<string | null>(null);
 
   const restaurantId = restaurant?.id;
   const hasMenu = !!restaurant?.menu_url;
@@ -338,8 +338,23 @@ export default function AutopilotTab() {
           version={pendingVersion}
           onApprove={() => handleApprove("approve")}
           onDismiss={() => handleApprove("dismiss")}
-          onOpenChat={() => setChatOpen(true)}
+          onOpenChat={() => setChatSuggestionId(pendingSug.id)}
         />
+      )}
+
+      {/* Sem post nenhum: incentivar gerar */}
+      {!pendingSug && approvedSugs.length === 0 && eligibleDishesCount > 0 && (
+        <Card className="border-dashed">
+          <CardContent className="p-6 text-center space-y-3">
+            <Bot className="w-8 h-8 text-primary mx-auto" />
+            <div>
+              <p className="font-medium">Nenhum post gerado ainda</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Clique em <strong>"Gerar agora (teste)"</strong> acima pra criar uma arte. Depois você pode abrir o chat e pedir qualquer ajuste pra IA.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Aprovados (fila) */}
@@ -349,7 +364,7 @@ export default function AutopilotTab() {
             <Check className="w-4 h-4 text-green-600" /> Prontos pra postar ({approvedSugs.length})
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {approvedSugs.map((s) => <ApprovedCard key={s.id} item={s} onChange={loadAll} />)}
+            {approvedSugs.map((s) => <ApprovedCard key={s.id} item={s} onChange={loadAll} onEdit={() => setChatSuggestionId(s.id)} />)}
           </div>
         </div>
       )}
@@ -381,11 +396,11 @@ export default function AutopilotTab() {
       </div>
 
       {/* Chat dialog */}
-      {chatOpen && pendingSug && (
+      {chatSuggestionId && (
         <ChatRefineDialog
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          suggestionId={pendingSug.id}
+          open={!!chatSuggestionId}
+          onClose={() => setChatSuggestionId(null)}
+          suggestionId={chatSuggestionId}
           onAfterRefine={loadAll}
         />
       )}
