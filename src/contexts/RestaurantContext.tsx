@@ -7,6 +7,11 @@ interface Restaurant {
   name: string;
   image_url: string | null;
   logo_url: string | null;
+  menu_url?: string | null;
+  menu_image_url?: string | null;
+  social_autopilot_enabled?: boolean;
+  social_autopilot_categories?: string[];
+  menu_dishes_extracted_at?: string | null;
   address_line: string | null;
   cuisine: string;
   owner_id: string | null;
@@ -33,6 +38,11 @@ const DEFAULT_RESTAURANT: Restaurant = {
   name: 'Mocotó',
   image_url: null,
   logo_url: null,
+  menu_url: null,
+  menu_image_url: null,
+  social_autopilot_enabled: false,
+  social_autopilot_categories: ['prato_principal'],
+  menu_dishes_extracted_at: null,
   address_line: null,
   cuisine: 'Outros',
   owner_id: null,
@@ -128,13 +138,13 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         (supabase as any)
           .schema('public')
           .from('restaurants')
-          .select('id, name, image_url, address_line, cuisine, owner_id')
+          .select('id, name, image_url, address_line, cuisine, owner_id, social_autopilot_enabled, social_autopilot_categories, menu_dishes_extracted_at')
           .eq('id', targetRestaurantId)
           .single(),
         (supabase as any)
           .schema('mesaclik')
           .from('restaurants')
-          .select('logo_url')
+          .select('logo_url, menu_url, menu_image_url')
           .eq('id', targetRestaurantId)
           .maybeSingle(),
       ]);
@@ -152,6 +162,8 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
       setRestaurant({
         ...restaurantData,
         logo_url: restaurantBrandingData?.logo_url ?? null,
+        menu_url: restaurantBrandingData?.menu_url ?? null,
+        menu_image_url: restaurantBrandingData?.menu_image_url ?? null,
       });
       
     } catch (err) {
@@ -169,13 +181,13 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         (supabase as any)
           .schema('public')
           .from('restaurants')
-          .select('id, name, image_url, address_line, cuisine, owner_id')
+          .select('id, name, image_url, address_line, cuisine, owner_id, social_autopilot_enabled, social_autopilot_categories, menu_dishes_extracted_at')
           .eq('id', DEFAULT_RESTAURANT_ID)
           .maybeSingle(),
         (supabase as any)
           .schema('mesaclik')
           .from('restaurants')
-          .select('logo_url')
+          .select('logo_url, menu_url, menu_image_url')
           .eq('id', DEFAULT_RESTAURANT_ID)
           .maybeSingle(),
       ]);
@@ -192,6 +204,8 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
           ? {
               ...restaurantData,
               logo_url: restaurantBrandingData?.logo_url ?? null,
+              menu_url: restaurantBrandingData?.menu_url ?? null,
+              menu_image_url: restaurantBrandingData?.menu_image_url ?? null,
             }
           : DEFAULT_RESTAURANT
       );
