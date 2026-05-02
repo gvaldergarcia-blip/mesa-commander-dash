@@ -515,34 +515,50 @@ function ChatRefineDialog({ open, onClose, suggestionId, onAfterRefine }: {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [refining, setRefining] = useState(false);
+  const [forcedAction, setForcedAction] = useState<"image" | "caption" | "both" | null>(null);
+  const [copyText, setCopyText] = useState<string>("");
+  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
-    const [vsR, msgR] = await Promise.all([
+    const [vsR, msgR, sugR] = await Promise.all([
       supabase.from("social_post_versions").select("*").eq("suggestion_id", suggestionId).order("version_number"),
       supabase.from("social_post_chat_messages").select("*").eq("suggestion_id", suggestionId).order("created_at"),
+      supabase.from("social_post_suggestions").select("copy_text, current_version_id").eq("id", suggestionId).maybeSingle(),
     ]);
     const vs = (vsR.data as Version[]) || [];
     setVersions(vs);
-    setActiveIdx(vs.length - 1);
+    const curId = (sugR.data as any)?.current_version_id;
+    setCurrentVersionId(curId || null);
+    const idx = curId ? Math.max(0, vs.findIndex((v) => v.id === curId)) : vs.length - 1;
+    setActiveIdx(idx);
     setMessages((msgR.data as ChatMessage[]) || []);
+    setCopyText((sugR.data as any)?.copy_text || "");
     setLoading(false);
   };
   useEffect(() => { if (open) load(); }, [open, suggestionId]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, refining]);
 
   const handleSend = async () => {
     if (!input.trim() || refining) return;
     const instruction = input.trim();
     setInput("");
     setRefining(true);
+    const action = forcedAction;
+    setForcedAction(null);
     // Optimistic
     setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", content: instruction, version_id: null, created_at: new Date().toISOString() }]);
     try {
-      const { data, error } = await supabase.functions.invoke("social-refine-image", { body: { suggestionId, instruction } });
+      const { data, error } = await supabase.functions.invoke("social-refine-image", { body: { suggestionId, instruction, action } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await load();
       onAfterRefine();
-      toast.success(`v${data?.version?.version_number} gerada!`);
+      if (data?.version) toast.success(`v${data.version.version_number} gerada!`);
+      else if (data?.copy_text) toast.success("Legenda atualizada!");
     } catch (e: any) {
       toast.error(e.message || "Erro ao refinar");
     } finally {
@@ -550,55 +566,131 @@ function ChatRefineDialog({ open, onClose, suggestionId, onAfterRefine }: {
     }
   };
 
+  const handleSetCurrent = async (v: Version) => {
+    const { error } = await supabase.from("social_post_suggestions").update({ current_version_id: v.id }).eq("id", suggestionId);
+    if (error) return toast.error("Erro ao trocar versão");
+    toast.success(`v${v.version_number} marcada como atual`);
+    setCurrentVersionId(v.id);
+    onAfterRefine();
+  };
+
+  const handleSaveCaption = async () => {
+    const { error } = await supabase.from("social_post_suggestions").update({ copy_text: copyText }).eq("id", suggestionId);
+    if (error) return toast.error("Erro ao salvar");
+    toast.success("Legenda salva");
+    onAfterRefine();
+  };
+
+  const QUICK_PROMPTS = [
+    { label: "Fundo mais escuro", action: "image" as const },
+    { label: "Tirar o preço", action: "image" as const },
+    { label: "Mais apetitoso", action: "image" as const },
+    { label: "Legenda mais curta", action: "caption" as const },
+    { label: "Legenda divertida", action: "caption" as const },
+    { label: "Adicionar CTA pra reservar", action: "caption" as const },
+  ];
+
   const activeVersion = versions[activeIdx];
+  const isCurrent = activeVersion?.id === currentVersionId;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Bot className="w-5 h-5 text-primary" /> Editar arte com IA</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Bot className="w-5 h-5 text-primary" /> Editor IA — peça o que quiser</DialogTitle>
         </DialogHeader>
         {loading ? (
           <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden flex-1">
-            {/* Left: image versions */}
-            <div className="flex flex-col items-center gap-3">
-              {activeVersion && <img src={activeVersion.image_url} alt="" className="max-h-[400px] w-auto rounded-lg border" />}
+          <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-4 overflow-hidden flex-1">
+            {/* Left: preview + versions + caption */}
+            <div className="flex flex-col gap-3 overflow-y-auto pr-1">
+              <div className="relative bg-muted/30 rounded-lg border flex items-center justify-center p-2">
+                {activeVersion && <img src={activeVersion.image_url} alt="" className="max-h-[360px] w-auto rounded-md" />}
+                {isCurrent && <Badge className="absolute top-2 left-2 bg-green-600 text-white">Atual</Badge>}
+              </div>
               {versions.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setActiveIdx(Math.max(0, activeIdx - 1))} disabled={activeIdx === 0}><ChevronLeft className="w-4 h-4" /></Button>
-                  <span className="text-xs">v{activeVersion?.version_number} de {versions.length}</span>
-                  <Button size="sm" variant="ghost" onClick={() => setActiveIdx(Math.min(versions.length - 1, activeIdx + 1))} disabled={activeIdx === versions.length - 1}><ChevronRight className="w-4 h-4" /></Button>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => setActiveIdx(Math.max(0, activeIdx - 1))} disabled={activeIdx === 0}><ChevronLeft className="w-4 h-4" /></Button>
+                    <span className="text-xs font-medium tabular-nums">v{activeVersion?.version_number} / {versions.length}</span>
+                    <Button size="sm" variant="ghost" onClick={() => setActiveIdx(Math.min(versions.length - 1, activeIdx + 1))} disabled={activeIdx === versions.length - 1}><ChevronRight className="w-4 h-4" /></Button>
+                  </div>
+                  {!isCurrent && activeVersion && (
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => handleSetCurrent(activeVersion)}>
+                      <RotateCcw className="w-3 h-3" /> Usar esta versão
+                    </Button>
+                  )}
                 </div>
               )}
+              {activeVersion?.edit_instruction && (
+                <p className="text-[11px] text-muted-foreground italic px-1">"{activeVersion.edit_instruction}"</p>
+              )}
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1.5"><Type className="w-3 h-3" /> Legenda do post</Label>
+                <Textarea value={copyText} onChange={(e) => setCopyText(e.target.value)} className="text-xs min-h-[110px] font-mono" />
+                <div className="flex justify-end">
+                  <Button size="sm" variant="outline" className="text-xs gap-1.5" onClick={handleSaveCaption}><Check className="w-3 h-3" /> Salvar legenda manualmente</Button>
+                </div>
+              </div>
             </div>
+
             {/* Right: chat */}
-            <div className="flex flex-col h-full overflow-hidden">
-              <div className="flex-1 overflow-y-auto space-y-2 pr-2 mb-3">
+            <div className="flex flex-col h-full overflow-hidden border-l pl-4">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 pr-1 mb-3">
                 {messages.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic">Diga o que quer mudar. Ex: "deixe o fundo mais escuro", "tire o preço", "coloque um selo de novidade".</p>
+                  <div className="text-xs text-muted-foreground space-y-2">
+                    <p>Converse com a IA. Ela edita imagem, legenda, ou só responde sua pergunta — entende sozinha o que você quer.</p>
+                    <div className="flex flex-wrap gap-1.5 pt-2">
+                      {QUICK_PROMPTS.map((q) => (
+                        <button key={q.label} onClick={() => { setInput(q.label); setForcedAction(q.action); }} className="px-2 py-1 rounded-full bg-muted hover:bg-muted/70 border text-[11px]">
+                          {q.action === "image" ? "🖼" : "✍️"} {q.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 {messages.map((m) => (
                   <div key={m.id} className={`p-2.5 rounded-lg text-sm ${m.role === "user" ? "bg-primary/10 ml-6" : "bg-muted mr-6"}`}>
-                    {m.content}
+                    {m.role === "ai" ? (
+                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-blockquote:my-1">
+                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    )}
                   </div>
                 ))}
                 {refining && (
                   <div className="p-2.5 rounded-lg text-sm bg-muted mr-6 flex items-center gap-2">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Gerando nova versão...
+                    <Loader2 className="w-3 h-3 animate-spin" /> {forcedAction === "caption" ? "Reescrevendo legenda..." : forcedAction === "image" ? "Gerando nova arte..." : "Pensando..."}
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Como quer editar a arte?"
-                  className="text-sm min-h-[60px]"
-                  onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSend(); }}
-                />
-                <Button onClick={handleSend} disabled={refining || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
+              <div className="space-y-2">
+                <div className="flex gap-1.5 items-center">
+                  <span className="text-[10px] text-muted-foreground">Forçar:</span>
+                  <button onClick={() => setForcedAction(forcedAction === "image" ? null : "image")} className={`px-2 py-0.5 rounded text-[10px] border ${forcedAction === "image" ? "bg-primary text-primary-foreground" : "bg-background"}`}>
+                    🖼 Imagem
+                  </button>
+                  <button onClick={() => setForcedAction(forcedAction === "caption" ? null : "caption")} className={`px-2 py-0.5 rounded text-[10px] border ${forcedAction === "caption" ? "bg-primary text-primary-foreground" : "bg-background"}`}>
+                    ✍️ Legenda
+                  </button>
+                  <button onClick={() => setForcedAction(forcedAction === "both" ? null : "both")} className={`px-2 py-0.5 rounded text-[10px] border ${forcedAction === "both" ? "bg-primary text-primary-foreground" : "bg-background"}`}>
+                    <ArrowLeftRight className="w-2.5 h-2.5 inline" /> Ambos
+                  </button>
+                  <span className="text-[10px] text-muted-foreground ml-auto">⌘+Enter envia</span>
+                </div>
+                <div className="flex gap-2">
+                  <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder='Ex: "deixe a foto mais quente", "encurta a legenda e tira hashtag", "que horário fica melhor postar?"'
+                    className="text-sm min-h-[70px]"
+                    onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSend(); }}
+                  />
+                  <Button onClick={handleSend} disabled={refining || !input.trim()} size="icon"><Send className="w-4 h-4" /></Button>
+                </div>
               </div>
             </div>
           </div>
