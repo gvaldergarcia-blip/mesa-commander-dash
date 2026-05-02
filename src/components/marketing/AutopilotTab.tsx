@@ -480,7 +480,7 @@ function PendingSuggestionCard({ suggestion, version, onApprove, onDismiss, onOp
   );
 }
 
-function ApprovedCard({ item, onChange }: { item: Suggestion & { version: Version | null }; onChange: () => void }) {
+function ApprovedCard({ item, onChange, onEdit }: { item: Suggestion & { version: Version | null }; onChange: () => void; onEdit: () => void }) {
   const handleDownload = async () => {
     if (!item.version?.image_url) return;
     try {
@@ -508,7 +508,8 @@ function ApprovedCard({ item, onChange }: { item: Suggestion & { version: Versio
       {item.version?.image_url && <img src={item.version.image_url} alt="" className="w-full aspect-square object-cover" />}
       <CardContent className="p-2 space-y-2">
         <p className="text-[10px] text-muted-foreground">{item.suggested_for_date}</p>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-4 gap-1">
+          <Button size="sm" variant="ghost" onClick={onEdit} title="Editar com IA" className="h-7 px-1 text-primary"><Bot className="w-3 h-3" /></Button>
           <Button size="sm" variant="ghost" onClick={handleDownload} className="h-7 px-1"><Download className="w-3 h-3" /></Button>
           <Button size="sm" variant="ghost" onClick={handleCopy} className="h-7 px-1"><Copy className="w-3 h-3" /></Button>
           <Button size="sm" variant="ghost" onClick={handleDelete} className="h-7 px-1 text-destructive"><Trash2 className="w-3 h-3" /></Button>
