@@ -89,3 +89,15 @@ verify_jwt = false
 
 [functions.validate-checklist-qr]
 verify_jwt = false
+
+[functions.extract-menu-dishes]
+verify_jwt = true
+
+[functions.social-suggest-daily]
+verify_jwt = false
+
+[functions.social-refine-image]
+verify_jwt = true
+
+[functions.social-approve-post]
+verify_jwt = true
