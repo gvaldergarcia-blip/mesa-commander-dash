@@ -15,7 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   Sparkles, Loader2, FileText, Camera, Check, X, Bot, Send,
   ChevronLeft, ChevronRight, Download, Copy, Trash2, Star, StarOff, Settings,
+  ImageIcon, Type, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 type Dish = {
   id: string;
