@@ -300,9 +300,9 @@ export default function AutopilotTab() {
               A IA vai ler seu cardápio e listar todos os pratos por categoria, pra você revisar e marcar os preferidos.
             </p>
           </div>
-          <Button onClick={handleExtractMenu} disabled={extracting} className="gap-2">
-            {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {extracting ? "Analisando cardápio..." : "Analisar cardápio agora"}
+          <Button onClick={handleExtractMenu} disabled={isAnalyzingMenu} className="gap-2">
+            {isAnalyzingMenu ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {isAnalyzingMenu ? "Analisando cardápio..." : "Analisar cardápio agora"}
           </Button>
         </CardContent>
       </Card>
@@ -362,8 +362,8 @@ export default function AutopilotTab() {
                     <span className="text-muted-foreground"> · teste manual usará um prato com foto</span>
                   )}
                 </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleGenerateNow} disabled={extracting || testableDishesCount === 0}>
-                  {extracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleGenerateNow} disabled={isGeneratingNow || testableDishesCount === 0}>
+                  {isGeneratingNow ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   Gerar agora (teste)
                 </Button>
               </div>
@@ -420,8 +420,8 @@ export default function AutopilotTab() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold">Seus pratos ({dishes.length})</h3>
-          <Button size="sm" variant="ghost" onClick={handleExtractMenu} disabled={extracting} className="text-xs gap-1.5">
-            {extracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          <Button size="sm" variant="ghost" onClick={handleExtractMenu} disabled={isAnalyzingMenu} className="text-xs gap-1.5">
+            {isAnalyzingMenu ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
             Re-analisar cardápio
           </Button>
         </div>
