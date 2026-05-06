@@ -12,7 +12,16 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-type RefineAction = "image" | "caption" | "both" | "chat";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+async function callAI(apiKey: string, payload: any) {
+  const r = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return r;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -29,17 +38,15 @@ serve(async (req) => {
     const userClient = createClient(SUPABASE_URL, ANON, {
       global: { headers: { Authorization: auth } },
     });
-    const {
-      data: { user },
-    } = await userClient.auth.getUser();
+    const { data: { user } } = await userClient.auth.getUser();
     if (!user) return json({ error: "Unauthorized" }, 401);
 
     const admin = createClient(SUPABASE_URL, SRK);
     const body = await req.json().catch(() => ({}));
     const suggestionId = String(body.suggestionId || "").slice(0, 36);
     const assetId = String(body.assetId || "").slice(0, 36);
-    const instruction = String(body.instruction || "").trim().slice(0, 1000);
-    const forcedAction = body.action as RefineAction | undefined;
+    const instruction = String(body.instruction || "").trim().slice(0, 2000);
+    const forcedAction = body.action as ("image" | "caption" | "both" | "chat" | null) | undefined;
 
     if ((!suggestionId && !assetId) || !instruction) {
       return json({ error: "suggestionId ou assetId e instruction são obrigatórios" }, 400);
@@ -51,6 +58,8 @@ serve(async (req) => {
     let currentImageUrl = "";
     let currentVersionNumber = 1;
     let currentSuggestionId: string | null = null;
+    let ctx: any = {};
+    let restMeta: any = {};
 
     if (suggestionId) {
       const { data: suggestion } = await admin
@@ -58,39 +67,33 @@ serve(async (req) => {
         .select("id, restaurant_id, current_version_id, copy_text, context_data, restaurants:restaurant_id(owner_id, name, cuisine_type)")
         .eq("id", suggestionId)
         .maybeSingle();
-
       if (!suggestion) return json({ error: "Suggestion not found" }, 404);
-
       ownerId = (suggestion as any).restaurants?.owner_id ?? null;
       restaurantId = suggestion.restaurant_id;
       currentCaption = suggestion.copy_text || "";
       currentSuggestionId = suggestion.id;
-      var ctx: any = (suggestion as any).context_data || {};
-      var restMeta: any = (suggestion as any).restaurants || {};
-
-      const { data: currentVersion } = await admin
+      ctx = (suggestion as any).context_data || {};
+      restMeta = (suggestion as any).restaurants || {};
+      const { data: cv } = await admin
         .from("social_post_versions")
         .select("image_url, version_number")
         .eq("id", suggestion.current_version_id)
         .maybeSingle();
-
-      if (!currentVersion?.image_url) return json({ error: "No current version" }, 404);
-      currentImageUrl = currentVersion.image_url;
-      currentVersionNumber = currentVersion.version_number || 1;
+      if (!cv?.image_url) return json({ error: "No current version" }, 404);
+      currentImageUrl = cv.image_url;
+      currentVersionNumber = cv.version_number || 1;
     } else {
       const { data: asset } = await admin
         .from("promotions_assets")
-        .select("id, restaurant_id, image_url, caption_text, restaurants:restaurant_id(owner_id)")
+        .select("id, restaurant_id, image_url, caption_text, restaurants:restaurant_id(owner_id, name, cuisine_type)")
         .eq("id", assetId)
         .maybeSingle();
-
       if (!asset) return json({ error: "Asset not found" }, 404);
-
       ownerId = (asset as any).restaurants?.owner_id ?? null;
       restaurantId = asset.restaurant_id;
       currentCaption = asset.caption_text || "";
       currentImageUrl = asset.image_url || "";
-
+      restMeta = (asset as any).restaurants || {};
       if (!currentImageUrl) return json({ error: "No current image" }, 404);
     }
 
@@ -99,6 +102,7 @@ serve(async (req) => {
       if (!isAdm) return json({ error: "Forbidden" }, 403);
     }
 
+    // Save user message
     if (currentSuggestionId) {
       await admin.from("social_post_chat_messages").insert({
         suggestion_id: currentSuggestionId,
@@ -107,89 +111,158 @@ serve(async (req) => {
       });
     }
 
-    let action: RefineAction = forcedAction || "chat";
-    if (!forcedAction) {
-      try {
-        const cls = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              {
-                role: "system",
-                content:
-                  'Return only one word: image, caption, both, or chat. image=change image, caption=change only caption, both=change both, chat=answer without changing.',
-              },
-              { role: "user", content: instruction },
-            ],
-          }),
-        });
-        if (cls.ok) {
-          const cj = await cls.json();
-          const word = String(cj.choices?.[0]?.message?.content || "")
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z]/g, "");
-          if (["image", "caption", "both", "chat"].includes(word)) action = word as RefineAction;
-        }
-      } catch (_) {}
+    // Load full chat history (all of it, capped 40)
+    let history: { role: string; content: string }[] = [];
+    if (currentSuggestionId) {
+      const { data: hist } = await admin
+        .from("social_post_chat_messages")
+        .select("role, content, created_at")
+        .eq("suggestion_id", currentSuggestionId)
+        .order("created_at", { ascending: true })
+        .limit(40);
+      history = (hist || []).map((m: any) => ({
+        role: m.role === "ai" ? "assistant" : "user",
+        content: m.content,
+      }));
     }
 
-    const result: Record<string, unknown> = { success: true, action };
-    let newCaption: string | null = null;
+    const dishName = (ctx?.dish_name || ctx?.dish?.name || "").toString();
+    const headline = (ctx?.headline || ctx?.theme_headline || "").toString();
+    const theme = (ctx?.theme || ctx?.theme_name || "").toString();
+    const restName = (restMeta?.name || "").toString();
+    const cuisine = (restMeta?.cuisine_type || "").toString();
+
+    const systemPrompt = `Você é o Editor IA do MesaClik — um assistente de marketing especialista em Instagram para restaurantes brasileiros. Você está conversando com o dono do restaurante para ajustar um post (1:1) que ele vai publicar.
+
+CONTEXTO DO POST ATUAL:
+- Restaurante: ${restName}${cuisine ? ` (${cuisine})` : ""}
+${dishName ? `- Prato em destaque: ${dishName}` : ""}
+${theme ? `- Tema: ${theme}` : ""}
+${headline ? `- Headline na imagem: "${headline}"` : ""}
+- Legenda atual: """${currentCaption || "(vazia)"}"""
+
+VOCÊ TEM 3 FERRAMENTAS:
+1. edit_image — quando o dono pedir QUALQUER mudança visual (cor, fundo, iluminação, composição, texto na imagem, adicionar/remover elementos visuais).
+2. rewrite_caption — quando o dono pedir mudança no TEXTO da legenda do post (encurtar, mudar tom, adicionar CTA, hashtags).
+3. (sem ferramenta) — quando ele só fizer pergunta, pedir opinião, conselho de marketing, dúvida sobre horário/estratégia. Aí você responde em texto natural, com markdown, curto e direto.
+
+REGRAS:
+- Decida sozinho qual ferramenta usar (ou nenhuma) com base no pedido. Se o pedido envolver imagem E legenda, chame as duas ferramentas.
+- Use o histórico completo da conversa para entender o contexto acumulado. Se o dono já pediu "fundo escuro" antes e agora diz "agora mais quente", aplique AMBOS.
+- Para edit_image: descreva a edição em português, sendo específico, mantendo o prato e a composição base, a menos que ele peça pra trocar.
+- Para rewrite_caption: a nova legenda DEVE manter o estilo brasileiro, ter emoji se fizer sentido, hashtags relevantes no fim, e seguir o pedido do dono. Retorne só o texto da legenda.
+- Quando responder em texto (sem ferramenta), seja simpático, use markdown, dê dicas práticas. Você pode comentar a imagem porque você a está vendo.
+- NUNCA invente dados do restaurante. Use só o que está no contexto acima.
+- Português do Brasil sempre.`;
+
+    // Build messages — last user message includes the current image so the AI can SEE it
+    const messages: any[] = [
+      { role: "system", content: systemPrompt },
+      ...history.slice(0, -1).map((m) => ({ role: m.role, content: m.content })),
+      {
+        role: "user",
+        content: [
+          { type: "text", text: `Imagem atual do post (v${currentVersionNumber}):` },
+          { type: "image_url", image_url: { url: currentImageUrl } },
+          { type: "text", text: instruction },
+        ],
+      },
+    ];
+
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "edit_image",
+          description: "Edita a imagem atual do post aplicando a mudança visual pedida pelo dono. Use sempre que o pedido envolver qualquer aspecto visual.",
+          parameters: {
+            type: "object",
+            properties: {
+              edit_description: {
+                type: "string",
+                description: "Descrição clara em português do que mudar na imagem, considerando todo o histórico de ajustes da conversa. Seja específico mas conservador (não troque o prato a não ser que peçam).",
+              },
+            },
+            required: ["edit_description"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "rewrite_caption",
+          description: "Reescreve a legenda do post conforme pedido. Use sempre que o pedido envolver mudar o texto/legenda.",
+          parameters: {
+            type: "object",
+            properties: {
+              new_caption: {
+                type: "string",
+                description: "A nova legenda completa (texto + emoji + hashtags). Retorne pronta pra publicar.",
+              },
+            },
+            required: ["new_caption"],
+            additionalProperties: false,
+          },
+        },
+      },
+    ];
+
+    // Tool choice: if forcedAction is set, force it; else let AI decide
+    let toolChoice: any = "auto";
+    if (forcedAction === "image") toolChoice = { type: "function", function: { name: "edit_image" } };
+    else if (forcedAction === "caption") toolChoice = { type: "function", function: { name: "rewrite_caption" } };
+    else if (forcedAction === "chat") toolChoice = "none";
+
+    const aiResp = await callAI(LOVABLE_API_KEY, {
+      model: "google/gemini-3-flash-preview",
+      messages,
+      tools,
+      tool_choice: toolChoice,
+    });
+
+    if (!aiResp.ok) {
+      if (aiResp.status === 429) return json({ error: "Limite de requisições. Tente em alguns segundos." }, 429);
+      if (aiResp.status === 402) return json({ error: "Créditos de IA insuficientes." }, 402);
+      const errTxt = await aiResp.text();
+      console.error("AI planner error:", aiResp.status, errTxt);
+      return json({ error: "Falha ao processar pedido" }, 500);
+    }
+
+    const aiJson = await aiResp.json();
+    const choice = aiJson.choices?.[0]?.message;
+    const toolCalls = choice?.tool_calls || [];
+    let assistantText = String(choice?.content || "").trim();
+
     let newVersion: any = null;
+    let newCaption: string | null = null;
+    const result: Record<string, unknown> = { success: true };
 
-    if (action === "image" || action === "both") {
-      // Recupera histórico curto do chat para a IA acumular ajustes
-      let priorEdits = "";
-      if (currentSuggestionId) {
-        const { data: hist } = await admin
-          .from("social_post_chat_messages")
-          .select("role, content, created_at")
-          .eq("suggestion_id", currentSuggestionId)
-          .order("created_at", { ascending: false })
-          .limit(8);
-        if (hist && hist.length) {
-          priorEdits = hist
-            .reverse()
-            .filter((m: any) => m.role === "user")
-            .map((m: any) => `- ${m.content}`)
-            .join("\n");
-        }
-      }
+    // Execute tool calls
+    for (const tc of toolCalls) {
+      const fname = tc.function?.name;
+      let args: any = {};
+      try { args = JSON.parse(tc.function?.arguments || "{}"); } catch {}
 
-      const dishName = (ctx?.dish_name || ctx?.dish?.name || "").toString();
-      const headline = (ctx?.headline || ctx?.theme_headline || "").toString();
-      const theme = (ctx?.theme || ctx?.theme_name || "").toString();
-      const restName = (restMeta?.name || "").toString();
-      const cuisine = (restMeta?.cuisine_type || "").toString();
+      if (fname === "edit_image") {
+        const editDesc = String(args.edit_description || instruction);
+        const editPrompt = [
+          `Você está editando uma peça de Instagram (1:1) de um restaurante brasileiro.`,
+          restName ? `Restaurante: ${restName}${cuisine ? ` (${cuisine})` : ""}.` : "",
+          dishName ? `Prato em destaque: ${dishName}.` : "",
+          headline ? `Headline JÁ EXISTENTE na imagem: "${headline}". Mantenha esse texto exatamente igual, no mesmo lugar e estilo, a menos que o pedido peça para mudá-lo.` : "",
+          ``,
+          `EDIÇÃO PEDIDA:`,
+          editDesc,
+          ``,
+          `REGRAS:`,
+          `- Mantenha o prato e a composição base, a não ser que o pedido peça mudança explícita.`,
+          `- Estilo: foto realista, food photography profissional. NUNCA cartoon/3D/ilustração.`,
+          `- Quadrado 1:1, alta resolução. Sem marca d'água, sem moldura.`,
+          `- Texto em português do Brasil, sem erros de ortografia, sem letras tortas.`,
+        ].filter(Boolean).join("\n");
 
-      const editPrompt = [
-        `Você está editando uma peça de Instagram (1:1) de um restaurante brasileiro.`,
-        restName ? `Restaurante: ${restName}${cuisine ? ` (${cuisine})` : ""}.` : "",
-        dishName ? `Prato em destaque: ${dishName}.` : "",
-        theme ? `Tema da semana: ${theme}.` : "",
-        headline ? `Headline que JÁ EXISTE na imagem: "${headline}". Mantenha esse texto exatamente igual, no mesmo lugar, mesma fonte, mesmo tamanho e mesma cor — só ajuste se o pedido pedir explicitamente.` : "",
-        ``,
-        `PEDIDO ATUAL DO DONO (faça exatamente isto, e nada além):`,
-        instruction,
-        ``,
-        priorEdits ? `Ajustes anteriores já aplicados (mantenha-os, só some o pedido atual em cima):\n${priorEdits}` : "",
-        ``,
-        `REGRAS OBRIGATÓRIAS:`,
-        `- NÃO troque o prato. NÃO mude a comida que aparece na foto.`,
-        `- Mantenha o enquadramento, a composição e o ângulo da câmera atuais, a menos que o pedido peça mudança explícita.`,
-        `- Mantenha qualquer texto/headline/handle do restaurante já presente, em português do Brasil, sem erros de ortografia, sem letras tortas ou inventadas.`,
-        `- Estilo: foto realista, apetitosa, iluminação profissional de food photography. NUNCA estilo cartoon, ilustração ou 3D.`,
-        `- Formato: quadrado 1:1, alta resolução, sem marca d'água, sem logos falsos, sem moldura.`,
-        `- Se o pedido for ambíguo, faça a interpretação mais conservadora (mexa o mínimo possível).`,
-      ].filter(Boolean).join("\n");
-
-      const imgResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        const imgResp = await callAI(LOVABLE_API_KEY, {
           model: "google/gemini-3-pro-image-preview",
           messages: [
             {
@@ -201,126 +274,90 @@ serve(async (req) => {
             },
           ],
           modalities: ["image", "text"],
-        }),
-      });
+        });
 
-      if (!imgResp.ok) {
-        if (imgResp.status === 429) return json({ error: "Limite de requisições. Tente em alguns segundos." }, 429);
-        if (imgResp.status === 402) return json({ error: "Créditos de IA insuficientes." }, 402);
-        return json({ error: "Falha ao editar imagem" }, 500);
-      }
-
-      const imgJson = await imgResp.json();
-      const base64 = imgJson.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      if (!base64) return json({ error: "Nenhuma imagem gerada" }, 500);
-
-      const b64data = base64.replace(/^data:image\/\w+;base64,/, "");
-      const bytes = Uint8Array.from(atob(b64data), (c) => c.charCodeAt(0));
-      const fileName = `${restaurantId}/${crypto.randomUUID()}.png`;
-      const { error: upErr } = await admin.storage.from("promotion-images").upload(fileName, bytes, { contentType: "image/png" });
-      if (upErr) return json({ error: "Falha ao salvar imagem" }, 500);
-      const { data: pub } = admin.storage.from("promotion-images").getPublicUrl(fileName);
-
-      if (currentSuggestionId) {
-        const { data: nv, error: insErr } = await admin
-          .from("social_post_versions")
-          .insert({
-            suggestion_id: currentSuggestionId,
-            version_number: currentVersionNumber + 1,
-            image_url: pub.publicUrl,
-            prompt_used: editPrompt,
-            edit_instruction: instruction,
-          })
-          .select("*")
-          .single();
-        if (insErr) return json({ error: "Erro ao salvar versão" }, 500);
-        await admin.from("social_post_suggestions").update({ current_version_id: nv.id }).eq("id", currentSuggestionId);
-        newVersion = nv;
-        result.version = nv;
-      } else {
-        const { error: updErr } = await admin.from("promotions_assets").update({ image_url: pub.publicUrl }).eq("id", assetId);
-        if (updErr) return json({ error: "Erro ao salvar imagem" }, 500);
-        result.image_url = pub.publicUrl;
-      }
-
-      currentImageUrl = pub.publicUrl;
-    }
-
-    if (action === "caption" || action === "both") {
-      const capResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Você é um copywriter de Instagram para restaurantes brasileiros. Reescreva a legenda obedecendo exatamente o pedido do restaurante. Responda apenas com a nova legenda.",
-            },
-            { role: "user", content: `Legenda atual:\n\"\"\"${currentCaption || "(vazia)"}\"\"\"\n\nPedido: ${instruction}` },
-          ],
-        }),
-      });
-
-      if (!capResp.ok) {
-        if (capResp.status === 429) return json({ error: "Limite de requisições. Tente em alguns segundos." }, 429);
-        if (capResp.status === 402) return json({ error: "Créditos de IA insuficientes." }, 402);
-        return json({ error: "Falha ao reescrever legenda" }, 500);
-      }
-
-      const cj = await capResp.json();
-      newCaption = String(cj.choices?.[0]?.message?.content || "").trim();
-      if (newCaption) {
-        if (currentSuggestionId) {
-          await admin.from("social_post_suggestions").update({ copy_text: newCaption }).eq("id", currentSuggestionId);
-        } else {
-          await admin.from("promotions_assets").update({ caption_text: newCaption }).eq("id", assetId);
+        if (!imgResp.ok) {
+          if (imgResp.status === 429) return json({ error: "Limite de requisições. Tente em alguns segundos." }, 429);
+          if (imgResp.status === 402) return json({ error: "Créditos de IA insuficientes." }, 402);
+          const t = await imgResp.text();
+          console.error("Image edit error:", imgResp.status, t);
+          return json({ error: "Falha ao editar imagem" }, 500);
         }
-        result.copy_text = newCaption;
+        const imgJson = await imgResp.json();
+        const base64 = imgJson.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (!base64) return json({ error: "Nenhuma imagem gerada" }, 500);
+
+        const b64data = base64.replace(/^data:image\/\w+;base64,/, "");
+        const bytes = Uint8Array.from(atob(b64data), (c) => c.charCodeAt(0));
+        const fileName = `${restaurantId}/${crypto.randomUUID()}.png`;
+        const { error: upErr } = await admin.storage.from("promotion-images").upload(fileName, bytes, { contentType: "image/png" });
+        if (upErr) return json({ error: "Falha ao salvar imagem" }, 500);
+        const { data: pub } = admin.storage.from("promotion-images").getPublicUrl(fileName);
+
+        if (currentSuggestionId) {
+          const { data: nv, error: insErr } = await admin
+            .from("social_post_versions")
+            .insert({
+              suggestion_id: currentSuggestionId,
+              version_number: currentVersionNumber + 1,
+              image_url: pub.publicUrl,
+              prompt_used: editPrompt,
+              edit_instruction: instruction,
+            })
+            .select("*")
+            .single();
+          if (insErr) return json({ error: "Erro ao salvar versão" }, 500);
+          await admin.from("social_post_suggestions").update({ current_version_id: nv.id }).eq("id", currentSuggestionId);
+          newVersion = nv;
+          result.version = nv;
+        } else {
+          await admin.from("promotions_assets").update({ image_url: pub.publicUrl }).eq("id", assetId);
+          result.image_url = pub.publicUrl;
+        }
+      } else if (fname === "rewrite_caption") {
+        newCaption = String(args.new_caption || "").trim();
+        if (newCaption) {
+          if (currentSuggestionId) {
+            await admin.from("social_post_suggestions").update({ copy_text: newCaption }).eq("id", currentSuggestionId);
+          } else {
+            await admin.from("promotions_assets").update({ caption_text: newCaption }).eq("id", assetId);
+          }
+          result.copy_text = newCaption;
+        }
       }
     }
 
-    let aiReply = "";
-    if (action === "chat") {
-      const chatResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Você é o assistente de marketing do MesaClik. Responda em português do Brasil, curto e útil, focado em como melhorar a arte atual conforme o pedido do restaurante.",
-            },
-            { role: "user", content: `Legenda atual: \"${currentCaption || ""}\"\n\nPedido: ${instruction}` },
-          ],
-        }),
-      });
-      if (chatResp.ok) {
-        const cj = await chatResp.json();
-        aiReply = String(cj.choices?.[0]?.message?.content || "").trim();
-      }
-      if (!aiReply) aiReply = "Me diga exatamente o que você quer mudar na imagem e eu ajusto.";
-    } else {
+    // Build final message: AI's text + tool summaries
+    if (!assistantText) {
       const parts: string[] = [];
-      if (newVersion) parts.push(`✅ Gerei a v${newVersion.version_number} com o ajuste pedido.`);
-      else if (result.image_url) parts.push("✅ Atualizei a imagem com o ajuste pedido.");
-      if (newCaption) parts.push(`✅ Atualizei a legenda.\n\n${newCaption}`);
-      aiReply = parts.join("\n\n") || "Feito.";
+      if (newVersion) parts.push(`✨ Pronto — gerei a **v${newVersion.version_number}** com o ajuste pedido. Dá uma olhada e me diz se quer refinar mais.`);
+      else if (result.image_url) parts.push("✨ Atualizei a imagem com o ajuste pedido.");
+      if (newCaption) parts.push(`📝 Atualizei a legenda:\n\n${newCaption}`);
+      assistantText = parts.join("\n\n") || "Feito.";
+    } else if (newVersion || newCaption || result.image_url) {
+      const tags: string[] = [];
+      if (newVersion) tags.push(`✨ v${newVersion.version_number} gerada`);
+      else if (result.image_url) tags.push("✨ imagem atualizada");
+      if (newCaption) tags.push("📝 legenda atualizada");
+      assistantText = `${tags.join(" · ")}\n\n${assistantText}`;
     }
 
     if (currentSuggestionId) {
       await admin.from("social_post_chat_messages").insert({
         suggestion_id: currentSuggestionId,
         role: "ai",
-        content: aiReply,
+        content: assistantText,
         version_id: newVersion?.id || null,
       });
     }
 
-    result.ai_message = aiReply;
+    result.ai_message = assistantText;
+    result.action = toolCalls.length
+      ? (toolCalls.find((t: any) => t.function?.name === "edit_image") && toolCalls.find((t: any) => t.function?.name === "rewrite_caption")
+        ? "both"
+        : toolCalls[0].function?.name === "edit_image" ? "image" : "caption")
+      : "chat";
+
     return json(result, 200);
   } catch (e) {
     console.error("social-refine-image error:", e);
