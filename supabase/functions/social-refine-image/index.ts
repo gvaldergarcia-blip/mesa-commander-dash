@@ -55,7 +55,7 @@ serve(async (req) => {
     if (suggestionId) {
       const { data: suggestion } = await admin
         .from("social_post_suggestions")
-        .select("id, restaurant_id, current_version_id, copy_text, restaurants:restaurant_id(owner_id)")
+        .select("id, restaurant_id, current_version_id, copy_text, context_data, restaurants:restaurant_id(owner_id, name, cuisine_type)")
         .eq("id", suggestionId)
         .maybeSingle();
 
@@ -65,6 +65,8 @@ serve(async (req) => {
       restaurantId = suggestion.restaurant_id;
       currentCaption = suggestion.copy_text || "";
       currentSuggestionId = suggestion.id;
+      var ctx: any = (suggestion as any).context_data || {};
+      var restMeta: any = (suggestion as any).restaurants || {};
 
       const { data: currentVersion } = await admin
         .from("social_post_versions")
@@ -139,7 +141,50 @@ serve(async (req) => {
     let newVersion: any = null;
 
     if (action === "image" || action === "both") {
-      const editPrompt = `Edite a imagem anexada do post de restaurante obedecendo exatamente este pedido do dono:\n\n${instruction}\n\nRegras:\n- preserve o prato realista e apetitoso\n- respeite a identidade do restaurante\n- texto sempre em português do Brasil\n- formato quadrado 1:1\n- sem marca d'água`;
+      // Recupera histórico curto do chat para a IA acumular ajustes
+      let priorEdits = "";
+      if (currentSuggestionId) {
+        const { data: hist } = await admin
+          .from("social_post_chat_messages")
+          .select("role, content, created_at")
+          .eq("suggestion_id", currentSuggestionId)
+          .order("created_at", { ascending: false })
+          .limit(8);
+        if (hist && hist.length) {
+          priorEdits = hist
+            .reverse()
+            .filter((m: any) => m.role === "user")
+            .map((m: any) => `- ${m.content}`)
+            .join("\n");
+        }
+      }
+
+      const dishName = (ctx?.dish_name || ctx?.dish?.name || "").toString();
+      const headline = (ctx?.headline || ctx?.theme_headline || "").toString();
+      const theme = (ctx?.theme || ctx?.theme_name || "").toString();
+      const restName = (restMeta?.name || "").toString();
+      const cuisine = (restMeta?.cuisine_type || "").toString();
+
+      const editPrompt = [
+        `Você está editando uma peça de Instagram (1:1) de um restaurante brasileiro.`,
+        restName ? `Restaurante: ${restName}${cuisine ? ` (${cuisine})` : ""}.` : "",
+        dishName ? `Prato em destaque: ${dishName}.` : "",
+        theme ? `Tema da semana: ${theme}.` : "",
+        headline ? `Headline que JÁ EXISTE na imagem: "${headline}". Mantenha esse texto exatamente igual, no mesmo lugar, mesma fonte, mesmo tamanho e mesma cor — só ajuste se o pedido pedir explicitamente.` : "",
+        ``,
+        `PEDIDO ATUAL DO DONO (faça exatamente isto, e nada além):`,
+        instruction,
+        ``,
+        priorEdits ? `Ajustes anteriores já aplicados (mantenha-os, só some o pedido atual em cima):\n${priorEdits}` : "",
+        ``,
+        `REGRAS OBRIGATÓRIAS:`,
+        `- NÃO troque o prato. NÃO mude a comida que aparece na foto.`,
+        `- Mantenha o enquadramento, a composição e o ângulo da câmera atuais, a menos que o pedido peça mudança explícita.`,
+        `- Mantenha qualquer texto/headline/handle do restaurante já presente, em português do Brasil, sem erros de ortografia, sem letras tortas ou inventadas.`,
+        `- Estilo: foto realista, apetitosa, iluminação profissional de food photography. NUNCA estilo cartoon, ilustração ou 3D.`,
+        `- Formato: quadrado 1:1, alta resolução, sem marca d'água, sem logos falsos, sem moldura.`,
+        `- Se o pedido for ambíguo, faça a interpretação mais conservadora (mexa o mínimo possível).`,
+      ].filter(Boolean).join("\n");
 
       const imgResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
