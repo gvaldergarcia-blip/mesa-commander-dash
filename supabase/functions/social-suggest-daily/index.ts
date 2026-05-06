@@ -104,7 +104,8 @@ serve(async (req) => {
 
         const enabledCategories = (r.social_autopilot_categories?.length ? r.social_autopilot_categories : ["prato_principal"]) as string[];
 
-        // Pick a dish: featured + has photo + matches categories, rotate by last_used_at
+        // Pick a dish. Weekly automation stays strict (featured + photo), but a manual
+        // test run can fall back to any dish with photo so the user can validate image generation.
         const { data: dishes } = await admin
           .from("restaurant_dishes")
           .select("*")
@@ -116,7 +117,22 @@ serve(async (req) => {
           .order("times_used_in_posts", { ascending: true })
           .limit(1);
 
-        const dish = dishes?.[0];
+        let dish = dishes?.[0];
+
+        if (!dish && onlyRestaurantId) {
+          const { data: fallbackDishes } = await admin
+            .from("restaurant_dishes")
+            .select("*")
+            .eq("restaurant_id", r.id)
+            .not("dish_photo_url", "is", null)
+            .in("category", enabledCategories)
+            .order("last_used_at", { ascending: true, nullsFirst: true })
+            .order("times_used_in_posts", { ascending: true })
+            .limit(1);
+
+          dish = fallbackDishes?.[0];
+        }
+
         if (!dish) { results.push({ restaurant: r.id, skipped: "no_eligible_dish" }); continue; }
 
         // Generate copy via AI — alinhada ao tema branding da semana

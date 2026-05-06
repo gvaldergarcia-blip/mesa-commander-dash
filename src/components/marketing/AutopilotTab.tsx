@@ -237,6 +237,11 @@ export default function AutopilotTab() {
     [dishes, enabledCats]
   );
 
+  const testableDishesCount = useMemo(
+    () => dishes.filter((d) => d.dish_photo_url && enabledCats.includes(d.category)).length,
+    [dishes, enabledCats]
+  );
+
   // ──────────────── RENDER ────────────────
   if (loading) {
     return <div className="flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
@@ -336,14 +341,17 @@ export default function AutopilotTab() {
                 <div className="text-xs">
                   <span className="font-semibold">{eligibleDishesCount}</span> {eligibleDishesCount === 1 ? "prato elegível" : "pratos elegíveis"}
                   <span className="text-muted-foreground"> (com foto + destaque + categoria ativa)</span>
+                  {eligibleDishesCount === 0 && testableDishesCount > 0 && (
+                    <span className="text-muted-foreground"> · teste manual usará um prato com foto</span>
+                  )}
                 </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleGenerateNow} disabled={extracting || eligibleDishesCount === 0}>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleGenerateNow} disabled={extracting || testableDishesCount === 0}>
                   {extracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   Gerar agora (teste)
                 </Button>
               </div>
 
-              {eligibleDishesCount === 0 && (
+              {testableDishesCount === 0 && (
                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
                   ⚠️ Nenhum prato elegível ainda. Marque pratos com ⭐ e adicione fotos reais abaixo.
                 </div>
