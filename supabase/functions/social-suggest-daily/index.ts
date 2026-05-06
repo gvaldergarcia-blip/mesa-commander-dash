@@ -55,14 +55,25 @@ serve(async (req) => {
     const onlyRestaurantId = body?.restaurantId ? String(body.restaurantId) : null;
     const forceNew = !!body?.force; // ignora dedupe semanal
 
-    // Find eligible restaurants (autopilot ON)
+    // Find eligible restaurants (autopilot ON). Manual test should target the restaurant
+    // even if its lifecycle status is "approved" instead of "active".
     let q = admin.from("restaurants")
       .select("id, name, address, image_url, social_autopilot_enabled, social_autopilot_categories, cuisine, status")
-      .eq("social_autopilot_enabled", true)
-      .eq("status", "active");
+      .eq("social_autopilot_enabled", true);
     if (onlyRestaurantId) q = q.eq("id", onlyRestaurantId);
+    else q = q.in("status", ["active", "approved"]);
     const { data: restaurants, error: rErr } = await q;
     if (rErr) throw rErr;
+
+    if (onlyRestaurantId && (!restaurants || restaurants.length === 0)) {
+      return new Response(JSON.stringify({
+        processed: 0,
+        results: [{ restaurant: onlyRestaurantId, error: "restaurant_not_eligible", detail: "Auto-pilot desativado ou restaurante não encontrado para geração de teste." }],
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const results: any[] = [];
     const today = new Date();
