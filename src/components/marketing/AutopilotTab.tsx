@@ -76,7 +76,8 @@ export default function AutopilotTab() {
   const [pendingSug, setPendingSug] = useState<Suggestion | null>(null);
   const [pendingVersion, setPendingVersion] = useState<Version | null>(null);
   const [approvedSugs, setApprovedSugs] = useState<Array<Suggestion & { version: Version | null }>>([]);
-  const [extracting, setExtracting] = useState(false);
+  const [isAnalyzingMenu, setIsAnalyzingMenu] = useState(false);
+  const [isGeneratingNow, setIsGeneratingNow] = useState(false);
   const [chatSuggestionId, setChatSuggestionId] = useState<string | null>(null);
 
   const restaurantId = restaurant?.id;
@@ -88,52 +89,68 @@ export default function AutopilotTab() {
   const loadAll = async () => {
     if (!restaurantId) return;
     setLoading(true);
-    const [dishesR, pendingR, approvedR] = await Promise.all([
-      supabase.from("restaurant_dishes").select("*").eq("restaurant_id", restaurantId).order("category").order("name"),
-      supabase
-        .from("social_post_suggestions")
-        .select("*")
-        .eq("restaurant_id", restaurantId)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("social_post_suggestions")
-        .select("*")
-        .eq("restaurant_id", restaurantId)
-        .eq("status", "approved")
-        .order("approved_at", { ascending: false }),
-    ]);
-    setDishes((dishesR.data as Dish[]) || []);
-    setPendingSug((pendingR.data as Suggestion) || null);
-    if (pendingR.data?.current_version_id) {
-      const { data: v } = await supabase
-        .from("social_post_versions")
-        .select("*")
-        .eq("id", pendingR.data.current_version_id)
-        .maybeSingle();
-      setPendingVersion((v as Version) || null);
-    } else {
-      setPendingVersion(null);
+    try {
+      const [dishesR, pendingR, approvedR] = await Promise.all([
+        supabase.from("restaurant_dishes").select("*").eq("restaurant_id", restaurantId).order("category").order("name"),
+        supabase
+          .from("social_post_suggestions")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("social_post_suggestions")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .eq("status", "approved")
+          .order("approved_at", { ascending: false }),
+      ]);
+
+      if (dishesR.error) throw dishesR.error;
+      if (pendingR.error) throw pendingR.error;
+      if (approvedR.error) throw approvedR.error;
+
+      const nextDishes = (dishesR.data as Dish[]) || [];
+      const nextPending = (pendingR.data as Suggestion) || null;
+      const approved = (approvedR.data as Suggestion[]) || [];
+
+      let nextPendingVersion: Version | null = null;
+      if (nextPending?.current_version_id) {
+        const { data: v, error: vErr } = await supabase
+          .from("social_post_versions")
+          .select("*")
+          .eq("id", nextPending.current_version_id)
+          .maybeSingle();
+        if (vErr) throw vErr;
+        nextPendingVersion = (v as Version) || null;
+      }
+
+      const versionIds = approved.map((s) => s.current_version_id).filter(Boolean) as string[];
+      const versionsMap: Record<string, Version> = {};
+      if (versionIds.length) {
+        const { data: vs, error: vsErr } = await supabase.from("social_post_versions").select("*").in("id", versionIds);
+        if (vsErr) throw vsErr;
+        (vs as Version[] | null)?.forEach((v) => { versionsMap[v.id] = v; });
+      }
+
+      setDishes(nextDishes);
+      setPendingSug(nextPending);
+      setPendingVersion(nextPendingVersion);
+      setApprovedSugs(approved.map((s) => ({ ...s, version: s.current_version_id ? versionsMap[s.current_version_id] || null : null })));
+    } catch (e) {
+      console.error("[AutopilotTab] loadAll failed; preserving previous state", e);
+    } finally {
+      setLoading(false);
     }
-    // Hydrate approved with their current version
-    const approved = (approvedR.data as Suggestion[]) || [];
-    const versionIds = approved.map((s) => s.current_version_id).filter(Boolean) as string[];
-    let versionsMap: Record<string, Version> = {};
-    if (versionIds.length) {
-      const { data: vs } = await supabase.from("social_post_versions").select("*").in("id", versionIds);
-      (vs as Version[] | null)?.forEach((v) => { versionsMap[v.id] = v; });
-    }
-    setApprovedSugs(approved.map((s) => ({ ...s, version: s.current_version_id ? versionsMap[s.current_version_id] || null : null })));
-    setLoading(false);
   };
 
   useEffect(() => { loadAll(); }, [restaurantId]);
 
   // ─── Actions ───
   const handleExtractMenu = async () => {
-    setExtracting(true);
+    setIsAnalyzingMenu(true);
     try {
       const { data, error } = await supabase.functions.invoke("extract-menu-dishes", { body: { restaurantId } });
       if (error) throw error;
@@ -162,7 +179,7 @@ export default function AutopilotTab() {
 
       toast.error(message);
     } finally {
-      setExtracting(false);
+      setIsAnalyzingMenu(false);
     }
   };
 
@@ -204,7 +221,7 @@ export default function AutopilotTab() {
   };
 
   const handleGenerateNow = async () => {
-    setExtracting(true);
+    setIsGeneratingNow(true);
     try {
       const { data, error } = await supabase.functions.invoke("social-suggest-daily", { body: { restaurantId } });
       if (error) throw error;
@@ -219,7 +236,7 @@ export default function AutopilotTab() {
     } catch (e: any) {
       toast.error(e.message || "Erro ao gerar");
     } finally {
-      setExtracting(false);
+      setIsGeneratingNow(false);
     }
   };
 
@@ -283,9 +300,9 @@ export default function AutopilotTab() {
               A IA vai ler seu cardápio e listar todos os pratos por categoria, pra você revisar e marcar os preferidos.
             </p>
           </div>
-          <Button onClick={handleExtractMenu} disabled={extracting} className="gap-2">
-            {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {extracting ? "Analisando cardápio..." : "Analisar cardápio agora"}
+          <Button onClick={handleExtractMenu} disabled={isAnalyzingMenu} className="gap-2">
+            {isAnalyzingMenu ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {isAnalyzingMenu ? "Analisando cardápio..." : "Analisar cardápio agora"}
           </Button>
         </CardContent>
       </Card>
@@ -345,8 +362,8 @@ export default function AutopilotTab() {
                     <span className="text-muted-foreground"> · teste manual usará um prato com foto</span>
                   )}
                 </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleGenerateNow} disabled={extracting || testableDishesCount === 0}>
-                  {extracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={handleGenerateNow} disabled={isGeneratingNow || testableDishesCount === 0}>
+                  {isGeneratingNow ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                   Gerar agora (teste)
                 </Button>
               </div>
@@ -403,8 +420,8 @@ export default function AutopilotTab() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold">Seus pratos ({dishes.length})</h3>
-          <Button size="sm" variant="ghost" onClick={handleExtractMenu} disabled={extracting} className="text-xs gap-1.5">
-            {extracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          <Button size="sm" variant="ghost" onClick={handleExtractMenu} disabled={isAnalyzingMenu} className="text-xs gap-1.5">
+            {isAnalyzingMenu ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
             Re-analisar cardápio
           </Button>
         </div>
