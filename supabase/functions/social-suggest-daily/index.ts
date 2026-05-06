@@ -8,6 +8,38 @@ const corsHeaders = {
 
 const DAYS_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
+// Estratégia de branding: cada semana usa um tema/headline diferente.
+// Rotaciona por número da semana ISO para garantir variação semanal previsível.
+const WEEK_THEMES: Array<{
+  theme: string;
+  headlineTemplate: (dishName: string) => string;
+  copyTone: string;
+}> = [
+  { theme: "Destaque da Semana", headlineTemplate: (d) => `Destaque da semana: ${d}`, copyTone: "Posicione como o prato em alta da semana — vibe acolhedora e convidativa." },
+  { theme: "Clássico da Casa", headlineTemplate: (d) => `Clássico da casa`, copyTone: "Tom nostálgico e tradicional, reforce a herança e a receita testada pelo tempo." },
+  { theme: "Pedido do Chef", headlineTemplate: (d) => `Pedido do chef`, copyTone: "Tom autoral e premium, sugestão pessoal do chef, com confiança e elegância." },
+  { theme: "Sabor que Marca", headlineTemplate: (d) => `Sabor que marca`, copyTone: "Tom emocional e sensorial, foco em memória afetiva e experiência única." },
+  { theme: "Feito pra Você", headlineTemplate: (d) => `Feito pra você`, copyTone: "Tom próximo e caloroso, hospitalidade brasileira, convite irresistível." },
+  { theme: "Imperdível da Semana", headlineTemplate: (d) => `Imperdível`, copyTone: "Tom de urgência leve, oportunidade da semana, escassez sutil." },
+];
+
+function getISOWeek(date: Date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+function startOfISOWeek(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day; // Monday as start
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -21,6 +53,7 @@ serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { /* cron call has no body */ }
     const onlyRestaurantId = body?.restaurantId ? String(body.restaurantId) : null;
+    const forceNew = !!body?.force; // ignora dedupe semanal
 
     // Find eligible restaurants (autopilot ON)
     let q = admin.from("restaurants")
@@ -34,19 +67,29 @@ serve(async (req) => {
     const results: any[] = [];
     const today = new Date();
     const dayName = DAYS_PT[today.getDay()];
+    const weekNumber = getISOWeek(today);
+    const weekStart = startOfISOWeek(today);
+    const weekStartIso = weekStart.toISOString().slice(0, 10);
+    const theme = WEEK_THEMES[weekNumber % WEEK_THEMES.length];
 
     for (const r of restaurants || []) {
       try {
-        // Skip if a pending/approved suggestion already exists for today
         const todayDate = new Date(today.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })).toISOString().slice(0, 10);
-        const { data: existing } = await admin
-          .from("social_post_suggestions")
-          .select("id")
-          .eq("restaurant_id", r.id)
-          .eq("suggested_for_date", todayDate)
-          .in("status", ["pending", "approved"])
-          .maybeSingle();
-        if (existing) { results.push({ restaurant: r.id, skipped: "already_has_today" }); continue; }
+
+        // Cadência SEMANAL: pula se já existe sugestão pending/approved nesta semana ISO
+        if (!forceNew) {
+          const { data: existing } = await admin
+            .from("social_post_suggestions")
+            .select("id")
+            .eq("restaurant_id", r.id)
+            .gte("suggested_for_date", weekStartIso)
+            .in("status", ["pending", "approved"])
+            .limit(1);
+          if (existing && existing.length > 0) {
+            results.push({ restaurant: r.id, skipped: "already_has_this_week" });
+            continue;
+          }
+        }
 
         const enabledCategories = (r.social_autopilot_categories?.length ? r.social_autopilot_categories : ["prato_principal"]) as string[];
 
@@ -65,20 +108,23 @@ serve(async (req) => {
         const dish = dishes?.[0];
         if (!dish) { results.push({ restaurant: r.id, skipped: "no_eligible_dish" }); continue; }
 
-        // Generate copy via AI
-        const copyPrompt = `Você é um social media de restaurante. Crie uma legenda curta e envolvente para um post no Instagram.
+        // Generate copy via AI — alinhada ao tema branding da semana
+        const copyPrompt = `Você é um social media estrategista de branding para restaurantes. Crie uma legenda envolvente para Instagram alinhada ao posicionamento da marca.
 
 RESTAURANTE: ${r.name}
 CIDADE/ENDEREÇO: ${r.address || "—"}
 PRATO: ${dish.name}${dish.price ? ` (R$ ${dish.price})` : ""}
 DESCRIÇÃO: ${dish.description || "—"}
 DIA DA SEMANA: ${dayName}
+TEMA DE BRANDING DA SEMANA: ${theme.theme}
+TOM: ${theme.copyTone}
 
 Regras:
 - Português brasileiro, tom acolhedor e apetitoso.
 - 2 a 4 frases, no máximo 280 caracteres.
+- Reflita o TEMA e TOM acima — esta é uma campanha semanal de branding, não promoção.
+- Foque em identidade, experiência e valor da marca; não invente preços, descontos ou promoções.
 - Termine com 3 a 5 hashtags relevantes.
-- Não invente promoções nem preços.
 - Nada de aspas duplas no início/fim.`;
 
         const copyResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -97,18 +143,25 @@ Regras:
         const copyJson = await copyResp.json();
         const copyText: string = copyJson.choices?.[0]?.message?.content || `${dish.name} — venha provar no ${r.name}!`;
 
+        // Headline branding rotativa por semana (texto que aparece NA imagem)
+        const headlineText = theme.headlineTemplate(dish.name);
+
         // Generate image (Gemini Image, using dish photo as reference)
-        const imgPrompt = `Create a professional Instagram square (1:1) post image for a restaurant.
+        const imgPrompt = `Create a professional Instagram square (1:1) BRANDING post image for a restaurant. This is a weekly branding campaign, not a promotion.
 
 RESTAURANT: "${r.name}"
 DISH: "${dish.name}"
 DAY: ${dayName}
+WEEKLY THEME: "${theme.theme}"
+HEADLINE OVERLAY (must appear on the image, perfectly spelled, Brazilian Portuguese): "${headlineText}"
 
 DESIGN:
 - Use the attached dish photo as the HERO of the composition. Keep the food faithful to the reference; enhance lighting/contrast like a magazine cover.
-- Bold headline overlay with the dish name "${dish.name}" — Brazilian Portuguese, max 4 words, perfectly spelled.
+- Bold headline overlay with EXACTLY this text: "${headlineText}". Brazilian Portuguese, perfectly spelled, max 5 words.
+- The dish name "${dish.name}" should appear as a smaller secondary line if it fits naturally.
 - Subtle restaurant name "${r.name}" at the bottom.
-- Warm appetizing palette, premium feel, no quotation marks, no decorative quotes.
+- Warm appetizing palette, premium editorial feel (think Michelin/lifestyle magazine), no quotation marks, no decorative quotes.
+- Strong visual identity: clean typography hierarchy, balanced negative space, brand-forward composition.
 - Do NOT cover the dish with text. Place text around or above/below.
 - Brazilian Portuguese only — never mix with Spanish. Common avoid: "con" (use "com"), "una" (use "uma"), "vena" (use "venha").
 - Less text correctly spelled is better than more text with errors.`;
@@ -154,7 +207,7 @@ DESIGN:
             dish_id: dish.id,
             suggested_for_date: todayDate,
             status: "pending",
-            context_data: { dia_semana: dayName, dish_name: dish.name },
+            context_data: { dia_semana: dayName, dish_name: dish.name, week_number: weekNumber, week_theme: theme.theme, headline: headlineText },
             copy_text: copyText,
           })
           .select("id")
