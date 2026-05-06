@@ -18,6 +18,7 @@ import {
   ImageIcon, Type, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { FunctionsHttpError } from "@supabase/functions-js";
 
 type Dish = {
   id: string;
@@ -141,7 +142,25 @@ export default function AutopilotTab() {
       await refetch?.();
       await loadAll();
     } catch (e: any) {
-      toast.error(e.message || "Erro ao analisar cardápio");
+      let message = e?.message || "Erro ao analisar cardápio";
+
+      if (e instanceof FunctionsHttpError && e.context) {
+        try {
+          const payload = await e.context.json();
+          if (payload?.error) message = payload.error;
+        } catch {
+          // keep fallback message
+        }
+      } else if (e?.context && typeof e.context.json === "function") {
+        try {
+          const payload = await e.context.json();
+          if (payload?.error) message = payload.error;
+        } catch {
+          // keep fallback message
+        }
+      }
+
+      toast.error(message);
     } finally {
       setExtracting(false);
     }
