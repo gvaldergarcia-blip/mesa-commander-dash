@@ -301,7 +301,7 @@ export default function AutopilotTab() {
                 <Bot className="w-4 h-4 text-primary" /> Auto-pilot de Posts
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Todo dia às 11h, a IA gera 1 post pronto pra você aprovar — usando seus pratos com foto real.
+                Toda semana, a IA gera 1 post de branding com tema rotativo — usando seus pratos com foto real. Você aprova antes de publicar.
               </p>
             </div>
             <Switch checked={autopilotOn} onCheckedChange={updateAutopilotEnabled} />
