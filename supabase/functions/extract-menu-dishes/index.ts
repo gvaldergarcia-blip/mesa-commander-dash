@@ -30,8 +30,13 @@ serve(async (req) => {
     const restaurantId = String(body.restaurantId || "").slice(0, 36);
     if (!restaurantId) return new Response(JSON.stringify({ error: "restaurantId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Validate ownership
-    const { data: rest } = await admin.from("restaurants").select("id, owner_id, name, menu_url, menu_image_url").eq("id", restaurantId).maybeSingle();
+    // Validate ownership (public schema)
+    const { data: rest, error: restErr } = await admin
+      .from("restaurants")
+      .select("id, owner_id, name, menu_url")
+      .eq("id", restaurantId)
+      .maybeSingle();
+    if (restErr) console.error("public.restaurants query error:", restErr);
     if (!rest) return new Response(JSON.stringify({ error: "Restaurant not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (rest.owner_id !== user.id) {
       // also allow platform admin
@@ -39,7 +44,21 @@ serve(async (req) => {
       if (!isAdm) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const menuSource = rest.menu_url || rest.menu_image_url;
+    // menu_image_url only lives in mesaclik schema
+    let menuImageUrl: string | null = null;
+    try {
+      const { data: mRest } = await admin
+        .schema("mesaclik" as any)
+        .from("restaurants")
+        .select("menu_url, menu_image_url")
+        .eq("id", restaurantId)
+        .maybeSingle();
+      menuImageUrl = (mRest as any)?.menu_image_url || (mRest as any)?.menu_url || null;
+    } catch (e) {
+      console.error("mesaclik.restaurants query error:", e);
+    }
+
+    const menuSource = rest.menu_url || menuImageUrl;
     if (!menuSource) {
       return new Response(JSON.stringify({ error: "Cardápio não cadastrado. Configure em Settings → Cardápio." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
