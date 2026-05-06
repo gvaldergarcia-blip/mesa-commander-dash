@@ -62,11 +62,12 @@ serve(async (req) => {
     let restMeta: any = {};
 
     if (suggestionId) {
-      const { data: suggestion } = await admin
+      const { data: suggestion, error: sErr } = await admin
         .from("social_post_suggestions")
-        .select("id, restaurant_id, current_version_id, copy_text, context_data, restaurants:restaurant_id(owner_id, name, cuisine_type)")
+        .select("id, restaurant_id, current_version_id, copy_text, context_data, restaurants:restaurant_id(owner_id, name)")
         .eq("id", suggestionId)
         .maybeSingle();
+      if (sErr) { console.error("suggestion select err:", sErr); return json({ error: "DB error: " + sErr.message }, 500); }
       if (!suggestion) return json({ error: "Suggestion not found" }, 404);
       ownerId = (suggestion as any).restaurants?.owner_id ?? null;
       restaurantId = suggestion.restaurant_id;
@@ -83,11 +84,12 @@ serve(async (req) => {
       currentImageUrl = cv.image_url;
       currentVersionNumber = cv.version_number || 1;
     } else {
-      const { data: asset } = await admin
+      const { data: asset, error: aErr } = await admin
         .from("promotions_assets")
-        .select("id, restaurant_id, image_url, caption_text, restaurants:restaurant_id(owner_id, name, cuisine_type)")
+        .select("id, restaurant_id, image_url, caption_text, restaurants:restaurant_id(owner_id, name)")
         .eq("id", assetId)
         .maybeSingle();
+      if (aErr) { console.error("asset select err:", aErr); return json({ error: "DB error: " + aErr.message }, 500); }
       if (!asset) return json({ error: "Asset not found" }, 404);
       ownerId = (asset as any).restaurants?.owner_id ?? null;
       restaurantId = asset.restaurant_id;
