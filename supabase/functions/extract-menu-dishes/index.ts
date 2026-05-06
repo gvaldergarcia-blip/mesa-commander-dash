@@ -7,6 +7,87 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"];
+
+function isAbsoluteUrl(value: string) {
+  return /^https?:\/\//i.test(value);
+}
+
+function resolveUrl(baseUrl: string, maybeRelative: string) {
+  try {
+    return new URL(maybeRelative, baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+function uniqueUrls(urls: Array<string | null | undefined>) {
+  return [...new Set(urls.filter((url): url is string => !!url))];
+}
+
+function extractAssetUrlsFromHtml(html: string, baseUrl: string) {
+  const matches = [
+    ...html.matchAll(/<(?:img|source)[^>]+(?:src|data-src)=["']([^"']+)["']/gi),
+    ...html.matchAll(/<a[^>]+href=["']([^"']+\.pdf(?:\?[^"']*)?)["']/gi),
+    ...html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi),
+    ...html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/gi),
+  ];
+
+  const assetUrls = matches
+    .map((match) => resolveUrl(baseUrl, match[1]))
+    .filter(Boolean) as string[];
+
+  const imageUrls = assetUrls.filter((url) => {
+    const lower = url.toLowerCase();
+    return IMAGE_EXTENSIONS.some((ext) => lower.includes(ext));
+  });
+
+  const pdfUrls = assetUrls.filter((url) => url.toLowerCase().includes(".pdf"));
+
+  return {
+    imageUrls: uniqueUrls(imageUrls).slice(0, 12),
+    pdfUrls: uniqueUrls(pdfUrls).slice(0, 3),
+  };
+}
+
+async function resolveMenuAssets(menuSource: string) {
+  const normalized = menuSource.trim();
+  if (!normalized) return { contentType: null, imageUrls: [], pdfUrls: [], sourceUrl: null };
+
+  const directUrl = isAbsoluteUrl(normalized) ? normalized : null;
+  if (!directUrl) return { contentType: null, imageUrls: [], pdfUrls: [], sourceUrl: null };
+
+  const lowerUrl = directUrl.toLowerCase();
+  if (IMAGE_EXTENSIONS.some((ext) => lowerUrl.includes(ext))) {
+    return { contentType: "image/direct", imageUrls: [directUrl], pdfUrls: [], sourceUrl: directUrl };
+  }
+  if (lowerUrl.includes(".pdf")) {
+    return { contentType: "application/pdf", imageUrls: [], pdfUrls: [directUrl], sourceUrl: directUrl };
+  }
+
+  const resp = await fetch(directUrl, { headers: { "User-Agent": "Mozilla/5.0 MesaClik Menu Extractor" } });
+  const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+
+  if (contentType.startsWith("image/")) {
+    return { contentType, imageUrls: [directUrl], pdfUrls: [], sourceUrl: directUrl };
+  }
+  if (contentType.includes("pdf")) {
+    return { contentType, imageUrls: [], pdfUrls: [directUrl], sourceUrl: directUrl };
+  }
+  if (!contentType.includes("html")) {
+    return { contentType, imageUrls: [], pdfUrls: [], sourceUrl: directUrl };
+  }
+
+  const html = await resp.text();
+  const extracted = extractAssetUrlsFromHtml(html, directUrl);
+  return {
+    contentType,
+    imageUrls: extracted.imageUrls,
+    pdfUrls: extracted.pdfUrls,
+    sourceUrl: directUrl,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -63,7 +144,23 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Cardápio não cadastrado. Configure em Settings → Cardápio." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Ask Gemini Vision to extract dishes from the menu (PDF or image URL)
+    const resolvedMenu = await resolveMenuAssets(menuSource);
+    const resolvedImages = resolvedMenu.imageUrls.slice(0, 10);
+
+    if (resolvedImages.length === 0) {
+      const detail = resolvedMenu.pdfUrls.length > 0
+        ? "O link cadastrado aponta para um PDF. No momento, cadastre a imagem do cardápio ou uma página que contenha imagens do cardápio."
+        : resolvedMenu.contentType?.includes("html")
+          ? "O link cadastrado abre uma página web, mas não encontrei imagens do cardápio dentro dela."
+          : "O link cadastrado não retorna uma imagem válida do cardápio.";
+
+      return new Response(JSON.stringify({ error: detail }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ask Gemini Vision to extract dishes from the menu images
     const prompt = `Você é um assistente que extrai pratos de cardápios de restaurantes em português brasileiro.
 
 Analise o cardápio anexado e devolva um JSON com TODOS os itens encontrados, organizados por categoria.
@@ -98,7 +195,7 @@ IMPORTANTE:
             role: "user",
             content: [
               { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: menuSource } },
+              ...resolvedImages.map((url) => ({ type: "image_url", image_url: { url } })),
             ],
           },
         ],
