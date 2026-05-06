@@ -208,9 +208,12 @@ export default function AutopilotTab() {
     try {
       const { data, error } = await supabase.functions.invoke("social-suggest-daily", { body: { restaurantId } });
       if (error) throw error;
+      if (!data?.results?.length) {
+        throw new Error("Nenhum restaurante elegível foi encontrado para gerar o teste.");
+      }
       const r = data?.results?.[0];
       if (r?.error) throw new Error(`${r.error}${r.detail ? ": " + r.detail : ""}`);
-      if (r?.skipped) toast.info(r.skipped === "already_has_today" ? "Já existe sugestão pra hoje" : "Nenhum prato elegível (precisa ter foto + estar marcado como destaque)");
+      if (r?.skipped) toast.info(r.skipped === "already_has_this_week" ? "Já existe uma sugestão para esta semana" : "Nenhum prato elegível (precisa ter foto + estar marcado como destaque)");
       else toast.success(`Sugestão gerada: ${r?.dish || "ok"}`);
       await loadAll();
     } catch (e: any) {
