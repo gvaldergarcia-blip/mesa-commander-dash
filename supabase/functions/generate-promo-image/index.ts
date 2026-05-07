@@ -42,6 +42,8 @@ serve(async (req) => {
     const address = str(body.address, 200);
     const logoUrl = str(body.logoUrl, 500);
     const referenceImage = body.referenceImage && typeof body.referenceImage === 'string' ? body.referenceImage : null;
+    const ambientPhotoUrl = body.ambientPhotoUrl && typeof body.ambientPhotoUrl === 'string' ? body.ambientPhotoUrl : null;
+    const realAmbient = !!body.realAmbient && !!ambientPhotoUrl;
     const originalPrice = body.originalPrice;
     const promoPrice = body.promoPrice;
     const discount = body.discount;
@@ -161,9 +163,13 @@ SPELLING & TEXT ACCURACY (EXTREMELY IMPORTANT):
       promptText += `\n\nIMPORTANT: Use the attached reference image as the base/inspiration for the dish photo. Keep the food from the reference photo but enhance it with professional lighting, add the text overlay, and restaurant branding on top of it.`;
     }
 
+    if (realAmbient) {
+      promptText += `\n\n=== REAL AMBIENT COMPOSITION (HIGH PRIORITY) ===\nYou will receive an additional reference image showing the REAL interior of "${restaurantName}".\n- Compose an ultra-realistic food photography of "${dishName}" naturally placed on a table in the FOREGROUND of that exact restaurant interior.\n- Keep the EXACT same furniture, walls, lighting, colors, decor and structure from the interior reference photo.\n- Do NOT change, reimagine, or invent any part of the restaurant interior. It must look like a real photo taken inside that exact venue.\n- Soft bokeh on the background showing the real restaurant interior.\n- The dish must be the main focus, sharp and detailed, professional food magazine quality, 4k.\n- Natural ambient lighting matching the interior photo.\n- The final image must feel like it was taken by a real photographer inside this restaurant.`;
+    }
+
     promptText += `\n\nDO NOT include any watermarks or logos other than the restaurant name.`;
 
-    console.log("Generating promo image for:", dishName, "at", restaurantName, "hasDiscount:", hasDiscount, "withRef:", !!referenceImage, "withLogo:", !!(includeLogo && logoUrl));
+    console.log("Generating promo image for:", dishName, "at", restaurantName, "hasDiscount:", hasDiscount, "withRef:", !!referenceImage, "withLogo:", !!(includeLogo && logoUrl), "realAmbient:", realAmbient);
 
     // Build multimodal content with images
     const contentParts: any[] = [{ type: "text", text: promptText }];
@@ -176,6 +182,11 @@ SPELLING & TEXT ACCURACY (EXTREMELY IMPORTANT):
     // Add reference image if provided
     if (referenceImage) {
       contentParts.push({ type: "image_url", image_url: { url: referenceImage } });
+    }
+
+    // Add ambient photo (real interior) if enabled
+    if (realAmbient && ambientPhotoUrl) {
+      contentParts.push({ type: "image_url", image_url: { url: ambientPhotoUrl } });
     }
     
     const userContent: any = contentParts.length === 1 ? promptText : contentParts;

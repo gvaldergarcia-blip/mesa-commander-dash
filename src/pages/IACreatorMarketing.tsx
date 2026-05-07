@@ -532,6 +532,26 @@ export default function IACreatorMarketing() {
   const [editableLegenda, setEditableLegenda] = useState("");
   const [textConfirmed, setTextConfirmed] = useState(false);
 
+  // Ambiente Real
+  const [realAmbient, setRealAmbient] = useState(false);
+  const [ambientPhotos, setAmbientPhotos] = useState<{ id: string; photo_url: string }[]>([]);
+  const [selectedAmbientUrl, setSelectedAmbientUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("restaurant_ambient_photos" as any)
+        .select("id, photo_url")
+        .eq("restaurant_id", restaurant.id)
+        .order("position", { ascending: true });
+      const list = ((data as any[]) || []).map((p) => ({ id: p.id, photo_url: p.photo_url }));
+      setAmbientPhotos(list);
+      if (list.length > 0 && !selectedAmbientUrl) setSelectedAmbientUrl(list[0].photo_url);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant?.id]);
+
   const hasLogo = !!restaurant?.logo_url;
   const hasAddress = !!(restaurant?.address_line);
 
@@ -655,6 +675,8 @@ export default function IACreatorMarketing() {
         customHeadline: editableHeadline || undefined,
         customSubheadline: editableSubheadline || undefined,
         customCta: editableCta || undefined,
+        realAmbient: realAmbient && !!selectedAmbientUrl,
+        ambientPhotoUrl: realAmbient ? selectedAmbientUrl || undefined : undefined,
       };
 
       if (form.hasDiscount) {
@@ -984,6 +1006,62 @@ export default function IACreatorMarketing() {
                             >
                               <Settings className="w-3 h-3" /> Ir para Configurações
                             </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Ambiente Real toggle */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-primary" />
+                            <Label className="text-xs cursor-pointer">
+                              Ambiente Real
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] uppercase tracking-wider">Beta</span>
+                            </Label>
+                          </div>
+                          <Switch
+                            checked={realAmbient}
+                            onCheckedChange={(v) => setRealAmbient(v)}
+                          />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Compõe a imagem do prato dentro de uma foto real do interior do seu restaurante.
+                        </p>
+
+                        {realAmbient && ambientPhotos.length === 0 && (
+                          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-2">
+                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                              Nenhuma foto do ambiente cadastrada. Sincronize com o Google ou faça upload em Configurações.
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1.5"
+                              onClick={() => navigate("/settings")}
+                            >
+                              <Settings className="w-3 h-3" /> Configurar fotos do ambiente
+                            </Button>
+                          </div>
+                        )}
+
+                        {realAmbient && ambientPhotos.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] text-muted-foreground">Foto base do ambiente:</p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {ambientPhotos.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => setSelectedAmbientUrl(p.photo_url)}
+                                  className={`relative rounded-md overflow-hidden border-2 transition ${
+                                    selectedAmbientUrl === p.photo_url ? "border-primary" : "border-transparent hover:border-muted-foreground/30"
+                                  }`}
+                                >
+                                  <img src={p.photo_url} alt="" className="w-full h-14 object-cover" />
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
