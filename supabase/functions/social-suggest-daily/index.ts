@@ -174,7 +174,7 @@ Regras:
         const headlineText = theme.headlineTemplate(dish.name);
 
         // Generate image (Gemini Image, using dish photo as reference)
-        const imgPrompt = `Create a professional Instagram square (1:1) BRANDING post image for a restaurant. This is a weekly branding campaign, not a promotion.
+        const imgPrompt = `Award-winning editorial food photography for a high-end Instagram branding post (1:1 square, ultra-premium magazine quality). This is a weekly BRANDING campaign — not a promotion, no prices, no discounts, no badges.
 
 RESTAURANT: "${r.name}"
 DISH: "${dish.name}"
@@ -182,16 +182,24 @@ DAY: ${dayName}
 WEEKLY THEME: "${theme.theme}"
 HEADLINE OVERLAY (must appear on the image, perfectly spelled, Brazilian Portuguese): "${headlineText}"
 
-DESIGN:
-- Use the attached dish photo as the HERO of the composition. Keep the food faithful to the reference; enhance lighting/contrast like a magazine cover.
-- Bold headline overlay with EXACTLY this text: "${headlineText}". Brazilian Portuguese, perfectly spelled, max 5 words.
-- The dish name "${dish.name}" should appear as a smaller secondary line if it fits naturally.
-- Subtle restaurant name "${r.name}" at the bottom.
-- Warm appetizing palette, premium editorial feel (think Michelin/lifestyle magazine), no quotation marks, no decorative quotes.
-- Strong visual identity: clean typography hierarchy, balanced negative space, brand-forward composition.
-- Do NOT cover the dish with text. Place text around or above/below.
-- Brazilian Portuguese only — never mix with Spanish. Common avoid: "con" (use "com"), "una" (use "uma"), "vena" (use "venha").
-- Less text correctly spelled is better than more text with errors.`;
+ART DIRECTION (think Bon Appétit, Kinfolk, Eater, Michelin Guide):
+- Hero: the attached dish photo, re-lit and re-composed as a cinematic still life. Keep the food 100% faithful to the reference (same dish, same ingredients, same plating) but elevate it: soft natural directional light (window light at golden hour), gentle shadows, subtle steam/moisture if appropriate, glossy textures, rich micro-detail.
+- Composition: shallow depth of field, intentional negative space for typography, off-center hero, professional styling props (linen napkin, dark wood or stone surface, vintage cutlery, herbs, ingredient garnishes scattered tastefully).
+- Color grading: warm, rich, slightly desaturated tones with deep contrast — moody editorial palette (cream, espresso, terracotta, deep green). Avoid neon, cartoonish or oversaturated colors.
+- Camera feel: 50mm prime, f/2.0, soft bokeh, true-to-life food rendering, no plastic/CGI look, no "AI gloss".
+
+TYPOGRAPHY (CRITICAL — must look like a designer made it, not AI):
+- Headline EXACT TEXT: "${headlineText}". Brazilian Portuguese, max 5 words, perfectly kerned, elegant high-end serif (think Playfair Display, Canela or Tiempos) OR a refined modern sans (think Söhne, Inter Tight) — pick ONE family and stay consistent.
+- Clear hierarchy: large headline + thin small-caps secondary line for "${dish.name}" if it fits; tiny restaurant signature "${r.name}" at the very bottom.
+- Generous letter-spacing on small text. NO quotation marks, NO decorative ornaments, NO emoji, NO drop shadows, NO outlined text, NO gradients on text.
+- Text lives in clean negative space — never overlapping the food. White or warm cream text on darker areas; deep charcoal on light areas. High contrast, fully legible.
+
+HARD RULES:
+- Brazilian Portuguese only — never Spanish. Avoid: "con"→"com", "una"→"uma", "vena"→"venha".
+- Spell every letter exactly as written above. If unsure, use FEWER words.
+- No watermarks, no stock-photo logos, no UI mockups, no Instagram chrome.
+- No price tags, no % off, no badges, no stickers, no arrows.
+- Output must feel like a $10k commissioned campaign shot — restrained, confident, premium.`;
 
         const imgResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
