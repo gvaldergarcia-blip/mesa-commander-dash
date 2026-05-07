@@ -2043,6 +2043,62 @@ export type Database = {
           },
         ]
       }
+      restaurant_ambient_photos: {
+        Row: {
+          created_at: string
+          id: string
+          photo_url: string
+          position: number
+          restaurant_id: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          photo_url: string
+          position?: number
+          restaurant_id: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          photo_url?: string
+          position?: number
+          restaurant_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_ambient_photos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ambient_photos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ambient_photos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_ambient_photos_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_applications: {
         Row: {
           address_line: string | null
