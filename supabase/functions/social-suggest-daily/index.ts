@@ -184,7 +184,7 @@ Regras:
         const headlineText = theme.headlineTemplate(dish.name);
 
         // Generate image (Gemini Image, using dish photo as reference)
-        const imgPrompt = `Award-winning editorial food photography for a high-end Instagram branding post (1:1 square, ultra-premium magazine quality). This is a weekly BRANDING campaign — not a promotion, no prices, no discounts, no badges.
+        const imgPrompt = `Authentic premium food photography for a high-end Instagram branding post (1:1 square, premium magazine quality, but believable and natural). This is a weekly BRANDING campaign — not a promotion, no prices, no discounts, no badges.
 
 RESTAURANT: "${r.name}"
 DISH: "${dish.name}"
@@ -192,14 +192,14 @@ DAY: ${dayName}
 WEEKLY THEME: "${theme.theme}"
 HEADLINE OVERLAY (must appear on the image, perfectly spelled, Brazilian Portuguese): "${headlineText}"
 
-ART DIRECTION (think Bon Appétit, Kinfolk, Eater, Michelin Guide):
-- Hero: ONLY the dish from the attached reference, re-lit and re-composed as a cinematic still life. The dish is the SOLE subject — plated on a beautiful plate or board, presented from a flattering editorial angle (45° three-quarter or top-down). Keep food 100% faithful to the reference (same dish, ingredients, plating) but elevate styling.
+ART DIRECTION (think Bon Appétit, Kinfolk, Eater, Michelin Guide — but grounded in realism):
+- Hero: ONLY the dish from the attached reference, re-lit and re-composed as an authentic premium still life. The dish is the SOLE subject — plated on a beautiful but plausible plate or board, presented from a flattering editorial angle (45° three-quarter or top-down). Keep food 100% faithful to the reference (same dish, ingredients, plating) and DO NOT invent extra toppings, side dishes, garnishes or table elements that are not needed.
 - ABSOLUTELY NO PEOPLE, NO FACES, NO HANDS, NO ARMS, NO BODIES, NO CROWDS, NO RESTAURANT INTERIORS, NO TABLES FULL OF GUESTS, NO PARTY SCENES, NO STRING LIGHTS, NO LAMPS IN BACKGROUND. Pure tabletop still life only.
-- Background: clean, minimal, out-of-focus dark surface or soft moody backdrop (deep charcoal, espresso wood, matte stone). Background must be SIMPLE and uncluttered — no extra dishes, no people, no decoration, no scenes of eating.
+- Background: clean, minimal, out-of-focus dark surface or soft moody backdrop (deep charcoal, espresso wood, matte stone). Background must be SIMPLE and uncluttered — no extra dishes, no people, no decoration, no scenes of eating, no bottles, no glasses, no random cutlery set, no table clutter, no menu, no napkin pile, no centerpieces.
 - Lighting: soft natural directional window light, gentle shadows, subtle steam/moisture if appropriate, glossy textures, rich micro-detail.
-- Composition: shallow depth of field, generous negative space for typography (one whole side of the frame empty), off-center hero. Surface and props IMMACULATELY CLEAN — no crumbs, no sauce splatters, no scattered salt/sugar/spices, no loose herbs, no oil drips, no smudges, no water rings, no dirt, no debris. Maximum 1–2 deliberate props (a single fork OR a folded linen napkin), nothing more.
+- Composition: shallow depth of field, generous negative space for typography (one whole side of the frame empty), off-center hero. Surface and props IMMACULATELY CLEAN — no crumbs, no sauce splatters, no scattered salt/sugar/spices, no loose herbs, no oil drips, no smudges, no water rings, no dirt, no debris. Maximum 1 deliberate prop (a single fork OR a folded linen napkin) and only if it improves the shot; otherwise no props at all. Tabletop must look almost empty besides the plate.
 - Color grading: warm, rich, slightly desaturated tones with deep contrast — moody editorial palette (cream, espresso, terracotta, deep green). Avoid neon or oversaturated colors.
-- Camera feel: 50mm prime, f/2.0, soft bokeh, true-to-life food rendering, no plastic/CGI look, no "AI gloss", no grain or noise.
+- Camera feel: 50mm prime, f/2.0, soft bokeh, true-to-life food rendering, no plastic/CGI look, no "AI gloss", no grain or noise. Avoid waxy textures, fake steam, impossible reflections, duplicate ingredients, melted geometry, over-sharpening, over-smoothing, HDR look, or synthetic stock-photo styling.
 
 TYPOGRAPHY (CRITICAL — must look like a designer made it, not AI):
 - Headline EXACT TEXT: "${headlineText}". Brazilian Portuguese, max 5 words, perfectly kerned, elegant high-end serif (think Playfair Display, Canela or Tiempos) OR a refined modern sans (think Söhne, Inter Tight) — pick ONE family and stay consistent.
@@ -214,6 +214,8 @@ HARD RULES:
 - NO restaurant interior, no string/fairy lights, no lamps, no other diners, no second tables, no party atmosphere.
 - No watermarks, no stock-photo logos, no UI mockups, no Instagram chrome.
 - No mess, no dirt, no scattered crumbs/herbs/salt, no stains, no smudges. Freshly styled by a food stylist seconds before the shot.
+- No visual clutter on the table. The table must not contain random objects, decorative junk, extra plates, bottles, glasses, or unrelated food.
+- The final image must look like a real photograph taken by a professional food photographer — natural, believable, restrained. Never surreal, never glossy-plastic, never obviously AI-generated.
 - No price tags, no % off, no badges, no stickers, no arrows.
 - Output must feel like a $10k commissioned campaign still-life — restrained, confident, premium, minimal.`;
 
