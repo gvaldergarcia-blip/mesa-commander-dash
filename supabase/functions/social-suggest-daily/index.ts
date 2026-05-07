@@ -81,7 +81,6 @@ serve(async (req) => {
     const weekNumber = getISOWeek(today);
     const weekStart = startOfISOWeek(today);
     const weekStartIso = weekStart.toISOString().slice(0, 10);
-    const theme = WEEK_THEMES[weekNumber % WEEK_THEMES.length];
 
     for (const r of restaurants || []) {
       try {
