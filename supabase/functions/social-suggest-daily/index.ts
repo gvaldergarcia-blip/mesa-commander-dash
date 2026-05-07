@@ -194,9 +194,9 @@ HEADLINE OVERLAY (must appear on the image, perfectly spelled, Brazilian Portugu
 
 ART DIRECTION (think Bon Appétit, Kinfolk, Eater, Michelin Guide):
 - Hero: the attached dish photo, re-lit and re-composed as a cinematic still life. Keep the food 100% faithful to the reference (same dish, same ingredients, same plating) but elevate it: soft natural directional light (window light at golden hour), gentle shadows, subtle steam/moisture if appropriate, glossy textures, rich micro-detail.
-- Composition: shallow depth of field, intentional negative space for typography, off-center hero, professional styling props (linen napkin, dark wood or stone surface, vintage cutlery, herbs, ingredient garnishes scattered tastefully).
+- Composition: shallow depth of field, intentional negative space for typography, off-center hero. Surface and props must be IMMACULATELY CLEAN — polished dark wood or stone, crisp linen napkin, polished cutlery. Absolutely NO crumbs, NO sauce splatters, NO scattered salt/sugar/spices, NO loose herbs strewn across the surface, NO oil drips, NO smudges, NO water rings, NO dirt, NO debris of any kind. Every prop deliberately placed; the surface around the hero must look pristine.
 - Color grading: warm, rich, slightly desaturated tones with deep contrast — moody editorial palette (cream, espresso, terracotta, deep green). Avoid neon, cartoonish or oversaturated colors.
-- Camera feel: 50mm prime, f/2.0, soft bokeh, true-to-life food rendering, no plastic/CGI look, no "AI gloss".
+- Camera feel: 50mm prime, f/2.0, soft bokeh, true-to-life food rendering, no plastic/CGI look, no "AI gloss", no grain or noise.
 
 TYPOGRAPHY (CRITICAL — must look like a designer made it, not AI):
 - Headline EXACT TEXT: "${headlineText}". Brazilian Portuguese, max 5 words, perfectly kerned, elegant high-end serif (think Playfair Display, Canela or Tiempos) OR a refined modern sans (think Söhne, Inter Tight) — pick ONE family and stay consistent.
@@ -208,6 +208,7 @@ HARD RULES:
 - Brazilian Portuguese only — never Spanish. Avoid: "con"→"com", "una"→"uma", "vena"→"venha".
 - Spell every letter exactly as written above. If unsure, use FEWER words.
 - No watermarks, no stock-photo logos, no UI mockups, no Instagram chrome.
+- No mess, no dirt, no scattered crumbs/herbs/salt, no stains, no smudges. The scene must look freshly styled by a food stylist seconds before the shot.
 - No price tags, no % off, no badges, no stickers, no arrows.
 - Output must feel like a $10k commissioned campaign shot — restrained, confident, premium.`;
 
