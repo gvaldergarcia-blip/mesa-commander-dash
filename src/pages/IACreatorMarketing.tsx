@@ -1009,6 +1009,62 @@ export default function IACreatorMarketing() {
                           </div>
                         )}
                       </div>
+
+                      {/* Ambiente Real toggle */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-primary" />
+                            <Label className="text-xs cursor-pointer">
+                              Ambiente Real
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] uppercase tracking-wider">Beta</span>
+                            </Label>
+                          </div>
+                          <Switch
+                            checked={realAmbient}
+                            onCheckedChange={(v) => setRealAmbient(v)}
+                          />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Compõe a imagem do prato dentro de uma foto real do interior do seu restaurante.
+                        </p>
+
+                        {realAmbient && ambientPhotos.length === 0 && (
+                          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-2">
+                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                              Nenhuma foto do ambiente cadastrada. Sincronize com o Google ou faça upload em Configurações.
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1.5"
+                              onClick={() => navigate("/settings")}
+                            >
+                              <Settings className="w-3 h-3" /> Configurar fotos do ambiente
+                            </Button>
+                          </div>
+                        )}
+
+                        {realAmbient && ambientPhotos.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] text-muted-foreground">Foto base do ambiente:</p>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {ambientPhotos.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => setSelectedAmbientUrl(p.photo_url)}
+                                  className={`relative rounded-md overflow-hidden border-2 transition ${
+                                    selectedAmbientUrl === p.photo_url ? "border-primary" : "border-transparent hover:border-muted-foreground/30"
+                                  }`}
+                                >
+                                  <img src={p.photo_url} alt="" className="w-full h-14 object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
 
