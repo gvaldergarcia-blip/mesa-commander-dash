@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy, MessageCircle } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy, MessageCircle, Camera } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,7 @@ import { RestaurantLogo } from "@/components/common/RestaurantLogo";
 import { TeamSettings } from "@/components/settings/TeamSettings";
 import { PlanSettings } from "@/components/settings/PlanSettings";
 import { LoyaltySettings } from "@/components/settings/LoyaltySettings";
+import { AmbientPhotosManager } from "@/components/settings/AmbientPhotosManager";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -361,10 +362,14 @@ function SettingsContent() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
+          </TabsTrigger>
+          <TabsTrigger value="ambient" className="flex items-center gap-2">
+            <Camera className="h-4 w-4" />
+            <span className="hidden sm:inline">Ambiente</span>
           </TabsTrigger>
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
@@ -755,6 +760,10 @@ function SettingsContent() {
         {/* Tab 2: Horários & Funcionamento */}
         <TabsContent value="hours">
           <HoursSettings restaurantId={restaurantId || ''} />
+        </TabsContent>
+
+        <TabsContent value="ambient">
+          <AmbientPhotosManager />
         </TabsContent>
 
         {/* Tab 3: Fila de Espera */}
