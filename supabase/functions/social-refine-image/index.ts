@@ -260,6 +260,8 @@ REGRAS:
           `REGRAS:`,
           `- Mantenha o prato e a composição base, a não ser que o pedido peça mudança explícita.`,
           `- Estilo: foto realista, food photography profissional. NUNCA cartoon/3D/ilustração.`,
+          `- NUNCA inclua pessoas, rostos, mãos, braços, corpos, multidão, clientes comendo, interior de restaurante, mesas cheias de gente, luzinhas/pisca-pisca de fundo, lâmpadas — a menos que o dono peça explicitamente. É um still life de comida.`,
+          `- Fundo limpo, minimalista, desfocado (madeira escura, pedra fosca ou tecido). Máximo 1–2 props (garfo, guardanapo). Sem sujeira, migalhas, ervas espalhadas ou respingos.`,
           `- Quadrado 1:1, alta resolução. Sem marca d'água, sem moldura.`,
           `- Texto em português do Brasil, sem erros de ortografia, sem letras tortas.`,
         ].filter(Boolean).join("\n");
