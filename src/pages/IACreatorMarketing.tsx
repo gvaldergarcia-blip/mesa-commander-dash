@@ -532,6 +532,26 @@ export default function IACreatorMarketing() {
   const [editableLegenda, setEditableLegenda] = useState("");
   const [textConfirmed, setTextConfirmed] = useState(false);
 
+  // Ambiente Real
+  const [realAmbient, setRealAmbient] = useState(false);
+  const [ambientPhotos, setAmbientPhotos] = useState<{ id: string; photo_url: string }[]>([]);
+  const [selectedAmbientUrl, setSelectedAmbientUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("restaurant_ambient_photos" as any)
+        .select("id, photo_url")
+        .eq("restaurant_id", restaurant.id)
+        .order("position", { ascending: true });
+      const list = ((data as any[]) || []).map((p) => ({ id: p.id, photo_url: p.photo_url }));
+      setAmbientPhotos(list);
+      if (list.length > 0 && !selectedAmbientUrl) setSelectedAmbientUrl(list[0].photo_url);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant?.id]);
+
   const hasLogo = !!restaurant?.logo_url;
   const hasAddress = !!(restaurant?.address_line);
 
@@ -655,6 +675,8 @@ export default function IACreatorMarketing() {
         customHeadline: editableHeadline || undefined,
         customSubheadline: editableSubheadline || undefined,
         customCta: editableCta || undefined,
+        realAmbient: realAmbient && !!selectedAmbientUrl,
+        ambientPhotoUrl: realAmbient ? selectedAmbientUrl || undefined : undefined,
       };
 
       if (form.hasDiscount) {
