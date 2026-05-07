@@ -134,6 +134,17 @@ serve(async (req) => {
 
         if (!dish) { results.push({ restaurant: r.id, skipped: "no_eligible_dish" }); continue; }
 
+        // Rotate theme per-restaurant: pick the LEAST-recently-used theme for this restaurant
+        // (avoids the "always Clássico da casa" problem). Uses count of past suggestions
+        // combined with a hash of the restaurant id for a stable but varied offset.
+        const { count: pastCount } = await admin
+          .from("social_post_suggestions")
+          .select("id", { count: "exact", head: true })
+          .eq("restaurant_id", r.id);
+        const hash = Array.from(r.id as string).reduce((a, c) => a + c.charCodeAt(0), 0);
+        const themeIndex = ((pastCount || 0) + hash + weekNumber) % WEEK_THEMES.length;
+        const theme = WEEK_THEMES[themeIndex];
+
         // Generate copy via AI — alinhada ao tema branding da semana
         const copyPrompt = `Você é um social media estrategista de branding para restaurantes. Crie uma legenda envolvente para Instagram alinhada ao posicionamento da marca.
 
