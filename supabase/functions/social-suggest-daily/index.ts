@@ -8,19 +8,17 @@ const corsHeaders = {
 
 const DAYS_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-// Estratégia de branding: cada semana usa um tema/headline diferente.
-// Rotaciona por número da semana ISO para garantir variação semanal previsível.
-const WEEK_THEMES: Array<{
-  theme: string;
-  headlineTemplate: (dishName: string) => string;
-  copyTone: string;
-}> = [
-  { theme: "Destaque da Semana", headlineTemplate: (d) => `Destaque da semana: ${d}`, copyTone: "Posicione como o prato em alta da semana — vibe acolhedora e convidativa." },
-  { theme: "Clássico da Casa", headlineTemplate: (d) => `Clássico da casa`, copyTone: "Tom nostálgico e tradicional, reforce a herança e a receita testada pelo tempo." },
-  { theme: "Pedido do Chef", headlineTemplate: (d) => `Pedido do chef`, copyTone: "Tom autoral e premium, sugestão pessoal do chef, com confiança e elegância." },
-  { theme: "Sabor que Marca", headlineTemplate: (d) => `Sabor que marca`, copyTone: "Tom emocional e sensorial, foco em memória afetiva e experiência única." },
-  { theme: "Feito pra Você", headlineTemplate: (d) => `Feito pra você`, copyTone: "Tom próximo e caloroso, hospitalidade brasileira, convite irresistível." },
-  { theme: "Imperdível da Semana", headlineTemplate: (d) => `Imperdível`, copyTone: "Tom de urgência leve, oportunidade da semana, escassez sutil." },
+// Tons de branding rotativos. A FRASE em si é gerada pela IA a cada post,
+// usando o histórico recente para nunca repetir.
+const BRAND_TONES: Array<{ theme: string; copyTone: string }> = [
+  { theme: "Destaque da Semana", copyTone: "Posicione como o prato em alta da semana — vibe acolhedora e convidativa." },
+  { theme: "Clássico da Casa", copyTone: "Tom nostálgico e tradicional, reforce a herança e a receita testada pelo tempo." },
+  { theme: "Pedido do Chef", copyTone: "Tom autoral e premium, sugestão pessoal do chef, com confiança e elegância." },
+  { theme: "Sabor que Marca", copyTone: "Tom emocional e sensorial, foco em memória afetiva e experiência única." },
+  { theme: "Feito pra Você", copyTone: "Tom próximo e caloroso, hospitalidade brasileira, convite irresistível." },
+  { theme: "Imperdível da Semana", copyTone: "Tom de urgência leve, oportunidade da semana, escassez sutil." },
+  { theme: "Convite do Dia", copyTone: "Tom inspirador e leve, convidando para uma experiência sensorial." },
+  { theme: "Receita da Casa", copyTone: "Tom artesanal, valorize ingredientes, técnica e dedicação." },
 ];
 
 function getISOWeek(date: Date) {
@@ -154,11 +152,23 @@ serve(async (req) => {
           .select("id", { count: "exact", head: true })
           .eq("restaurant_id", r.id);
         const hash = Array.from(r.id as string).reduce((a, c) => a + c.charCodeAt(0), 0);
-        const themeIndex = ((pastCount || 0) + hash + weekNumber) % WEEK_THEMES.length;
-        const theme = WEEK_THEMES[themeIndex];
+        const themeIndex = ((pastCount || 0) + hash + weekNumber) % BRAND_TONES.length;
+        const theme = BRAND_TONES[themeIndex];
 
-        // Generate copy via AI — alinhada ao tema branding da semana
-        const copyPrompt = `Você é um social media estrategista de branding para restaurantes. Crie uma legenda envolvente para Instagram alinhada ao posicionamento da marca.
+        // Pega as últimas 12 frases já usadas neste restaurante para garantir
+        // que cada post tenha uma headline única (sem repetir).
+        const { data: recentSugs } = await admin
+          .from("social_post_suggestions")
+          .select("context_data")
+          .eq("restaurant_id", r.id)
+          .order("created_at", { ascending: false })
+          .limit(12);
+        const recentHeadlines: string[] = (recentSugs || [])
+          .map((s: any) => s?.context_data?.headline)
+          .filter(Boolean);
+
+        // Generate copy + headline via AI — frase única por post
+        const copyPrompt = `Você é um social media estrategista de branding para restaurantes. Crie uma legenda envolvente para Instagram alinhada ao posicionamento da marca, e ESCOLHA uma frase curta e ÚNICA para aparecer NA imagem (headline overlay).
 
 RESTAURANTE: ${r.name}
 CIDADE/ENDEREÇO: ${r.address || "—"}
@@ -168,20 +178,40 @@ DIA DA SEMANA: ${dayName}
 TEMA DE BRANDING DA SEMANA: ${theme.theme}
 TOM: ${theme.copyTone}
 
+FRASES JÁ USADAS RECENTEMENTE (NÃO REPETIR, nem variações próximas):
+${recentHeadlines.length ? recentHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n") : "(nenhuma ainda)"}
+
 Regras:
-- Português brasileiro, tom acolhedor e apetitoso.
-- 2 a 4 frases, no máximo 280 caracteres.
-- Reflita o TEMA e TOM acima — esta é uma campanha semanal de branding, não promoção.
-- Foque em identidade, experiência e valor da marca; não invente preços, descontos ou promoções.
-- Termine com 3 a 5 hashtags relevantes.
-- Nada de aspas duplas no início/fim.`;
+- Português brasileiro impecável (NUNCA espanhol).
+- "headline" deve ter NO MÁXIMO 5 palavras, ser apetitoso, criativo e DIFERENTE de todas as frases já usadas acima.
+- "headline" pode mencionar o prato, uma sensação, um convite, uma virtude — varie a abordagem.
+- "caption" tem 2 a 4 frases, máximo 280 caracteres, refletindo TEMA e TOM, terminando com 3 a 5 hashtags.
+- Foque em identidade, experiência e valor da marca; nunca invente preços, descontos ou promoções.
+- Sem aspas duplas no início/fim de nenhum campo.`;
 
         const copyResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-flash",
             messages: [{ role: "user", content: copyPrompt }],
+            tools: [{
+              type: "function",
+              function: {
+                name: "submit_post",
+                description: "Envia headline curta (overlay da imagem) e legenda completa.",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    headline: { type: "string", description: "Frase curta (max 5 palavras) que vai estampada NA imagem. Deve ser única, criativa, em PT-BR." },
+                    caption: { type: "string", description: "Legenda completa do Instagram com 3-5 hashtags no final." },
+                  },
+                  required: ["headline", "caption"],
+                  additionalProperties: false,
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "submit_post" } },
           }),
         });
         if (!copyResp.ok) {
@@ -190,10 +220,20 @@ Regras:
           continue;
         }
         const copyJson = await copyResp.json();
-        const copyText: string = copyJson.choices?.[0]?.message?.content || `${dish.name} — venha provar no ${r.name}!`;
-
-        // Headline branding rotativa por semana (texto que aparece NA imagem)
-        const headlineText = theme.headlineTemplate(dish.name);
+        const toolArgsRaw = copyJson.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+        let headlineText = "";
+        let copyText = "";
+        if (toolArgsRaw) {
+          try {
+            const parsed = typeof toolArgsRaw === "string" ? JSON.parse(toolArgsRaw) : toolArgsRaw;
+            headlineText = String(parsed.headline || "").trim().replace(/^["']|["']$/g, "");
+            copyText = String(parsed.caption || "").trim();
+          } catch (e) {
+            console.error("copy parse failed", e);
+          }
+        }
+        if (!headlineText) headlineText = dish.name;
+        if (!copyText) copyText = `${dish.name} — venha provar no ${r.name}!`;
 
         // Generate image (Gemini Image, using dish photo as reference)
         const ambientBlock = ambientPhotoUrl ? `\n\nREAL AMBIENT COMPOSITION (HIGHEST PRIORITY):
