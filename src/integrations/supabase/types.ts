@@ -2803,6 +2803,7 @@ export type Database = {
           plan_status: string | null
           social_autopilot_categories: string[]
           social_autopilot_enabled: boolean
+          social_autopilot_use_ambient: boolean
           status: string
           stripe_customer_id: string | null
           stripe_price_id: string | null
@@ -2840,6 +2841,7 @@ export type Database = {
           plan_status?: string | null
           social_autopilot_categories?: string[]
           social_autopilot_enabled?: boolean
+          social_autopilot_use_ambient?: boolean
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
@@ -2877,6 +2879,7 @@ export type Database = {
           plan_status?: string | null
           social_autopilot_categories?: string[]
           social_autopilot_enabled?: boolean
+          social_autopilot_use_ambient?: boolean
           status?: string
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
