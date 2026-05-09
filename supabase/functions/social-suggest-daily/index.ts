@@ -58,7 +58,7 @@ serve(async (req) => {
     // Find eligible restaurants (autopilot ON). Manual test should target the restaurant
     // even if its lifecycle status is "approved" instead of "active".
     let q = admin.from("restaurants")
-      .select("id, name, address, image_url, social_autopilot_enabled, social_autopilot_categories, cuisine, status")
+      .select("id, name, address, image_url, social_autopilot_enabled, social_autopilot_categories, social_autopilot_use_ambient, cuisine, status")
       .eq("social_autopilot_enabled", true);
     if (onlyRestaurantId) q = q.eq("id", onlyRestaurantId);
     else q = q.in("status", ["active", "approved"]);
@@ -102,6 +102,18 @@ serve(async (req) => {
         }
 
         const enabledCategories = (r.social_autopilot_categories?.length ? r.social_autopilot_categories : ["prato_principal"]) as string[];
+
+        // Ambient Real: pick a random interior photo when enabled and available
+        let ambientPhotoUrl: string | null = null;
+        if (r.social_autopilot_use_ambient !== false) {
+          const { data: ambient } = await admin
+            .from("restaurant_ambient_photos")
+            .select("photo_url")
+            .eq("restaurant_id", r.id)
+            .limit(20);
+          const list = (ambient || []).map((a: any) => a.photo_url).filter(Boolean);
+          if (list.length) ambientPhotoUrl = list[Math.floor(Math.random() * list.length)];
+        }
 
         // Pick a dish. Weekly automation stays strict (featured + photo), but a manual
         // test run can fall back to any dish with photo so the user can validate image generation.
@@ -184,7 +196,15 @@ Regras:
         const headlineText = theme.headlineTemplate(dish.name);
 
         // Generate image (Gemini Image, using dish photo as reference)
-        const imgPrompt = `Authentic premium food photography for a high-end Instagram branding post (1:1 square, premium magazine quality, but believable and natural). This is a weekly BRANDING campaign — not a promotion, no prices, no discounts, no badges.
+        const ambientBlock = ambientPhotoUrl ? `\n\nREAL AMBIENT COMPOSITION (HIGHEST PRIORITY):
+- A second reference image is attached showing the REAL interior of "${r.name}".
+- Compose the dish naturally placed on a table in the FOREGROUND of that exact restaurant interior.
+- Keep the EXACT same furniture, walls, lighting, colors, decor and structure from the interior reference photo. Do NOT reimagine or invent any part of the restaurant.
+- Soft bokeh on the background showing the real restaurant interior. The dish stays the main focus, sharp and detailed.
+- Natural ambient lighting matching the interior photo. Final image must feel like a real photo taken inside that exact venue.
+- Override any conflicting "clean dark backdrop" rule below: the background MUST be the real interior, not a studio surface.\n` : "";
+
+        const imgPrompt = `Authentic premium food photography for a high-end Instagram branding post (1:1 square, premium magazine quality, but believable and natural). This is a weekly BRANDING campaign — not a promotion, no prices, no discounts, no badges.${ambientBlock}
 
 RESTAURANT: "${r.name}"
 DISH: "${dish.name}"
@@ -219,18 +239,18 @@ HARD RULES:
 - No price tags, no % off, no badges, no stickers, no arrows.
 - Output must feel like a $10k commissioned campaign still-life — restrained, confident, premium, minimal.`;
 
+        const contentParts: any[] = [
+          { type: "text", text: imgPrompt },
+          { type: "image_url", image_url: { url: dish.dish_photo_url } },
+        ];
+        if (ambientPhotoUrl) contentParts.push({ type: "image_url", image_url: { url: ambientPhotoUrl } });
+
         const imgResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "google/gemini-3-pro-image-preview",
-            messages: [{
-              role: "user",
-              content: [
-                { type: "text", text: imgPrompt },
-                { type: "image_url", image_url: { url: dish.dish_photo_url } },
-              ],
-            }],
+            messages: [{ role: "user", content: contentParts }],
             modalities: ["image", "text"],
           }),
         });
@@ -260,7 +280,7 @@ HARD RULES:
             dish_id: dish.id,
             suggested_for_date: todayDate,
             status: "pending",
-            context_data: { dia_semana: dayName, dish_name: dish.name, week_number: weekNumber, week_theme: theme.theme, headline: headlineText },
+            context_data: { dia_semana: dayName, dish_name: dish.name, week_number: weekNumber, week_theme: theme.theme, headline: headlineText, ambient_photo_url: ambientPhotoUrl },
             copy_text: copyText,
           })
           .select("id")
