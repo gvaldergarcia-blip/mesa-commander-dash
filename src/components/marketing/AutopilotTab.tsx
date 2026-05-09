@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   Sparkles, Loader2, FileText, Camera, Check, X, Bot, Send,
   ChevronLeft, ChevronRight, Download, Copy, Trash2, Star, StarOff, Settings,
-  ImageIcon, Type, RotateCcw, ArrowLeftRight,
+  ImageIcon, Type, RotateCcw, ArrowLeftRight, CalendarClock, Home,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { FunctionsHttpError } from "@supabase/functions-js";
@@ -85,6 +85,8 @@ export default function AutopilotTab() {
   const extractedAt = restaurant?.menu_dishes_extracted_at;
   const autopilotOn = !!restaurant?.social_autopilot_enabled;
   const enabledCats: string[] = restaurant?.social_autopilot_categories || ["prato_principal"];
+  const useAmbient = restaurant?.social_autopilot_use_ambient !== false;
+  const [ambientCount, setAmbientCount] = useState(0);
 
   const loadAll = async () => {
     if (!restaurantId) return;
@@ -147,6 +149,34 @@ export default function AutopilotTab() {
   };
 
   useEffect(() => { loadAll(); }, [restaurantId]);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    (async () => {
+      const { count } = await supabase
+        .from("restaurant_ambient_photos" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("restaurant_id", restaurantId);
+      setAmbientCount(count || 0);
+    })();
+  }, [restaurantId]);
+
+  // Próxima segunda-feira às 11h (horário de Brasília)
+  const nextRunLabel = useMemo(() => {
+    const now = new Date();
+    const d = new Date(now);
+    const day = d.getDay(); // 0 dom .. 1 seg
+    let daysUntilMonday = (1 - day + 7) % 7;
+    // Se hoje é segunda e ainda não passou das 11h BRT, mantém hoje; senão, próxima
+    if (daysUntilMonday === 0) {
+      const elevenBRT = new Date(d);
+      elevenBRT.setHours(11, 0, 0, 0);
+      if (d.getTime() > elevenBRT.getTime()) daysUntilMonday = 7;
+    }
+    d.setDate(d.getDate() + daysUntilMonday);
+    d.setHours(11, 0, 0, 0);
+    return d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }) + " às 11h";
+  }, []);
 
   // ─── Actions ───
   const handleExtractMenu = async () => {
@@ -211,6 +241,13 @@ export default function AutopilotTab() {
     if (error) return toast.error("Erro");
     await refetch?.();
     toast.success(enabled ? "Auto-pilot ativado" : "Auto-pilot desativado");
+  };
+
+  const updateUseAmbient = async (enabled: boolean) => {
+    const { error } = await supabase.from("restaurants").update({ social_autopilot_use_ambient: enabled } as any).eq("id", restaurantId);
+    if (error) return toast.error("Erro");
+    await refetch?.();
+    toast.success(enabled ? "Ambiente Real ativado no auto-pilot" : "Ambiente Real desativado");
   };
 
   const toggleCategory = async (cat: string) => {
@@ -335,6 +372,13 @@ export default function AutopilotTab() {
           {autopilotOn && (
             <>
               <Separator />
+              <div className="flex items-center gap-2 text-xs p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                <CalendarClock className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>
+                  Próxima geração automática: <strong className="capitalize">{nextRunLabel}</strong> (horário de Brasília).
+                </span>
+              </div>
+
               <div>
                 <Label className="text-xs font-medium">Categorias permitidas no rodízio</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -352,6 +396,26 @@ export default function AutopilotTab() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-card">
+                <div className="flex gap-2 flex-1 min-w-0">
+                  <Home className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium">Ambiente Real no auto-pilot</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {ambientCount > 0
+                        ? `Quando ativo, a IA compõe o prato dentro do interior real do seu restaurante (${ambientCount} ${ambientCount === 1 ? "foto" : "fotos"} disponíveis).`
+                        : "Nenhuma foto do ambiente cadastrada ainda. Sincronize com o Google ou faça upload em Configurações → Ambiente."}
+                    </p>
+                    {ambientCount === 0 && (
+                      <Button size="sm" variant="link" className="h-auto p-0 text-[11px] mt-1" onClick={() => navigate("/settings?tab=ambient")}>
+                        Configurar agora →
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <Switch checked={useAmbient && ambientCount > 0} disabled={ambientCount === 0} onCheckedChange={updateUseAmbient} />
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
