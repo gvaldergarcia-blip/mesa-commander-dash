@@ -8,19 +8,17 @@ const corsHeaders = {
 
 const DAYS_PT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-// Estratégia de branding: cada semana usa um tema/headline diferente.
-// Rotaciona por número da semana ISO para garantir variação semanal previsível.
-const WEEK_THEMES: Array<{
-  theme: string;
-  headlineTemplate: (dishName: string) => string;
-  copyTone: string;
-}> = [
-  { theme: "Destaque da Semana", headlineTemplate: (d) => `Destaque da semana: ${d}`, copyTone: "Posicione como o prato em alta da semana — vibe acolhedora e convidativa." },
-  { theme: "Clássico da Casa", headlineTemplate: (d) => `Clássico da casa`, copyTone: "Tom nostálgico e tradicional, reforce a herança e a receita testada pelo tempo." },
-  { theme: "Pedido do Chef", headlineTemplate: (d) => `Pedido do chef`, copyTone: "Tom autoral e premium, sugestão pessoal do chef, com confiança e elegância." },
-  { theme: "Sabor que Marca", headlineTemplate: (d) => `Sabor que marca`, copyTone: "Tom emocional e sensorial, foco em memória afetiva e experiência única." },
-  { theme: "Feito pra Você", headlineTemplate: (d) => `Feito pra você`, copyTone: "Tom próximo e caloroso, hospitalidade brasileira, convite irresistível." },
-  { theme: "Imperdível da Semana", headlineTemplate: (d) => `Imperdível`, copyTone: "Tom de urgência leve, oportunidade da semana, escassez sutil." },
+// Tons de branding rotativos. A FRASE em si é gerada pela IA a cada post,
+// usando o histórico recente para nunca repetir.
+const BRAND_TONES: Array<{ theme: string; copyTone: string }> = [
+  { theme: "Destaque da Semana", copyTone: "Posicione como o prato em alta da semana — vibe acolhedora e convidativa." },
+  { theme: "Clássico da Casa", copyTone: "Tom nostálgico e tradicional, reforce a herança e a receita testada pelo tempo." },
+  { theme: "Pedido do Chef", copyTone: "Tom autoral e premium, sugestão pessoal do chef, com confiança e elegância." },
+  { theme: "Sabor que Marca", copyTone: "Tom emocional e sensorial, foco em memória afetiva e experiência única." },
+  { theme: "Feito pra Você", copyTone: "Tom próximo e caloroso, hospitalidade brasileira, convite irresistível." },
+  { theme: "Imperdível da Semana", copyTone: "Tom de urgência leve, oportunidade da semana, escassez sutil." },
+  { theme: "Convite do Dia", copyTone: "Tom inspirador e leve, convidando para uma experiência sensorial." },
+  { theme: "Receita da Casa", copyTone: "Tom artesanal, valorize ingredientes, técnica e dedicação." },
 ];
 
 function getISOWeek(date: Date) {
