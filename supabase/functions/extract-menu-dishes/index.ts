@@ -8,6 +8,21 @@ const corsHeaders = {
 };
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"];
+const MENU_KEYWORDS = ["cardap", "menu", "ementa", "comidas", "pratos"];
+
+function looksLikeImageUrl(url: string) {
+  const lower = url.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.includes(ext));
+}
+
+function looksLikePdfUrl(url: string) {
+  return url.toLowerCase().includes(".pdf");
+}
+
+function looksLikeMenuPage(url: string, text = "") {
+  const lower = `${url} ${text}`.toLowerCase();
+  return MENU_KEYWORDS.some((keyword) => lower.includes(keyword));
+}
 
 function isAbsoluteUrl(value: string) {
   return /^https?:\/\//i.test(value);
@@ -26,27 +41,35 @@ function uniqueUrls(urls: Array<string | null | undefined>) {
 }
 
 function extractAssetUrlsFromHtml(html: string, baseUrl: string) {
-  const matches = [
-    ...html.matchAll(/<(?:img|source)[^>]+(?:src|data-src)=["']([^"']+)["']/gi),
-    ...html.matchAll(/<a[^>]+href=["']([^"']+\.pdf(?:\?[^"']*)?)["']/gi),
+  const rawImageCandidates = [
+    ...html.matchAll(/<(?:img|source)[^>]+(?:src|data-src|data-original|data-lazy-src|poster)=["']([^"']+)["']/gi),
     ...html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi),
     ...html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/gi),
+    ...html.matchAll(/url\((["']?)([^)'"\s]+)\1\)/gi),
   ];
 
-  const assetUrls = matches
+  const imageUrls = rawImageCandidates
+    .map((match) => resolveUrl(baseUrl, match[2] || match[1]))
+    .filter((url): url is string => !!url && looksLikeImageUrl(url));
+
+  const linkMatches = [...html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
+  const pdfUrls = linkMatches
     .map((match) => resolveUrl(baseUrl, match[1]))
-    .filter(Boolean) as string[];
+    .filter((url): url is string => !!url && looksLikePdfUrl(url));
 
-  const imageUrls = assetUrls.filter((url) => {
-    const lower = url.toLowerCase();
-    return IMAGE_EXTENSIONS.some((ext) => lower.includes(ext));
-  });
-
-  const pdfUrls = assetUrls.filter((url) => url.toLowerCase().includes(".pdf"));
+  const pageUrls = linkMatches
+    .map((match) => ({
+      url: resolveUrl(baseUrl, match[1]),
+      text: match[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
+    }))
+    .filter((item): item is { url: string; text: string } => !!item.url)
+    .filter((item) => !looksLikePdfUrl(item.url) && looksLikeMenuPage(item.url, item.text))
+    .map((item) => item.url);
 
   return {
-    imageUrls: uniqueUrls(imageUrls).slice(0, 12),
-    pdfUrls: uniqueUrls(pdfUrls).slice(0, 3),
+    imageUrls: uniqueUrls(imageUrls).slice(0, 16),
+    pdfUrls: uniqueUrls(pdfUrls).slice(0, 4),
+    pageUrls: uniqueUrls(pageUrls).slice(0, 6),
   };
 }
 
@@ -65,26 +88,64 @@ async function resolveMenuAssets(menuSource: string) {
     return { contentType: "application/pdf", imageUrls: [], pdfUrls: [directUrl], sourceUrl: directUrl };
   }
 
-  const resp = await fetch(directUrl, { headers: { "User-Agent": "Mozilla/5.0 MesaClik Menu Extractor" } });
-  const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+  const visited = new Set<string>();
+  const pending = [directUrl];
+  const imageUrls: string[] = [];
+  const pdfUrls: string[] = [];
+  let contentType: string | null = null;
+  let sourceUrl: string | null = directUrl;
 
-  if (contentType.startsWith("image/")) {
-    return { contentType, imageUrls: [directUrl], pdfUrls: [], sourceUrl: directUrl };
-  }
-  if (contentType.includes("pdf")) {
-    return { contentType, imageUrls: [], pdfUrls: [directUrl], sourceUrl: directUrl };
-  }
-  if (!contentType.includes("html")) {
-    return { contentType, imageUrls: [], pdfUrls: [], sourceUrl: directUrl };
+  while (pending.length > 0 && visited.size < 5 && imageUrls.length < 12 && pdfUrls.length < 2) {
+    const currentUrl = pending.shift()!;
+    if (visited.has(currentUrl)) continue;
+    visited.add(currentUrl);
+
+    let resp: Response;
+    try {
+      resp = await fetch(currentUrl, { headers: { "User-Agent": "Mozilla/5.0 MesaClik Menu Extractor" } });
+    } catch (error) {
+      console.error("Failed fetching menu source:", currentUrl, error);
+      continue;
+    }
+
+    contentType = (resp.headers.get("content-type") || "").toLowerCase();
+    sourceUrl = resp.url || currentUrl;
+
+    if (contentType.startsWith("image/")) {
+      imageUrls.push(sourceUrl);
+      continue;
+    }
+    if (contentType.includes("pdf")) {
+      pdfUrls.push(sourceUrl);
+      continue;
+    }
+    if (!contentType.includes("html")) {
+      continue;
+    }
+
+    const html = await resp.text();
+    const extracted = extractAssetUrlsFromHtml(html, sourceUrl);
+    imageUrls.push(...extracted.imageUrls);
+    pdfUrls.push(...extracted.pdfUrls);
+
+    const origin = new URL(sourceUrl).origin;
+    for (const nextPage of extracted.pageUrls) {
+      if (pending.length >= 6) break;
+      if (visited.has(nextPage)) continue;
+      try {
+        if (new URL(nextPage).origin !== origin) continue;
+      } catch {
+        continue;
+      }
+      pending.push(nextPage);
+    }
   }
 
-  const html = await resp.text();
-  const extracted = extractAssetUrlsFromHtml(html, directUrl);
   return {
     contentType,
-    imageUrls: extracted.imageUrls,
-    pdfUrls: extracted.pdfUrls,
-    sourceUrl: directUrl,
+    imageUrls: uniqueUrls(imageUrls).slice(0, 12),
+    pdfUrls: uniqueUrls(pdfUrls).slice(0, 2),
+    sourceUrl,
   };
 }
 
