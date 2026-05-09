@@ -1,0 +1,1 @@
+ALTER TABLE public.restaurants ADD COLUMN IF NOT EXISTS social_autopilot_use_ambient boolean NOT NULL DEFAULT true;
