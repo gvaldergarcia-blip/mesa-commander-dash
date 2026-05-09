@@ -146,13 +146,32 @@ serve(async (req) => {
 
     const resolvedMenu = await resolveMenuAssets(menuSource);
     const resolvedImages = resolvedMenu.imageUrls.slice(0, 10);
+    const resolvedPdfs = resolvedMenu.pdfUrls.slice(0, 2);
 
-    if (resolvedImages.length === 0) {
-      const detail = resolvedMenu.pdfUrls.length > 0
-        ? "O link cadastrado aponta para um PDF. No momento, cadastre a imagem do cardápio ou uma página que contenha imagens do cardápio."
-        : resolvedMenu.contentType?.includes("html")
-          ? "O link cadastrado abre uma página web, mas não encontrei imagens do cardápio dentro dela."
-          : "O link cadastrado não retorna uma imagem válida do cardápio.";
+    // Build content parts: images go as URL, PDFs are downloaded and inlined as base64 data URLs
+    const mediaParts: any[] = [];
+    for (const url of resolvedImages) {
+      mediaParts.push({ type: "image_url", image_url: { url } });
+    }
+    for (const pdfUrl of resolvedPdfs) {
+      try {
+        const pdfResp = await fetch(pdfUrl, { headers: { "User-Agent": "Mozilla/5.0 MesaClik" } });
+        if (!pdfResp.ok) { console.error("PDF fetch failed:", pdfResp.status, pdfUrl); continue; }
+        const buf = new Uint8Array(await pdfResp.arrayBuffer());
+        if (buf.length > 18 * 1024 * 1024) { console.error("PDF too large:", buf.length); continue; }
+        let bin = "";
+        for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+        const b64 = btoa(bin);
+        mediaParts.push({ type: "image_url", image_url: { url: `data:application/pdf;base64,${b64}` } });
+      } catch (e) {
+        console.error("PDF processing error:", e);
+      }
+    }
+
+    if (mediaParts.length === 0) {
+      const detail = resolvedMenu.contentType?.includes("html")
+        ? "Não consegui ler imagens do cardápio nessa página. Cole o link DIRETO do PDF ou da imagem do cardápio (terminando em .pdf, .jpg ou .png), ou faça upload da imagem em Configurações → Cardápio."
+        : "O link cadastrado não retorna uma imagem ou PDF válido. Cole o link DIRETO do cardápio (PDF, JPG ou PNG) ou faça upload da imagem em Configurações → Cardápio.";
 
       return new Response(JSON.stringify({ error: detail }), {
         status: 400,
@@ -195,7 +214,7 @@ IMPORTANTE:
             role: "user",
             content: [
               { type: "text", text: prompt },
-              ...resolvedImages.map((url) => ({ type: "image_url", image_url: { url } })),
+              ...mediaParts,
             ],
           },
         ],
