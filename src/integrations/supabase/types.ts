@@ -382,6 +382,7 @@ export type Database = {
           active_days: number[]
           category_id: string
           created_at: string
+          daily_frequency: number
           description: string | null
           display_order: number
           has_qr: boolean
@@ -398,6 +399,7 @@ export type Database = {
           active_days?: number[]
           category_id: string
           created_at?: string
+          daily_frequency?: number
           description?: string | null
           display_order?: number
           has_qr?: boolean
@@ -414,6 +416,7 @@ export type Database = {
           active_days?: number[]
           category_id?: string
           created_at?: string
+          daily_frequency?: number
           description?: string | null
           display_order?: number
           has_qr?: boolean
