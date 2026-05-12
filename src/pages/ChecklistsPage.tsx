@@ -131,7 +131,19 @@ export default function ChecklistsPage() {
     if (!activeCat && categories.length > 0) setActiveCat(categories[0].id);
   }, [categories, activeCat]);
 
-  const completedItemIds = useMemo(() => new Set(completions.map((c) => c.item_id)), [completions]);
+  const completionCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of completions) m.set(c.item_id, (m.get(c.item_id) ?? 0) + 1);
+    return m;
+  }, [completions]);
+  const completedItemIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of allItems) {
+      const need = Math.max(1, it.daily_frequency ?? 1);
+      if ((completionCounts.get(it.id) ?? 0) >= need) s.add(it.id);
+    }
+    return s;
+  }, [allItems, completionCounts]);
   const itemCompletion = useMemo(() => {
     const map = new Map<string, ChecklistCompletion>();
     for (const c of completions) if (!map.has(c.item_id)) map.set(c.item_id, c);
