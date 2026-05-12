@@ -464,13 +464,14 @@ interface ItemRowProps {
   mode: Mode;
   item: ChecklistItem;
   done: boolean;
+  doneCount: number;
   completion: ChecklistCompletion | undefined;
   onOpenQr: () => void;
   onOpenScan: () => void;
   onEdit: () => void;
 }
 
-function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }: ItemRowProps) {
+function ItemRow({ mode, item, done, doneCount, completion, onOpenQr, onOpenScan, onEdit }: ItemRowProps) {
   const { restaurantId } = useRestaurant();
   const complete = useCompleteItem();
   const del = useDeleteItem();
