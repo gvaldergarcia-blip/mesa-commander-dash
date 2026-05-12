@@ -452,7 +452,14 @@ export default function EtiquetasPage() {
                     >
                       {selected.name}
                     </span>
-                    {restaurant?.logo_url ? (
+                    {checklistQrUrl ? (
+                      <div className="flex flex-col items-center gap-0.5 shrink-0">
+                        <QRCodeSVG value={checklistQrUrl} size={48} level="M" marginSize={0} />
+                        <span className="truncate text-center" style={{ fontSize: "6px", maxWidth: "60px", lineHeight: 1 }}>
+                          {selectedChecklist?.name}
+                        </span>
+                      </div>
+                    ) : restaurant?.logo_url ? (
                       <img
                         src={restaurant.logo_url}
                         alt="logo"
