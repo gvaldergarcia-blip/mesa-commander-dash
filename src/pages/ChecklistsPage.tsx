@@ -556,6 +556,11 @@ function ItemRow({ mode, item, done, doneCount, completion, onOpenQr, onOpenScan
                 <Clock className="h-3 w-3" /> {item.scheduled_time}
               </span>
             )}
+            {(item.daily_frequency ?? 1) > 1 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                {doneCount}/{item.daily_frequency}x hoje
+              </Badge>
+            )}
           </div>
           {mode === 'gestor' && (
             <p className="text-[11px] text-muted-foreground mt-0.5 inline-flex items-center gap-1">
@@ -589,7 +594,8 @@ function ItemRow({ mode, item, done, doneCount, completion, onOpenQr, onOpenScan
           </>
         ) : done ? (
           <Badge variant="secondary" className="gap-1">
-            <CheckCircle2 className="h-3 w-3 text-green-500" /> Concluído
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            Concluído{(item.daily_frequency ?? 1) > 1 ? ` (${doneCount}/${item.daily_frequency})` : ''}
           </Badge>
         ) : (
           <>
