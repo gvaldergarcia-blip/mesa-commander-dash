@@ -25,6 +25,7 @@ import IACreatorMarketing from "./pages/IACreatorMarketing";
 import ChecklistsPage from "./pages/ChecklistsPage";
 import ChecklistQrValidate from "./pages/ChecklistQrValidate";
 import EtiquetasPage from "./pages/EtiquetasPage";
+import CardapioInteligente from "./pages/CardapioInteligente";
 
 
 import NotFound from "./pages/NotFound";
@@ -204,6 +205,9 @@ const App = () => {
                   } />
                   <Route path="/checklists" element={<ChecklistsPage />} />
                   <Route path="/etiquetas" element={<EtiquetasPage />} />
+                  <Route path="/cardapio" element={
+                    <RoleGuard><CardapioInteligente /></RoleGuard>
+                  } />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />

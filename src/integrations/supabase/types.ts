@@ -1458,6 +1458,92 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_dishes: {
+        Row: {
+          active: boolean
+          ai_notes: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          ingredients: string[]
+          margin: string
+          name: string
+          occasions: string[]
+          photo_url: string | null
+          price: number | null
+          profiles: string[]
+          restaurant_id: string
+          restrictions: string[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          ai_notes?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          ingredients?: string[]
+          margin?: string
+          name: string
+          occasions?: string[]
+          photo_url?: string | null
+          price?: number | null
+          profiles?: string[]
+          restaurant_id: string
+          restrictions?: string[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          ai_notes?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          ingredients?: string[]
+          margin?: string
+          name?: string
+          occasions?: string[]
+          photo_url?: string | null
+          price?: number | null
+          profiles?: string[]
+          restaurant_id?: string
+          restrictions?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dishes_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admins: {
         Row: {
           created_at: string | null
