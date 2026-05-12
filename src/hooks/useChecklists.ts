@@ -28,6 +28,7 @@ export interface ChecklistItem {
   active: boolean;
   active_days: number[];
   created_at: string;
+  daily_frequency: number;
 }
 
 export interface ChecklistCompletion {
@@ -189,6 +190,7 @@ export function useCreateItem() {
       has_qr: boolean;
       scheduled_time?: string | null;
       active_days?: number[];
+      daily_frequency?: number;
     }) => {
       if (!restaurantId) throw new Error('Sem restaurante');
       const { error } = await (supabase as any)
@@ -202,6 +204,7 @@ export function useCreateItem() {
           has_qr: input.has_qr,
           scheduled_time: input.scheduled_time || null,
           active_days: input.active_days ?? [0, 1, 2, 3, 4, 5, 6],
+          daily_frequency: Math.max(1, Math.min(24, input.daily_frequency ?? 1)),
         });
       if (error) throw error;
     },
@@ -224,8 +227,12 @@ export function useUpdateItem() {
       has_qr?: boolean;
       scheduled_time?: string | null;
       active_days?: number[];
+      daily_frequency?: number;
     }) => {
       const { id, ...patch } = input;
+      if (patch.daily_frequency !== undefined) {
+        patch.daily_frequency = Math.max(1, Math.min(24, patch.daily_frequency));
+      }
       const { error } = await (supabase as any)
         .from('checklist_items')
         .update(patch)
