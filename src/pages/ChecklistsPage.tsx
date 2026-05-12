@@ -272,6 +272,7 @@ export default function ChecklistsPage() {
                   progress={catProgress}
                   doneCount={catDone}
                   completedItemIds={completedItemIds}
+                  completionCounts={completionCounts}
                   itemCompletion={itemCompletion}
                   onOpenQr={setQrItem}
                   onOpenScan={setScanItem}
