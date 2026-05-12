@@ -14,6 +14,10 @@ import { MenuDish, useMenuDishes, DishCategory, DishMargin } from '@/hooks/useMe
 import { DishFormDialog } from '@/components/cardapio/DishFormDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useRestaurant } from '@/contexts/RestaurantContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { Wand2 } from 'lucide-react';
 
 const CATEGORY_LABEL: Record<DishCategory, string> = {
   entrada: 'Entrada', principal: 'Prato Principal', sobremesa: 'Sobremesa',
@@ -36,14 +40,44 @@ const fmtBRL = (n: number | null) =>
 
 export default function CardapioInteligente() {
   const { dishes, isLoading, remove } = useMenuDishes();
+  const { restaurantId } = useRestaurant();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<'pratos' | 'insights'>('pratos');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<MenuDish | null>(null);
   const [campaignDish, setCampaignDish] = useState<MenuDish | null>(null);
   const [campaignSituation, setCampaignSituation] = useState<string>('');
+  const [importing, setImporting] = useState(false);
 
   const openCreate = () => { setEditing(null); setFormOpen(true); };
   const openEdit = (d: MenuDish) => { setEditing(d); setFormOpen(true); };
+
+  const handleImportFromMenu = async () => {
+    if (!restaurantId) return;
+    setImporting(true);
+    const t = toast.loading('IA analisando seu cardápio…', { description: 'Isso pode levar até 1 minuto.' });
+    try {
+      const { data, error } = await supabase.functions.invoke('import-menu-ai', {
+        body: { restaurantId },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const count = (data as any)?.count ?? 0;
+      const skipped = (data as any)?.skipped ?? 0;
+      toast.success(`${count} prato(s) importado(s)`, {
+        id: t,
+        description: skipped > 0 ? `${skipped} já existiam e foram ignorados.` : 'Agora é só anexar as fotos de cada prato.',
+      });
+      qc.invalidateQueries({ queryKey: ['menu-dishes'] });
+    } catch (e: any) {
+      toast.error('Não foi possível importar o cardápio', {
+        id: t,
+        description: e?.message ?? 'Verifique se o cardápio está anexado em Configurações.',
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <div className="p-3 md:p-6 space-y-5 max-w-7xl mx-auto">
@@ -58,9 +92,20 @@ export default function CardapioInteligente() {
             A IA aprende seus pratos e personaliza campanhas para cada cliente.
           </p>
         </div>
-        <Button onClick={openCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground self-start">
-          <Plus className="mr-1 h-4 w-4" /> Adicionar Prato
-        </Button>
+        <div className="flex gap-2 self-start flex-wrap">
+          <Button
+            variant="outline"
+            onClick={handleImportFromMenu}
+            disabled={importing}
+            title="A IA lê o cardápio anexado nas Configurações e importa os pratos automaticamente"
+          >
+            {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1 h-4 w-4" />}
+            Importar do Cardápio (IA)
+          </Button>
+          <Button onClick={openCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Plus className="mr-1 h-4 w-4" /> Adicionar Prato
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="space-y-4">
@@ -82,7 +127,10 @@ export default function CardapioInteligente() {
               <CardContent className="py-16 text-center text-muted-foreground">
                 <ChefHat className="h-10 w-10 mx-auto mb-3 opacity-40" />
                 <p className="font-medium">Seu cardápio está vazio</p>
-                <p className="text-sm mt-1">Clique em "Adicionar Prato" para começar.</p>
+                <p className="text-sm mt-1">
+                  Clique em <strong>"Importar do Cardápio (IA)"</strong> para a IA ler o cardápio anexado em Configurações,
+                  ou em <strong>"Adicionar Prato"</strong> para cadastrar manualmente.
+                </p>
               </CardContent>
             </Card>
           ) : (
