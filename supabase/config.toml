@@ -101,3 +101,15 @@ verify_jwt = true
 
 [functions.social-approve-post]
 verify_jwt = true
+
+[functions.cardapio-chat]
+verify_jwt = true
+
+[functions.generate-dish-image]
+verify_jwt = true
+
+[functions.dispatch-dish-campaigns]
+verify_jwt = false
+
+[functions.import-menu-ai]
+verify_jwt = true
