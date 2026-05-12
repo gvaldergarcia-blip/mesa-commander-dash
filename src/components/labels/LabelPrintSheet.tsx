@@ -9,6 +9,9 @@ export interface PrintLabelData {
   notes?: string | null;
   quantity: number;
   batch?: string | null;
+  quantityWeight?: string | null;
+  restaurantName?: string | null;
+  restaurantLogoUrl?: string | null;
 }
 
 const fmtDateTime = (d: Date) => format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -29,22 +32,35 @@ const escapeHtml = (s: string) =>
  * temporária fora do app e, durante o @media print, mostramos só a etiqueta.
  */
 export function printLabels(data: PrintLabelData) {
+  const hasLogo = !!data.restaurantLogoUrl;
+  const headerRight = hasLogo
+    ? `<img class="logo" src="${escapeHtml(data.restaurantLogoUrl!)}" alt="logo" />`
+    : `<div class="rest-name-top">${escapeHtml(data.restaurantName || "")}</div>`;
+
+  const bodyRows: string[] = [];
+  bodyRows.push(`<div class="cell"><span class="k">Fab:</span> ${escapeHtml(fmtDateTime(data.manufactureDate))}</div>`);
+  bodyRows.push(`<div class="cell"><span class="k">Val:</span> ${escapeHtml(fmtDate(data.expiryDate))}</div>`);
+  bodyRows.push(`<div class="cell"><span class="k">Resp:</span> ${escapeHtml(data.responsible)}</div>`);
+  if (data.batch) bodyRows.push(`<div class="cell"><span class="k">Lote:</span> ${escapeHtml(data.batch)}</div>`);
+  if (data.quantityWeight) bodyRows.push(`<div class="cell"><span class="k">Qtd:</span> ${escapeHtml(data.quantityWeight)}</div>`);
+
   const labelsHtml = Array.from({ length: data.quantity })
     .map(
       () => `
         <div class="label">
-          <div class="name">${escapeHtml(data.productName)}</div>
-          <div class="row"><span class="k">Fab:</span> ${escapeHtml(fmtDateTime(data.manufactureDate))}</div>
-          <div class="row"><span class="k">Val:</span> ${escapeHtml(fmtDate(data.expiryDate))}</div>
-          <div class="row"><span class="k">Resp:</span> ${escapeHtml(data.responsible)}</div>
-          ${
-            data.batch
-              ? `<div class="row"><span class="k">Lote:</span> ${escapeHtml(data.batch)}</div>`
-              : ""
-          }
+          <div class="header">
+            <div class="name">${escapeHtml(data.productName)}</div>
+            <div class="header-right">${headerRight}</div>
+          </div>
+          <div class="body">${bodyRows.join("")}</div>
           ${
             data.notes
               ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
+              : ""
+          }
+          ${
+            data.restaurantName
+              ? `<div class="footer">${escapeHtml(data.restaurantName)}</div>`
               : ""
           }
         </div>`
@@ -85,21 +101,40 @@ export function printLabels(data: PrintLabelData) {
     font-size: 8pt;
     line-height: 1.2;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .label:last-child { page-break-after: auto; }
-  .name {
-    font-size: 11pt;
-    font-weight: 700;
-    text-transform: uppercase;
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2mm;
     border-bottom: 1px solid #000;
     padding-bottom: 1mm;
     margin-bottom: 1.5mm;
+  }
+  .name {
+    font-size: 12pt;
+    font-weight: 700;
+    text-transform: uppercase;
     letter-spacing: 0.3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
   }
-  .row { margin: 0.5mm 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-right { flex-shrink: 0; display: flex; align-items: center; }
+  .logo { width: 20px; height: 20px; object-fit: contain; }
+  .rest-name-top { font-size: 8pt; font-weight: 700; text-transform: uppercase; }
+  .body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 3mm;
+    row-gap: 0.5mm;
+    flex: 1;
+  }
+  .cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8pt; }
   .k { font-weight: 700; }
   .notes {
     margin-top: 1mm;
@@ -108,6 +143,22 @@ export function printLabels(data: PrintLabelData) {
     font-style: italic;
     font-size: 7pt;
     line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .footer {
+    margin-top: 1mm;
+    padding-top: 1mm;
+    border-top: 1px solid #000;
+    text-align: center;
+    font-size: 7pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   }
   `;
