@@ -127,7 +127,10 @@ export default function CardapioInteligente() {
               <CardContent className="py-16 text-center text-muted-foreground">
                 <ChefHat className="h-10 w-10 mx-auto mb-3 opacity-40" />
                 <p className="font-medium">Seu cardápio está vazio</p>
-                <p className="text-sm mt-1">Clique em "Adicionar Prato" para começar.</p>
+                <p className="text-sm mt-1">
+                  Clique em <strong>"Importar do Cardápio (IA)"</strong> para a IA ler o cardápio anexado em Configurações,
+                  ou em <strong>"Adicionar Prato"</strong> para cadastrar manualmente.
+                </p>
               </CardContent>
             </Card>
           ) : (
