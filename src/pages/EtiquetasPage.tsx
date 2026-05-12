@@ -378,6 +378,27 @@ export default function EtiquetasPage() {
                 />
               </div>
 
+              {/* Checklist QR */}
+              <div className="space-y-2">
+                <Label htmlFor="checklist-qr">Vincular QR de Checklist (opcional)</Label>
+                <select
+                  id="checklist-qr"
+                  value={checklistItemId}
+                  onChange={(e) => setChecklistItemId(e.target.value)}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Sem QR de checklist</option>
+                  {qrChecklistItems.map((it) => (
+                    <option key={it.id} value={it.id}>{it.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {qrChecklistItems.length === 0
+                    ? "Crie itens com 'Validação por QR Code' em Checklists para usar aqui."
+                    : "A equipe pode escanear esse QR direto da etiqueta para registrar a verificação no checklist."}
+                </p>
+              </div>
+
               <div className="space-y-2 max-w-xs">
                 <Label htmlFor="qty">Quantidade de etiquetas (1 a 10)</Label>
                   <Input
