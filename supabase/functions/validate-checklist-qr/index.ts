@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // Buscar item ativo
     const { data: item, error: itemError } = await supabase
       .from('checklist_items')
-      .select('id, name, restaurant_id, active')
+      .select('id, name, restaurant_id, active, daily_frequency')
       .eq('id', item_id)
       .eq('active', true)
       .maybeSingle();
@@ -57,16 +57,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verificar se já foi validado hoje
-    const { data: existing } = await supabase
+    // Conta validações de hoje e respeita daily_frequency
+    const { data: existingList } = await supabase
       .from('checklist_completions')
       .select('id')
       .eq('item_id', item.id)
       .eq('restaurant_id', item.restaurant_id)
-      .eq('completion_date', today())
-      .maybeSingle();
+      .eq('completion_date', today());
 
-    if (!existing) {
+    const doneCount = existingList?.length ?? 0;
+    const limit = Math.max(1, (item as any).daily_frequency ?? 1);
+    const alreadyAtLimit = doneCount >= limit;
+
+    if (!alreadyAtLimit) {
       const { error: insertError } = await supabase
         .from('checklist_completions')
         .insert({
@@ -89,7 +92,9 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         item_name: item.name,
-        already_validated: !!existing,
+        already_validated: alreadyAtLimit,
+        done_count: alreadyAtLimit ? doneCount : doneCount + 1,
+        daily_frequency: limit,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
