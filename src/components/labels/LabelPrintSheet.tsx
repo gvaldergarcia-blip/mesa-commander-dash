@@ -12,6 +12,10 @@ export interface PrintLabelData {
   quantityWeight?: string | null;
   restaurantName?: string | null;
   restaurantLogoUrl?: string | null;
+  /** SVG markup pronto (ex: renderToStaticMarkup(<QRCodeSVG/>)) */
+  checklistQrSvg?: string | null;
+  /** Texto curto exibido abaixo do QR */
+  checklistQrLabel?: string | null;
 }
 
 const fmtDateTime = (d: Date) => format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -32,8 +36,13 @@ const escapeHtml = (s: string) =>
  * temporária fora do app e, durante o @media print, mostramos só a etiqueta.
  */
 export function printLabels(data: PrintLabelData) {
+  const hasQr = !!data.checklistQrSvg;
   const hasLogo = !!data.restaurantLogoUrl;
-  const headerRight = hasLogo
+  const headerRight = hasQr
+    ? `<div class="qr-wrap">${data.checklistQrSvg}${
+        data.checklistQrLabel ? `<div class="qr-label">${escapeHtml(data.checklistQrLabel)}</div>` : ""
+      }</div>`
+    : hasLogo
     ? `<img class="logo" src="${escapeHtml(data.restaurantLogoUrl!)}" alt="logo" />`
     : `<div class="rest-name-top">${escapeHtml(data.restaurantName || "")}</div>`;
 
@@ -127,6 +136,9 @@ export function printLabels(data: PrintLabelData) {
   .header-right { flex-shrink: 0; display: flex; align-items: center; }
   .logo { width: 20px; height: 20px; object-fit: contain; }
   .rest-name-top { font-size: 8pt; font-weight: 700; text-transform: uppercase; }
+  .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5mm; }
+  .qr-wrap svg { width: 14mm; height: 14mm; display: block; }
+  .qr-label { font-size: 5pt; text-align: center; line-height: 1; max-width: 16mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .body {
     display: grid;
     grid-template-columns: 1fr 1fr;

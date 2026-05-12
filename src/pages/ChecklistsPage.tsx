@@ -131,7 +131,19 @@ export default function ChecklistsPage() {
     if (!activeCat && categories.length > 0) setActiveCat(categories[0].id);
   }, [categories, activeCat]);
 
-  const completedItemIds = useMemo(() => new Set(completions.map((c) => c.item_id)), [completions]);
+  const completionCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of completions) m.set(c.item_id, (m.get(c.item_id) ?? 0) + 1);
+    return m;
+  }, [completions]);
+  const completedItemIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of allItems) {
+      const need = Math.max(1, it.daily_frequency ?? 1);
+      if ((completionCounts.get(it.id) ?? 0) >= need) s.add(it.id);
+    }
+    return s;
+  }, [allItems, completionCounts]);
   const itemCompletion = useMemo(() => {
     const map = new Map<string, ChecklistCompletion>();
     for (const c of completions) if (!map.has(c.item_id)) map.set(c.item_id, c);
@@ -260,6 +272,7 @@ export default function ChecklistsPage() {
                   progress={catProgress}
                   doneCount={catDone}
                   completedItemIds={completedItemIds}
+                  completionCounts={completionCounts}
                   itemCompletion={itemCompletion}
                   onOpenQr={setQrItem}
                   onOpenScan={setScanItem}
@@ -340,6 +353,7 @@ interface CategoryPanelProps {
   progress: number;
   doneCount: number;
   completedItemIds: Set<string>;
+  completionCounts: Map<string, number>;
   itemCompletion: Map<string, ChecklistCompletion>;
   onOpenQr: (item: ChecklistItem) => void;
   onOpenScan: (item: ChecklistItem) => void;
@@ -348,7 +362,7 @@ interface CategoryPanelProps {
 }
 
 function CategoryPanel({
-  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem, onEditItem,
+  mode, category, items, progress, doneCount, completedItemIds, completionCounts, itemCompletion, onOpenQr, onOpenScan, onAddItem, onEditItem,
 }: CategoryPanelProps) {
   const printAll = () => {
     const qrItems = items.filter((i) => i.has_qr);
@@ -432,6 +446,7 @@ function CategoryPanel({
                 mode={mode}
                 item={it}
                 done={completedItemIds.has(it.id)}
+                doneCount={completionCounts.get(it.id) ?? 0}
                 completion={itemCompletion.get(it.id)}
                 onOpenQr={() => onOpenQr(it)}
                 onOpenScan={() => onOpenScan(it)}
@@ -449,13 +464,14 @@ interface ItemRowProps {
   mode: Mode;
   item: ChecklistItem;
   done: boolean;
+  doneCount: number;
   completion: ChecklistCompletion | undefined;
   onOpenQr: () => void;
   onOpenScan: () => void;
   onEdit: () => void;
 }
 
-function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }: ItemRowProps) {
+function ItemRow({ mode, item, done, doneCount, completion, onOpenQr, onOpenScan, onEdit }: ItemRowProps) {
   const { restaurantId } = useRestaurant();
   const complete = useCompleteItem();
   const del = useDeleteItem();
@@ -540,6 +556,11 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }:
                 <Clock className="h-3 w-3" /> {item.scheduled_time}
               </span>
             )}
+            {(item.daily_frequency ?? 1) > 1 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                {doneCount}/{item.daily_frequency}x hoje
+              </Badge>
+            )}
           </div>
           {mode === 'gestor' && (
             <p className="text-[11px] text-muted-foreground mt-0.5 inline-flex items-center gap-1">
@@ -573,7 +594,8 @@ function ItemRow({ mode, item, done, completion, onOpenQr, onOpenScan, onEdit }:
           </>
         ) : done ? (
           <Badge variant="secondary" className="gap-1">
-            <CheckCircle2 className="h-3 w-3 text-green-500" /> Concluído
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            Concluído{(item.daily_frequency ?? 1) > 1 ? ` (${doneCount}/${item.daily_frequency})` : ''}
           </Badge>
         ) : (
           <>

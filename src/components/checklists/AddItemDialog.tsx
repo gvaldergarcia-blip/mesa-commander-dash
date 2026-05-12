@@ -21,6 +21,7 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
   const [hasQr, setHasQr] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [activeDays, setActiveDays] = useState<number[]>(ALL_DAYS);
+  const [dailyFrequency, setDailyFrequency] = useState(1);
   const create = useCreateItem();
 
   const handleSave = async () => {
@@ -33,8 +34,9 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
       has_qr: hasQr,
       scheduled_time: scheduledTime || null,
       active_days: activeDays.length > 0 ? activeDays : ALL_DAYS,
+      daily_frequency: dailyFrequency,
     });
-    setName(''); setCritical(false); setPhoto(false); setHasQr(false); setScheduledTime(''); setActiveDays(ALL_DAYS);
+    setName(''); setCritical(false); setPhoto(false); setHasQr(false); setScheduledTime(''); setActiveDays(ALL_DAYS); setDailyFrequency(1);
     onOpenChange(false);
   };
 
@@ -57,6 +59,17 @@ export function AddItemDialog({ open, onOpenChange, categoryId, categoryName }: 
               onChange={(e) => setScheduledTime(e.target.value)}
               className="dark:[&::-webkit-calendar-picker-indicator]:invert"
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Quantas vezes por dia?</Label>
+            <Input
+              type="number"
+              min={1}
+              max={24}
+              value={dailyFrequency}
+              onChange={(e) => setDailyFrequency(Math.max(1, Math.min(24, parseInt(e.target.value) || 1)))}
+            />
+            <p className="text-xs text-muted-foreground">A equipe precisará concluir esta atividade {dailyFrequency}x por dia.</p>
           </div>
           <div className="space-y-2">
             <Label>Repetir nos dias:</Label>

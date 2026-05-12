@@ -20,6 +20,7 @@ export function EditItemDialog({ open, onOpenChange, item }: Props) {
   const [hasQr, setHasQr] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [activeDays, setActiveDays] = useState<number[]>(ALL_DAYS);
+  const [dailyFrequency, setDailyFrequency] = useState(1);
   const update = useUpdateItem();
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export function EditItemDialog({ open, onOpenChange, item }: Props) {
       setHasQr(item.has_qr);
       setScheduledTime(item.scheduled_time ?? '');
       setActiveDays(item.active_days?.length ? item.active_days : ALL_DAYS);
+      setDailyFrequency(item.daily_frequency ?? 1);
     }
   }, [item]);
 
@@ -43,6 +45,7 @@ export function EditItemDialog({ open, onOpenChange, item }: Props) {
       has_qr: hasQr,
       scheduled_time: scheduledTime || null,
       active_days: activeDays.length > 0 ? activeDays : ALL_DAYS,
+      daily_frequency: dailyFrequency,
     });
     onOpenChange(false);
   };
@@ -65,6 +68,16 @@ export function EditItemDialog({ open, onOpenChange, item }: Props) {
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
               className="dark:[&::-webkit-calendar-picker-indicator]:invert"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Quantas vezes por dia?</Label>
+            <Input
+              type="number"
+              min={1}
+              max={24}
+              value={dailyFrequency}
+              onChange={(e) => setDailyFrequency(Math.max(1, Math.min(24, parseInt(e.target.value) || 1)))}
             />
           </div>
           <div className="space-y-2">
