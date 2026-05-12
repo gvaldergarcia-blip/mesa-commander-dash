@@ -27,6 +27,9 @@ import {
 import { Tag, Plus, Pencil, Trash2, Printer, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { QRCodeSVG } from "qrcode.react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { useChecklistItems } from "@/hooks/useChecklists";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { ProductFormDialog } from "@/components/labels/ProductFormDialog";
 import { printLabels } from "@/components/labels/LabelPrintSheet";
@@ -38,6 +41,11 @@ export default function EtiquetasPage() {
   const { products, isLoading, createProduct, updateProduct, deleteProduct, isMutating } =
     useLabelProducts();
   const { restaurant } = useRestaurant();
+  const { data: checklistItems = [] } = useChecklistItems();
+  const qrChecklistItems = useMemo(
+    () => checklistItems.filter((i) => i.has_qr),
+    [checklistItems]
+  );
 
   // ----- Tabs / state -----
   const [tab, setTab] = useState<"produtos" | "gerar">("produtos");
@@ -54,6 +62,7 @@ export default function EtiquetasPage() {
   const [extraNotes, setExtraNotes] = useState("");
   const [batch, setBatch] = useState("");
   const [quantityWeight, setQuantityWeight] = useState("");
+  const [checklistItemId, setChecklistItemId] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
   const [now, setNow] = useState(new Date());
 
@@ -61,6 +70,14 @@ export default function EtiquetasPage() {
     () => products.find((p) => p.id === selectedId) || null,
     [products, selectedId]
   );
+
+  const selectedChecklist = useMemo(
+    () => qrChecklistItems.find((i) => i.id === checklistItemId) || null,
+    [qrChecklistItems, checklistItemId]
+  );
+  const checklistQrUrl = selectedChecklist
+    ? `${window.location.origin}/checklists/scan/${selectedChecklist.id}`
+    : null;
 
   // Refresh "now" when entering the Gerar tab so dates stay current.
   useEffect(() => {
@@ -100,6 +117,11 @@ export default function EtiquetasPage() {
 
   const handlePrint = () => {
     if (!selected || !expiryDate) return;
+    const qrSvg = checklistQrUrl
+      ? renderToStaticMarkup(
+          <QRCodeSVG value={checklistQrUrl} size={120} level="M" marginSize={0} />
+        )
+      : null;
     // Imprime em iframe isolado — não trava o dashboard.
     printLabels({
       productName: selected.name,
@@ -111,6 +133,8 @@ export default function EtiquetasPage() {
       quantityWeight: quantityWeight.trim() || null,
       restaurantName: restaurant?.name || null,
       restaurantLogoUrl: restaurant?.logo_url || null,
+      checklistQrSvg: qrSvg,
+      checklistQrLabel: selectedChecklist?.name ?? null,
       quantity: Math.max(1, Math.min(10, quantity)),
     });
   };
