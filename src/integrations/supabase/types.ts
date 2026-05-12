@@ -1458,6 +1458,182 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_customer_preferences: {
+        Row: {
+          created_at: string
+          customer_id: string
+          dish_id: string
+          id: string
+          notes: string | null
+          restaurant_id: string
+          score: number
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          dish_id: string
+          id?: string
+          notes?: string | null
+          restaurant_id: string
+          score?: number
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          dish_id?: string
+          id?: string
+          notes?: string | null
+          restaurant_id?: string
+          score?: number
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_customer_preferences_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_customer_preferences_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "menu_dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_customer_preferences_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_customer_preferences_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_customer_preferences_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_customer_preferences_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_dish_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          dish_id: string | null
+          error: string | null
+          id: string
+          image_url: string | null
+          message: string
+          phone: string
+          restaurant_id: string
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          twilio_sid: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          dish_id?: string | null
+          error?: string | null
+          id?: string
+          image_url?: string | null
+          message: string
+          phone: string
+          restaurant_id: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          twilio_sid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          dish_id?: string | null
+          error?: string | null
+          id?: string
+          image_url?: string | null
+          message?: string
+          phone?: string
+          restaurant_id?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          twilio_sid?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_dish_campaigns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dish_campaigns_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "menu_dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dish_campaigns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dish_campaigns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dish_campaigns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_dish_campaigns_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_dishes: {
         Row: {
           active: boolean
@@ -3668,6 +3844,7 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_dish_campaign: { Args: { p_id: string }; Returns: undefined }
       cancel_my_queue_entry: {
         Args: { p_restaurante_id: string }
         Returns: Json
@@ -3996,6 +4173,26 @@ export type Database = {
         Returns: Json
       }
       rotate_customer_visits_monthly: { Args: never; Returns: undefined }
+      schedule_dish_campaign: {
+        Args: {
+          p_customer_id: string
+          p_dish_id: string
+          p_image_url: string
+          p_message: string
+          p_restaurant_id: string
+          p_scheduled_at: string
+        }
+        Returns: string
+      }
+      set_customer_favorite_dish: {
+        Args: {
+          p_customer_id: string
+          p_dish_id: string
+          p_restaurant_id: string
+          p_source?: string
+        }
+        Returns: string
+      }
       toggle_restaurant_calendar_day: {
         Args: { p_day: string; p_is_open: boolean; p_restaurant_id: string }
         Returns: Json
