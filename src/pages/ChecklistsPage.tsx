@@ -353,6 +353,7 @@ interface CategoryPanelProps {
   progress: number;
   doneCount: number;
   completedItemIds: Set<string>;
+  completionCounts: Map<string, number>;
   itemCompletion: Map<string, ChecklistCompletion>;
   onOpenQr: (item: ChecklistItem) => void;
   onOpenScan: (item: ChecklistItem) => void;
@@ -361,7 +362,7 @@ interface CategoryPanelProps {
 }
 
 function CategoryPanel({
-  mode, category, items, progress, doneCount, completedItemIds, itemCompletion, onOpenQr, onOpenScan, onAddItem, onEditItem,
+  mode, category, items, progress, doneCount, completedItemIds, completionCounts, itemCompletion, onOpenQr, onOpenScan, onAddItem, onEditItem,
 }: CategoryPanelProps) {
   const printAll = () => {
     const qrItems = items.filter((i) => i.has_qr);
@@ -445,6 +446,7 @@ function CategoryPanel({
                 mode={mode}
                 item={it}
                 done={completedItemIds.has(it.id)}
+                doneCount={completionCounts.get(it.id) ?? 0}
                 completion={itemCompletion.get(it.id)}
                 onOpenQr={() => onOpenQr(it)}
                 onOpenScan={() => onOpenScan(it)}
