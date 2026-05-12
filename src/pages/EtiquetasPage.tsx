@@ -53,6 +53,7 @@ export default function EtiquetasPage() {
   const [responsible, setResponsible] = useState("");
   const [extraNotes, setExtraNotes] = useState("");
   const [batch, setBatch] = useState("");
+  const [quantityWeight, setQuantityWeight] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [now, setNow] = useState(new Date());
 
@@ -107,6 +108,9 @@ export default function EtiquetasPage() {
       responsible: responsible.trim() || "—",
       notes: extraNotes.trim() || null,
       batch: batch.trim() || null,
+      quantityWeight: quantityWeight.trim() || null,
+      restaurantName: restaurant?.name || null,
+      restaurantLogoUrl: restaurant?.logo_url || null,
       quantity: Math.max(1, Math.min(10, quantity)),
     });
   };
@@ -325,6 +329,31 @@ export default function EtiquetasPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="qty-weight">Quantidade / Peso (opcional)</Label>
+                  <Input
+                    id="qty-weight"
+                    value={quantityWeight}
+                    onChange={(e) => setQuantityWeight(e.target.value)}
+                    placeholder="Ex: 500g, 1L, 12 un"
+                    maxLength={20}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="extra-notes">Observação (opcional)</Label>
+                <Textarea
+                  id="extra-notes"
+                  value={extraNotes}
+                  onChange={(e) => setExtraNotes(e.target.value)}
+                  placeholder="Ex: manter refrigerado"
+                  maxLength={200}
+                  rows={2}
+                />
+              </div>
+
               <div className="space-y-2 max-w-xs">
                 <Label htmlFor="qty">Quantidade de etiquetas (1 a 10)</Label>
                   <Input
@@ -337,18 +366,6 @@ export default function EtiquetasPage() {
                       setQuantity(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))
                     }
                   />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="extra-notes">Observação</Label>
-                <Textarea
-                  id="extra-notes"
-                  value={extraNotes}
-                  onChange={(e) => setExtraNotes(e.target.value)}
-                  placeholder="Ex: manter refrigerado"
-                  maxLength={200}
-                  rows={2}
-                />
               </div>
 
               <Button
@@ -370,7 +387,7 @@ export default function EtiquetasPage() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="border border-black bg-white text-black font-sans overflow-hidden"
+                  className="border border-black bg-white text-black font-sans overflow-hidden flex flex-col"
                   style={{
                     width: "302px", // ≈ 80mm a 96dpi
                     height: "151px", // ≈ 40mm
@@ -379,34 +396,51 @@ export default function EtiquetasPage() {
                     lineHeight: 1.2,
                   }}
                 >
-                  <p
-                    className="font-bold uppercase border-b border-black truncate"
-                    style={{ fontSize: "14px", paddingBottom: "3px", marginBottom: "5px", letterSpacing: "0.3px" }}
+                  {/* Header */}
+                  <div
+                    className="flex items-center justify-between gap-2 border-b border-black"
+                    style={{ paddingBottom: "3px", marginBottom: "5px" }}
                   >
-                    {selected.name}
-                  </p>
-                  <p className="truncate" style={{ margin: "1.5px 0" }}>
-                    <span className="font-bold">Fab:</span>{" "}
-                    {format(now, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                  </p>
-                  <p className="truncate" style={{ margin: "1.5px 0" }}>
-                    <span className="font-bold">Val:</span>{" "}
-                    {format(expiryDate, "dd/MM/yyyy", { locale: ptBR })}
-                  </p>
-                  <p className="truncate" style={{ margin: "1.5px 0" }}>
-                    <span className="font-bold">Resp:</span> {responsible || "—"}
-                  </p>
-                  {batch && (
-                    <p className="truncate" style={{ margin: "1.5px 0" }}>
-                      <span className="font-bold">Lote:</span> {batch}
-                    </p>
-                  )}
+                    <span
+                      className="font-bold uppercase truncate flex-1"
+                      style={{ fontSize: "14px", letterSpacing: "0.3px" }}
+                    >
+                      {selected.name}
+                    </span>
+                    {restaurant?.logo_url ? (
+                      <img
+                        src={restaurant.logo_url}
+                        alt="logo"
+                        style={{ width: "20px", height: "20px", objectFit: "contain" }}
+                      />
+                    ) : (
+                      <span className="font-bold uppercase truncate" style={{ fontSize: "9px", maxWidth: "70px" }}>
+                        {restaurant?.name || ""}
+                      </span>
+                    )}
+                  </div>
+                  {/* Body 2 colunas */}
+                  <div className="grid grid-cols-2 gap-x-3 flex-1" style={{ rowGap: "1px" }}>
+                    <span className="truncate"><span className="font-bold">Fab:</span> {format(now, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                    <span className="truncate"><span className="font-bold">Val:</span> {format(expiryDate, "dd/MM/yyyy", { locale: ptBR })}</span>
+                    <span className="truncate"><span className="font-bold">Resp:</span> {responsible || "—"}</span>
+                    {batch && <span className="truncate"><span className="font-bold">Lote:</span> {batch}</span>}
+                    {quantityWeight && <span className="truncate"><span className="font-bold">Qtd:</span> {quantityWeight}</span>}
+                  </div>
                   {extraNotes && (
                     <p
                       className="italic border-t border-dashed border-black truncate"
                       style={{ fontSize: "9px", marginTop: "3px", paddingTop: "2px", lineHeight: 1.15 }}
                     >
                       <span className="font-bold not-italic">Obs:</span> {extraNotes}
+                    </p>
+                  )}
+                  {restaurant?.name && (
+                    <p
+                      className="text-center font-semibold uppercase border-t border-black truncate"
+                      style={{ fontSize: "8px", marginTop: "3px", paddingTop: "2px", letterSpacing: "0.3px" }}
+                    >
+                      {restaurant.name}
                     </p>
                   )}
                 </div>
