@@ -49,9 +49,12 @@ export default function ChecklistQrValidate() {
         <div className="rounded-full border-4 border-success-foreground/30 p-6 mb-6 animate-in zoom-in-75 duration-300">
           <CheckCircle2 className="h-32 w-32" strokeWidth={1.8} />
         </div>
-      <h1 className="text-4xl font-bold">Atividade validada</h1>
+        <h1 className="text-4xl font-bold">Etiqueta verificada</h1>
         <p className="mt-3 max-w-sm text-xl font-medium text-success-foreground/90">{itemName}</p>
-        <p className="mt-6 text-sm text-success-foreground/70">Você já pode fechar esta página.</p>
+        <p className="mt-4 max-w-xs text-sm text-success-foreground/80">
+          Atividade do checklist registrada automaticamente.
+        </p>
+        <p className="mt-6 text-xs text-success-foreground/60">Você já pode fechar esta página.</p>
       </main>
     );
   }
