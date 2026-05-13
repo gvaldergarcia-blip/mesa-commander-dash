@@ -41,10 +41,10 @@ export default function EtiquetasPage() {
     useLabelProducts();
   const { restaurant } = useRestaurant();
   const { data: checklistItems = [] } = useChecklistItems();
-  const qrChecklistItems = useMemo(
-    () => checklistItems.filter((i) => i.has_qr),
-    [checklistItems]
-  );
+  // Qualquer atividade ativa do checklist pode ser vinculada à etiqueta.
+  // Ao escanear o QR impresso, a atividade é validada automaticamente
+  // (mesmo que o item ainda não estivesse marcado com has_qr).
+  const qrChecklistItems = checklistItems;
 
   // ----- Products section -----
   const [formOpen, setFormOpen] = useState(false);
@@ -414,7 +414,7 @@ export default function EtiquetasPage() {
                 </select>
                 {qrChecklistItems.length === 0 ? (
                   <p className="text-xs text-muted-foreground/80">
-                    Crie itens com 'Validação por QR Code' em Checklists para usar aqui.
+                    Cadastre atividades em Checklists para vincular o QR da etiqueta.
                   </p>
                 ) : (
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed">
