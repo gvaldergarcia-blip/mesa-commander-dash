@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,10 +46,7 @@ export default function EtiquetasPage() {
     [checklistItems]
   );
 
-  // ----- Tabs / state -----
-  const [tab, setTab] = useState<"produtos" | "gerar">("produtos");
-
-  // ----- Products tab -----
+  // ----- Products section -----
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LabelProduct | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LabelProduct | null>(null);
@@ -79,10 +75,10 @@ export default function EtiquetasPage() {
     ? `${window.location.origin}/checklists/scan/${selectedChecklist.id}`
     : null;
 
-  // Refresh "now" when entering the Gerar tab so dates stay current.
+  // Keep manufacture date fresh when product changes.
   useEffect(() => {
-    if (tab === "gerar") setNow(new Date());
-  }, [tab, selectedId]);
+    setNow(new Date());
+  }, [selectedId]);
 
   // Pre-fill responsible with the current user's name (fallback: email).
   useEffect(() => {
@@ -140,129 +136,141 @@ export default function EtiquetasPage() {
   };
 
   return (
-    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+    <div className="p-3 md:p-8 space-y-8 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border/50 pb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Tag className="h-6 w-6 text-primary" />
-            Etiquetas de Alimentos
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Cadastre produtos e gere etiquetas de validade automaticamente.
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+              <Tag className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Etiquetas de Alimentos
+            </h1>
+          </div>
+          <p className="text-muted-foreground max-w-md">
+            Gestão inteligente de validade e rastreabilidade para sua cozinha profissional.
           </p>
         </div>
-      </div>
+      </header>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="space-y-4">
-        <TabsList className="grid grid-cols-2 w-full md:w-auto md:inline-flex">
-          <TabsTrigger value="produtos">Produtos</TabsTrigger>
-          <TabsTrigger value="gerar">Gerar Etiqueta</TabsTrigger>
-        </TabsList>
-
+      {/* Main grid: products on left, generator on right */}
+      <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* ============ PRODUTOS ============ */}
-        <TabsContent value="produtos" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <CardTitle>Produtos cadastrados</CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {products.length}{" "}
-                  {products.length === 1 ? "produto" : "produtos"} no catálogo.
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  setEditing(null);
-                  setFormOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" /> Novo Produto
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex justify-center py-10 text-muted-foreground">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : products.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Tag className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                  <p className="font-medium">Nenhum produto cadastrado ainda</p>
-                  <p className="text-sm mt-1">
-                    Clique em "Novo Produto" para começar.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {products.map((p) => (
-                    <div
-                      key={p.id}
-                      className="border rounded-lg p-4 bg-card hover:border-primary/40 transition-colors flex flex-col gap-3"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{p.name}</h3>
-                        <p className="text-sm text-muted-foreground mt-0.5">
+        <section className="lg:col-span-7 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Produtos Cadastrados</h2>
+              <p className="text-[11px] text-primary uppercase tracking-widest font-bold mt-1">
+                {products.length} {products.length === 1 ? "Item Ativo" : "Itens Ativos"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4 text-primary" /> Novo Produto
+            </Button>
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-16 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-border/50 rounded-2xl bg-muted/20 text-muted-foreground">
+              <Tag className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">Nenhum produto cadastrado ainda</p>
+              <p className="text-sm mt-1">Clique em "Novo Produto" para começar.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {products.map((p) => {
+                const dotColor =
+                  p.validity_days <= 3
+                    ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                    : p.validity_days <= 7
+                    ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                    : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+                return (
+                  <div
+                    key={p.id}
+                    className="group bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40 hover:bg-card/60 transition-all"
+                  >
+                    <div className="mb-4">
+                      <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors">
+                        {p.name}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={cn("w-2 h-2 rounded-full", dotColor)} />
+                        <span className="text-xs text-muted-foreground uppercase tracking-tight">
                           Validade:{" "}
-                          <span className="font-medium text-foreground">
-                            {p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}
+                          <span className="text-foreground font-medium">
+                            {String(p.validity_days).padStart(2, "0")}{" "}
+                            {p.validity_days === 1 ? "dia" : "dias"}
                           </span>
+                        </span>
+                      </div>
+                      {p.notes && (
+                        <p className="text-xs text-muted-foreground/80 mt-2 italic line-clamp-2">
+                          {p.notes}
                         </p>
-                        {p.notes && (
-                          <p className="text-xs text-muted-foreground mt-2 italic line-clamp-2">
-                            {p.notes}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-2 pt-2 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            setEditing(p);
-                            setFormOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-3.5 w-3.5" /> Editar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTarget(p)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    <div className="flex gap-2 pt-3 border-t border-border/50">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 bg-muted/50 hover:bg-muted"
+                        onClick={() => {
+                          setEditing(p);
+                          setFormOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="bg-destructive/10 hover:bg-destructive hover:text-destructive-foreground text-destructive"
+                        onClick={() => setDeleteTarget(p)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         {/* ============ GERAR ETIQUETA ============ */}
-        <TabsContent value="gerar" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gerar nova etiqueta</CardTitle>
+        <section className="lg:col-span-5">
+          <Card className="bg-card/40 border-border/50 rounded-3xl shadow-2xl lg:sticky lg:top-6">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-2xl font-bold">Gerar nova etiqueta</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Selecione o produto e ajuste os dados antes de imprimir.
+                Configure os detalhes para impressão.
               </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               {/* Produto */}
               <div className="space-y-2">
-                <Label>Produto *</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Produto Selecionado *
+                </Label>
                 <Popover open={comboOpen} onOpenChange={setComboOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={comboOpen}
-                      className="w-full justify-between font-normal"
+                      className="w-full justify-between font-normal h-11 rounded-xl bg-background/60"
                     >
                       {selected ? selected.name : "Buscar produto cadastrado..."}
                       <ChevronsUpDown className="h-4 w-4 opacity-50" />
@@ -308,21 +316,21 @@ export default function EtiquetasPage() {
 
               {/* Auto-filled fields */}
               {selected && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-muted/40 border">
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/40 border border-border/50">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       Fabricação
                     </p>
-                    <p className="font-semibold mt-0.5">
+                    <p className="font-semibold mt-1 text-sm">
                       {format(now, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       Validade ({selected.validity_days}{" "}
                       {selected.validity_days === 1 ? "dia" : "dias"})
                     </p>
-                    <p className="font-semibold mt-0.5 text-primary">
+                    <p className="font-semibold mt-1 text-sm text-primary">
                       {expiryDate &&
                         format(expiryDate, "dd/MM/yyyy", { locale: ptBR })}
                     </p>
@@ -330,44 +338,53 @@ export default function EtiquetasPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="responsible">Responsável</Label>
+                  <Label htmlFor="responsible" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Responsável
+                  </Label>
                   <Input
                     id="responsible"
                     value={responsible}
                     onChange={(e) => setResponsible(e.target.value)}
                     placeholder="Nome do responsável"
                     maxLength={60}
+                    className="h-11 rounded-xl bg-background/60"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="batch">Lote (opcional)</Label>
+                  <Label htmlFor="batch" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Lote
+                  </Label>
                   <Input
                     id="batch"
                     value={batch}
                     onChange={(e) => setBatch(e.target.value)}
                     placeholder="Ex: L2026-001"
                     maxLength={30}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="qty-weight">Quantidade / Peso (opcional)</Label>
-                  <Input
-                    id="qty-weight"
-                    value={quantityWeight}
-                    onChange={(e) => setQuantityWeight(e.target.value)}
-                    placeholder="Ex: 500g, 1L, 12 un"
-                    maxLength={20}
+                    className="h-11 rounded-xl bg-background/60"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="extra-notes">Observação (opcional)</Label>
+                <Label htmlFor="qty-weight" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Quantidade / Peso
+                </Label>
+                <Input
+                  id="qty-weight"
+                  value={quantityWeight}
+                  onChange={(e) => setQuantityWeight(e.target.value)}
+                  placeholder="Ex: 500g, 1L, 12 un"
+                  maxLength={20}
+                  className="h-11 rounded-xl bg-background/60"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="extra-notes" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Observação
+                </Label>
                 <Textarea
                   id="extra-notes"
                   value={extraNotes}
@@ -375,64 +392,83 @@ export default function EtiquetasPage() {
                   placeholder="Ex: manter refrigerado"
                   maxLength={200}
                   rows={2}
+                  className="rounded-xl bg-background/60 resize-none"
                 />
               </div>
 
               {/* Checklist QR */}
               <div className="space-y-2">
-                <Label htmlFor="checklist-qr">Vincular QR de Checklist (opcional)</Label>
+                <Label htmlFor="checklist-qr" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Vincular QR de Checklist
+                </Label>
                 <select
                   id="checklist-qr"
                   value={checklistItemId}
                   onChange={(e) => setChecklistItemId(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  className="w-full h-11 rounded-xl border border-input bg-background/60 px-3 text-sm"
                 >
                   <option value="">Sem QR de checklist</option>
                   {qrChecklistItems.map((it) => (
                     <option key={it.id} value={it.id}>{it.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground/80">
                   {qrChecklistItems.length === 0
                     ? "Crie itens com 'Validação por QR Code' em Checklists para usar aqui."
                     : "A equipe pode escanear esse QR direto da etiqueta para registrar a verificação no checklist."}
                 </p>
               </div>
 
-              <div className="space-y-2 max-w-xs">
-                <Label htmlFor="qty">Quantidade de etiquetas (1 a 10)</Label>
-                  <Input
-                    id="qty"
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={quantity}
-                    onChange={(e) =>
-                      setQuantity(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))
-                    }
-                  />
+              {/* Quantity stepper */}
+              <div className="flex items-center justify-between p-4 bg-muted/40 rounded-2xl border border-border/50">
+                <div>
+                  <span className="text-[10px] font-bold text-muted-foreground block mb-1 uppercase tracking-widest">
+                    Quantidade (1 a 10)
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="w-8 h-8 flex items-center justify-center bg-background/80 rounded-full hover:bg-background transition-colors text-base font-semibold"
+                    >
+                      −
+                    </button>
+                    <span className="text-lg font-bold text-foreground w-6 text-center">
+                      {String(quantity).padStart(2, "0")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                      className="w-8 h-8 flex items-center justify-center bg-background/80 rounded-full hover:bg-background transition-colors text-base font-semibold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <Button
                 onClick={handlePrint}
                 disabled={!selected}
                 size="lg"
-                className="w-full md:w-auto"
+                className="w-full h-12 rounded-xl font-bold tracking-wide shadow-xl shadow-primary/20"
               >
-                <Printer className="h-4 w-4" /> Imprimir Etiqueta
+                <Printer className="h-4 w-4" /> IMPRIMIR ETIQUETA
               </Button>
             </CardContent>
           </Card>
 
           {/* Preview na tela (só rascunho — a impressão usa o LabelPrintSheet) */}
           {selected && expiryDate && (
-            <Card>
+            <Card className="mt-6 bg-card/40 border-border/50 rounded-3xl">
               <CardHeader>
-                <CardTitle className="text-base">Pré-visualização (80×40 mm)</CardTitle>
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  Pré-visualização · 80×40 mm
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div
-                  className="border border-black bg-white text-black font-sans overflow-hidden flex flex-col"
+                  className="border border-black bg-white text-black font-sans overflow-hidden flex flex-col mx-auto"
                   style={{
                     width: "302px", // ≈ 80mm a 96dpi
                     height: "151px", // ≈ 40mm
@@ -496,14 +532,14 @@ export default function EtiquetasPage() {
                     </p>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-muted-foreground mt-3 text-center">
                   A etiqueta será impressa em fundo branco com texto preto, em página de 80×40 mm.
                 </p>
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-      </Tabs>
+        </section>
+      </main>
 
       {/* Dialogs */}
       <ProductFormDialog
