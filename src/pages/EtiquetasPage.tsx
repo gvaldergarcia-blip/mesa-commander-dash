@@ -412,11 +412,20 @@ export default function EtiquetasPage() {
                     <option key={it.id} value={it.id}>{it.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground/80">
-                  {qrChecklistItems.length === 0
-                    ? "Crie itens com 'Validação por QR Code' em Checklists para usar aqui."
-                    : "A equipe pode escanear esse QR direto da etiqueta para registrar a verificação no checklist."}
-                </p>
+                {qrChecklistItems.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/80">
+                    Crie itens com 'Validação por QR Code' em Checklists para usar aqui.
+                  </p>
+                ) : (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed">
+                    <p className="font-semibold text-primary mb-0.5">
+                      ⚡ Etiqueta + Checklist em um só gesto
+                    </p>
+                    Ao escanear este QR direto da etiqueta, a equipe valida{" "}
+                    <span className="text-foreground font-medium">automaticamente a atividade do checklist</span>{" "}
+                    — sem abrir o app, sem buscar lista. Um QR, duas tarefas concluídas.
+                  </div>
+                )}
               </div>
 
               {/* Quantity stepper */}
