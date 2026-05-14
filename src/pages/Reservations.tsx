@@ -406,6 +406,11 @@ function ReservationsContent() {
           <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
           <p className="text-muted-foreground">Gerencie as reservas do seu restaurante</p>
         </div>
+        <div className="flex gap-2">
+        <Button variant="outline" onClick={() => setQrModalOpen(true)} disabled={!restaurantId}>
+          <QrCode className="w-4 h-4 mr-2" />
+          QR / Link de Reserva
+        </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
