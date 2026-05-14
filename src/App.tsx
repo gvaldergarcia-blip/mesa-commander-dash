@@ -43,6 +43,7 @@ import CadastroQr from "./pages/cadastro/CadastroQr";
 
 // Página de Reserva (pública)
 import ReservaFinal from "./pages/reserva/ReservaFinal";
+import ReservaQrEntrar from "./pages/reserva/ReservaQrEntrar";
 
 // Páginas Legais (LGPD)
 import TermosDeUso from "./pages/legal/TermosDeUso";
@@ -130,6 +131,7 @@ const App = () => {
 
         {/* Rota pública de Reserva */}
         <Route path="/reserva/final" element={<ReservaFinal />} />
+        <Route path="/reserva/:restaurantId" element={<ReservaQrEntrar />} />
         
         {/* Rotas públicas legais (sem DashboardLayout) */}
         <Route path="/legal/termos-de-uso" element={<TermosDeUso />} />

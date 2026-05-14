@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Calendar, Clock, User, Search, Filter, Phone } from "lucide-react";
+import { Plus, Calendar, Clock, User, Search, Filter, Phone, QrCode } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { ReservationStatusFilter } from "@/components/reservations/ReservationStatusFilter";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
@@ -17,6 +17,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { logAudit } from "@/lib/audit";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { QrCodeModal } from "@/components/qrcode/QrCodeModal";
 
 import { 
   Dialog,
@@ -37,6 +38,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 function ReservationsContent() {
   const { restaurantId } = useRestaurant();
   const { restaurants } = useRestaurants();
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const currentRestaurant = restaurants.find((r) => r.id === restaurantId);
   const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
   const { settings: reservationSettings, loading: loadingSettings } = useReservationSettings(restaurantId || '');
   
@@ -403,6 +406,11 @@ function ReservationsContent() {
           <h1 className="text-3xl font-bold text-foreground">Reservas</h1>
           <p className="text-muted-foreground">Gerencie as reservas do seu restaurante</p>
         </div>
+        <div className="flex gap-2">
+        <Button variant="outline" onClick={() => setQrModalOpen(true)} disabled={!restaurantId}>
+          <QrCode className="w-4 h-4 mr-2" />
+          QR / Link de Reserva
+        </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -523,6 +531,7 @@ function ReservationsContent() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filtro de Período */}
@@ -1241,6 +1250,15 @@ function ReservationsContent() {
           </Card>
         </TabsContent>
       </Tabs>
+      {restaurantId && (
+        <QrCodeModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          restaurantId={restaurantId}
+          restaurantName={currentRestaurant?.name || 'Restaurante'}
+          type="reserva"
+        />
+      )}
     </div>
   );
 }
