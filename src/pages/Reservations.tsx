@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Calendar, Clock, User, Search, Filter, Phone } from "lucide-react";
+import { Plus, Calendar, Clock, User, Search, Filter, Phone, QrCode } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { ReservationStatusFilter } from "@/components/reservations/ReservationStatusFilter";
 import { useReservationsEnhanced, ReservationEnhanced } from "@/hooks/useReservationsEnhanced";
@@ -17,6 +17,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { logAudit } from "@/lib/audit";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { QrCodeModal } from "@/components/qrcode/QrCodeModal";
 
 import { 
   Dialog,
@@ -37,6 +38,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 function ReservationsContent() {
   const { restaurantId } = useRestaurant();
   const { restaurants } = useRestaurants();
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const currentRestaurant = restaurants.find((r) => r.id === restaurantId);
   const { reservations, loading, loadingVip, updateReservationStatus, createReservation } = useReservationsEnhanced();
   const { settings: reservationSettings, loading: loadingSettings } = useReservationSettings(restaurantId || '');
   
