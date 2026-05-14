@@ -531,6 +531,7 @@ function ReservationsContent() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filtro de Período */}
@@ -1249,6 +1250,15 @@ function ReservationsContent() {
           </Card>
         </TabsContent>
       </Tabs>
+      {restaurantId && (
+        <QrCodeModal
+          open={qrModalOpen}
+          onOpenChange={setQrModalOpen}
+          restaurantId={restaurantId}
+          restaurantName={currentRestaurant?.name || 'Restaurante'}
+          type="reserva"
+        />
+      )}
     </div>
   );
 }
