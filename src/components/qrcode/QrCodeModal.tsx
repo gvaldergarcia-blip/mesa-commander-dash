@@ -17,7 +17,7 @@ interface QrCodeModalProps {
   onOpenChange: (open: boolean) => void;
   restaurantId: string;
   restaurantName: string;
-  type: 'fila' | 'cadastro';
+  type: 'fila' | 'cadastro' | 'reserva';
   queueType?: 'normal' | 'exclusive';
   exclusiveQueueName?: string;
 }
@@ -28,20 +28,29 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
   const [copied, setCopied] = useState(false);
 
   const baseUrl = getSiteBaseUrl();
-  const basePath = type === 'fila'
-    ? `${baseUrl}/fila/${restaurantId}`
-    : `${baseUrl}/cadastro/${restaurantId}`;
+  const basePath =
+    type === 'fila'
+      ? `${baseUrl}/fila/${restaurantId}`
+      : type === 'reserva'
+      ? `${baseUrl}/reserva/${restaurantId}`
+      : `${baseUrl}/cadastro/${restaurantId}`;
   const url = type === 'fila' && queueType === 'exclusive'
     ? `${basePath}?tipo=exclusiva`
     : basePath;
 
   const queueLabel = queueType === 'exclusive' && exclusiveQueueName ? exclusiveQueueName : '';
-  const title = type === 'fila'
-    ? (queueType === 'exclusive' ? `QR Code - ${queueLabel || 'Fila Exclusiva'}` : 'QR Code da Fila')
-    : 'QR Code de Cadastro';
-  const description = type === 'fila'
-    ? 'Clientes escaneiam para entrar na fila automaticamente'
-    : 'Escaneie e ganhe benefícios exclusivos';
+  const title =
+    type === 'fila'
+      ? (queueType === 'exclusive' ? `QR Code - ${queueLabel || 'Fila Exclusiva'}` : 'QR Code da Fila')
+      : type === 'reserva'
+      ? 'QR Code de Reserva'
+      : 'QR Code de Cadastro';
+  const description =
+    type === 'fila'
+      ? 'Clientes escaneiam para entrar na fila automaticamente'
+      : type === 'reserva'
+      ? 'Clientes escaneiam para reservar mesa direto pelo celular'
+      : 'Escaneie e ganhe benefícios exclusivos';
 
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(url);
@@ -83,7 +92,11 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
 
       ctx.font = '18px sans-serif';
       ctx.fillStyle = '#666666';
-      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganhe benefícios exclusivos', totalWidth / 2, size + padding + 70);
+      ctx.fillText(
+        type === 'fila' ? 'Escaneie para entrar na fila' : type === 'reserva' ? 'Escaneie para fazer sua reserva' : 'Escaneie e ganhe benefícios exclusivos',
+        totalWidth / 2,
+        size + padding + 70,
+      );
 
       ctx.drawImage(logoImg, (totalWidth - logoWidth) / 2, size + padding + 86, logoWidth, logoHeight);
 
@@ -113,7 +126,11 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
       ctx.fillText(restaurantName, totalWidth / 2, size + padding + 40);
       ctx.font = '18px sans-serif';
       ctx.fillStyle = '#666666';
-      ctx.fillText(type === 'fila' ? 'Escaneie para entrar na fila' : 'Escaneie e ganhe benefícios exclusivos', totalWidth / 2, size + padding + 70);
+      ctx.fillText(
+        type === 'fila' ? 'Escaneie para entrar na fila' : type === 'reserva' ? 'Escaneie para fazer sua reserva' : 'Escaneie e ganhe benefícios exclusivos',
+        totalWidth / 2,
+        size + padding + 70,
+      );
 
       const link = document.createElement('a');
       link.download = `qrcode-${type}-${restaurantName.replace(/\s+/g, '-').toLowerCase()}.png`;
@@ -128,9 +145,12 @@ export function QrCodeModal({ open, onOpenChange, restaurantId, restaurantName, 
     const svg = renderToStaticMarkup(
       <QRCodeSVG value={url} size={300} level="H" marginSize={2} />
     );
-    const subtitle = type === 'fila'
-      ? (queueType === 'exclusive' ? `${queueLabel || 'Fila Exclusiva'} — Escaneie para entrar` : 'Escaneie para entrar na fila')
-      : 'Escaneie e ganhe benefícios exclusivos';
+    const subtitle =
+      type === 'fila'
+        ? (queueType === 'exclusive' ? `${queueLabel || 'Fila Exclusiva'} — Escaneie para entrar` : 'Escaneie para entrar na fila')
+        : type === 'reserva'
+        ? 'Escaneie para fazer sua reserva'
+        : 'Escaneie e ganhe benefícios exclusivos';
     const w = window.open('', '_blank', 'width=520,height=720');
     if (!w) {
       toast({ title: 'Pop-up bloqueado', description: 'Permita pop-ups para imprimir o QR.', variant: 'destructive' });
