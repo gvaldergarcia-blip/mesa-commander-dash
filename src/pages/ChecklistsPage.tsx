@@ -580,6 +580,18 @@ function ItemRow({ mode, item, done, doneCount, completion, onOpenQr, onOpenScan
       <div className="flex items-center gap-2">
         {mode === 'gestor' ? (
           <>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+            {done ? (
+              <Badge variant="secondary" className="gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                Concluído{(item.daily_frequency ?? 1) > 1 ? ` (${doneCount}/${item.daily_frequency})` : ''}
+              </Badge>
+            ) : (
+              <Button size="sm" onClick={handleConclude} disabled={uploading || complete.isPending}>
+                {item.requires_photo ? <Camera className="mr-1 h-4 w-4" /> : <CheckCircle2 className="mr-1 h-4 w-4" />}
+                {uploading ? 'Enviando…' : 'Concluir'}
+              </Button>
+            )}
             {item.has_qr && (
               <Button size="sm" variant="outline" onClick={onOpenQr}>
                 <QrCode className="mr-1 h-4 w-4" /> Gerar QR
