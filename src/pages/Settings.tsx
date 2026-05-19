@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy, MessageCircle, Camera } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Building2, Clock, Users, Calendar, CreditCard, Shield, Info, UsersRound, Trophy, MessageCircle, Camera, Bot } from "lucide-react";
 import { CUISINE_TYPES } from "@/config/cuisines";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ import { TeamSettings } from "@/components/settings/TeamSettings";
 import { PlanSettings } from "@/components/settings/PlanSettings";
 import { LoyaltySettings } from "@/components/settings/LoyaltySettings";
 import { AmbientPhotosManager } from "@/components/settings/AmbientPhotosManager";
+import { WhatsAppBotSettings } from "@/components/settings/WhatsAppBotSettings";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -362,7 +363,7 @@ function SettingsContent() {
       </div>
 
       <Tabs defaultValue="restaurant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-10 h-auto gap-2 bg-muted/50 p-2">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-11 h-auto gap-2 bg-muted/50 p-2">
           <TabsTrigger value="restaurant" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Restaurante</span>
@@ -406,6 +407,10 @@ function SettingsContent() {
           <TabsTrigger value="support" className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4" />
             <span className="hidden sm:inline">Suporte</span>
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp_bot" className="flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            <span className="hidden sm:inline">Bot WhatsApp</span>
           </TabsTrigger>
         </TabsList>
 
@@ -889,6 +894,10 @@ function SettingsContent() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="whatsapp_bot">
+          <WhatsAppBotSettings />
         </TabsContent>
       </Tabs>
     </div>

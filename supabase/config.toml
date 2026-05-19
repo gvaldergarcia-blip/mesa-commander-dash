@@ -113,3 +113,9 @@ verify_jwt = false
 
 [functions.import-menu-ai]
 verify_jwt = true
+
+[functions.whatsapp-inbound]
+verify_jwt = false
+
+[functions.verify-whatsapp-config]
+verify_jwt = true

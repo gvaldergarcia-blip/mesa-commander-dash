@@ -3038,6 +3038,74 @@ export type Database = {
           },
         ]
       }
+      restaurant_whatsapp_config: {
+        Row: {
+          connected_at: string | null
+          created_at: string
+          last_error: string | null
+          restaurant_id: string
+          status: string
+          twilio_account_sid: string
+          twilio_auth_token_encrypted: string
+          updated_at: string
+          webhook_secret: string
+          whatsapp_number: string
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string
+          last_error?: string | null
+          restaurant_id: string
+          status?: string
+          twilio_account_sid: string
+          twilio_auth_token_encrypted: string
+          updated_at?: string
+          webhook_secret?: string
+          whatsapp_number: string
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string
+          last_error?: string | null
+          restaurant_id?: string
+          status?: string
+          twilio_account_sid?: string
+          twilio_auth_token_encrypted?: string
+          updated_at?: string
+          webhook_secret?: string
+          whatsapp_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_whatsapp_config_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_whatsapp_config_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_whatsapp_config_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_whatsapp_config_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurants: {
         Row: {
           about: string | null
@@ -3705,6 +3773,81 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_messages: {
+        Row: {
+          ai_tool_trace: Json | null
+          body: string | null
+          created_at: string
+          customer_id: string | null
+          direction: string
+          id: string
+          media_url: string | null
+          phone: string
+          restaurant_id: string
+          twilio_sid: string | null
+        }
+        Insert: {
+          ai_tool_trace?: Json | null
+          body?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction: string
+          id?: string
+          media_url?: string | null
+          phone: string
+          restaurant_id: string
+          twilio_sid?: string | null
+        }
+        Update: {
+          ai_tool_trace?: Json | null
+          body?: string | null
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          id?: string
+          media_url?: string | null
+          phone?: string
+          restaurant_id?: string
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "active_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "approved_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       active_restaurants: {
@@ -3923,6 +4066,10 @@ export type Database = {
             }
           }
       delete_user_data: { Args: { p_email: string }; Returns: Json }
+      delete_whatsapp_config: {
+        Args: { p_restaurant_id: string }
+        Returns: undefined
+      }
       ensure_dev_test_restaurant: { Args: never; Returns: undefined }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
@@ -4097,6 +4244,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_whatsapp_config: { Args: { p_restaurant_id: string }; Returns: Json }
       has_active_subscription: {
         Args: { _restaurant_id: string }
         Returns: boolean
@@ -4110,6 +4258,10 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { _role: string; _user_id: string }; Returns: boolean }
+      internal_get_whatsapp_credentials: {
+        Args: { p_restaurant_id: string }
+        Returns: Json
+      }
       is_admin: { Args: { p_user_id?: string }; Returns: boolean }
       is_member_of: { Args: { p_restaurant_id: string }; Returns: boolean }
       is_member_or_admin: {
@@ -4128,6 +4280,19 @@ export type Database = {
       is_restaurant_member: {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
+      }
+      log_whatsapp_message: {
+        Args: {
+          p_ai_tool_trace?: Json
+          p_body: string
+          p_customer_id: string
+          p_direction: string
+          p_media_url?: string
+          p_phone: string
+          p_restaurant_id: string
+          p_twilio_sid?: string
+        }
+        Returns: string
       }
       marketing_unsubscribe: { Args: { p_token: string }; Returns: Json }
       qr_get_restaurant_info: {
@@ -4192,6 +4357,19 @@ export type Database = {
           p_source?: string
         }
         Returns: string
+      }
+      set_whatsapp_config: {
+        Args: {
+          p_account_sid: string
+          p_auth_token: string
+          p_restaurant_id: string
+          p_whatsapp_number: string
+        }
+        Returns: Json
+      }
+      set_whatsapp_status: {
+        Args: { p_error?: string; p_restaurant_id: string; p_status: string }
+        Returns: undefined
       }
       toggle_restaurant_calendar_day: {
         Args: { p_day: string; p_is_open: boolean; p_restaurant_id: string }

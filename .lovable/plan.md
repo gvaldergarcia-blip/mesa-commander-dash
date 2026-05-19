@@ -1,116 +1,146 @@
 ## Objetivo
-
-Tornar o **Cardápio Inteligente** um agente conversacional que aprende o prato predileto de cada cliente e dispara, em horário agendado, uma imagem personalizada (gerada pela IA ou foto do prato com overlay) por **WhatsApp/SMS via Twilio MMS** — tudo a 1 clique a partir do chat.
-
----
-
-## 1. Banco de dados (nova migration)
-
-**`menu_customer_preferences`** — prato predileto por cliente
-- `customer_id` (FK restaurant_customers), `dish_id` (FK menu_dishes), `restaurant_id`
-- `score` int (peso do palpite), `source` text ('ia_chat' | 'manual' | 'visit_pattern')
-- unique(customer_id, dish_id)
-
-**`menu_dish_campaigns`** — fila de envios agendados
-- `restaurant_id`, `customer_id`, `dish_id`
-- `phone` text (E.164), `message` text, `image_url` text
-- `scheduled_at` timestamptz, `status` text ('pending'|'sent'|'failed'|'canceled')
-- `sent_at`, `twilio_sid`, `error`, `created_by`
-
-**RPCs SECURITY DEFINER** (validam `is_member_or_admin`):
-- `set_customer_favorite_dish(p_customer_id, p_dish_id, p_source)`
-- `schedule_dish_campaign(p_customer_id, p_dish_id, p_message, p_image_url, p_scheduled_at)`
-- `cancel_dish_campaign(p_id)`
-
-Índice em `(status, scheduled_at)` para o cron.
+Chatbot WhatsApp por restaurante: dono conecta o número WhatsApp dele (Twilio), e a IA conversa com cada cliente final entendendo histórico (visitas, prato favorito, VIP) e dispara imagens dos pratos reais com overlay personalizado ("Maria, seu nhoque te espera").
 
 ---
 
-## 2. Edge functions
+## 1. Conexão WhatsApp por restaurante
 
-**`cardapio-chat`** (streaming, AI SDK + Lovable AI Gateway, modelo `google/gemini-3-flash-preview`)
-- Tools expostas ao agente:
-  - `list_customers({ search? })` — top 30 clientes do restaurante (nome, visitas, VIP, último prato)
-  - `list_dishes({ search? })` — pratos do `menu_dishes`
-  - `set_favorite_dish({ customer_id, dish_id })` → chama RPC
-  - `generate_personalized_image({ dish_id, customer_name, headline })` → chama `generate-dish-image`
-  - `schedule_campaign({ customer_id, dish_id, message, image_url, scheduled_at })` → RPC
-  - `send_now({ customer_id, dish_id, message, image_url })` → invoca `dispatch-dish-campaigns` direto
-- Valida JWT, escopo por restaurante via `useRestaurantContext` no client.
+Cada restaurante usa **suas próprias credenciais Twilio** (Subaccount SID + Auth Token + número WhatsApp aprovado). Não dá pra usar o connector compartilhado porque é multi-tenant.
 
-**`generate-dish-image`** — usa Gemini `google/gemini-2.5-flash-image` (Nano Banana) via Lovable AI Gateway.
-- Input: foto do prato OU descrição → gera banner com nome do cliente + headline.
-- Salva no bucket `dish-photos/{restaurant_id}/campaigns/`, retorna URL pública.
+**Nova tabela `restaurant_whatsapp_config` (public, RLS por restaurante):**
+- `restaurant_id` (PK), `twilio_account_sid`, `twilio_auth_token` (criptografado), `whatsapp_number` (E.164 com prefixo `whatsapp:`), `webhook_secret`, `status` ('disconnected'|'pending'|'connected'), `connected_at`
 
-**`dispatch-dish-campaigns`** — cron a cada minuto via `pg_cron + pg_net`.
-- Pega `pending` com `scheduled_at <= now()`, dispara via Twilio gateway (`/Messages.json` com `MediaUrl`).
-- Atualiza status, `twilio_sid`, `sent_at`. Registra visita opcional no CRM.
+**UI em Settings → "WhatsApp Bot" (nova aba):**
+- Wizard 3 passos: (1) Cadastra Account SID + Auth Token + Número, (2) Sistema valida via `verify-whatsapp-config` edge function chamando Twilio API, (3) Mostra URL do webhook pra colar no Twilio Console: `https://akqldesakmcroydbgkbe.supabase.co/functions/v1/whatsapp-inbound?r={restaurant_id}`
+- Status: badge "Conectado/Desconectado", botão testar, botão desconectar.
 
 ---
 
-## 3. Frontend (`src/pages/CardapioInteligente.tsx`)
+## 2. Webhook inbound (cliente → bot)
 
-Nova aba **"Chat IA"** (além das já existentes Pratos/Insights):
+**Edge function `whatsapp-inbound` (verify_jwt=false, público):**
+- Recebe POST `application/x-www-form-urlencoded` do Twilio (From, Body, MediaUrl, etc).
+- Identifica restaurante via query param `?r=`, carrega config, valida assinatura Twilio (`X-Twilio-Signature`).
+- Normaliza telefone, faz upsert em `restaurant_customers` (cria lead se não existe).
+- Salva mensagem em `whatsapp_messages` (nova tabela).
+- Invoca `cardapio-chat` com contexto enriquecido (histórico de visitas, prato favorito, status VIP, programa de fidelidade).
+- Se IA chama tool `send_dish_image`, gera imagem com overlay e responde via Twilio com TwiML (`<Message><Body>...<Media>...</Message>`).
+- Caso contrário, responde só com texto.
 
-**Composição AI Elements** (`bun x ai-elements@latest add conversation message prompt-input shimmer tool`)
-- `Conversation` + `MessageResponse` para markdown streaming
-- `Tool` accordion fechado mostrando: clientes consultados, prato escolhido, prévia da imagem gerada
-- `PromptInput` + footer com submit
-
-Hook `useCardapioChat` — `useChat` apontando para `/cardapio-chat`, persistência **localStorage** (uma conversa só, conforme contrato chat-agent-ui-contract — sem threads).
-
-Nova aba **"Agenda"**: lista `menu_dish_campaigns` pendentes/enviadas com botão cancelar.
-
-Sem `Sparkles` como logo — uso `ChefHat` + foto real do prato como avatar do assistente.
-
----
-
-## 4. Conector & secrets
-
-- **Twilio** já está conectado (consta em integrações existentes do MesaClik). Reuso `TWILIO_API_KEY`.
-- **LOVABLE_API_KEY** já presente.
-- Bucket `dish-photos` já criado na migration anterior — adiciono subpasta `campaigns/`.
+**Nova tabela `whatsapp_messages`:**
+- `id`, `restaurant_id`, `customer_id` (nullable), `phone`, `direction` ('inbound'|'outbound'), `body`, `media_url`, `twilio_sid`, `ai_response`, `created_at`. Index `(restaurant_id, phone, created_at)`.
 
 ---
 
-## 5. Cron
+## 3. Bot conversacional (`cardapio-chat-wa`)
 
-```sql
-select cron.schedule(
-  'dispatch-dish-campaigns', '* * * * *',
-  $$ select net.http_post(
-    url:='https://akqldesakmcroydbgkbe.supabase.co/functions/v1/dispatch-dish-campaigns',
-    headers:='{"Content-Type":"application/json","apikey":"<anon>"}'::jsonb,
-    body:='{}'::jsonb
-  ); $$
-);
-```
+Reaproveita parte do `cardapio-chat` existente mas com tools focadas em conversa com cliente final:
+- `get_customer_context(phone)` — busca visitas, último prato, VIP, fidelidade
+- `list_dishes_for_recommendation(category?)` — pratos disponíveis com foto
+- `send_dish_image(dish_id, headline)` — gera imagem com nome do cliente + headline e marca pra enviar
+- `register_reservation_intent(date, party_size)` — cria reserva pendente
+- `register_queue_intent(party_size)` — entrada na fila
 
----
+System prompt em PT-BR, persona do restaurante (puxa nome/descrição), instruído a ser caloroso, lembrar últimas visitas, sugerir prato favorito quando fizer sentido.
 
-## 6. Fora de escopo (nesta entrega)
-
-- Chat público para o cliente final do restaurante (você optou só por painel interno integrado).
-- Autopilot diário automático (mantemos só manual 1-clique conforme sua resposta).
-- Envio por e-mail (somente Twilio MMS conforme escolhido).
+Modelo: `google/gemini-2.5-flash` via Lovable AI Gateway (já temos `LOVABLE_API_KEY`).
 
 ---
 
-## Diagrama do fluxo
+## 4. Gerador de imagem com overlay
+
+**Edge function `generate-dish-overlay`:**
+- Input: `dish_id`, `customer_name`, `headline`.
+- Carrega foto real do prato em `menu_dishes.image_url`.
+- Usa Gemini 2.5 Flash Image (Nano Banana) com prompt: "Add elegant overlay text '{headline}' and customer name '{customer_name}' to this dish photo, restaurant marketing style, preserve the dish".
+- Salva em `dish-photos/{restaurant_id}/overlays/{uuid}.jpg`, retorna URL pública.
+- Fallback: se prato sem foto, usa Canvas-style fallback ou rejeita pedido.
+
+---
+
+## 5. Painel do dono (já parcialmente feito)
+
+A aba "Chat IA" em `/cardapio` já existe (`CardapioChatTab.tsx`). Vou:
+- Renomear pra "Comando IA" e expandir as tools pra incluir `send_via_whatsapp` (manda agora pelo bot conectado).
+- Adicionar nova aba **"Conversas WhatsApp"** mostrando histórico de `whatsapp_messages` agrupado por cliente, com filtro/busca.
+- Aba **"Configurar Bot"** linka pra Settings → WhatsApp.
+
+---
+
+## 6. Segurança
+
+- `restaurant_whatsapp_config.twilio_auth_token` armazenado em coluna `bytea` cifrada via `pgp_sym_encrypt` com `app.encryption_key` (secret).
+- RPCs `set_whatsapp_config`/`get_whatsapp_config` SECURITY DEFINER, validam `is_member_or_admin`.
+- Webhook valida `X-Twilio-Signature` usando o auth token descriptografado.
+- Rate limit por telefone em `whatsapp-inbound` (max 20 msgs/min) pra prevenir abuso.
+
+---
+
+## 7. Migration única
 
 ```text
-[Dono no Chat IA]
-      │ "envia imagem do nhoque pra Maria amanhã 19h"
-      ▼
-[cardapio-chat (streamText + tools)]
-  ├─ list_customers  → encontra Maria
-  ├─ list_dishes     → encontra Nhoque
-  ├─ generate_personalized_image → URL no bucket
-  └─ schedule_campaign → INSERT menu_dish_campaigns(pending)
-      │
-      ▼ (cron 1 min)
-[dispatch-dish-campaigns] → Twilio /Messages.json (MediaUrl)
-      │
-      ▼
-[Maria recebe SMS/MMS com imagem do prato + texto pessoal]
+- create table public.restaurant_whatsapp_config
+- create table public.whatsapp_messages + indices + RLS
+- rpc public.set_whatsapp_config(...)
+- rpc public.get_whatsapp_config(restaurant_id)
+- rpc public.delete_whatsapp_config(restaurant_id)
+- rpc public.log_whatsapp_message(...) (chamada pela edge)
+- bucket dish-photos já existe → adiciona pasta overlays/
 ```
+
+---
+
+## 8. Secret necessário
+
+`WHATSAPP_CONFIG_ENCRYPTION_KEY` — chave AES pra cifrar auth tokens. Adiciono via `add_secret` antes da implementação.
+
+---
+
+## 9. Fluxo completo
+
+```text
+[Cliente Maria manda "oi" no WhatsApp do restaurante]
+         │
+         ▼
+[Twilio webhook → whatsapp-inbound?r={restaurant_id}]
+         │  valida assinatura, upsert customer, salva msg
+         ▼
+[cardapio-chat-wa com contexto (3 visitas, ama nhoque, VIP)]
+         │  IA decide: "vou mandar foto do nhoque com nome dela"
+         ▼
+[Tool send_dish_image → generate-dish-overlay]
+         │  Nano Banana adiciona "Maria, seu nhoque te espera 🍝"
+         ▼
+[Response Twilio TwiML: texto + MediaUrl da imagem]
+         │
+         ▼
+[Maria recebe no WhatsApp]
+```
+
+---
+
+## 10. Fora de escopo nesta entrega
+- Aprovação Meta do número (responsabilidade do restaurante, doc no painel).
+- Templates HSM pra mensagens fora da janela 24h (fase 2).
+- Botões interativos WhatsApp (fase 2).
+- Métricas/analytics do bot (fase 2 — só log básico agora).
+
+---
+
+## Arquivos a criar/editar
+
+**Criar:**
+- `supabase/functions/whatsapp-inbound/index.ts`
+- `supabase/functions/cardapio-chat-wa/index.ts`
+- `supabase/functions/generate-dish-overlay/index.ts`
+- `supabase/functions/verify-whatsapp-config/index.ts`
+- `src/components/settings/WhatsAppBotSettings.tsx`
+- `src/components/cardapio/WhatsAppConversationsTab.tsx`
+- `src/hooks/useWhatsAppConfig.ts`
+
+**Editar:**
+- `src/pages/Settings.tsx` (adiciona aba WhatsApp Bot)
+- `src/pages/CardapioInteligente.tsx` (adiciona aba Conversas)
+- Migration nova
+
+Aprova esse plano pra eu executar?
