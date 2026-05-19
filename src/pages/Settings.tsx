@@ -895,6 +895,10 @@ function SettingsContent() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="whatsapp_bot">
+          <WhatsAppBotSettings />
+        </TabsContent>
       </Tabs>
     </div>
   );
