@@ -61,8 +61,8 @@ export function WhatsAppBotSettings() {
       toast.error("Account SID inválido", { description: "Deve começar com AC e ter 34 caracteres." });
       return;
     }
-    if (!token && !config) {
-      toast.error("Auth Token obrigatório");
+    if (!token) {
+      toast.error("Auth Token obrigatório", { description: "Cole novamente o Auth Token do Twilio para salvar." });
       return;
     }
     if (!number.startsWith("+")) {
@@ -74,7 +74,7 @@ export function WhatsAppBotSettings() {
       const { error } = await supabase.rpc("set_whatsapp_config", {
         p_restaurant_id: restaurantId,
         p_account_sid: sid.trim(),
-        p_auth_token: token.trim() || "KEEP", // se usuário não informou, mandamos placeholder e validação cuidará
+        p_auth_token: token.trim(),
         p_whatsapp_number: number.trim(),
       });
       if (error) throw error;
@@ -174,7 +174,7 @@ export function WhatsAppBotSettings() {
 
             <div className="space-y-2">
               <Label>Twilio Auth Token *</Label>
-              <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={config ? "•••••••••••••• (mantém o atual se vazio)" : "Cole seu Auth Token"} />
+              <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={config ? "Cole novamente para atualizar" : "Cole seu Auth Token"} />
               <p className="text-xs text-muted-foreground">Armazenado criptografado.</p>
             </div>
 
