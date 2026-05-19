@@ -8,12 +8,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
   ChefHat, Plus, Pencil, Sparkles, Trash2, TrendingUp, Cake, AlertTriangle,
-  CalendarDays, ImageOff, Loader2, MessageSquare, CalendarClock,
+  CalendarDays, ImageOff, Loader2, MessageSquare, CalendarClock, Bot,
 } from 'lucide-react';
 import { MenuDish, useMenuDishes, DishCategory, DishMargin } from '@/hooks/useMenuDishes';
 import { DishFormDialog } from '@/components/cardapio/DishFormDialog';
 import { CardapioChatTab } from '@/components/cardapio/CardapioChatTab';
 import { CampaignsScheduleTab } from '@/components/cardapio/CampaignsScheduleTab';
+import { WhatsAppConversationsTab } from '@/components/cardapio/WhatsAppConversationsTab';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,7 +45,7 @@ export default function CardapioInteligente() {
   const { dishes, isLoading, remove } = useMenuDishes();
   const { restaurantId } = useRestaurant();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'pratos' | 'chat' | 'agenda' | 'insights'>('pratos');
+  const [tab, setTab] = useState<'pratos' | 'chat' | 'wa' | 'agenda' | 'insights'>('pratos');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<MenuDish | null>(null);
   const [campaignDish, setCampaignDish] = useState<MenuDish | null>(null);
@@ -111,9 +112,10 @@ export default function CardapioInteligente() {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full md:w-auto md:inline-flex">
+        <TabsList className="grid grid-cols-5 w-full md:w-auto md:inline-flex">
           <TabsTrigger value="pratos">Pratos</TabsTrigger>
           <TabsTrigger value="chat"><MessageSquare className="mr-1 h-4 w-4" /> Chat IA</TabsTrigger>
+          <TabsTrigger value="wa"><Bot className="mr-1 h-4 w-4" /> WhatsApp</TabsTrigger>
           <TabsTrigger value="agenda"><CalendarClock className="mr-1 h-4 w-4" /> Agenda</TabsTrigger>
           <TabsTrigger value="insights">
             <Sparkles className="mr-1 h-4 w-4" /> Insights da IA
@@ -154,6 +156,7 @@ export default function CardapioInteligente() {
         </TabsContent>
 
         <TabsContent value="chat"><CardapioChatTab /></TabsContent>
+        <TabsContent value="wa"><WhatsAppConversationsTab /></TabsContent>
         <TabsContent value="agenda"><CampaignsScheduleTab /></TabsContent>
       </Tabs>
 
