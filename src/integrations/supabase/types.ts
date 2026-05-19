@@ -3042,11 +3042,12 @@ export type Database = {
         Row: {
           connected_at: string | null
           created_at: string
+          greeting_message: string | null
           last_error: string | null
           restaurant_id: string
           status: string
-          twilio_account_sid: string
-          twilio_auth_token_encrypted: string
+          twilio_account_sid: string | null
+          twilio_auth_token_encrypted: string | null
           updated_at: string
           webhook_secret: string
           whatsapp_number: string
@@ -3054,11 +3055,12 @@ export type Database = {
         Insert: {
           connected_at?: string | null
           created_at?: string
+          greeting_message?: string | null
           last_error?: string | null
           restaurant_id: string
           status?: string
-          twilio_account_sid: string
-          twilio_auth_token_encrypted: string
+          twilio_account_sid?: string | null
+          twilio_auth_token_encrypted?: string | null
           updated_at?: string
           webhook_secret?: string
           whatsapp_number: string
@@ -3066,11 +3068,12 @@ export type Database = {
         Update: {
           connected_at?: string | null
           created_at?: string
+          greeting_message?: string | null
           last_error?: string | null
           restaurant_id?: string
           status?: string
-          twilio_account_sid?: string
-          twilio_auth_token_encrypted?: string
+          twilio_account_sid?: string | null
+          twilio_auth_token_encrypted?: string | null
           updated_at?: string
           webhook_secret?: string
           whatsapp_number?: string
@@ -4245,6 +4248,7 @@ export type Database = {
         }[]
       }
       get_whatsapp_config: { Args: { p_restaurant_id: string }; Returns: Json }
+      get_whatsapp_link: { Args: { p_restaurant_id: string }; Returns: Json }
       has_active_subscription: {
         Args: { _restaurant_id: string }
         Returns: boolean
@@ -4362,6 +4366,14 @@ export type Database = {
         Args: {
           p_account_sid: string
           p_auth_token: string
+          p_restaurant_id: string
+          p_whatsapp_number: string
+        }
+        Returns: Json
+      }
+      set_whatsapp_link: {
+        Args: {
+          p_greeting_message?: string
           p_restaurant_id: string
           p_whatsapp_number: string
         }

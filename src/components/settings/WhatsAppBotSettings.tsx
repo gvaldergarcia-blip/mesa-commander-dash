@@ -1,45 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Bot, CheckCircle2, Copy, Loader2, Trash2, AlertCircle, ExternalLink, MessageCircle } from "lucide-react";
+import { Bot, CheckCircle2, Copy, Loader2, ExternalLink, MessageCircle, QrCode } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/contexts/RestaurantContext";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 type Config = {
   restaurant_id: string;
-  twilio_account_sid: string;
-  whatsapp_number: string;
-  status: "pending" | "connected" | "disconnected" | "error";
-  last_error: string | null;
-  connected_at: string | null;
-  webhook_secret: string;
+  whatsapp_number: string | null;
+  greeting_message: string | null;
+  status: string;
 };
+
+const DEFAULT_GREETING =
+  "Olá! Quero conhecer o cardápio e tirar dúvidas. 🍽️";
 
 export function WhatsAppBotSettings() {
   const { restaurantId } = useRestaurant();
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
 
-  const [sid, setSid] = useState("");
-  const [token, setToken] = useState("");
   const [number, setNumber] = useState("");
-
-  const SUPA_URL = "https://akqldesakmcroydbgkbe.supabase.co";
-  const webhookUrl = config
-    ? `${SUPA_URL}/functions/v1/whatsapp-inbound?r=${config.restaurant_id}&s=${config.webhook_secret}`
-    : "";
+  const [greeting, setGreeting] = useState(DEFAULT_GREETING);
 
   const load = async () => {
     if (!restaurantId) return;
     setLoading(true);
-    const { data, error } = await supabase.rpc("get_whatsapp_config", { p_restaurant_id: restaurantId });
+    const { data, error } = await supabase.rpc("get_whatsapp_link", { p_restaurant_id: restaurantId });
     if (error) {
       console.error(error);
       toast.error("Erro ao carregar configuração", { description: error.message });
@@ -47,39 +43,36 @@ export function WhatsAppBotSettings() {
     if (data) {
       const c = data as unknown as Config;
       setConfig(c);
-      setSid(c.twilio_account_sid ?? "");
       setNumber(c.whatsapp_number ?? "");
+      setGreeting(c.greeting_message ?? DEFAULT_GREETING);
     }
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [restaurantId]);
 
+  const cleanNumber = useMemo(() => number.replace(/\D/g, ""), [number]);
+  const waLink = useMemo(() => {
+    if (!cleanNumber) return "";
+    const msg = encodeURIComponent(greeting || "");
+    return `https://wa.me/${cleanNumber}${msg ? `?text=${msg}` : ""}`;
+  }, [cleanNumber, greeting]);
+
   const save = async () => {
     if (!restaurantId) return;
-    if (!sid.startsWith("AC") || sid.length < 32) {
-      toast.error("Account SID inválido", { description: "Deve começar com AC e ter 34 caracteres." });
-      return;
-    }
-    if (!token) {
-      toast.error("Auth Token obrigatório", { description: "Cole novamente o Auth Token do Twilio para salvar." });
-      return;
-    }
-    if (!number.startsWith("+")) {
-      toast.error("Número inválido", { description: "Use o formato internacional, ex: +5511999998888" });
+    if (!number.startsWith("+") || cleanNumber.length < 10) {
+      toast.error("Número inválido", { description: "Use formato internacional, ex: +5511999998888" });
       return;
     }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("set_whatsapp_config", {
+      const { error } = await supabase.rpc("set_whatsapp_link", {
         p_restaurant_id: restaurantId,
-        p_account_sid: sid.trim(),
-        p_auth_token: token.trim(),
         p_whatsapp_number: number.trim(),
+        p_greeting_message: greeting.trim() || null,
       });
       if (error) throw error;
-      toast.success("Credenciais salvas. Agora teste a conexão.");
-      setToken("");
+      toast.success("Configuração salva!");
       await load();
     } catch (e: any) {
       toast.error("Não foi possível salvar", { description: e?.message });
@@ -88,59 +81,14 @@ export function WhatsAppBotSettings() {
     }
   };
 
-  const test = async () => {
-    if (!restaurantId) return;
-    setTesting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-whatsapp-config", {
-        body: { restaurantId },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Twilio conectado!", { description: `Conta: ${(data as any).friendly_name}` });
-      await load();
-    } catch (e: any) {
-      toast.error("Falha no teste", { description: e?.message });
-      await load();
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const disconnect = async () => {
-    if (!restaurantId) return;
-    if (!confirm("Desconectar o bot? O WhatsApp deixará de responder até reconectar.")) return;
-    const { error } = await supabase.rpc("delete_whatsapp_config", { p_restaurant_id: restaurantId });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Bot desconectado");
-    setConfig(null);
-    setSid(""); setToken(""); setNumber("");
-  };
-
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copiado!");
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
-
-  const statusBadge = config && (
-    config.status === "connected" ? (
-      <Badge className="bg-green-500/15 text-green-600 border-green-500/30 border">
-        <CheckCircle2 className="h-3 w-3 mr-1" /> Conectado
-      </Badge>
-    ) : config.status === "error" ? (
-      <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" /> Erro</Badge>
-    ) : (
-      <Badge variant="outline">Pendente</Badge>
-    )
-  );
 
   return (
     <div className="space-y-6">
@@ -148,82 +96,82 @@ export function WhatsAppBotSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
-            Chatbot WhatsApp
-            {statusBadge}
+            WhatsApp + Assistente IA
+            {config?.whatsapp_number && (
+              <Badge className="bg-green-500/15 text-green-600 border-green-500/30 border">
+                <CheckCircle2 className="h-3 w-3 mr-1" /> Configurado
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
-            Conecte o WhatsApp Business do seu restaurante. A IA vai conversar com cada cliente, entender o histórico dele
-            e enviar fotos personalizadas dos pratos.
+            Informe o WhatsApp do seu restaurante. Geramos um link e um QR Code para você divulgar (no rodapé do site, cardápio, redes sociais).
+            Para responder os clientes, use o <strong>Assistente IA</strong> em Cardápio Inteligente — ele sugere a resposta com base no histórico do cliente e gera fotos personalizadas dos pratos.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {config?.status === "error" && config.last_error && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {config.last_error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label>Twilio Account SID *</Label>
-              <Input value={sid} onChange={(e) => setSid(e.target.value)} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-              <p className="text-xs text-muted-foreground">
-                Encontre em <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="underline">console.twilio.com</a>.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Twilio Auth Token *</Label>
-              <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={config ? "Cole novamente para atualizar" : "Cole seu Auth Token"} />
-              <p className="text-xs text-muted-foreground">Armazenado criptografado.</p>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Número WhatsApp Business *</Label>
+              <Label>Número WhatsApp *</Label>
               <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="+5511999998888" />
-              <p className="text-xs text-muted-foreground">Número já aprovado pela Meta e configurado no Twilio (formato internacional com +).</p>
+              <p className="text-xs text-muted-foreground">Formato internacional com + (DDI + DDD + número).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Mensagem inicial do cliente (opcional)</Label>
+              <Textarea
+                value={greeting}
+                onChange={(e) => setGreeting(e.target.value)}
+                placeholder={DEFAULT_GREETING}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">Texto que aparece pré-preenchido quando o cliente abre a conversa pelo link.</p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={save} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Salvar credenciais
+              Salvar
             </Button>
-            {config && (
-              <>
-                <Button variant="outline" onClick={test} disabled={testing}>
-                  {testing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Testar conexão
-                </Button>
-                <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={disconnect}>
-                  <Trash2 className="h-4 w-4 mr-2" /> Desconectar
-                </Button>
-              </>
-            )}
           </div>
 
-          {config && (
+          {waLink && (
             <>
               <Separator />
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-base font-semibold">Configurar Webhook no Twilio</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Cole esta URL em <strong>Twilio Console → Messaging → Settings → WhatsApp sandbox / Sender → "A message comes in"</strong>:
-                  </p>
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-start">
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-base font-semibold">Link wa.me para divulgar</Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Quem clicar abre o WhatsApp já com a mensagem pronta.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input value={waLink} readOnly className="font-mono text-xs" />
+                    <Button variant="outline" size="icon" onClick={() => copy(waLink)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={waLink} target="_blank" rel="noopener noreferrer">
+                        Testar link <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </Button>
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link to="/cardapio">
+                        Abrir Assistente IA <Bot className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Input value={webhookUrl} readOnly className="font-mono text-xs" />
-                  <Button variant="outline" size="icon" onClick={() => copy(webhookUrl)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
+
+                <div className="flex flex-col items-center gap-2 p-4 bg-white rounded-md border self-start">
+                  <QRCodeCanvas value={waLink} size={160} includeMargin />
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <QrCode className="h-3 w-3" /> QR para clientes
+                  </span>
                 </div>
-                <Button variant="link" size="sm" asChild className="p-0 h-auto">
-                  <a href="https://console.twilio.com/us1/develop/sms/senders" target="_blank" rel="noopener noreferrer">
-                    Abrir Twilio Console <ExternalLink className="h-3 w-3 ml-1" />
-                  </a>
-                </Button>
               </div>
             </>
           )}
@@ -237,10 +185,10 @@ export function WhatsAppBotSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>1. Cliente manda mensagem no seu WhatsApp Business.</p>
-          <p>2. A IA identifica o cliente pelo telefone, consulta o CRM (visitas, pratos favoritos, status VIP).</p>
-          <p>3. Responde de forma personalizada e, quando faz sentido, envia uma foto do prato com o nome do cliente no overlay.</p>
-          <p>4. Toda a conversa fica salva no painel em <strong>Cardápio Inteligente → Conversas WhatsApp</strong>.</p>
+          <p>1. Divulgue o link/QR no Instagram, site, cardápio impresso, recibo etc.</p>
+          <p>2. O cliente clica → abre o WhatsApp do restaurante com a mensagem inicial pronta.</p>
+          <p>3. Você responde usando o <strong>Assistente IA</strong> no painel: ele lê o histórico, sugere a resposta perfeita e gera a foto do prato com o nome do cliente. Você copia e cola no WhatsApp.</p>
+          <p className="pt-2 text-xs">Sem configurar Twilio, sem aprovação Meta, sem mensalidade adicional.</p>
         </CardContent>
       </Card>
     </div>
