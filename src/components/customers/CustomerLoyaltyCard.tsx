@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Trophy, Gift, Target, AlertTriangle, Loader2, Settings, ChevronDown, ChevronUp, Save, Lock } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useLoyaltyProgram, type LoyaltyProgram, type CustomerLoyaltyStatus } from "@/hooks/useLoyaltyProgram";
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,8 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
   const [editValidity, setEditValidity] = useState(30);
   const [savingCustomConfig, setSavingCustomConfig] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [showRestartDialog, setShowRestartDialog] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -157,6 +160,43 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
       // Not yet active — just mark config as saved locally
       setConfigSaved(true);
       toast({ title: "✅ Configuração definida", description: "Agora ative o programa para este cliente." });
+    }
+  };
+
+  const handleRestartCycle = async () => {
+    setShowRestartDialog(false);
+    if (!editReward.trim()) {
+      toast({ title: "Preencha a recompensa", variant: "destructive" });
+      return;
+    }
+    setRestarting(true);
+    try {
+      const { error } = await supabase
+        .from("customer_loyalty_status" as any)
+        .update({
+          current_visits: 0,
+          reward_unlocked: false,
+          reward_unlocked_at: null,
+          reward_expires_at: null,
+          reward_email_sent: false,
+          custom_required_visits: editVisits,
+          custom_reward_description: editReward,
+          custom_reward_validity_days: editValidity,
+        } as any)
+        .eq("restaurant_id", restaurantId)
+        .eq("customer_id", customerId);
+
+      if (error) throw error;
+
+      const result = await fetchCustomerLoyalty(customerId);
+      setProgram(result.program);
+      setStatus(result.status);
+
+      toast({ title: "✅ Novo ciclo iniciado", description: "O cliente recomeçará do zero." });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setRestarting(false);
     }
   };
 
@@ -331,7 +371,7 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
               ) : expired ? (
                 <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <Gift className="w-5 h-5 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Recompensa expirada</p>
+                  <p className="text-sm text-muted-foreground flex-1">Recompensa expirada</p>
                 </div>
               ) : (
                 <>
@@ -349,6 +389,20 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
                     🎁 Meta: {effectiveRewardDescription}
                   </p>
                 </>
+              )}
+
+              {/* Restart cycle button: available after reward unlocked (claimed or expired) */}
+              {rewardUnlocked && (
+                <Button
+                  onClick={() => setShowRestartDialog(true)}
+                  disabled={restarting}
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-2"
+                >
+                  {restarting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                  Iniciar novo ciclo
+                </Button>
               )}
 
               {/* Edit config for active program */}
@@ -432,6 +486,35 @@ export function CustomerLoyaltyCard({ customerId, restaurantId, marketingOptIn =
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmActivation}>
               Sim, ativar programa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restart cycle dialog */}
+      <AlertDialog open={showRestartDialog} onOpenChange={setShowRestartDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-primary" />
+              Iniciar novo ciclo do programa
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                O cliente recomeçará com <strong>0 visitas</strong> e poderá conquistar uma nova recompensa.
+              </p>
+              <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                <p><strong>Meta:</strong> {editVisits} visitas</p>
+                <p><strong>Recompensa:</strong> {editReward}</p>
+                <p><strong>Validade:</strong> {editValidity} dias</p>
+              </div>
+              <p className="text-sm font-medium">Deseja continuar?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestartCycle}>
+              Sim, iniciar novo ciclo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
