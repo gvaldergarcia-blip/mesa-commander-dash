@@ -812,9 +812,6 @@ export default function IACreatorMarketing() {
             <TabsTrigger value="galeria" className="gap-1.5">
               <Images className="w-3.5 h-3.5" /> Galeria
             </TabsTrigger>
-            <TabsTrigger value="autopilot" className="gap-1.5">
-              <Bot className="w-3.5 h-3.5" /> Auto-pilot
-            </TabsTrigger>
           </TabsList>
 
           {/* ── TAB: CRIAR ────────────────────────────── */}
@@ -1449,10 +1446,6 @@ export default function IACreatorMarketing() {
           {/* ── TAB: GALERIA ──────────────────────────── */}
           <TabsContent value="galeria">
             <GalleryTab restaurantId={restaurant?.id} onReuse={handleReuse} />
-          </TabsContent>
-
-          <TabsContent value="autopilot">
-            <AutopilotTab />
           </TabsContent>
         </Tabs>
       </div>
