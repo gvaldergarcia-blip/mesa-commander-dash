@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 type Status = 'validating' | 'success' | 'error';
 
@@ -19,21 +21,33 @@ export default function ChecklistQrValidate() {
     const validateQr = async () => {
       setStatus('validating');
 
-      const { data, error: fnError } = await supabase.functions.invoke(
-        'validate-checklist-qr',
-        { body: { item_id: itemId } }
-      );
+      try {
+        // fetch direto: precisamos ler o body mesmo em 4xx (invoke esconde)
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/validate-checklist-qr`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON,
+            Authorization: `Bearer ${SUPABASE_ANON}`,
+          },
+          body: JSON.stringify({ item_id: itemId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
 
-      if (cancelled) return;
+        if (!res.ok || !data?.success) {
+          setError(data?.error || `Falha (${res.status}) ao validar este QR Code.`);
+          setStatus('error');
+          return;
+        }
 
-      if (fnError || !data?.success) {
-        setError(data?.error || 'QR Code inválido.');
+        if (data.item_name) setItemName(data.item_name);
+        setStatus('success');
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message || 'Não foi possível contactar o servidor.');
         setStatus('error');
-        return;
       }
-
-      if (data.item_name) setItemName(data.item_name);
-      setStatus('success');
     };
 
     validateQr();
