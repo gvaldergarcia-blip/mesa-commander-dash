@@ -51,7 +51,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import AutopilotTab from "@/components/marketing/AutopilotTab";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface CampaignForm {
@@ -812,9 +811,6 @@ export default function IACreatorMarketing() {
             <TabsTrigger value="galeria" className="gap-1.5">
               <Images className="w-3.5 h-3.5" /> Galeria
             </TabsTrigger>
-            <TabsTrigger value="autopilot" className="gap-1.5">
-              <Bot className="w-3.5 h-3.5" /> Auto-pilot
-            </TabsTrigger>
           </TabsList>
 
           {/* ── TAB: CRIAR ────────────────────────────── */}
@@ -1449,10 +1445,6 @@ export default function IACreatorMarketing() {
           {/* ── TAB: GALERIA ──────────────────────────── */}
           <TabsContent value="galeria">
             <GalleryTab restaurantId={restaurant?.id} onReuse={handleReuse} />
-          </TabsContent>
-
-          <TabsContent value="autopilot">
-            <AutopilotTab />
           </TabsContent>
         </Tabs>
       </div>
