@@ -1386,6 +1386,65 @@ export type Database = {
         }
         Relationships: []
       }
+      label_issuances: {
+        Row: {
+          batch: string | null
+          created_at: string
+          expiry_date: string
+          id: string
+          label_product_id: string | null
+          manufacture_date: string
+          notes: string | null
+          product_name: string
+          quantity: number
+          resolved_at: string | null
+          responsible: string | null
+          restaurant_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch?: string | null
+          created_at?: string
+          expiry_date: string
+          id?: string
+          label_product_id?: string | null
+          manufacture_date?: string
+          notes?: string | null
+          product_name: string
+          quantity?: number
+          resolved_at?: string | null
+          responsible?: string | null
+          restaurant_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch?: string | null
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          label_product_id?: string | null
+          manufacture_date?: string
+          notes?: string | null
+          product_name?: string
+          quantity?: number
+          resolved_at?: string | null
+          responsible?: string | null
+          restaurant_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_issuances_label_product_id_fkey"
+            columns: ["label_product_id"]
+            isOneToOne: false
+            referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       label_products: {
         Row: {
           created_at: string

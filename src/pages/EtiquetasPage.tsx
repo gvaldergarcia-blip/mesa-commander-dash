@@ -30,6 +30,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useChecklistItems } from "@/hooks/useChecklists";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
+import { useLabelIssuances } from "@/hooks/useLabelIssuances";
+import { ExpiryAlerts } from "@/components/labels/ExpiryAlerts";
 import { ProductFormDialog } from "@/components/labels/ProductFormDialog";
 import { printLabels } from "@/components/labels/LabelPrintSheet";
 import { useRestaurant } from "@/contexts/RestaurantContext";
@@ -39,6 +41,7 @@ import { cn } from "@/lib/utils";
 export default function EtiquetasPage() {
   const { products, isLoading, createProduct, updateProduct, deleteProduct, isMutating } =
     useLabelProducts();
+  const { create: createIssuance } = useLabelIssuances();
   const { restaurant } = useRestaurant();
   const { data: checklistItems = [] } = useChecklistItems();
   // Qualquer atividade ativa do checklist pode ser vinculada à etiqueta.
@@ -118,6 +121,18 @@ export default function EtiquetasPage() {
           <QRCodeSVG value={checklistQrUrl} size={120} level="M" marginSize={0} />
         )
       : null;
+    const qty = Math.max(1, Math.min(10, quantity));
+    // Registra a etiqueta para acompanhamento de validade (alertas).
+    void createIssuance({
+      label_product_id: selected.id,
+      product_name: selected.name,
+      manufacture_date: now,
+      expiry_date: expiryDate,
+      quantity: qty,
+      batch: batch.trim() || null,
+      responsible: responsible.trim() || null,
+      notes: extraNotes.trim() || null,
+    });
     // Imprime em iframe isolado — não trava o dashboard.
     printLabels({
       productName: selected.name,
@@ -131,7 +146,7 @@ export default function EtiquetasPage() {
       restaurantLogoUrl: restaurant?.logo_url || null,
       checklistQrSvg: qrSvg,
       checklistQrLabel: selectedChecklist?.name ?? null,
-      quantity: Math.max(1, Math.min(10, quantity)),
+      quantity: qty,
     });
   };
 
@@ -153,6 +168,9 @@ export default function EtiquetasPage() {
           </p>
         </div>
       </header>
+
+      {/* Alertas de validade dos produtos preparados */}
+      <ExpiryAlerts />
 
       {/* Main grid: products on left, generator on right */}
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
