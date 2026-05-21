@@ -32,8 +32,15 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const body = await req.json().catch(() => ({}));
-    const item_id = body?.item_id as string | undefined;
+    // Aceita item_id via JSON (POST) ou query string (GET) — assim qualquer
+    // leitor de QR que abra a URL diretamente também valida.
+    let item_id: string | undefined;
+    if (req.method === 'GET') {
+      item_id = new URL(req.url).searchParams.get('item_id') ?? undefined;
+    } else {
+      const body = await req.json().catch(() => ({}));
+      item_id = body?.item_id as string | undefined;
+    }
 
     if (!item_id) {
       return new Response(
@@ -42,18 +49,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar item ativo
+    // Buscar item (mesmo inativo, para dar mensagem clara)
     const { data: item, error: itemError } = await supabase
       .from('checklist_items')
       .select('id, name, restaurant_id, active, daily_frequency')
       .eq('id', item_id)
-      .eq('active', true)
       .maybeSingle();
 
-    if (itemError || !item) {
+    if (itemError) {
+      console.error('[validate-checklist-qr] db error:', itemError);
       return new Response(
-        JSON.stringify({ success: false, error: 'QR Code inválido ou item inativo.' }),
+        JSON.stringify({ success: false, error: 'Erro ao consultar atividade.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!item) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Atividade não encontrada. Pode ter sido removida do checklist.' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!item.active) {
+      return new Response(
+        JSON.stringify({ success: false, error: `A atividade "${item.name}" está desativada no checklist.` }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
