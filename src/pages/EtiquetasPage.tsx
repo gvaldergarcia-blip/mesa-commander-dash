@@ -37,6 +37,7 @@ import { printLabels } from "@/components/labels/LabelPrintSheet";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getSiteBaseUrl } from "@/config/site-url";
 
 export default function EtiquetasPage() {
   const { products, isLoading, createProduct, updateProduct, deleteProduct, isMutating } =
@@ -75,7 +76,7 @@ export default function EtiquetasPage() {
     [qrChecklistItems, checklistItemId]
   );
   const checklistQrUrl = selectedChecklist
-    ? `${window.location.origin}/checklists/scan/${selectedChecklist.id}`
+    ? `${getSiteBaseUrl()}/checklists/scan/${selectedChecklist.id}`
     : null;
 
   // Keep manufacture date fresh when product changes.
