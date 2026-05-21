@@ -4551,6 +4551,7 @@ export type Database = {
         | "seated"
         | "completed"
         | "canceled"
+        | "no_show"
       social_chat_role: "user" | "ai" | "system"
       social_suggestion_status: "pending" | "approved" | "dismissed" | "posted"
     }
@@ -4747,6 +4748,7 @@ export const Constants = {
         "seated",
         "completed",
         "canceled",
+        "no_show",
       ],
       social_chat_role: ["user", "ai", "system"],
       social_suggestion_status: ["pending", "approved", "dismissed", "posted"],
