@@ -86,16 +86,21 @@ serve(async (req) => {
     } else {
       const { data: asset, error: aErr } = await admin
         .from("promotions_assets")
-        .select("id, restaurant_id, image_url, caption_text, restaurants:restaurant_id(owner_id, name)")
+        .select("id, restaurant_id, image_url, caption_text")
         .eq("id", assetId)
         .maybeSingle();
       if (aErr) { console.error("asset select err:", aErr); return json({ error: "DB error: " + aErr.message }, 500); }
       if (!asset) return json({ error: "Asset not found" }, 404);
-      ownerId = (asset as any).restaurants?.owner_id ?? null;
       restaurantId = asset.restaurant_id;
       currentCaption = asset.caption_text || "";
       currentImageUrl = asset.image_url || "";
-      restMeta = (asset as any).restaurants || {};
+      const { data: rest } = await admin
+        .from("restaurants")
+        .select("owner_id, name, cuisine_type")
+        .eq("id", restaurantId)
+        .maybeSingle();
+      ownerId = rest?.owner_id ?? null;
+      restMeta = rest || {};
       if (!currentImageUrl) return json({ error: "No current image" }, 404);
     }
 
