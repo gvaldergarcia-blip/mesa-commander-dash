@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LabelProduct, LabelProductInput } from "@/hooks/useLabelProducts";
 
 interface Props {
@@ -18,12 +19,18 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [name, setName] = useState("");
   const [validityDays, setValidityDays] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [conservation, setConservation] = useState<string>("refrigerated");
+  const [unit, setUnit] = useState<string>("un");
+  const [status, setStatus] = useState<string>("active");
 
   useEffect(() => {
     if (open) {
       setName(product?.name ?? "");
       setValidityDays(product?.validity_days?.toString() ?? "");
       setNotes(product?.notes ?? "");
+      setConservation(product?.conservation_method ?? "refrigerated");
+      setUnit(product?.unit ?? "un");
+      setStatus(product?.status ?? "active");
     }
   }, [open, product]);
 
@@ -31,7 +38,14 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
     e.preventDefault();
     const days = parseInt(validityDays, 10);
     if (!name.trim() || isNaN(days) || days <= 0) return;
-    await onSubmit({ name, validity_days: days, notes });
+    await onSubmit({
+      name,
+      validity_days: days,
+      notes,
+      conservation_method: conservation as any,
+      unit,
+      status: status as any,
+    });
     onOpenChange(false);
   };
 
@@ -68,6 +82,43 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               placeholder="Ex: 5"
               required
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Conservação</Label>
+              <Select value={conservation} onValueChange={setConservation}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="refrigerated">Resfriado</SelectItem>
+                  <SelectItem value="frozen">Congelado</SelectItem>
+                  <SelectItem value="ambient">Temp. ambiente</SelectItem>
+                  <SelectItem value="hot">Quente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Unidade</Label>
+              <Select value={unit} onValueChange={setUnit}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="g">g</SelectItem>
+                  <SelectItem value="kg">kg</SelectItem>
+                  <SelectItem value="ml">ml</SelectItem>
+                  <SelectItem value="L">L</SelectItem>
+                  <SelectItem value="un">un</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="inactive">Inativo</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="prod-notes">Observação (opcional)</Label>

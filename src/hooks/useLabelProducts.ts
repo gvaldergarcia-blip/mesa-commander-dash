@@ -9,6 +9,11 @@ export interface LabelProduct {
   name: string;
   validity_days: number;
   notes: string | null;
+  conservation_method?: "refrigerated" | "frozen" | "ambient" | "hot" | null;
+  unit?: string | null;
+  default_observation?: string | null;
+  status?: "active" | "inactive";
+  group_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -17,6 +22,11 @@ export interface LabelProductInput {
   name: string;
   validity_days: number;
   notes?: string | null;
+  conservation_method?: "refrigerated" | "frozen" | "ambient" | "hot" | null;
+  unit?: string | null;
+  default_observation?: string | null;
+  status?: "active" | "inactive";
+  group_id?: string | null;
 }
 
 export function useLabelProducts() {
@@ -41,13 +51,18 @@ export function useLabelProducts() {
   const createMutation = useMutation({
     mutationFn: async (input: LabelProductInput) => {
       if (!restaurantId) throw new Error("Restaurante não identificado");
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("label_products")
         .insert({
           restaurant_id: restaurantId,
           name: input.name.trim(),
           validity_days: input.validity_days,
           notes: input.notes?.trim() || null,
+          conservation_method: input.conservation_method ?? "refrigerated",
+          unit: input.unit ?? "un",
+          default_observation: input.default_observation?.trim() || null,
+          status: input.status ?? "active",
+          group_id: input.group_id ?? null,
         })
         .select()
         .single();
@@ -63,12 +78,17 @@ export function useLabelProducts() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, input }: { id: string; input: LabelProductInput }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("label_products")
         .update({
           name: input.name.trim(),
           validity_days: input.validity_days,
           notes: input.notes?.trim() || null,
+          conservation_method: input.conservation_method ?? undefined,
+          unit: input.unit ?? undefined,
+          default_observation: input.default_observation ?? undefined,
+          status: input.status ?? undefined,
+          group_id: input.group_id ?? undefined,
         })
         .eq("id", id)
         .select()

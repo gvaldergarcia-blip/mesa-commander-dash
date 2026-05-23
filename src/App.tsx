@@ -25,6 +25,7 @@ import IACreatorMarketing from "./pages/IACreatorMarketing";
 import ChecklistsPage from "./pages/ChecklistsPage";
 import ChecklistQrValidate from "./pages/ChecklistQrValidate";
 import EtiquetasPage from "./pages/EtiquetasPage";
+import EtiquetaScan from "./pages/EtiquetaScan";
 import CardapioInteligente from "./pages/CardapioInteligente";
 
 
@@ -150,6 +151,9 @@ const App = () => {
 
         {/* Validação pública de QR do checklist (sem login, sem DashboardLayout) */}
         <Route path="/checklists/scan/:itemId" element={<ChecklistQrValidate />} />
+
+        {/* Validação pública de QR de etiqueta (sem login) */}
+        <Route path="/etiquetas/scan/:code" element={<EtiquetaScan />} />
 
         {/* Rotas protegidas do painel - REQUEREM AUTENTICAÇÃO */}
         <Route path="/*" element={
