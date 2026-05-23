@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, CalendarDays, Clock, User, Building2, Tag, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle, Utensils, AlertCircle, AlertTriangle, ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CONSERVATION_LABEL, REASON_LABEL } from "@/lib/labels/utils";
@@ -11,6 +10,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
@@ -55,100 +57,181 @@ export default function EtiquetaScan() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+      </div>
+    );
   }
 
   if (!label?.found) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="p-8 max-w-md text-center">
-          <XCircle className="h-12 w-12 mx-auto text-destructive mb-3" />
-          <h1 className="text-xl font-bold">Etiqueta não encontrada</h1>
-          <p className="text-muted-foreground mt-2">O código <strong>#{code}</strong> não corresponde a nenhuma etiqueta.</p>
-        </Card>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md text-center">
+          <XCircle className="h-12 w-12 mx-auto text-red-500 mb-3" />
+          <h1 className="text-xl font-bold text-slate-900">Etiqueta não encontrada</h1>
+          <p className="text-slate-500 mt-2">O código <strong>#{code}</strong> não corresponde a nenhuma etiqueta.</p>
+        </div>
       </div>
     );
   }
 
   const isExpired = label.is_expired;
   const isDischarged = label.status === "discharged";
+  const statusPill = isDischarged
+    ? { label: "BAIXADO", cls: "bg-slate-200 text-slate-600" }
+    : isExpired
+    ? { label: "VENCIDO", cls: "bg-red-100 text-red-700" }
+    : { label: "ATIVO", cls: "bg-indigo-100 text-indigo-700" };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4 pb-24">
-      <div className="max-w-md mx-auto space-y-4">
-        {/* Header */}
-        <div className="text-center pt-4">
-          <div className="inline-flex items-center gap-2 text-xs text-muted-foreground mb-2">
-            <Tag className="h-3 w-3" /> <span className="font-mono">#{label.unique_code}</span>
-          </div>
-          <h1 className="text-2xl font-bold">{label.product_name}</h1>
-          <div className="mt-3 flex justify-center">
-            {isDischarged ? (
-              <span className="px-4 py-1.5 rounded-full bg-muted text-muted-foreground font-semibold text-sm">BAIXADO</span>
-            ) : isExpired ? (
-              <span className="px-4 py-1.5 rounded-full bg-destructive text-destructive-foreground font-semibold text-sm">VENCIDO</span>
-            ) : (
-              <span className="px-4 py-1.5 rounded-full bg-success text-success-foreground font-semibold text-sm">ATIVO</span>
-            )}
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200 p-4 pb-10">
+      <div className="max-w-md mx-auto space-y-3 pt-2">
+        {/* Unique code chip */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 text-center">
+          <span className="font-mono font-bold text-lg tracking-widest text-slate-700">
+            {label.unique_code}
+          </span>
         </div>
 
-        {isExpired && !isDischarged && (
-          <Card className="p-4 bg-destructive/10 border-destructive/30 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-            <p className="text-sm"><strong>Atenção:</strong> esta etiqueta está vencida. Recomenda-se dar baixa.</p>
-          </Card>
-        )}
+        {/* Main card */}
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 space-y-5">
+          {/* Title row */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className={`h-6 w-6 shrink-0 ${isDischarged ? "text-slate-400" : isExpired ? "text-red-500" : "text-emerald-500"}`} />
+              <h1 className="text-xl font-bold text-slate-900 uppercase truncate">{label.product_name}</h1>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wider shrink-0 ${statusPill.cls}`}>
+              {statusPill.label}
+            </span>
+          </div>
 
-        {/* Info */}
-        <Card className="p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><div className="text-xs text-muted-foreground">Lote</div><div className="font-semibold">{label.batch || "—"}</div></div>
-            <div><div className="text-xs text-muted-foreground">Quantidade</div><div className="font-semibold">{label.quantity}</div></div>
-            <div className="col-span-2"><div className="text-xs text-muted-foreground">Conservação</div><div className="font-semibold">{CONSERVATION_LABEL[label.conservation_method || ""] || "—"}</div></div>
+          {/* Lote / Quantidade / Conservação */}
+          <div className="grid grid-cols-3 gap-3 text-sm border-t border-slate-100 pt-4">
+            <div>
+              <div className="text-[11px] text-slate-500 font-semibold">Lote:</div>
+              <div className="text-slate-800 font-medium">{label.batch || "N/A"}</div>
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 font-semibold">Quantidade:</div>
+              <div className="text-slate-800 font-medium">{label.quantity || "—"}</div>
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 font-semibold">Conservação:</div>
+              <div className="text-slate-800 font-medium">{CONSERVATION_LABEL[label.conservation_method || ""] || "—"}</div>
+            </div>
           </div>
-          <div className="space-y-2 pt-3 border-t border-border/40">
-            <div className="flex items-center gap-2 text-sm"><CalendarDays className="h-4 w-4 text-muted-foreground" /> Preparo: <strong>{format(new Date(label.manufacture_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</strong></div>
-            <div className={`flex items-center gap-2 text-sm ${isExpired ? "text-destructive" : ""}`}><Clock className="h-4 w-4" /> Vencimento: <strong>{format(new Date(label.expiry_date), "dd/MM/yyyy HH:mm", { locale: ptBR })}</strong></div>
-            <div className="flex items-center gap-2 text-sm"><User className="h-4 w-4 text-muted-foreground" /> Responsável: <strong>{label.responsible || "—"}</strong></div>
-            <div className="flex items-center gap-2 text-sm"><Building2 className="h-4 w-4 text-muted-foreground" /> {label.restaurant_name || "—"}</div>
+
+          {/* Dates */}
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <div>
+              <div className="flex items-center gap-2 text-emerald-600 text-sm font-semibold">
+                <CalendarDays className="h-4 w-4" /> Data de Preparo:
+              </div>
+              <div className="text-slate-700 text-sm mt-1 ml-6">
+                {format(new Date(label.manufacture_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </div>
+            </div>
+            <div>
+              <div className={`flex items-center gap-2 text-sm font-semibold ${isExpired ? "text-red-600" : "text-red-500"}`}>
+                <CalendarX className="h-4 w-4" /> Vencimento Final:
+              </div>
+              <div className={`text-sm mt-1 ml-6 ${isExpired ? "text-red-600 font-semibold" : "text-slate-700"}`}>
+                {format(new Date(label.expiry_date), "dd/MM/yyyy", { locale: ptBR })}
+              </div>
+            </div>
           </div>
+
+          {/* Responsible */}
+          <div className="border-t border-slate-100 pt-4">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold">
+              <User className="h-4 w-4" /> Responsável:
+            </div>
+            <div className="text-slate-800 text-sm mt-1 ml-6 font-medium">
+              {label.responsible || "—"}
+              {label.restaurant_name && <span className="text-slate-500 font-normal"> · {label.restaurant_name}</span>}
+            </div>
+          </div>
+
           {label.notes && (
-            <div className="pt-3 border-t border-border/40 text-sm">
-              <div className="text-xs text-muted-foreground mb-1">Observação</div>
-              <p>{label.notes}</p>
+            <div className="border-t border-slate-100 pt-4">
+              <div className="text-[11px] text-slate-500 font-semibold mb-1">Observação:</div>
+              <p className="text-sm text-slate-700 italic">{label.notes}</p>
             </div>
           )}
-        </Card>
 
-        {/* Discharge area */}
-        {isDischarged && label.discharge ? (
-          <Card className="p-4 bg-muted/40">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
-              <span className="font-semibold">Etiqueta já baixada</span>
+          {/* Discharge area */}
+          {isDischarged && label.discharge ? (
+            <div className="border-t border-slate-100 pt-4 bg-slate-50 -mx-6 -mb-6 px-6 pb-6 rounded-b-3xl">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="h-5 w-5 text-slate-500" />
+                <span className="font-bold text-slate-700">Etiqueta já baixada</span>
+              </div>
+              <div className="text-sm text-slate-600 space-y-1">
+                <div>Motivo: <strong className="text-slate-800">{REASON_LABEL[label.discharge.reason]}</strong></div>
+                <div>Em: {format(new Date(label.discharge.discharged_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</div>
+                {label.discharge.employee_name && <div>Por: <strong className="text-slate-800">{label.discharge.employee_name}</strong></div>}
+                {label.discharge.notes && <div className="italic">"{label.discharge.notes}"</div>}
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <div>Motivo: <strong className="text-foreground">{REASON_LABEL[label.discharge.reason]}</strong></div>
-              <div>Em: {format(new Date(label.discharge.discharged_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</div>
-              {label.discharge.employee_name && <div>Por: {label.discharge.employee_name}</div>}
-              {label.discharge.notes && <div className="italic">"{label.discharge.notes}"</div>}
+          ) : (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="text-sm text-slate-600 mb-3">Selecione o motivo do descarte:</div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full inline-flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-colors">
+                    <Trash2 className="h-4 w-4" />
+                    Baixar Etiqueta
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" sideOffset={8} className="w-[280px] rounded-2xl p-2 bg-white border border-slate-200 shadow-2xl">
+                  <DropdownMenuItem
+                    onClick={() => setReason("use")}
+                    className="flex items-start gap-3 p-3 rounded-xl cursor-pointer focus:bg-emerald-50"
+                  >
+                    <div className="p-2 rounded-lg bg-emerald-100 text-emerald-600 shrink-0">
+                      <Utensils className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 text-sm">Baixa por Uso</div>
+                      <div className="text-xs text-slate-500">Produto utilizado</div>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setReason("loss")}
+                    className="flex items-start gap-3 p-3 rounded-xl cursor-pointer focus:bg-amber-50"
+                  >
+                    <div className="p-2 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+                      <AlertCircle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 text-sm">Baixa por Perda</div>
+                      <div className="text-xs text-slate-500">Produto descartado</div>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setReason("error")}
+                    className="flex items-start gap-3 p-3 rounded-xl cursor-pointer focus:bg-red-50"
+                  >
+                    <div className="p-2 rounded-lg bg-red-100 text-red-600 shrink-0">
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900 text-sm">Baixa por Erro</div>
+                      <div className="text-xs text-slate-500">Impressão errada</div>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground px-1">Baixar Etiqueta</h3>
-            <Button onClick={() => setReason("use")} className="w-full justify-start gap-3 h-14 text-base bg-success/15 text-success border border-success/30 hover:bg-success/25">
-              <span className="text-xl">🍽️</span> Baixa por Uso <span className="ml-auto text-xs opacity-70">Produto utilizado</span>
-            </Button>
-            <Button onClick={() => setReason("loss")} className="w-full justify-start gap-3 h-14 text-base bg-warning/15 text-warning border border-warning/30 hover:bg-warning/25">
-              <span className="text-xl">⚠️</span> Baixa por Perda <span className="ml-auto text-xs opacity-70">Produto descartado</span>
-            </Button>
-            <Button onClick={() => setReason("error")} className="w-full justify-start gap-3 h-14 text-base bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25">
-              <span className="text-xl">✕</span> Baixa por Erro <span className="ml-auto text-xs opacity-70">Impressão errada</span>
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
+
+        <p className="text-center text-[11px] text-slate-400 pt-2">
+          MesaClik © {new Date().getFullYear()} — Todos os direitos reservados.
+        </p>
       </div>
 
       <AlertDialog open={!!reason} onOpenChange={(o) => !o && setReason(null)}>
@@ -164,7 +247,7 @@ export default function EtiquetaScan() {
             <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={submitting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-red-500 text-white hover:bg-red-600"
               onClick={(e) => { e.preventDefault(); handleDischarge(); }}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
