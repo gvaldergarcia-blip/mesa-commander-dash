@@ -1386,10 +1386,91 @@ export type Database = {
         }
         Relationships: []
       }
+      label_discharges: {
+        Row: {
+          discharged_at: string
+          employee_id: string | null
+          id: string
+          label_id: string
+          notes: string | null
+          reason: string
+          restaurant_id: string
+        }
+        Insert: {
+          discharged_at?: string
+          employee_id?: string | null
+          id?: string
+          label_id: string
+          notes?: string | null
+          reason: string
+          restaurant_id: string
+        }
+        Update: {
+          discharged_at?: string
+          employee_id?: string | null
+          id?: string
+          label_id?: string
+          notes?: string | null
+          reason?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_discharges_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "label_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_discharges_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "label_issuances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_employees: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          pin: string | null
+          restaurant_id: string
+          role: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          pin?: string | null
+          restaurant_id: string
+          role?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          pin?: string | null
+          restaurant_id?: string
+          role?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       label_issuances: {
         Row: {
           batch: string | null
+          conservation_method: string | null
           created_at: string
+          discharge_reason: string | null
+          employee_id: string | null
           expiry_date: string
           id: string
           label_product_id: string | null
@@ -1401,11 +1482,15 @@ export type Database = {
           responsible: string | null
           restaurant_id: string
           status: string
+          unique_code: string | null
           updated_at: string
         }
         Insert: {
           batch?: string | null
+          conservation_method?: string | null
           created_at?: string
+          discharge_reason?: string | null
+          employee_id?: string | null
           expiry_date: string
           id?: string
           label_product_id?: string | null
@@ -1417,11 +1502,15 @@ export type Database = {
           responsible?: string | null
           restaurant_id: string
           status?: string
+          unique_code?: string | null
           updated_at?: string
         }
         Update: {
           batch?: string | null
+          conservation_method?: string | null
           created_at?: string
+          discharge_reason?: string | null
+          employee_id?: string | null
           expiry_date?: string
           id?: string
           label_product_id?: string | null
@@ -1433,9 +1522,17 @@ export type Database = {
           responsible?: string | null
           restaurant_id?: string
           status?: string
+          unique_code?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "label_issuances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "label_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "label_issuances_label_product_id_fkey"
             columns: ["label_product_id"]
@@ -1445,35 +1542,85 @@ export type Database = {
           },
         ]
       }
+      label_product_groups: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       label_products: {
         Row: {
+          conservation_method: string
           created_at: string
+          default_observation: string | null
+          group_id: string | null
           id: string
           name: string
           notes: string | null
           restaurant_id: string
+          status: string
+          unit: string
           updated_at: string
           validity_days: number
         }
         Insert: {
+          conservation_method?: string
           created_at?: string
+          default_observation?: string | null
+          group_id?: string | null
           id?: string
           name: string
           notes?: string | null
           restaurant_id: string
+          status?: string
+          unit?: string
           updated_at?: string
           validity_days: number
         }
         Update: {
+          conservation_method?: string
           created_at?: string
+          default_observation?: string | null
+          group_id?: string | null
           id?: string
           name?: string
           notes?: string | null
           restaurant_id?: string
+          status?: string
+          unit?: string
           updated_at?: string
           validity_days?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "label_products_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "label_product_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       marketing_posts: {
         Row: {
@@ -4132,6 +4279,15 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: undefined
       }
+      discharge_label_by_code: {
+        Args: {
+          _code: string
+          _employee_id?: string
+          _notes?: string
+          _reason: string
+        }
+        Returns: Json
+      }
       ensure_dev_test_restaurant: { Args: never; Returns: undefined }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }
@@ -4147,6 +4303,7 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: number
       }
+      generate_label_unique_code: { Args: never; Returns: string }
       get_customer_queue_history: {
         Args: { p_email?: string; p_phone?: string; p_restaurant_id: string }
         Returns: {
@@ -4181,6 +4338,7 @@ export type Database = {
           status: string
         }[]
       }
+      get_label_by_code: { Args: { _code: string }; Returns: Json }
       get_loyalty_tracking: { Args: { p_token: string }; Returns: Json }
       get_my_queue_status: { Args: { p_restaurante_id: string }; Returns: Json }
       get_queue_position: { Args: { p_ticket_id: string }; Returns: number }
