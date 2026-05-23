@@ -9,6 +9,11 @@ export interface LabelProduct {
   name: string;
   validity_days: number;
   notes: string | null;
+  conservation_method?: "refrigerated" | "frozen" | "ambient" | "hot" | null;
+  unit?: string | null;
+  default_observation?: string | null;
+  status?: "active" | "inactive";
+  group_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -17,6 +22,11 @@ export interface LabelProductInput {
   name: string;
   validity_days: number;
   notes?: string | null;
+  conservation_method?: "refrigerated" | "frozen" | "ambient" | "hot" | null;
+  unit?: string | null;
+  default_observation?: string | null;
+  status?: "active" | "inactive";
+  group_id?: string | null;
 }
 
 export function useLabelProducts() {
