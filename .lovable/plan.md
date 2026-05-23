@@ -1,146 +1,92 @@
-## Objetivo
-Chatbot WhatsApp por restaurante: dono conecta o número WhatsApp dele (Twilio), e a IA conversa com cada cliente final entendendo histórico (visitas, prato favorito, VIP) e dispara imagens dos pratos reais com overlay personalizado ("Maria, seu nhoque te espera").
+## Visão geral
+
+Reformular o módulo de Etiquetas (`/etiquetas`) em um sistema premium completo, com dashboard, fluxo de impressão em 3 passos, QR code de baixa, gestão de produtos/funcionários, alertas e exportação — tudo integrado ao Supabase com RLS por restaurante.
+
+O trabalho é grande (estimativa: ~15 arquivos novos + 4 migrações). Vou entregar em **3 fases** para que você possa revisar entre cada uma.
 
 ---
 
-## 1. Conexão WhatsApp por restaurante
+## Fase 1 — Banco de dados e fundação
 
-Cada restaurante usa **suas próprias credenciais Twilio** (Subaccount SID + Auth Token + número WhatsApp aprovado). Não dá pra usar o connector compartilhado porque é multi-tenant.
+### Migrações Supabase
 
-**Nova tabela `restaurant_whatsapp_config` (public, RLS por restaurante):**
-- `restaurant_id` (PK), `twilio_account_sid`, `twilio_auth_token` (criptografado), `whatsapp_number` (E.164 com prefixo `whatsapp:`), `webhook_secret`, `status` ('disconnected'|'pending'|'connected'), `connected_at`
+1. **`label_employees`** (funcionários da cozinha)
+   - `restaurant_id`, `name`, `role`, `pin` (4 dígitos opcional), `status` (ativo/inativo)
+   - RLS: membros do restaurante leem/escrevem
 
-**UI em Settings → "WhatsApp Bot" (nova aba):**
-- Wizard 3 passos: (1) Cadastra Account SID + Auth Token + Número, (2) Sistema valida via `verify-whatsapp-config` edge function chamando Twilio API, (3) Mostra URL do webhook pra colar no Twilio Console: `https://akqldesakmcroydbgkbe.supabase.co/functions/v1/whatsapp-inbound?r={restaurant_id}`
-- Status: badge "Conectado/Desconectado", botão testar, botão desconectar.
+2. **`label_product_groups`** (grupos/setores)
+   - `restaurant_id`, `name`, `color`
 
----
+3. **Extensão de `label_products`** (adicionar colunas)
+   - `group_id`, `conservation_method` (resfriado/congelado/ambiente/quente), `unit` (g/kg/ml/L/un), `status`
 
-## 2. Webhook inbound (cliente → bot)
+4. **Extensão de `label_issuances`** (alterar para virar "labels")
+   - `unique_code` (6 chars alfanuméricos, único por restaurante), `employee_id`, `conservation_method`
+   - Status passa a incluir `discharged` com tipo de baixa
 
-**Edge function `whatsapp-inbound` (verify_jwt=false, público):**
-- Recebe POST `application/x-www-form-urlencoded` do Twilio (From, Body, MediaUrl, etc).
-- Identifica restaurante via query param `?r=`, carrega config, valida assinatura Twilio (`X-Twilio-Signature`).
-- Normaliza telefone, faz upsert em `restaurant_customers` (cria lead se não existe).
-- Salva mensagem em `whatsapp_messages` (nova tabela).
-- Invoca `cardapio-chat` com contexto enriquecido (histórico de visitas, prato favorito, status VIP, programa de fidelidade).
-- Se IA chama tool `send_dish_image`, gera imagem com overlay e responde via Twilio com TwiML (`<Message><Body>...<Media>...</Message>`).
-- Caso contrário, responde só com texto.
+5. **`label_discharges`** (histórico de baixas)
+   - `label_id`, `employee_id`, `reason` (use/loss/error), `discharged_at`, `notes`
 
-**Nova tabela `whatsapp_messages`:**
-- `id`, `restaurant_id`, `customer_id` (nullable), `phone`, `direction` ('inbound'|'outbound'), `body`, `media_url`, `twilio_sid`, `ai_response`, `created_at`. Index `(restaurant_id, phone, created_at)`.
+6. **RPC `discharge_label`** (SECURITY DEFINER) — valida posse e registra baixa atômica.
+
+7. **RPC `get_label_by_code`** público (para a página de scan do QR funcionar sem login).
 
 ---
 
-## 3. Bot conversacional (`cardapio-chat-wa`)
+## Fase 2 — UI: Dashboard, filtros e listagem
 
-Reaproveita parte do `cardapio-chat` existente mas com tools focadas em conversa com cliente final:
-- `get_customer_context(phone)` — busca visitas, último prato, VIP, fidelidade
-- `list_dishes_for_recommendation(category?)` — pratos disponíveis com foto
-- `send_dish_image(dish_id, headline)` — gera imagem com nome do cliente + headline e marca pra enviar
-- `register_reservation_intent(date, party_size)` — cria reserva pendente
-- `register_queue_intent(party_size)` — entrada na fila
+### Arquivos novos
 
-System prompt em PT-BR, persona do restaurante (puxa nome/descrição), instruído a ser caloroso, lembrar últimas visitas, sugerir prato favorito quando fizer sentido.
+- `src/hooks/useLabelEmployees.ts`
+- `src/hooks/useLabelGroups.ts`
+- `src/hooks/useLabels.ts` (substitui `useLabelIssuances`, com filtros e bulk)
+- `src/components/labels/LabelStatsCards.tsx` — 5 cards clicáveis
+- `src/components/labels/LabelFilters.tsx` — barra de filtros avançados
+- `src/components/labels/LabelsList.tsx` — listagem com checkbox bulk, color-coding por validade
+- `src/components/labels/EmployeeFormDialog.tsx`
+- `src/components/labels/GroupFormDialog.tsx`
 
-Modelo: `google/gemini-2.5-flash` via Lovable AI Gateway (já temos `LOVABLE_API_KEY`).
+### Reescrita
 
----
-
-## 4. Gerador de imagem com overlay
-
-**Edge function `generate-dish-overlay`:**
-- Input: `dish_id`, `customer_name`, `headline`.
-- Carrega foto real do prato em `menu_dishes.image_url`.
-- Usa Gemini 2.5 Flash Image (Nano Banana) com prompt: "Add elegant overlay text '{headline}' and customer name '{customer_name}' to this dish photo, restaurant marketing style, preserve the dish".
-- Salva em `dish-photos/{restaurant_id}/overlays/{uuid}.jpg`, retorna URL pública.
-- Fallback: se prato sem foto, usa Canvas-style fallback ou rejeita pedido.
+- `src/pages/EtiquetasPage.tsx` — vira o dashboard com tabs: **Dashboard | Imprimir | Produtos | Funcionários**
 
 ---
 
-## 5. Painel do dono (já parcialmente feito)
+## Fase 3 — Fluxos: impressão 3-step, QR scan, bulk, export
 
-A aba "Chat IA" em `/cardapio` já existe (`CardapioChatTab.tsx`). Vou:
-- Renomear pra "Comando IA" e expandir as tools pra incluir `send_via_whatsapp` (manda agora pelo bot conectado).
-- Adicionar nova aba **"Conversas WhatsApp"** mostrando histórico de `whatsapp_messages` agrupado por cliente, com filtro/busca.
-- Aba **"Configurar Bot"** linka pra Settings → WhatsApp.
+### Fluxo de impressão (3 passos full-screen)
 
----
+- `src/components/labels/print-flow/StepSelectEmployee.tsx` — cards de funcionários com avatar de iniciais
+- `src/components/labels/print-flow/StepSelectProduct.tsx` — busca de produtos
+- `src/components/labels/print-flow/StepConfirmPrint.tsx` — formulário + preview 80×40mm com QR
 
-## 6. Segurança
+### QR scan público
 
-- `restaurant_whatsapp_config.twilio_auth_token` armazenado em coluna `bytea` cifrada via `pgp_sym_encrypt` com `app.encryption_key` (secret).
-- RPCs `set_whatsapp_config`/`get_whatsapp_config` SECURITY DEFINER, validam `is_member_or_admin`.
-- Webhook valida `X-Twilio-Signature` usando o auth token descriptografado.
-- Rate limit por telefone em `whatsapp-inbound` (max 20 msgs/min) pra prevenir abuso.
+- `src/pages/EtiquetaScan.tsx` (rota `/etiquetas/scan/:code`) — página mobile-first com header de status, info da etiqueta, e botão "Baixar Etiqueta" com 3 opções (Uso/Perda/Erro). Banner vermelho se vencida; bloco cinza se já baixada.
+- Edge function leve `get-label-info` ou uso direto do RPC `get_label_by_code`.
 
----
+### Bulk e export
 
-## 7. Migration única
+- `src/components/labels/BulkActionsBar.tsx` — aparece quando há seleção
+- `src/lib/labels/export.ts` — gera CSV (PDF fica para iteração posterior, se ok)
 
-```text
-- create table public.restaurant_whatsapp_config
-- create table public.whatsapp_messages + indices + RLS
-- rpc public.set_whatsapp_config(...)
-- rpc public.get_whatsapp_config(restaurant_id)
-- rpc public.delete_whatsapp_config(restaurant_id)
-- rpc public.log_whatsapp_message(...) (chamada pela edge)
-- bucket dish-photos já existe → adiciona pasta overlays/
-```
+### Alertas
+
+- Toast no carregamento do dashboard ("X produtos vencem hoje")
+- Badge no item da sidebar quando há vencimentos do dia
 
 ---
 
-## 8. Secret necessário
+## Design system
 
-`WHATSAPP_CONFIG_ENCRYPTION_KEY` — chave AES pra cifrar auth tokens. Adiciono via `add_secret` antes da implementação.
-
----
-
-## 9. Fluxo completo
-
-```text
-[Cliente Maria manda "oi" no WhatsApp do restaurante]
-         │
-         ▼
-[Twilio webhook → whatsapp-inbound?r={restaurant_id}]
-         │  valida assinatura, upsert customer, salva msg
-         ▼
-[cardapio-chat-wa com contexto (3 visitas, ama nhoque, VIP)]
-         │  IA decide: "vou mandar foto do nhoque com nome dela"
-         ▼
-[Tool send_dish_image → generate-dish-overlay]
-         │  Nano Banana adiciona "Maria, seu nhoque te espera 🍝"
-         ▼
-[Response Twilio TwiML: texto + MediaUrl da imagem]
-         │
-         ▼
-[Maria recebe no WhatsApp]
-```
+Já existe tema dark. Vou usar tokens semânticos (`primary`, `destructive`, `warning`, `success`) — sem cores hardcoded. O `#FF6200` provavelmente já é o `--primary`. Confirmo no `index.css` antes.
 
 ---
 
-## 10. Fora de escopo nesta entrega
-- Aprovação Meta do número (responsabilidade do restaurante, doc no painel).
-- Templates HSM pra mensagens fora da janela 24h (fase 2).
-- Botões interativos WhatsApp (fase 2).
-- Métricas/analytics do bot (fase 2 — só log básico agora).
+## Confirmações antes de começar
 
----
+1. **OK em entregar nessa ordem (Fase 1 → 2 → 3) com pausa entre fases?** Ou prefere tudo de uma vez (resposta gigante, maior risco de erro)?
+2. **Funcionários do módulo de Etiquetas:** crio uma tabela separada `label_employees` (mais simples, sem auth/login) — ou prefere reutilizar a tabela de equipe (`team_members`) que já existe? Tabela separada é mais rápida e isolada; reutilizar evita duplicidade.
+3. **PDF de export:** prioridade baixa? CSV cobre o caso de uso?
 
-## Arquivos a criar/editar
-
-**Criar:**
-- `supabase/functions/whatsapp-inbound/index.ts`
-- `supabase/functions/cardapio-chat-wa/index.ts`
-- `supabase/functions/generate-dish-overlay/index.ts`
-- `supabase/functions/verify-whatsapp-config/index.ts`
-- `src/components/settings/WhatsAppBotSettings.tsx`
-- `src/components/cardapio/WhatsAppConversationsTab.tsx`
-- `src/hooks/useWhatsAppConfig.ts`
-
-**Editar:**
-- `src/pages/Settings.tsx` (adiciona aba WhatsApp Bot)
-- `src/pages/CardapioInteligente.tsx` (adiciona aba Conversas)
-- Migration nova
-
-Aprova esse plano pra eu executar?
+Confirma e eu começo pela Fase 1.
