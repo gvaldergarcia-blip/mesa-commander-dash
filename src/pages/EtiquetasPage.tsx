@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List } from "lucide-react";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { ProductFormDialog } from "@/components/labels/ProductFormDialog";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
-import { LabelStatsCards } from "@/components/labels/LabelStatsCards";
+import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
@@ -56,6 +56,7 @@ export default function EtiquetasPage() {
       if (statFilter === "expired" || statFilter === "today" || statFilter === "tomorrow") {
         if (l.status === "discharged") return false;
       }
+      if (filters.expiredOnly && classifyExpiry(l.expiry_date) !== "expired") return false;
       // text
       if (filters.search && !l.product_name.toLowerCase().includes(filters.search.toLowerCase())) return false;
       if (filters.employeeId !== "all" && l.employee_id !== filters.employeeId) return false;
@@ -99,21 +100,37 @@ export default function EtiquetasPage() {
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="grid grid-cols-4 w-full md:w-auto md:inline-grid">
-          <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> Dashboard</TabsTrigger>
-          <TabsTrigger value="imprimir" className="gap-2"><Printer className="h-4 w-4" /> Imprimir</TabsTrigger>
-          <TabsTrigger value="produtos" className="gap-2"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
-          <TabsTrigger value="funcionarios" className="gap-2"><Users className="h-4 w-4" /> Funcionários</TabsTrigger>
+        <TabsList className="grid grid-cols-5 w-full md:w-auto md:inline-grid">
+          <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span></TabsTrigger>
+          <TabsTrigger value="etiquetas" className="gap-2"><List className="h-4 w-4" /> <span className="hidden sm:inline">Etiquetas</span></TabsTrigger>
+          <TabsTrigger value="imprimir" className="gap-2"><Printer className="h-4 w-4" /> <span className="hidden sm:inline">Imprimir</span></TabsTrigger>
+          <TabsTrigger value="produtos" className="gap-2"><Package className="h-4 w-4" /> <span className="hidden sm:inline">Produtos</span></TabsTrigger>
+          <TabsTrigger value="funcionarios" className="gap-2"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Funcionários</span></TabsTrigger>
         </TabsList>
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-5">
-          <LabelStatsCards
+          <LabelDashboard
+            labels={labels}
             stats={stats}
             productCount={products.length}
             activeFilter={statFilter}
-            onSelect={(f) => { setStatFilter(f); if (f === "products") setTab("produtos"); }}
+            onSelectStat={(f) => {
+              setStatFilter(f);
+              if (f === "products") setTab("produtos");
+              else if (f) setTab("etiquetas");
+            }}
+            onQuickAction={(action) => {
+              if (action === "new-label") setTab("imprimir");
+              else if (action === "new-product") { setEditing(null); setFormOpen(true); setTab("produtos"); }
+              else if (action === "new-employee") setTab("funcionarios");
+              else if (action === "validity") { setStatFilter("expired"); setTab("etiquetas"); }
+            }}
           />
+        </TabsContent>
+
+        {/* ===== ETIQUETAS (lista) ===== */}
+        <TabsContent value="etiquetas" className="space-y-5">
           <LabelFilters value={filters} onChange={setFilters} employees={employees} onExport={handleExport} />
           <LabelsList
             labels={filtered}
