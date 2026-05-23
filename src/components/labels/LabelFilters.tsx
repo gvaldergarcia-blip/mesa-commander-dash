@@ -2,6 +2,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, RotateCcw, Download } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label as UILabel } from "@/components/ui/label";
 import { LabelEmployee } from "@/hooks/useLabelEmployees";
 
 export interface LabelFiltersState {
@@ -11,6 +13,7 @@ export interface LabelFiltersState {
   status: string;
   startDate: string;
   endDate: string;
+  expiredOnly: boolean;
 }
 
 export const emptyFilters: LabelFiltersState = {
@@ -20,6 +23,7 @@ export const emptyFilters: LabelFiltersState = {
   status: "all",
   startDate: "",
   endDate: "",
+  expiredOnly: false,
 };
 
 interface Props {
@@ -30,10 +34,10 @@ interface Props {
 }
 
 export function LabelFilters({ value, onChange, employees, onExport }: Props) {
-  const set = (k: keyof LabelFiltersState, v: string) => onChange({ ...value, [k]: v });
+  const set = (k: keyof LabelFiltersState, v: any) => onChange({ ...value, [k]: v });
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-3">
+    <div className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-3 backdrop-blur-sm">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
         <div className="relative md:col-span-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -73,13 +77,25 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
         <Input type="date" value={value.startDate} onChange={(e) => set("startDate", e.target.value)} className="md:col-span-1" />
         <Input type="date" value={value.endDate} onChange={(e) => set("endDate", e.target.value)} className="md:col-span-1" />
       </div>
-      <div className="flex items-center justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={() => onChange(emptyFilters)} className="gap-2">
-          <RotateCcw className="h-3.5 w-3.5" /> Limpar
-        </Button>
-        <Button variant="outline" size="sm" onClick={onExport} className="gap-2">
-          <Download className="h-3.5 w-3.5" /> Exportar CSV
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border/40">
+        <div className="flex items-center gap-2 pl-1">
+          <Switch
+            id="expiredOnly"
+            checked={value.expiredOnly}
+            onCheckedChange={(v) => set("expiredOnly", v)}
+          />
+          <UILabel htmlFor="expiredOnly" className="text-sm cursor-pointer">
+            Apenas vencidas
+          </UILabel>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => onChange(emptyFilters)} className="gap-2">
+            <RotateCcw className="h-3.5 w-3.5" /> Limpar
+          </Button>
+          <Button variant="outline" size="sm" onClick={onExport} className="gap-2">
+            <Download className="h-3.5 w-3.5" /> Exportar CSV
+          </Button>
+        </div>
       </div>
     </div>
   );
