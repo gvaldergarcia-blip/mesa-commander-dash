@@ -146,6 +146,28 @@
   }
 }
 
+/* Brilho sutil no laranja primário (botões, sidebar ativa, badges) */
+@layer components {
+  .bg-primary {
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.15),
+      0 4px 14px -2px hsl(var(--primary) / 0.35),
+      0 0 18px -4px hsl(var(--primary) / 0.45);
+    transition: box-shadow 0.25s ease, transform 0.2s ease;
+  }
+  .bg-primary:hover {
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.25),
+      0 6px 18px -2px hsl(var(--primary) / 0.5),
+      0 0 24px -2px hsl(var(--primary) / 0.6);
+  }
+  [data-sidebar="menu-button"][data-active="true"] {
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.2),
+      0 4px 16px -4px hsl(var(--primary) / 0.45);
+  }
+}
+
 /* Fix native date/time picker icons invisible in dark mode */
 .dark input[type="date"]::-webkit-calendar-picker-indicator,
 .dark input[type="time"]::-webkit-calendar-picker-indicator,
