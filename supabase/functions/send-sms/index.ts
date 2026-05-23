@@ -72,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
     const TWILIO_WHATSAPP_NUMBER = Deno.env.get("TWILIO_WHATSAPP_NUMBER") || "+14155238886";
 
     const { to, message }: SmsRequest = await req.json();
-    console.log(`[send-sms] Enviando SMS + WhatsApp para ${to}`);
+    console.log(`[send-sms] Enviando SMS + WhatsApp para ${to} | SMS_FROM=${TWILIO_PHONE_NUMBER} | WA_FROM=${TWILIO_WHATSAPP_NUMBER}`);
 
     const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\D/g, '')}`;
 
