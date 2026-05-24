@@ -165,6 +165,14 @@ export function printLabels(data: PrintLabelData) {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .cif {
+    margin-top: 0.5mm;
+    font-size: 7pt;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .footer {
     margin-top: 1mm;
     padding-top: 1mm;
