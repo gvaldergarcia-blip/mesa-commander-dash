@@ -14,6 +14,20 @@ interface AmbientPhoto {
   created_at: string;
 }
 
+const getFunctionErrorMessage = async (error: any) => {
+  if (!error) return "Erro ao buscar fotos no Google";
+  try {
+    const context = error.context;
+    if (context?.json) {
+      const payload = await context.json();
+      if (payload?.error) return payload.error as string;
+    }
+  } catch {
+    // ignore parsing failure and fall back below
+  }
+  return error.message || "Erro ao buscar fotos no Google";
+};
+
 export function AmbientPhotosManager() {
   const { restaurant, restaurantId } = useRestaurant();
   const [photos, setPhotos] = useState<AmbientPhoto[]>([]);
@@ -54,7 +68,7 @@ export function AmbientPhotosManager() {
       toast.success(`${data?.count ?? 0} fotos importadas do Google!`);
       await fetchPhotos();
     } catch (e: any) {
-      toast.error(e.message || "Erro ao buscar fotos no Google");
+      toast.error(await getFunctionErrorMessage(e));
     } finally {
       setSyncing(false);
     }
