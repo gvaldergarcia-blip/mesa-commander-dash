@@ -101,6 +101,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         expiryDate,
         responsible: employee.name,
         notes: notes.trim() || null,
+        cif: product.cif?.trim() || null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
