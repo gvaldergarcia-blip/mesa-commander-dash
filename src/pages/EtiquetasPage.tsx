@@ -260,22 +260,30 @@ export default function EtiquetasPage() {
                 return (
                   <div
                     key={p.id}
-                    className="group p-5 rounded-2xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    className="group relative p-5 rounded-2xl border border-white/[0.06] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-white/15 hover:shadow-[0_20px_60px_-20px_rgba(255,107,0,0.35)] overflow-hidden"
                     style={{
-                      backgroundColor: "#1A1A2E",
-                      borderColor: "#2D2D44",
-                      borderLeftWidth: 4,
-                      borderLeftColor: borderHex,
+                      background: `linear-gradient(135deg, ${withAlpha(borderHex, 0.10)} 0%, rgba(255,255,255,0.02) 45%, rgba(15,15,26,0.55) 100%)`,
+                      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px -16px ${withAlpha(borderHex, 0.4)}`,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#FF6B00")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2D2D44")}
                   >
+                    <span
+                      className="absolute left-0 top-4 bottom-4 w-[3px] rounded-full"
+                      style={{
+                        background: `linear-gradient(180deg, ${borderHex} 0%, ${withAlpha(borderHex, 0.25)} 100%)`,
+                        boxShadow: `0 0 14px ${withAlpha(borderHex, 0.7)}`,
+                      }}
+                    />
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-30 blur-3xl transition-opacity group-hover:opacity-60"
+                      style={{ background: `radial-gradient(circle, ${borderHex} 0%, transparent 70%)` }}
+                    />
                     <div className="mb-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-base font-semibold truncate flex-1" style={{ color: "#FFFFFF" }}>{p.name}</h3>
+                        <h3 className="text-lg font-semibold truncate flex-1 text-white tracking-tight">{p.name}</h3>
                         <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                            className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md backdrop-blur-md border border-white/10"
                             style={risk.style}
                           >
                             {risk.label}
@@ -289,37 +297,37 @@ export default function EtiquetasPage() {
                       </div>
                       {p.category && (
                         <span
-                          className="inline-block mt-2 text-[11px] font-semibold"
+                          className="inline-block mt-2 text-[11px] font-semibold backdrop-blur-md border"
                           style={{
-                            backgroundColor: withAlpha(getCategoryHex(p.category), 0.12),
+                            backgroundColor: withAlpha(getCategoryHex(p.category), 0.14),
+                            borderColor: withAlpha(getCategoryHex(p.category), 0.35),
                             color: getCategoryHex(p.category),
                             borderRadius: 999,
-                            padding: "2px 8px",
+                            padding: "2px 10px",
                           }}
                         >
                           {p.category}
                         </span>
                       )}
-                      <div className="flex items-center gap-1.5 mt-2 text-xs" style={{ color: "#A0AEC0" }}>
+                      <div className="flex items-center gap-1.5 mt-3 text-xs text-white/60">
                         <Clock className="h-3.5 w-3.5" />
-                        <span>Validade: <span className="font-medium text-white">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span></span>
+                        <span>Validade: <span className="font-semibold text-white">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span></span>
                       </div>
-                      {(p.status === "inactive") && <span className="inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded" style={{ color: "#718096", backgroundColor: "#2D2D44" }}>Inativo</span>}
-                      {p.notes && <p className="text-xs mt-2 italic line-clamp-2" style={{ color: "#718096" }}>{p.notes}</p>}
+                      {(p.status === "inactive") && <span className="inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-white/5 text-white/50 border border-white/10">Inativo</span>}
+                      {p.notes && <p className="text-xs mt-2 italic line-clamp-2 text-white/50">{p.notes}</p>}
                     </div>
-                    <div className="flex gap-2 pt-3 border-t" style={{ borderColor: "#2D2D44" }}>
+                    <div className="flex gap-2 pt-3 border-t border-white/[0.06]">
                       <button
                         type="button"
                         onClick={() => { setEditing(p); setFormOpen(true); }}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors hover:bg-[#2D2D44]"
-                        style={{ borderColor: "#2D2D44", color: "#A0AEC0" }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-xs font-medium text-white/80 transition-all hover:bg-white/[0.08] hover:border-white/20"
                       >
                         <Pencil className="h-3.5 w-3.5" /> Editar
                       </button>
                       <button
                         type="button"
                         onClick={() => setDelTarget(p)}
-                        className="inline-flex items-center justify-center px-3 py-1.5 rounded-md text-[#FC8181] hover:bg-[#742A2A]/40 transition-colors"
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-[#FC8181] border border-white/10 bg-white/[0.03] hover:bg-[#742A2A]/40 hover:border-[#FC8181]/30 transition-all"
                         aria-label="Remover"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
