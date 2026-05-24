@@ -4,7 +4,7 @@ import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Upload, Trash2, RefreshCw, Image as ImageIcon, Building2, Loader2 } from "lucide-react";
+import { Upload, Trash2, Image as ImageIcon, Building2, Loader2 } from "lucide-react";
 
 interface AmbientPhoto {
   id: string;
@@ -14,25 +14,10 @@ interface AmbientPhoto {
   created_at: string;
 }
 
-const getFunctionErrorMessage = async (error: any) => {
-  if (!error) return "Erro ao buscar fotos no Google";
-  try {
-    const context = error.context;
-    if (context?.json) {
-      const payload = await context.json();
-      if (payload?.error) return payload.error as string;
-    }
-  } catch {
-    // ignore parsing failure and fall back below
-  }
-  return error.message || "Erro ao buscar fotos no Google";
-};
-
 export function AmbientPhotosManager() {
-  const { restaurant, restaurantId } = useRestaurant();
+  const { restaurantId } = useRestaurant();
   const [photos, setPhotos] = useState<AmbientPhoto[]>([]);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const fetchPhotos = async () => {
@@ -55,24 +40,6 @@ export function AmbientPhotosManager() {
     fetchPhotos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
-
-  const handleSyncGoogle = async () => {
-    if (!restaurantId) return;
-    setSyncing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("sync-google-places-photos", {
-        body: { restaurant_id: restaurantId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success(`${data?.count ?? 0} fotos importadas do Google!`);
-      await fetchPhotos();
-    } catch (e: any) {
-      toast.error(await getFunctionErrorMessage(e));
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -132,9 +99,6 @@ export function AmbientPhotosManager() {
     fetchPhotos();
   };
 
-  const hasName = !!restaurant?.name;
-  const hasAddress = !!(restaurant as any)?.address_line;
-
   return (
     <Card>
       <CardHeader>
@@ -144,21 +108,11 @@ export function AmbientPhotosManager() {
         </CardTitle>
         <CardDescription>
           Estas fotos serão usadas no MesaClik Studio para compor imagens dos seus pratos dentro do
-          ambiente real do restaurante. Sincronize automaticamente do Google ou envie manualmente.
+          ambiente real do restaurante. Envie 2–3 fotos do interior.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            onClick={handleSyncGoogle}
-            disabled={syncing || !hasName || !hasAddress}
-            className="gap-2"
-          >
-            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {syncing ? "Buscando no Google..." : "Sincronizar fotos do Google"}
-          </Button>
-
           <label className="inline-flex">
             <Button type="button" variant="outline" className="gap-2" disabled={uploading} asChild>
               <span>
@@ -176,12 +130,6 @@ export function AmbientPhotosManager() {
             />
           </label>
         </div>
-
-        {(!hasName || !hasAddress) && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            Preencha nome e endereço do restaurante para usar a busca automática no Google.
-          </p>
-        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
