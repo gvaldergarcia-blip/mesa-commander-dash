@@ -154,7 +154,23 @@ export default function BaixaRapida() {
 
     (async () => {
       try {
-        await new Promise((r) => setTimeout(r, 80));
+        // 1) Pede permissão DIRETAMENTE via getUserMedia (gesto do usuário ainda vivo).
+        //    Sem isso, alguns navegadores (Safari/iOS, Chrome em https) negam o acesso
+        //    quando a lib pede a câmera depois de um await/timeout.
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Seu navegador não suporta acesso à câmera.");
+        }
+        let pre: MediaStream | null = null;
+        try {
+          pre = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false,
+          });
+        } catch {
+          pre = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        // libera imediatamente — a lib do scanner vai reabrir
+        pre.getTracks().forEach((t) => t.stop());
         if (cancelled) return;
         try {
           await start(true);
@@ -184,8 +200,9 @@ export default function BaixaRapida() {
           }
         }
       } catch (err: any) {
+        console.error("[BaixaRapida] camera error:", err);
         const name = err?.name || "";
-        const inIframe = window.self !== window.top;
+        const isSecure = window.isSecureContext;
         let msg = "Não foi possível acessar a câmera.";
         if (name === "NotAllowedError" || /permission/i.test(err?.message || "")) {
           msg = "Permissão de câmera negada. Habilite nas configurações do navegador e tente novamente.";
@@ -193,8 +210,10 @@ export default function BaixaRapida() {
           msg = "Nenhuma câmera encontrada neste dispositivo.";
         } else if (name === "NotReadableError") {
           msg = "A câmera está em uso por outro aplicativo.";
-        } else if (inIframe) {
-          msg = "O preview não tem permissão de câmera. Abra o sistema em uma aba (publicado) para escanear.";
+        } else if (!isSecure) {
+          msg = "Acesso à câmera exige HTTPS. Abra o sistema pelo domínio oficial.";
+        } else if (err?.message) {
+          msg = `Câmera: ${err.message}`;
         }
         toast.error(msg);
         setPhase("list");
