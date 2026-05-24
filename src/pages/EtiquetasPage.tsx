@@ -225,27 +225,25 @@ export default function EtiquetasPage() {
                 return (
                   <div
                     key={p.id}
-                    className="group relative bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40 overflow-hidden"
-                    style={borderHex ? { borderLeft: `4px solid ${borderHex}` } : undefined}
+                    className="group bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40"
+                    style={borderHex ? { borderLeftWidth: 4, borderLeftColor: borderHex, borderLeftStyle: "solid" } : undefined}
                   >
-                    {icon && (
-                      <span
-                        className="absolute top-3 right-3 text-xl leading-none select-none"
-                        aria-hidden
-                        title={p.category || ""}
-                      >
-                        {icon}
-                      </span>
-                    )}
                     <div className="mb-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className={cn("text-lg font-bold truncate group-hover:text-primary transition-colors flex-1", icon && "pr-8")}>{p.name}</h3>
-                        <span className={cn(
-                          "shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border",
-                          risk.classes
-                        )}>
-                          {risk.label}
-                        </span>
+                        <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex-1">{p.name}</h3>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border",
+                            risk.classes
+                          )}>
+                            {risk.label}
+                          </span>
+                          {icon && (
+                            <span className="text-xl leading-none select-none" aria-hidden title={p.category || ""}>
+                              {icon}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {p.category && (
                         <span className={cn(
