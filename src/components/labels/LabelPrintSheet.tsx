@@ -8,6 +8,9 @@ export interface PrintLabelData {
   responsible: string;
   notes?: string | null;
   cif?: string | null;
+  allergens?: string | null;
+  ingredients?: string | null;
+  conservationLabel?: string | null;
   quantity: number;
   batch?: string | null;
   quantityWeight?: string | null;
@@ -53,6 +56,7 @@ export function printLabels(data: PrintLabelData) {
   bodyRows.push(`<div class="cell"><span class="k">Resp:</span> ${escapeHtml(data.responsible)}</div>`);
   if (data.batch) bodyRows.push(`<div class="cell"><span class="k">Lote:</span> ${escapeHtml(data.batch)}</div>`);
   if (data.quantityWeight) bodyRows.push(`<div class="cell"><span class="k">Qtd:</span> ${escapeHtml(data.quantityWeight)}</div>`);
+  if (data.conservationLabel) bodyRows.push(`<div class="cell"><span class="k">Cons:</span> ${escapeHtml(data.conservationLabel)}</div>`);
 
   const labelsHtml = Array.from({ length: data.quantity })
     .map(
@@ -71,6 +75,16 @@ export function printLabels(data: PrintLabelData) {
           ${
             data.cif
               ? `<div class="cif"><span class="k">CIF:</span> ${escapeHtml(data.cif)}</div>`
+              : ""
+          }
+          ${
+            data.allergens
+              ? `<div class="allergens"><span class="k">ALERGÊNICOS:</span> ${escapeHtml(data.allergens)}</div>`
+              : ""
+          }
+          ${
+            data.ingredients
+              ? `<div class="ingredients"><span class="k">Ingredientes:</span> ${escapeHtml(data.ingredients)}</div>`
               : ""
           }
           ${
@@ -172,6 +186,23 @@ export function printLabels(data: PrintLabelData) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .allergens {
+    margin-top: 0.5mm;
+    font-size: 7pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.15;
+    overflow: hidden;
+  }
+  .ingredients {
+    margin-top: 0.5mm;
+    font-size: 6.5pt;
+    line-height: 1.1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
   .footer {
     margin-top: 1mm;
