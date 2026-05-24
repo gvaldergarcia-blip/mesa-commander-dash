@@ -96,17 +96,23 @@ serve(async (req) => {
       currentImageUrl = asset.image_url || "";
       const { data: rest } = await admin
         .from("restaurants")
-        .select("owner_id, name, cuisine_type")
+        .select("owner_id, name, cuisine")
         .eq("id", restaurantId)
         .maybeSingle();
       ownerId = rest?.owner_id ?? null;
-      restMeta = rest || {};
+      restMeta = rest ? { ...rest, cuisine_type: (rest as any).cuisine } : {};
       if (!currentImageUrl) return json({ error: "No current image" }, 404);
     }
 
     if (ownerId !== user.id) {
-      const { data: isAdm } = await admin.rpc("is_admin", { user_id: user.id });
-      if (!isAdm) return json({ error: "Forbidden" }, 403);
+      const { data: isMember } = await admin.rpc("is_member_or_admin", {
+        _user_id: user.id,
+        _restaurant_id: restaurantId,
+      });
+      if (!isMember) {
+        const { data: isAdm } = await admin.rpc("is_admin", { user_id: user.id });
+        if (!isAdm) return json({ error: "Forbidden" }, 403);
+      }
     }
 
     // Save user message
