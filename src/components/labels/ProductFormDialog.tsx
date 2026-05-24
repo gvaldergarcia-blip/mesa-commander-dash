@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LabelProduct, LabelProductInput } from "@/hooks/useLabelProducts";
+import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
 
 interface Props {
   open: boolean;
@@ -22,6 +23,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [conservation, setConservation] = useState<string>("refrigerated");
   const [unit, setUnit] = useState<string>("un");
   const [status, setStatus] = useState<string>("active");
+  const [category, setCategory] = useState<string>("none");
+  const [cif, setCif] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -31,6 +34,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setConservation(product?.conservation_method ?? "refrigerated");
       setUnit(product?.unit ?? "un");
       setStatus(product?.status ?? "active");
+      setCategory(product?.category ?? "none");
+      setCif(product?.cif ?? "");
     }
   }, [open, product]);
 
@@ -45,6 +50,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       conservation_method: conservation as any,
       unit,
       status: status as any,
+      category: category === "none" ? null : category,
+      cif: cif.trim() || null,
     });
     onOpenChange(false);
   };
@@ -119,6 +126,31 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
                 <SelectItem value="inactive">Inativo</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Categoria</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {PRODUCT_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prod-cif">CIF (Identificação do Fabricante) — opcional</Label>
+            <Input
+              id="prod-cif"
+              value={cif}
+              onChange={(e) => setCif(e.target.value)}
+              placeholder="Ex: CNPJ ou código do fornecedor"
+              maxLength={80}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Se preenchido, aparece na etiqueta impressa abaixo do campo Obs.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="prod-notes">Observação (opcional)</Label>
