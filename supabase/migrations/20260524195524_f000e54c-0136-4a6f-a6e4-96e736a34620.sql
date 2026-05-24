@@ -1,0 +1,2 @@
+ALTER TABLE public.label_issuances DROP CONSTRAINT label_issuances_status_check;
+ALTER TABLE public.label_issuances ADD CONSTRAINT label_issuances_status_check CHECK (status = ANY (ARRAY['active'::text, 'consumed'::text, 'discarded'::text, 'discharged'::text, 'expired'::text]));
