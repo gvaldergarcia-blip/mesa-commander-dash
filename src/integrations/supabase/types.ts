@@ -1571,6 +1571,8 @@ export type Database = {
       }
       label_products: {
         Row: {
+          category: string | null
+          cif: string | null
           conservation_method: string
           created_at: string
           default_observation: string | null
@@ -1585,6 +1587,8 @@ export type Database = {
           validity_days: number
         }
         Insert: {
+          category?: string | null
+          cif?: string | null
           conservation_method?: string
           created_at?: string
           default_observation?: string | null
@@ -1599,6 +1603,8 @@ export type Database = {
           validity_days: number
         }
         Update: {
+          category?: string | null
+          cif?: string | null
           conservation_method?: string
           created_at?: string
           default_observation?: string | null

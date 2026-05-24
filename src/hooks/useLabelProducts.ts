@@ -14,6 +14,8 @@ export interface LabelProduct {
   default_observation?: string | null;
   status?: "active" | "inactive";
   group_id?: string | null;
+  category?: string | null;
+  cif?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +29,8 @@ export interface LabelProductInput {
   default_observation?: string | null;
   status?: "active" | "inactive";
   group_id?: string | null;
+  category?: string | null;
+  cif?: string | null;
 }
 
 export function useLabelProducts() {
@@ -63,6 +67,8 @@ export function useLabelProducts() {
           default_observation: input.default_observation?.trim() || null,
           status: input.status ?? "active",
           group_id: input.group_id ?? null,
+          category: input.category?.trim() || null,
+          cif: input.cif?.trim() || null,
         })
         .select()
         .single();
@@ -89,6 +95,8 @@ export function useLabelProducts() {
           default_observation: input.default_observation ?? undefined,
           status: input.status ?? undefined,
           group_id: input.group_id ?? undefined,
+          category: input.category?.trim() || null,
+          cif: input.cif?.trim() || null,
         })
         .eq("id", id)
         .select()

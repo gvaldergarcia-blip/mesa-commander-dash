@@ -13,6 +13,9 @@ import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labe
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
+import { PRODUCT_CATEGORIES, getCategoryColor, getValidityRisk } from "@/lib/labels/categories";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -31,8 +34,24 @@ export default function EtiquetasPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LabelProduct | null>(null);
   const [delTarget, setDelTarget] = useState<LabelProduct | null>(null);
+  const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
+  const [productSearchFilter, setProductSearchFilter] = useState<string>("");
 
   const stats = useMemo(() => computeStats(labels), [labels]);
+
+  const filteredProducts = useMemo(() => {
+    const term = productSearchFilter.trim().toLowerCase();
+    return products.filter((p) => {
+      if (productCategoryFilter !== "all") {
+        const cat = p.category || "Outros";
+        if (productCategoryFilter === "__none__") {
+          if (p.category) return false;
+        } else if (cat !== productCategoryFilter) return false;
+      }
+      if (term && !p.name.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [products, productCategoryFilter, productSearchFilter]);
 
   // Toast alert: vencem hoje
   useEffect(() => {
@@ -156,7 +175,7 @@ export default function EtiquetasPage() {
             <div>
               <h2 className="text-xl font-semibold">Produtos Cadastrados</h2>
               <p className="text-[11px] text-primary uppercase tracking-widest font-bold mt-1">
-                {products.length} {products.length === 1 ? "Item" : "Itens"}
+                {filteredProducts.length} de {products.length} {products.length === 1 ? "Item" : "Itens"}
               </p>
             </div>
             <Button onClick={() => { setEditing(null); setFormOpen(true); }} className="gap-2">
@@ -164,23 +183,60 @@ export default function EtiquetasPage() {
             </Button>
           </div>
 
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="Buscar produto..."
+              value={productSearchFilter}
+              onChange={(e) => setProductSearchFilter(e.target.value)}
+              className="sm:max-w-xs"
+            />
+            <Select value={productCategoryFilter} onValueChange={setProductCategoryFilter}>
+              <SelectTrigger className="sm:max-w-[220px]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as categorias</SelectItem>
+                <SelectItem value="__none__">Sem categoria</SelectItem>
+                {PRODUCT_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {prodLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin" /></div>
-          ) : products.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-16 border border-dashed border-border/50 rounded-2xl text-muted-foreground">
               <Tag className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>Nenhum produto cadastrado.</p>
+              <p>{products.length === 0 ? "Nenhum produto cadastrado." : "Nenhum produto corresponde aos filtros."}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((p) => {
-                const dot = p.validity_days <= 3 ? "bg-destructive" : p.validity_days <= 7 ? "bg-success" : "bg-warning";
+              {filteredProducts.map((p) => {
+                const risk = getValidityRisk(p.validity_days);
+                const catClasses = getCategoryColor(p.category);
                 return (
                   <div key={p.id} className="group bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40">
                     <div className="mb-4">
-                      <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors">{p.name}</h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className={cn("w-2 h-2 rounded-full", dot)} />
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex-1">{p.name}</h3>
+                        <span className={cn(
+                          "shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border",
+                          risk.classes
+                        )}>
+                          {risk.label}
+                        </span>
+                      </div>
+                      {p.category && (
+                        <span className={cn(
+                          "inline-block mt-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border",
+                          catClasses
+                        )}>
+                          {p.category}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
                         <span className="text-xs text-muted-foreground">
                           Validade: <span className="text-foreground font-medium">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span>
                         </span>
