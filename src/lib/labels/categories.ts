@@ -4,10 +4,16 @@ export const PRODUCT_CATEGORIES = [
   "Carnes",
   "Aves",
   "Peixes",
+  "Frutos do Mar",
   "Laticínios",
+  "Frios e Embutidos",
   "Hortifruti",
   "Molhos e Bases",
+  "Massas",
+  "Panificação",
+  "Ovos",
   "Sobremesas",
+  "Bebidas",
   "Outros",
 ] as const;
 
@@ -18,10 +24,16 @@ export const CATEGORY_HEX: Record<string, string> = {
   "Carnes": "#E53E3E",
   "Aves": "#ED8936",
   "Peixes": "#4299E1",
+  "Frutos do Mar": "#0BC5EA",
   "Laticínios": "#ECC94B",
+  "Frios e Embutidos": "#B794F4",
   "Hortifruti": "#48BB78",
   "Molhos e Bases": "#9F7AEA",
+  "Massas": "#F6AD55",
+  "Panificação": "#D69E2E",
+  "Ovos": "#FAF089",
   "Sobremesas": "#ED64A6",
+  "Bebidas": "#76E4F7",
   "Outros": "#718096",
 };
 
@@ -32,10 +44,16 @@ export const CATEGORY_ICONS: Record<string, string> = {
   "Carnes": "🥩",
   "Aves": "🍗",
   "Peixes": "🐟",
+  "Frutos do Mar": "🦐",
   "Laticínios": "🧀",
+  "Frios e Embutidos": "🥓",
   "Hortifruti": "🥦",
   "Molhos e Bases": "🍅",
+  "Massas": "🍝",
+  "Panificação": "🍞",
+  "Ovos": "🥚",
   "Sobremesas": "🍮",
+  "Bebidas": "🥤",
   "Outros": "",
 };
 
@@ -57,10 +75,18 @@ export function getCategoryIcon(category?: string | null): string {
 export function getCategoryTagStyle(category?: string | null): CSSProperties {
   const hex = getCategoryHex(category);
   return {
-    backgroundColor: `${hex}26`,
+    backgroundColor: `${hex}1F`,
     color: hex,
-    borderColor: `${hex}40`,
+    borderColor: "transparent",
   };
+}
+
+// Hex with alpha helper (e.g. withAlpha("#FF6B00", 0.2))
+export function withAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `${hex}${a}`;
 }
 
 // Backwards-compat (no-op, kept so old imports don't break)
