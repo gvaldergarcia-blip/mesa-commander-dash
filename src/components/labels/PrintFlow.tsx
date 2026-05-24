@@ -337,6 +337,23 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
               />
             </div>
 
+            <div className="p-3 rounded-xl border border-border/50 space-y-2">
+              <div className="text-xs uppercase font-bold text-muted-foreground">Dados do estabelecimento (impressos na etiqueta)</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">CNPJ</Label>
+                  <Input value={cnpjInput} onChange={(e) => setCnpjInput(e.target.value)} placeholder="00.000.000/0000-00" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CEP</Label>
+                  <Input value={cepInput} onChange={(e) => setCepInput(e.target.value)} placeholder="00000-000" />
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={saveLegal} disabled={savingLegal} className="w-full">
+                {savingLegal ? "Salvando..." : "Salvar dados do estabelecimento"}
+              </Button>
+            </div>
+
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
               <span className="text-sm font-semibold">Etiquetas a imprimir</span>
               <div className="flex items-center gap-3">
@@ -390,12 +407,12 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                     <span className="font-semibold">{batch}</span>
                   </div>
                 )}
-                {storageLocation && (
-                  <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
-                    <span className="font-bold" style={{ minWidth: "75px" }}>LOCAL:</span>
-                    <span className="font-semibold uppercase">{storageLocation}</span>
-                  </div>
-                )}
+              </div>
+
+              {/* LOCAL — linha própria */}
+              <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3, marginBottom: "4px" }}>
+                <span className="font-bold" style={{ minWidth: "55px" }}>LOCAL:</span>
+                <span className="font-semibold uppercase">{storageLocation || "—"}</span>
               </div>
 
               {/* Rodapé + QR */}
@@ -403,9 +420,9 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 <div className="flex-1 min-w-0" style={{ fontSize: "9px", lineHeight: 1.25 }}>
                   <div className="truncate"><span className="font-bold">RESP:</span> {employee.name}</div>
                   {restaurant?.name && <div className="font-bold uppercase truncate">{restaurant.name}</div>}
-                  {restaurantLegal?.cnpj && <div className="truncate"><span className="font-bold">CNPJ:</span> {restaurantLegal.cnpj}</div>}
+                  {(cnpjInput || restaurantLegal?.cnpj) && <div className="truncate"><span className="font-bold">CNPJ:</span> {cnpjInput || restaurantLegal?.cnpj}</div>}
                   {cif && <div className="truncate"><span className="font-bold">CIF:</span> {cif}</div>}
-                  {restaurantLegal?.cep && <div className="truncate"><span className="font-bold">CEP:</span> {restaurantLegal.cep}</div>}
+                  {(cepInput || restaurantLegal?.cep) && <div className="truncate"><span className="font-bold">CEP:</span> {cepInput || restaurantLegal?.cep}</div>}
                 </div>
                 <div className="flex flex-col items-center shrink-0">
                   <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW`} size={46} level="M" marginSize={0} />
