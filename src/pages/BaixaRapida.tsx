@@ -56,6 +56,7 @@ export default function BaixaRapida() {
       return null;
     }
   });
+  const [startingScan, setStartingScan] = useState(false);
 
   useEffect(() => {
     if (employee && phase === "pin") setPhase("list");
@@ -106,6 +107,59 @@ export default function BaixaRapida() {
     setPhase("pin");
   };
 
+  const getCameraErrorMessage = (err: any) => {
+    const name = err?.name || "";
+    const isSecure = window.isSecureContext;
+
+    if (name === "NotAllowedError" || /permission|denied/i.test(err?.message || "")) {
+      return "Permissão de câmera negada. Libere a câmera nas configurações do Safari/navegador e tente novamente.";
+    }
+
+    if (name === "NotFoundError") {
+      return "Nenhuma câmera encontrada neste dispositivo.";
+    }
+
+    if (name === "NotReadableError") {
+      return "A câmera está em uso por outro aplicativo.";
+    }
+
+    if (!isSecure) {
+      return "Acesso à câmera exige HTTPS. Abra o sistema pelo domínio oficial.";
+    }
+
+    return err?.message ? `Câmera: ${err.message}` : "Não foi possível acessar a câmera.";
+  };
+
+  const handleStartScan = async () => {
+    if (startingScan) return;
+
+    try {
+      setStartingScan(true);
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Seu navegador não suporta acesso à câmera.");
+      }
+
+      let preflight: MediaStream;
+      try {
+        preflight = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+      } catch {
+        preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
+      preflight.getTracks().forEach((track) => track.stop());
+      setPhase("scan");
+    } catch (err: any) {
+      console.error("[BaixaRapida] camera preflight error:", err);
+      toast.error(getCameraErrorMessage(err));
+    } finally {
+      setStartingScan(false);
+    }
+  };
+
   // === LIST ===
   const myLabels = useMemo(() => {
     if (!employee) return [];
@@ -154,24 +208,6 @@ export default function BaixaRapida() {
 
     (async () => {
       try {
-        // 1) Pede permissão DIRETAMENTE via getUserMedia (gesto do usuário ainda vivo).
-        //    Sem isso, alguns navegadores (Safari/iOS, Chrome em https) negam o acesso
-        //    quando a lib pede a câmera depois de um await/timeout.
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("Seu navegador não suporta acesso à câmera.");
-        }
-        let pre: MediaStream | null = null;
-        try {
-          pre = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
-            audio: false,
-          });
-        } catch {
-          pre = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        }
-        // libera imediatamente — a lib do scanner vai reabrir
-        pre.getTracks().forEach((t) => t.stop());
-        if (cancelled) return;
         try {
           await start(true);
         } catch {
@@ -201,21 +237,7 @@ export default function BaixaRapida() {
         }
       } catch (err: any) {
         console.error("[BaixaRapida] camera error:", err);
-        const name = err?.name || "";
-        const isSecure = window.isSecureContext;
-        let msg = "Não foi possível acessar a câmera.";
-        if (name === "NotAllowedError" || /permission/i.test(err?.message || "")) {
-          msg = "Permissão de câmera negada. Habilite nas configurações do navegador e tente novamente.";
-        } else if (name === "NotFoundError") {
-          msg = "Nenhuma câmera encontrada neste dispositivo.";
-        } else if (name === "NotReadableError") {
-          msg = "A câmera está em uso por outro aplicativo.";
-        } else if (!isSecure) {
-          msg = "Acesso à câmera exige HTTPS. Abra o sistema pelo domínio oficial.";
-        } else if (err?.message) {
-          msg = `Câmera: ${err.message}`;
-        }
-        toast.error(msg);
+        toast.error(getCameraErrorMessage(err));
         setPhase("list");
       }
     })();
@@ -382,10 +404,12 @@ export default function BaixaRapida() {
           {/* Fixed CTA */}
           <div className="p-4 border-t border-[#2D2D44] bg-[#161626]">
             <Button
-              onClick={() => setPhase("scan")}
+              onClick={handleStartScan}
+              disabled={startingScan}
               className="w-full h-14 text-base bg-[#FF6B00] hover:bg-[#E55A00] text-white gap-2 shadow-lg shadow-[#FF6B00]/20"
             >
-              <ScanLine className="h-6 w-6" /> Escanear etiqueta
+              {startingScan ? <Loader2 className="h-6 w-6 animate-spin" /> : <ScanLine className="h-6 w-6" />}
+              {startingScan ? "Abrindo câmera..." : "Escanear etiqueta"}
             </Button>
           </div>
         </div>
