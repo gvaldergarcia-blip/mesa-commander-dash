@@ -65,109 +65,94 @@ serve(async (req) => {
     const subtitleText = customSubheadline || '';
     const ctaText = customCta || '';
 
+    // === ART DIRECTION PREMIUM ===
+    // Filosofia: pensar como direção de arte de revista gastronômica (Kinfolk,
+    // Cereal, Bon Appétit, Le Cordon Bleu). Menos regras, mais visão.
+    // Tipografia editorial, composição cinematográfica, fotografia 4K.
+
+    const sharedArtDirection = `
+You are an award-winning art director for a luxury gastronomy magazine (think Kinfolk, Cereal, Bon Appétit). Create ONE Instagram post (1:1, 1080×1080) for the restaurant below. The result must look like a premium editorial cover, NOT a generic stock-photo template.
+
+RESTAURANT: ${restaurantName}${cuisineType ? ` · ${cuisineType}` : ''}
+HERO DISH: ${dishName}
+${restaurantPhrase ? `BRAND VOICE: ${restaurantPhrase}` : ''}
+${campaignDay ? `OCCASION: ${campaignDay}` : ''}
+${targetAudience ? `AUDIENCE: ${targetAudience}` : ''}
+${brandTone ? `MOOD: ${brandTone}` : ''}
+${objective ? `INTENT: ${objective}` : ''}
+
+PHOTOGRAPHY (THE FOUNDATION):
+- Hero shot of the dish, food-magazine quality, 4K, hyper-realistic
+- Cinematic natural lighting (golden hour or moody window light), shallow depth of field, soft bokeh
+- Tactile textures: visible steam, glistening sauce, fresh herbs, condensation on glassware
+- Composition: rule of thirds, generous negative space reserved for typography
+- Color grading: rich, warm, editorial — never saturated, never plastic
+- The photo should feel like it was shot by a real food photographer, not generated
+
+TYPOGRAPHY (THE DIFFERENTIATOR):
+- Use a refined typographic system: ONE elegant serif (Playfair Display, Cormorant, Canela) for the headline, ONE clean sans (Inter, Neue Haas, Helvetica Neue) for support text
+- Headline: large, confident, with generous tracking and clear hierarchy
+- All text sits in negative space — NEVER overlapping the dish, NEVER scattered, NEVER bubble-style
+- Treat type as design, not decoration. No drop shadows unless purposeful. No emojis embedded in titles.
+- Maximum 3 text blocks total: HEADLINE / supporting line / restaurant signature
+
+LAYOUT (THE ARCHITECTURE):
+- One clear focal point (the dish) + one clear typographic moment
+- Asymmetric, intentional, breathing — feel of a magazine cover, not a flyer
+- Restaurant name appears once, small and refined, as a signature (bottom or top corner)
+
+TEXT CONTENT (Brazilian Portuguese — render EXACTLY, no Spanish):
+• HEADLINE: "${headlineText}"
+${subtitleText ? `• SUPPORT LINE: "${subtitleText}"` : ''}
+${ctaText ? `• CALL TO ACTION: "${ctaText}"` : ''}
+• SIGNATURE: "${restaurantName}"
+
+SPELLING (NON-NEGOTIABLE):
+- Every word must match the source above letter-by-letter
+- If unsure about a word, REMOVE it rather than misspell. Less is more.
+- No invented words, no Spanish substitutions (com NOT con, uma NOT una, já NOT jâ)
+- Prefer 2–4 words per text block. Editorial restraint over noise.
+
+FORBIDDEN (instant rejection):
+- Generic stock-photo aesthetic, AI-template look, clip-art, cartoonish style
+- Text floating over the dish itself
+- Quotation marks around any text
+- Random letters, garbled words, fake foreign characters
+- Heavy filters, oversaturated colors, plastic skin/food
+- Watermarks, logos other than what's explicitly provided
+- Decorative emoji clusters, hashtags, web URLs
+`;
+
     if (hasDiscount && originalPrice && promoPrice) {
-      promptText = `Create a professional Instagram promotional post image for a restaurant.
+      promptText = `${sharedArtDirection}
 
-RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
-DISH: "${dishName}"
-${restaurantPhrase ? `RESTAURANT SLOGAN: "${restaurantPhrase}" — Display this as a subtle, elegant tagline. Use clean typography without quotation marks or decorative ornaments around it.` : ''}
-PROMOTION: From R$${originalPrice} to R$${promoPrice} (${discount}% OFF)
-DAY: ${campaignDay}
-TARGET: ${targetAudience}
-TONE: ${brandTone}
-OBJECTIVE: ${objective}
-
-DESIGN REQUIREMENTS:
-- Professional food photography style with the dish as hero element
-- Bold headline text overlaid: "${headlineText}"
-${restaurantPhrase ? `- The slogan "${restaurantPhrase}" in clean, premium typography — NO quotation marks, NO decorative quotes, NO ornamental punctuation` : ''}
-${subtitleText ? `- Subtitle text: "${subtitleText}" in smaller elegant font` : ''}
-${ctaText ? `- Call-to-action text: "${ctaText}"` : ''}
-- Prominent price display: crossed out "R$${originalPrice}" and highlighted "R$${promoPrice}"
-- A circular discount badge showing "${discount}% OFF"
-- Restaurant name "${restaurantName}" at bottom
-- Warm, appetizing color palette with rich contrast
-- Instagram square format (1:1 aspect ratio)
-- Premium, magazine-quality look
-- No blurry text — all text must be sharp and readable
-- Dark or blurred background to make the dish pop
-
-CRITICAL RULES:
-- Do NOT place random words, letters, or decorative text on top of the food/dish itself
-- Do NOT use quotation marks or typographic quotes around any text
-- Keep the dish photo clean and unobstructed — text goes around or above/below the dish, never covering it
-- All overlay text must be in designated text areas, not scattered over the food
-
-SPELLING & TEXT ACCURACY (EXTREMELY IMPORTANT):
-- ALL text in the image MUST be spelled EXACTLY as provided above — copy each word letter by letter
-- The language is Brazilian Portuguese — do NOT mix with Spanish or other languages
-- Double-check every single word before rendering. Common mistakes to AVOID:
-  - "com" NOT "con", "uma" NOT "una", "venha" NOT "vena", "já" NOT "jâ"
-  - "aproveite" NOT "aprov·ite", "saborear" NOT "saboraure", "melhor" NOT "mehor"
-  - "a família" NOT "ofamília", "região" NOT "regiãn"
-- If you are unsure about the correct spelling of ANY word, use FEWER words instead of misspelling them
-- Keep text MINIMAL — prefer 3-5 words per text element maximum
-- It is BETTER to have less text that is correct than more text with errors`;
+PRICE TREATMENT (this is a promotional post):
+- Show "R$${originalPrice}" with a clean strikethrough line
+- Display "R$${promoPrice}" as the dominant price in elegant typography
+- Add ONE refined discount mark: "${discount}% OFF" — minimal, geometric, NOT a cartoon bursting badge
+- Keep the price block contained, integrated into the layout's negative space, not slapped on top`;
     } else {
-      promptText = `Create a professional Instagram post image for a restaurant.
+      promptText = `${sharedArtDirection}
 
-RESTAURANT: "${restaurantName}" — ${cuisineType} cuisine.
-DISH/ITEM: "${dishName}"
-${restaurantPhrase ? `RESTAURANT SLOGAN: "${restaurantPhrase}" — Display this as a subtle, elegant tagline. Use clean typography without quotation marks or decorative ornaments around it.` : ''}
-DAY: ${campaignDay}
-TARGET: ${targetAudience}
-TONE: ${brandTone}
-OBJECTIVE: ${objective}
-
-DESIGN REQUIREMENTS:
-- Professional food photography style with the dish as hero element
-- Bold headline text overlaid: "${headlineText}"
-${restaurantPhrase ? `- The slogan "${restaurantPhrase}" in clean, premium typography — NO quotation marks, NO decorative quotes` : ''}
-${subtitleText ? `- Subtitle text: "${subtitleText}" in smaller elegant font` : ''}
-${ctaText ? `- Call-to-action text: "${ctaText}"` : ''}
-- NO prices or discount badges — this is NOT a promotional post with discount
-- Restaurant name "${restaurantName}" at bottom
-- Warm, appetizing color palette with rich contrast
-- Instagram square format (1:1 aspect ratio)
-- Premium, magazine-quality look
-- No blurry text — all text must be sharp and readable
-- Dark or blurred background to make the dish pop
-
-CRITICAL RULES:
-- Do NOT place random words, letters, or decorative text on top of the food/dish itself
-- Do NOT use quotation marks or typographic quotes around any text
-- Keep the dish photo clean and unobstructed — text goes around or above/below the dish, never covering it
-- All overlay text must be in designated text areas, not scattered over the food
-- Focus on the dish name, headline, and a compelling CTA
-
-SPELLING & TEXT ACCURACY (EXTREMELY IMPORTANT):
-- ALL text in the image MUST be spelled EXACTLY as provided above — copy each word letter by letter
-- The language is Brazilian Portuguese — do NOT mix with Spanish or other languages
-- Double-check every single word before rendering. Common mistakes to AVOID:
-  - "com" NOT "con", "uma" NOT "una", "venha" NOT "vena", "já" NOT "jâ"
-  - "aproveite" NOT "aprov·ite", "saborear" NOT "saboraure", "melhor" NOT "mehor"
-  - "a família" NOT "ofamília", "região" NOT "regiãn"
-- If you are unsure about the correct spelling of ANY word, use FEWER words instead of misspelling them
-- Keep text MINIMAL — prefer 3-5 words per text element maximum
-- It is BETTER to have less text that is correct than more text with errors`;
+NO PRICES, NO DISCOUNT BADGES — this is a brand/awareness post, treat it like an editorial feature, not a sale flyer.`;
     }
     if (includeLogo && logoUrl) {
-      promptText += `\n- LOGO INSTRUCTION: The restaurant logo image is attached below. Place this EXACT logo in the top-left corner of the image, small and elegant. Do NOT recreate or redraw the logo — use the attached logo image as-is.`;
+      promptText += `\n\nLOGO: The restaurant's actual logo is attached. Place it EXACTLY as provided (do not recreate), small and refined, in a top corner. Treat it as a premium brand mark, with proper margin and breathing room.`;
     }
 
     if (includeAddress && address) {
-      promptText += `\n- Include the address "${address}" in a small, discrete font at the very bottom of the image.`;
+      promptText += `\n\nADDRESS: Place "${address}" as a tiny, refined sans-serif line at the very bottom edge — editorial caption style, not promotional.`;
     }
 
     if (referenceImage) {
-      promptText += `\n\nIMPORTANT: Use the attached reference image as the base/inspiration for the dish photo. Keep the food from the reference photo but enhance it with professional lighting, add the text overlay, and restaurant branding on top of it.`;
+      promptText += `\n\nDISH REFERENCE: An attached image shows the actual dish. Preserve its identity (ingredients, plating, colors) but upgrade the cinematography: better lighting, sharper focus, editorial composition, magazine-grade finish.`;
     }
 
     if (realAmbient) {
-      promptText += `\n\n=== REAL AMBIENT COMPOSITION (HIGH PRIORITY) ===\nYou will receive an additional reference image showing the REAL interior of "${restaurantName}".\n- Compose an ultra-realistic food photography of "${dishName}" naturally placed on a table in the FOREGROUND of that exact restaurant interior.\n- Keep the EXACT same furniture, walls, lighting, colors, decor and structure from the interior reference photo.\n- Do NOT change, reimagine, or invent any part of the restaurant interior. It must look like a real photo taken inside that exact venue.\n- Soft bokeh on the background showing the real restaurant interior.\n- The dish must be the main focus, sharp and detailed, professional food magazine quality, 4k.\n- Natural ambient lighting matching the interior photo.\n- The final image must feel like it was taken by a real photographer inside this restaurant.`;
+      promptText += `\n\nREAL AMBIENT (HIGHEST PRIORITY): An attached image shows the REAL interior of ${restaurantName}. Compose the dish naturally on a table in that exact venue's foreground. Preserve EVERY detail of the interior — furniture, walls, lighting, decor, architecture — unchanged. Soft bokeh background, sharp dish in front. The final image must look like a real photographer captured it inside this exact restaurant.`;
     }
 
-    promptText += `\n\nDO NOT include any watermarks or logos other than the restaurant name.`;
+    promptText += `\n\nFinal check: would this image fit on the cover of a premium gastronomy magazine? If not, refine the lighting, typography, and composition until it does.`;
 
     console.log("Generating promo image for:", dishName, "at", restaurantName, "hasDiscount:", hasDiscount, "withRef:", !!referenceImage, "withLogo:", !!(includeLogo && logoUrl), "realAmbient:", realAmbient);
 
