@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle, Utensils, AlertCircle, AlertTriangle, ChevronDown, Trash2 } from "lucide-react";
+import { Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle, Utensils, AlertCircle, AlertTriangle, ChevronDown, Trash2, Package, Search, X, Building2, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,6 +20,7 @@ type Reason = "use" | "loss" | "error";
 
 export default function EtiquetaScan() {
   const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState<any>(null);
   const [reason, setReason] = useState<Reason | null>(null);
@@ -85,22 +86,47 @@ export default function EtiquetaScan() {
     : { label: "ATIVO", cls: "bg-indigo-100 text-indigo-700" };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200 p-4 pb-10">
-      <div className="max-w-md mx-auto space-y-3 pt-2">
-        {/* Unique code chip */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4 text-center">
-          <span className="font-mono font-bold text-lg tracking-widest text-slate-700">
-            {label.unique_code}
-          </span>
-        </div>
+    <div className="min-h-screen bg-slate-100 p-3 pb-10">
+      <div className="max-w-md mx-auto pt-2">
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+          {/* Header */}
+          <div className="px-5 pt-5 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-indigo-600" />
+                <h1 className="font-semibold text-slate-800 text-base">Scanner de Labels</h1>
+              </div>
+              <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600" aria-label="Fechar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-center text-xs text-slate-500 mt-1">Label encontrado</p>
+          </div>
 
-        {/* Main card */}
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 space-y-5">
+          {/* Search-style indicator */}
+          <div className="px-5 pt-3">
+            <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/50">
+              <Search className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-medium text-slate-700">Label Encontrado</span>
+            </div>
+          </div>
+
+          {/* Code box */}
+          <div className="px-5 pt-2">
+            <div className="flex items-center gap-2 border border-dashed border-slate-300 rounded-xl px-3 py-2.5 bg-white">
+              <Hash className="h-4 w-4 text-slate-400" />
+              <span className="font-mono font-bold text-base tracking-widest text-slate-700">
+                {label.unique_code}
+              </span>
+            </div>
+          </div>
+
+          <div className="px-5 py-5 space-y-5">
           {/* Title row */}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
             <div className="flex items-center gap-2 min-w-0">
-              <CheckCircle2 className={`h-6 w-6 shrink-0 ${isDischarged ? "text-slate-400" : isExpired ? "text-red-500" : "text-emerald-500"}`} />
-              <h1 className="text-xl font-bold text-slate-900 uppercase truncate">{label.product_name}</h1>
+              <CheckCircle2 className={`h-5 w-5 shrink-0 ${isDischarged ? "text-slate-400" : isExpired ? "text-red-500" : "text-emerald-500"}`} />
+              <h2 className="text-base font-bold text-slate-900 truncate">{label.product_name}</h2>
             </div>
             <span className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wider shrink-0 ${statusPill.cls}`}>
               {statusPill.label}
@@ -150,9 +176,19 @@ export default function EtiquetaScan() {
             </div>
             <div className="text-slate-800 text-sm mt-1 ml-6 font-medium">
               {label.responsible || "—"}
-              {label.restaurant_name && <span className="text-slate-500 font-normal"> · {label.restaurant_name}</span>}
             </div>
           </div>
+
+          {label.restaurant_name && (
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold">
+                <Building2 className="h-4 w-4" /> Empresa:
+              </div>
+              <div className="text-slate-800 text-sm mt-1 ml-6 font-medium">
+                {label.restaurant_name}
+              </div>
+            </div>
+          )}
 
           {label.notes && (
             <div className="border-t border-slate-100 pt-4">
@@ -227,6 +263,7 @@ export default function EtiquetaScan() {
               </DropdownMenu>
             </div>
           )}
+          </div>
         </div>
 
         <p className="text-center text-[11px] text-slate-400 pt-2">
