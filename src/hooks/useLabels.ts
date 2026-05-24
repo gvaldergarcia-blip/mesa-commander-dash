@@ -22,6 +22,9 @@ export interface Label {
   employee_name?: string | null;
   conservation_method: ConservationMethod | null;
   notes: string | null;
+  cif: string | null;
+  allergens: string | null;
+  ingredients: string | null;
   status: LabelStatus;
   discharge_reason: DischargeReason | null;
   resolved_at: string | null;
@@ -39,6 +42,9 @@ export interface LabelCreateInput {
   employee_id?: string | null;
   conservation_method?: ConservationMethod | null;
   notes?: string | null;
+  cif?: string | null;
+  allergens?: string | null;
+  ingredients?: string | null;
 }
 
 function computeLiveStatus(l: Label): LabelStatus {
@@ -89,6 +95,9 @@ export function useLabels() {
           employee_id: input.employee_id ?? null,
           conservation_method: input.conservation_method ?? null,
           notes: input.notes ?? null,
+          cif: input.cif ?? null,
+          allergens: input.allergens ?? null,
+          ingredients: input.ingredients ?? null,
         })
         .select("*")
         .single();

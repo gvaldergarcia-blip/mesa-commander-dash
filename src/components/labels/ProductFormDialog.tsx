@@ -25,6 +25,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [status, setStatus] = useState<string>("active");
   const [category, setCategory] = useState<string>("none");
   const [cif, setCif] = useState<string>("");
+  const [allergens, setAllergens] = useState<string>("");
+  const [ingredients, setIngredients] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -36,6 +38,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setStatus(product?.status ?? "active");
       setCategory(product?.category ?? "none");
       setCif(product?.cif ?? "");
+      setAllergens(product?.allergens ?? "");
+      setIngredients(product?.ingredients ?? "");
     }
   }, [open, product]);
 
@@ -52,6 +56,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       status: status as any,
       category: category === "none" ? null : category,
       cif: cif.trim() || null,
+      allergens: allergens.trim() || null,
+      ingredients: ingredients.trim() || null,
     });
     onOpenChange(false);
   };
@@ -151,6 +157,30 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
             <p className="text-[11px] text-muted-foreground">
               Se preenchido, aparece na etiqueta impressa abaixo do campo Obs.
             </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prod-allergens">Alergênicos (RDC 26/2015) — opcional</Label>
+            <Input
+              id="prod-allergens"
+              value={allergens}
+              onChange={(e) => setAllergens(e.target.value)}
+              placeholder="Ex: contém glúten, leite, ovo, soja"
+              maxLength={200}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Será impresso em destaque na etiqueta (obrigatório se contiver alergênicos).
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prod-ingredients">Ingredientes — opcional</Label>
+            <Textarea
+              id="prod-ingredients"
+              value={ingredients}
+              onChange={(e) => setIngredients(e.target.value)}
+              placeholder="Em ordem decrescente de quantidade"
+              maxLength={400}
+              rows={2}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="prod-notes">Observação (opcional)</Label>

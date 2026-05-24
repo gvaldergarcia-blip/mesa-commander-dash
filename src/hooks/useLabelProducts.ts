@@ -16,6 +16,8 @@ export interface LabelProduct {
   group_id?: string | null;
   category?: string | null;
   cif?: string | null;
+  allergens?: string | null;
+  ingredients?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +33,8 @@ export interface LabelProductInput {
   group_id?: string | null;
   category?: string | null;
   cif?: string | null;
+  allergens?: string | null;
+  ingredients?: string | null;
 }
 
 export function useLabelProducts() {
@@ -69,6 +73,8 @@ export function useLabelProducts() {
           group_id: input.group_id ?? null,
           category: input.category?.trim() || null,
           cif: input.cif?.trim() || null,
+          allergens: input.allergens?.trim() || null,
+          ingredients: input.ingredients?.trim() || null,
         })
         .select()
         .single();
@@ -97,6 +103,8 @@ export function useLabelProducts() {
           group_id: input.group_id ?? undefined,
           category: input.category?.trim() || null,
           cif: input.cif?.trim() || null,
+          allergens: input.allergens?.trim() || null,
+          ingredients: input.ingredients?.trim() || null,
         })
         .eq("id", id)
         .select()
