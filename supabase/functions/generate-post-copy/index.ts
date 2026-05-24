@@ -20,14 +20,13 @@ serve(async (req) => {
     const body = await req.json();
 
     const str = (v: any, max = 200) => typeof v === "string" ? v.slice(0, max) : "";
-    const postType = str(body.postType, 50);
     const dishName = str(body.dishName, 100);
-    const priceOld = str(body.priceOld, 20);
-    const priceNew = str(body.priceNew, 20);
-    const validity = str(body.validity, 100);
-    const tone = str(body.tone, 50);
-    const restaurantName = str(body.restaurantName, 100);
-    const cuisineType = str(body.cuisineType, 50);
+    const objetivo = str(body.objetivo, 80);
+    const dia = str(body.dia, 40);
+    const publico = str(body.publico, 60);
+    const tom = str(body.tom, 40);
+    const hasDiscount = body.hasDiscount ? "sim" : "nao";
+    const frase = str(body.frase, 200);
 
     if (!dishName) {
       return new Response(
@@ -36,40 +35,25 @@ serve(async (req) => {
       );
     }
 
-    // Calculate discount if both prices exist
-    let discountText = "";
-    if (priceOld && priceNew) {
-      const oldNum = parseFloat(priceOld.replace(/[^\d.,]/g, "").replace(",", "."));
-      const newNum = parseFloat(priceNew.replace(/[^\d.,]/g, "").replace(",", "."));
-      if (oldNum > 0 && newNum > 0 && oldNum > newNum) {
-        const pct = Math.round(((oldNum - newNum) / oldNum) * 100);
-        discountText = `${pct}% OFF`;
-      }
-    }
-
-    const systemPrompt = `Você é um especialista em marketing para restaurantes e copywriter profissional para Instagram. Seu objetivo é criar copies curtos, diretos e altamente persuasivos para posts de restaurantes.
+    const systemPrompt = `Você é um copywriter especialista em marketing para restaurantes brasileiros. Gere textos curtos, específicos e persuasivos para post de Instagram.
 
 Regras obrigatórias:
-- Máximo 2 linhas no título (headline)
-- Máximo 1 linha no subtítulo
-- Sempre incluir urgência quando houver promoção
-- Usar o nome do prato de forma apetitosa e descritiva
-- Incluir 1 CTA claro e direto no final
-- Adaptar completamente ao tom de voz escolhido
-- NUNCA usar placeholders ou textos genéricos
-- NUNCA usar emojis que não combinem com o contexto do prato
-- Todos os textos devem ser em português brasileiro
-- Tom deve ser adequado para o setor de alimentação`;
+1. HEADLINE: máximo 8 palavras, específica sobre o prato ou a ocasião. NUNCA use "elegância no prato", "experiência gastronômica" ou frases genéricas. Use o nome real do prato ou uma provocação direta. Exemplos bons: "Risoto cremoso que só existe às terças." / "Filé mignon que faz amigos voltarem." / "Shitake + filé. Combinação que não existe em outro lugar."
 
-    const userPrompt = `Gere um copy para um post de Instagram do restaurante "${restaurantName}" (${cuisineType}).
+2. SUBHEADLINE: 1 frase de apoio que conecta o objetivo com o público. Se objetivo for aumentar ticket médio: fale em valor da experiência. Se for atrair em dia fraco: crie urgência no dia específico. Se for fidelizar: fale em exclusividade.
 
-Tipo de post: ${postType}
-Prato/Campanha: ${dishName}
-${priceOld ? `Preço original: R$ ${priceOld}` : ""}
-${priceNew ? `Preço promocional: R$ ${priceNew}` : ""}
-${discountText ? `Desconto calculado: ${discountText}` : ""}
-${validity ? `Validade: ${validity}` : ""}
-Tom de voz: ${tone}`;
+3. CTA: ação real e possível no Instagram. NUNCA "peça já" — o cliente não consegue pedir pela imagem. Use: "Reserve sua mesa", "Garanta sua vaga hoje", "Chega cedo, acaba rápido", "Só {dia}, só no jantar".
+
+4. Máximo 3 variações. Cada uma com abordagem diferente: emocional, racional e urgência.`;
+
+    const userPrompt = `Dados da campanha:
+- Prato: ${dishName}
+- Objetivo: ${objetivo || "não informado"}
+- Dia: ${dia || "não informado"}
+- Público-alvo: ${publico || "geral"}
+- Tom de voz: ${tom || "neutro"}
+- Tem desconto: ${hasDiscount}
+- Frase do restaurante: ${frase || "(nenhuma)"}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -87,32 +71,33 @@ Tom de voz: ${tone}`;
           {
             type: "function",
             function: {
-              name: "generate_instagram_copy",
-              description: "Generate Instagram post copy for a restaurant",
+              name: "generate_campaign_variations",
+              description: "Gera até 3 variações de copy (emocional, racional, urgência) para post de Instagram de restaurante.",
               parameters: {
                 type: "object",
                 properties: {
-                  headline: { type: "string", description: "Main headline text (max 2 lines)" },
-                  subheadline: { type: "string", description: "Secondary text (max 1 line)" },
-                  priceOld: { type: "string", description: "Original price formatted (e.g. R$ 90). Empty if no price." },
-                  priceNew: { type: "string", description: "Promotional price formatted (e.g. R$ 50). Empty if no price." },
-                  discount: { type: "string", description: "Discount text (e.g. 44% OFF). Empty if no discount." },
-                  urgency: { type: "string", description: "Urgency text for the promotion. Empty if not applicable." },
-                  cta: { type: "string", description: "Call to action text" },
-                  caption: { type: "string", description: "Full Instagram caption with emojis and hashtags" },
-                  hashtags: {
+                  variacoes: {
                     type: "array",
-                    items: { type: "string" },
-                    description: "List of relevant hashtags (without #)",
+                    description: "Lista de até 3 variações: emocional, racional, urgência.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        headline: { type: "string", description: "Máx. 8 palavras, específica sobre o prato/ocasião." },
+                        subheadline: { type: "string", description: "1 frase de apoio." },
+                        cta: { type: "string", description: "Ação real e possível no Instagram." },
+                      },
+                      required: ["headline", "subheadline", "cta"],
+                      additionalProperties: false,
+                    },
                   },
                 },
-                required: ["headline", "subheadline", "cta", "caption", "hashtags"],
+                required: ["variacoes"],
                 additionalProperties: false,
               },
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "generate_instagram_copy" } },
+        tool_choice: { type: "function", function: { name: "generate_campaign_variations" } },
       }),
     });
 
@@ -152,7 +137,7 @@ Tom de voz: ${tone}`;
       throw new Error("Erro ao processar resposta da IA.");
     }
 
-    console.log("Copy generated for:", dishName, "type:", postType);
+    console.log("Copy generated for:", dishName, "objetivo:", objetivo);
 
     return new Response(JSON.stringify({ copy: copyData }), {
       status: 200,
