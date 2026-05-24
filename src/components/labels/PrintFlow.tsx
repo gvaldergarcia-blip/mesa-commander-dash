@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { useLabelEmployees, LabelEmployee } from "@/hooks/useLabelEmployees";
 import { useLabelProducts, LabelProduct } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useRestaurant } from "@/contexts/RestaurantContext";
+import { supabase } from "@/integrations/supabase/client";
 import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
@@ -43,6 +45,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [cif, setCif] = useState("");
   const [allergens, setAllergens] = useState("");
   const [ingredients, setIngredients] = useState("");
+  const [storageLocation, setStorageLocation] = useState("");
   const [printQty, setPrintQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -56,6 +59,22 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       setIngredients((product as any).ingredients || "");
     }
   }, [product]);
+
+  // CNPJ/CEP do restaurante para a etiqueta
+  const { data: restaurantLegal } = useQuery({
+    queryKey: ["restaurant-legal", restaurant?.id],
+    enabled: !!restaurant?.id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("restaurants")
+        .select("cnpj, address")
+        .eq("id", restaurant!.id)
+        .maybeSingle();
+      const address: string = data?.address || "";
+      const cepMatch = address.match(/\d{5}-?\d{3}/);
+      return { cnpj: data?.cnpj || null, cep: cepMatch ? cepMatch[0] : null };
+    },
+  });
 
   const expiryDate = useMemo(() => {
     if (!product) return null;
@@ -77,7 +96,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const reset = () => {
     setStep(1); setEmployee(null); setProduct(null);
     setBatch(""); setQuantityWeight(""); setNotes(""); setCif("");
-    setAllergens(""); setIngredients(""); setPrintQty(1);
+    setAllergens(""); setIngredients(""); setStorageLocation(""); setPrintQty(1);
     setProductSearch("");
   };
 
@@ -115,10 +134,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         allergens: allergens.trim() || null,
         ingredients: ingredients.trim() || null,
         conservationLabel: CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL] || null,
+        storageLocation: storageLocation.trim() || null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
         restaurantLogoUrl: restaurant?.logo_url || null,
+        restaurantCnpj: restaurantLegal?.cnpj || null,
+        restaurantCep: restaurantLegal?.cep || null,
         checklistQrSvg: qrSvg,
         checklistQrLabel: `#${inserted.unique_code}`,
         quantity: qty,
