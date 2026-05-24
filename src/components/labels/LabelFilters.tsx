@@ -61,7 +61,7 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
   return (
     <div className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-3 backdrop-blur-sm">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-        <div className="relative md:col-span-6">
+        <div className="relative md:col-span-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por produto..."
@@ -77,8 +77,8 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
             {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={value.startDate} onChange={(e) => set("startDate", e.target.value)} className="md:col-span-1.5" />
-        <Input type="date" value={value.endDate} onChange={(e) => set("endDate", e.target.value)} className="md:col-span-1.5" />
+        <Input type="date" value={value.startDate} onChange={(e) => set("startDate", e.target.value)} className="md:col-span-2" />
+        <Input type="date" value={value.endDate} onChange={(e) => set("endDate", e.target.value)} className="md:col-span-2" />
       </div>
 
       <div className="flex flex-col gap-2">
