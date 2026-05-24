@@ -13,7 +13,7 @@ import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labe
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
-import { PRODUCT_CATEGORIES, getValidityRisk, getCategoryHex, getCategoryIcon, getCategoryTagStyle, NO_CATEGORY_HEX } from "@/lib/labels/categories";
+import { PRODUCT_CATEGORIES, getValidityRisk, getCategoryHex, getCategoryIcon, getCategoryTagStyle, NO_CATEGORY_HEX, withAlpha } from "@/lib/labels/categories";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -200,6 +200,19 @@ export default function EtiquetasPage() {
                 { value: "__none__", label: "Sem categoria" },
               ].map((opt) => {
                 const active = productCategoryFilter === opt.value;
+                let activeStyle: React.CSSProperties | undefined;
+                if (active) {
+                  if (opt.value === "all") {
+                    activeStyle = { backgroundColor: "#FF6B00", color: "#FFFFFF", borderColor: "transparent" };
+                  } else {
+                    const hex = opt.value === "__none__" ? NO_CATEGORY_HEX : getCategoryHex(opt.value);
+                    activeStyle = {
+                      backgroundColor: withAlpha(hex, 0.2),
+                      borderColor: hex,
+                      color: hex,
+                    };
+                  }
+                }
                 return (
                   <button
                     key={opt.value}
@@ -207,11 +220,9 @@ export default function EtiquetasPage() {
                     onClick={() => setProductCategoryFilter(opt.value)}
                     className={cn(
                       "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap",
-                      active
-                        ? "border-transparent text-white"
-                        : "bg-[#1A1A2E] border-[#2D2D44] text-[#A0AEC0] hover:bg-[#22223A]"
+                      !active && "bg-[#1E1E2E] border-[#2D2D44] text-[#718096] hover:bg-[#22223A]"
                     )}
-                    style={active ? { backgroundColor: "#FF6B00" } : undefined}
+                    style={activeStyle}
                   >
                     {opt.label}
                   </button>
@@ -266,8 +277,13 @@ export default function EtiquetasPage() {
                       </div>
                       {p.category && (
                         <span
-                          className="inline-block mt-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border"
-                          style={tagStyle}
+                          className="inline-block mt-2 text-[11px] font-semibold"
+                          style={{
+                            backgroundColor: withAlpha(getCategoryHex(p.category), 0.12),
+                            color: getCategoryHex(p.category),
+                            borderRadius: 999,
+                            padding: "2px 8px",
+                          }}
                         >
                           {p.category}
                         </span>
