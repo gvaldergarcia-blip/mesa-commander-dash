@@ -5,6 +5,7 @@ import { Search, RotateCcw, Download } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label as UILabel } from "@/components/ui/label";
 import { LabelEmployee } from "@/hooks/useLabelEmployees";
+import { cn } from "@/lib/utils";
 
 export interface LabelFiltersState {
   search: string;
@@ -36,10 +37,31 @@ interface Props {
 export function LabelFilters({ value, onChange, employees, onExport }: Props) {
   const set = (k: keyof LabelFiltersState, v: any) => onChange({ ...value, [k]: v });
 
+  const statusPills: { value: string; label: string }[] = [
+    { value: "all", label: "Todos" },
+    { value: "active", label: "Ativo" },
+    { value: "expired", label: "Vencido" },
+    { value: "today", label: "Vence Hoje" },
+  ];
+  const conservationPills: { value: string; label: string }[] = [
+    { value: "all", label: "Todos" },
+    { value: "refrigerated", label: "Resfriado" },
+    { value: "frozen", label: "Congelado" },
+    { value: "ambient", label: "Temp. Ambiente" },
+  ];
+
+  const pillClass = (active: boolean) =>
+    cn(
+      "px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors",
+      active
+        ? "text-white border-transparent"
+        : "bg-muted/40 text-muted-foreground border-border hover:bg-muted"
+    );
+
   return (
     <div className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-3 backdrop-blur-sm">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-        <div className="relative md:col-span-4">
+        <div className="relative md:col-span-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por produto..."
@@ -49,33 +71,51 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
           />
         </div>
         <Select value={value.employeeId} onValueChange={(v) => set("employeeId", v)}>
-          <SelectTrigger className="md:col-span-2"><SelectValue placeholder="Responsável" /></SelectTrigger>
+          <SelectTrigger className="md:col-span-3"><SelectValue placeholder="Responsável" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os responsáveis</SelectItem>
             {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={value.conservation} onValueChange={(v) => set("conservation", v)}>
-          <SelectTrigger className="md:col-span-2"><SelectValue placeholder="Conservação" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toda conservação</SelectItem>
-            <SelectItem value="refrigerated">Resfriado</SelectItem>
-            <SelectItem value="frozen">Congelado</SelectItem>
-            <SelectItem value="ambient">Ambiente</SelectItem>
-            <SelectItem value="hot">Quente</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={value.status} onValueChange={(v) => set("status", v)}>
-          <SelectTrigger className="md:col-span-2"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos status</SelectItem>
-            <SelectItem value="active">Ativo</SelectItem>
-            <SelectItem value="expired">Vencido</SelectItem>
-            <SelectItem value="discharged">Baixado</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input type="date" value={value.startDate} onChange={(e) => set("startDate", e.target.value)} className="md:col-span-1" />
-        <Input type="date" value={value.endDate} onChange={(e) => set("endDate", e.target.value)} className="md:col-span-1" />
+        <Input type="date" value={value.startDate} onChange={(e) => set("startDate", e.target.value)} className="md:col-span-2" />
+        <Input type="date" value={value.endDate} onChange={(e) => set("endDate", e.target.value)} className="md:col-span-2" />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Status:</span>
+          {statusPills.map((p) => {
+            const active = value.status === p.value;
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => set("status", p.value)}
+                className={pillClass(active)}
+                style={active ? { backgroundColor: "#FF6B00" } : undefined}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mr-1">Conservação:</span>
+          {conservationPills.map((p) => {
+            const active = value.conservation === p.value;
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => set("conservation", p.value)}
+                className={pillClass(active)}
+                style={active ? { backgroundColor: "#FF6B00" } : undefined}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border/40">
         <div className="flex items-center gap-2 pl-1">

@@ -13,7 +13,7 @@ import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labe
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
-import { PRODUCT_CATEGORIES, getCategoryColor, getValidityRisk } from "@/lib/labels/categories";
+import { PRODUCT_CATEGORIES, getCategoryColor, getValidityRisk, getCategoryBorderHex, getCategoryIcon } from "@/lib/labels/categories";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -80,7 +80,11 @@ export default function EtiquetasPage() {
       if (filters.search && !l.product_name.toLowerCase().includes(filters.search.toLowerCase())) return false;
       if (filters.employeeId !== "all" && l.employee_id !== filters.employeeId) return false;
       if (filters.conservation !== "all" && l.conservation_method !== filters.conservation) return false;
-      if (filters.status !== "all" && l.status !== filters.status) return false;
+      if (filters.status !== "all") {
+        if (filters.status === "today") {
+          if (classifyExpiry(l.expiry_date) !== "today" || l.status === "discharged") return false;
+        } else if (l.status !== filters.status) return false;
+      }
       if (filters.startDate && new Date(l.created_at) < new Date(filters.startDate)) return false;
       if (filters.endDate) {
         const end = new Date(filters.endDate); end.setHours(23, 59, 59, 999);
@@ -216,17 +220,30 @@ export default function EtiquetasPage() {
               {filteredProducts.map((p) => {
                 const risk = getValidityRisk(p.validity_days);
                 const catClasses = getCategoryColor(p.category);
+                const borderHex = getCategoryBorderHex(p.category);
+                const icon = getCategoryIcon(p.category);
                 return (
-                  <div key={p.id} className="group bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40">
+                  <div
+                    key={p.id}
+                    className="group bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40"
+                    style={borderHex ? { borderLeftWidth: 4, borderLeftColor: borderHex, borderLeftStyle: "solid" } : undefined}
+                  >
                     <div className="mb-4">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex-1">{p.name}</h3>
-                        <span className={cn(
-                          "shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border",
-                          risk.classes
-                        )}>
-                          {risk.label}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border",
+                            risk.classes
+                          )}>
+                            {risk.label}
+                          </span>
+                          {icon && (
+                            <span className="text-xl leading-none select-none" aria-hidden title={p.category || ""}>
+                              {icon}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {p.category && (
                         <span className={cn(
