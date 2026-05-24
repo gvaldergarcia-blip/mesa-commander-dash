@@ -20,6 +20,7 @@ type Reason = "use" | "loss" | "error";
 
 export default function EtiquetaScan() {
   const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState<any>(null);
   const [reason, setReason] = useState<Reason | null>(null);
