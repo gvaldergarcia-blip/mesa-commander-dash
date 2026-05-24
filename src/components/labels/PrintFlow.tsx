@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const { products, isLoading: prodLoading } = useLabelProducts();
   const { createLabel } = useLabels();
   const { restaurant } = useRestaurant();
+  const qc = useQueryClient();
 
   const [employee, setEmployee] = useState<LabelEmployee | null>(null);
   const [product, setProduct] = useState<LabelProduct | null>(null);
@@ -46,6 +47,9 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [allergens, setAllergens] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [storageLocation, setStorageLocation] = useState("");
+  const [cnpjInput, setCnpjInput] = useState("");
+  const [cepInput, setCepInput] = useState("");
+  const [savingLegal, setSavingLegal] = useState(false);
   const [printQty, setPrintQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,6 +79,31 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       return { cnpj: data?.cnpj || null, cep: cepMatch ? cepMatch[0] : null };
     },
   });
+
+  useEffect(() => {
+    setCnpjInput(restaurantLegal?.cnpj || "");
+    setCepInput(restaurantLegal?.cep || "");
+  }, [restaurantLegal?.cnpj, restaurantLegal?.cep]);
+
+  const saveLegal = async () => {
+    if (!restaurant?.id) return;
+    setSavingLegal(true);
+    try {
+      await (supabase as any)
+        .from("restaurants")
+        .update({
+          cnpj: cnpjInput.trim() || null,
+          address: cepInput.trim() ? `CEP ${cepInput.trim()}` : null,
+        })
+        .eq("id", restaurant.id);
+      await qc.invalidateQueries({ queryKey: ["restaurant-legal", restaurant.id] });
+      toast.success("Dados do estabelecimento salvos");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar");
+    } finally {
+      setSavingLegal(false);
+    }
+  };
 
   const expiryDate = useMemo(() => {
     if (!product) return null;
