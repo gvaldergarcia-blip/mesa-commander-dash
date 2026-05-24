@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle, Utensils, AlertCircle, AlertTriangle, ChevronDown, Trash2 } from "lucide-react";
+import { Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle, Utensils, AlertCircle, AlertTriangle, ChevronDown, Trash2, Package, Search, X, Building2, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
