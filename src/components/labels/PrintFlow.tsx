@@ -277,6 +277,37 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
               />
             </div>
 
+            <div className="space-y-1">
+              <Label>Alergênicos (RDC 26/2015)</Label>
+              <Input
+                value={allergens}
+                onChange={(e) => setAllergens(e.target.value)}
+                maxLength={200}
+                placeholder="Ex: glúten, leite, ovo, soja"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Ingredientes</Label>
+              <Textarea
+                value={ingredients}
+                onChange={(e) => setIngredients(e.target.value)}
+                rows={2}
+                maxLength={400}
+                placeholder="Em ordem decrescente de quantidade"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Local de armazenamento</Label>
+              <Input
+                value={storageLocation}
+                onChange={(e) => setStorageLocation(e.target.value)}
+                maxLength={40}
+                placeholder="Ex: Geladeira 1, Freezer 2, Bancada"
+              />
+            </div>
+
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
               <span className="text-sm font-semibold">Etiquetas a imprimir</span>
               <div className="flex items-center gap-3">
@@ -296,25 +327,72 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
           <Card className="p-5 bg-card/40">
             <div className="text-xs uppercase text-muted-foreground mb-3 font-semibold">Pré-visualização · 80×40mm</div>
             <div
-              className="border border-black bg-white text-black font-sans overflow-hidden flex flex-col mx-auto"
-              style={{ width: "302px", height: "151px", padding: "8px 11px", fontSize: "11px", lineHeight: 1.2 }}
+              className="bg-white text-black font-sans overflow-hidden flex flex-col mx-auto shadow"
+              style={{ width: "340px", height: "170px", padding: "10px 12px", fontSize: "10px", lineHeight: 1.2 }}
             >
-              <div className="flex items-center justify-between gap-2 border-b border-black" style={{ paddingBottom: "3px", marginBottom: "5px" }}>
-                <span className="font-bold uppercase truncate flex-1" style={{ fontSize: "14px" }}>{product.name}</span>
-                <div className="flex flex-col items-center gap-0.5 shrink-0">
-                  <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW`} size={48} level="M" marginSize={0} />
+              {/* Topo: nome + peso */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-extrabold uppercase truncate" style={{ fontSize: "15px", lineHeight: 1.05 }}>
+                    {product.name}
+                  </div>
+                  <div className="font-semibold uppercase" style={{ fontSize: "10px", marginTop: "1px", letterSpacing: "0.3px" }}>
+                    {CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL]}
+                  </div>
+                </div>
+                {quantityWeight && (
+                  <div className="font-extrabold whitespace-nowrap" style={{ fontSize: "14px" }}>{quantityWeight}</div>
+                )}
+              </div>
+
+              {/* Datas */}
+              <div className="border-t border-b border-black" style={{ margin: "5px 0", padding: "3px 0" }}>
+                <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
+                  <span className="font-bold" style={{ minWidth: "75px" }}>PREPARADO:</span>
+                  <span className="font-semibold">{format(now, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                </div>
+                <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
+                  <span className="font-bold" style={{ minWidth: "75px" }}>VALIDADE:</span>
+                  <span className="font-semibold">{format(expiryDate, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                </div>
+                {batch && (
+                  <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
+                    <span className="font-bold" style={{ minWidth: "75px" }}>LOTE:</span>
+                    <span className="font-semibold">{batch}</span>
+                  </div>
+                )}
+                {storageLocation && (
+                  <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
+                    <span className="font-bold" style={{ minWidth: "75px" }}>LOCAL:</span>
+                    <span className="font-semibold uppercase">{storageLocation}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Rodapé + QR */}
+              <div className="flex justify-between items-end gap-2 flex-1">
+                <div className="flex-1 min-w-0" style={{ fontSize: "9px", lineHeight: 1.25 }}>
+                  <div className="truncate"><span className="font-bold">RESP:</span> {employee.name}</div>
+                  {restaurant?.name && <div className="font-bold uppercase truncate">{restaurant.name}</div>}
+                  {restaurantLegal?.cnpj && <div className="truncate"><span className="font-bold">CNPJ:</span> {restaurantLegal.cnpj}</div>}
+                  {cif && <div className="truncate"><span className="font-bold">CIF:</span> {cif}</div>}
+                  {restaurantLegal?.cep && <div className="truncate"><span className="font-bold">CEP:</span> {restaurantLegal.cep}</div>}
+                </div>
+                <div className="flex flex-col items-center shrink-0">
+                  <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW`} size={46} level="M" marginSize={0} />
+                  <div className="font-bold" style={{ fontSize: "8px" }}>#PREVIEW</div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-x-3 flex-1" style={{ rowGap: "1px" }}>
-                <span className="truncate"><span className="font-bold">Fab:</span> {format(now, "dd/MM HH:mm", { locale: ptBR })}</span>
-                <span className="truncate"><span className="font-bold">Val:</span> {format(expiryDate, "dd/MM/yyyy", { locale: ptBR })}</span>
-                <span className="truncate"><span className="font-bold">Resp:</span> {employee.name}</span>
-                {batch && <span className="truncate"><span className="font-bold">Lote:</span> {batch}</span>}
-                {quantityWeight && <span className="truncate"><span className="font-bold">Qtd:</span> {quantityWeight}</span>}
-              </div>
-              {notes && <p className="italic border-t border-dashed border-black truncate" style={{ fontSize: "9px", marginTop: "3px", paddingTop: "2px" }}><span className="font-bold not-italic">Obs:</span> {notes}</p>}
-              {restaurant?.name && <p className="text-center font-semibold uppercase border-t border-black truncate" style={{ fontSize: "8px", marginTop: "3px", paddingTop: "2px" }}>{restaurant.name}</p>}
+
+              {allergens && (
+                <div className="font-extrabold uppercase text-center border border-black" style={{ fontSize: "9px", padding: "1px 3px", marginTop: "3px", letterSpacing: "0.3px" }}>
+                  CONTÉM: {allergens}
+                </div>
+              )}
             </div>
+            <p className="text-[10px] text-muted-foreground mt-3 text-center">
+              Conforme RDC 216/2004 · Portaria CVS 5/2013 · RDC 26/2015
+            </p>
           </Card>
         </div>
       )}
