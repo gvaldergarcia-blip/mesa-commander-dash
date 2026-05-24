@@ -7,6 +7,7 @@ export interface PrintLabelData {
   expiryDate: Date;
   responsible: string;
   notes?: string | null;
+  cif?: string | null;
   quantity: number;
   batch?: string | null;
   quantityWeight?: string | null;
@@ -65,6 +66,11 @@ export function printLabels(data: PrintLabelData) {
           ${
             data.notes
               ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
+              : ""
+          }
+          ${
+            data.cif
+              ? `<div class="cif"><span class="k">CIF:</span> ${escapeHtml(data.cif)}</div>`
               : ""
           }
           ${
