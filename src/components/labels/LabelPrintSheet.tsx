@@ -86,8 +86,9 @@ export function printLabels(data: PrintLabelData) {
             <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
             <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
             ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}
-            ${data.storageLocation ? `<div class="d-row"><span class="k">LOCAL:</span><span class="v">${escapeHtml(data.storageLocation.toUpperCase())}</span></div>` : ""}
           </div>
+
+          ${data.storageLocation ? `<div class="local-row"><span class="k">LOCAL:</span> <span class="v">${escapeHtml(data.storageLocation.toUpperCase())}</span></div>` : ""}
 
           <div class="bottom">
             <div class="footer-info">${footerLines.join("")}</div>
@@ -136,6 +137,9 @@ export function printLabels(data: PrintLabelData) {
     .d-row { display: flex; gap: 2mm; font-size: 7pt; line-height: 1.25; }
     .d-row .k { font-weight: 700; min-width: 18mm; }
     .d-row .v { font-weight: 600; }
+    .local-row { margin-top: 1mm; font-size: 7pt; }
+    .local-row .k { font-weight: 800; }
+    .local-row .v { font-weight: 700; }
     .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 2mm; margin-top: 1mm; flex: 1; }
     .footer-info { flex: 1; min-width: 0; }
     .f-line { font-size: 6.5pt; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
