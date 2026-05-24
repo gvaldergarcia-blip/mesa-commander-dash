@@ -23,6 +23,39 @@ export const CATEGORY_COLORS: Record<string, string> = {
   "Outros": "bg-muted text-muted-foreground border-border",
 };
 
+// Left-border accent hex per category (used as inline style)
+export const CATEGORY_BORDER_HEX: Record<string, string> = {
+  "Carnes": "#E53E3E",
+  "Aves": "#DD6B20",
+  "Peixes": "#3182CE",
+  "Laticínios": "#D69E2E",
+  "Hortifruti": "#38A169",
+  "Molhos e Bases": "#805AD5",
+  "Sobremesas": "#D53F8C",
+  "Outros": "#718096",
+};
+
+export const CATEGORY_ICONS: Record<string, string> = {
+  "Carnes": "🥩",
+  "Aves": "🍗",
+  "Peixes": "🐟",
+  "Laticínios": "🧀",
+  "Hortifruti": "🥦",
+  "Molhos e Bases": "🍅",
+  "Sobremesas": "🍮",
+  "Outros": "",
+};
+
+export function getCategoryBorderHex(category?: string | null): string | null {
+  if (!category) return null;
+  return CATEGORY_BORDER_HEX[category] || null;
+}
+
+export function getCategoryIcon(category?: string | null): string {
+  if (!category) return "";
+  return CATEGORY_ICONS[category] || "";
+}
+
 export function getCategoryColor(category?: string | null) {
   if (!category) return CATEGORY_COLORS["Outros"];
   return CATEGORY_COLORS[category] || CATEGORY_COLORS["Outros"];
