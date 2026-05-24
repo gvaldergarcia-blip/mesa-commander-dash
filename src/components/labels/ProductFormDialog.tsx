@@ -140,12 +140,12 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prod-cif">CIF (Identificação do Fabricante) — opcional</Label>
+            <Label htmlFor="prod-cif">CIF — Comunicado de Início de Fabricação (opcional)</Label>
             <Input
               id="prod-cif"
               value={cif}
               onChange={(e) => setCif(e.target.value)}
-              placeholder="Ex: CNPJ ou código do fornecedor"
+              placeholder="Nº do CIF junto à Anvisa/Vigilância Sanitária"
               maxLength={80}
             />
             <p className="text-[11px] text-muted-foreground">
