@@ -105,12 +105,14 @@ serve(async (req) => {
     }
 
     if (ownerId !== user.id) {
-      const { data: isMember } = await admin.rpc("is_member_or_admin", {
-        _user_id: user.id,
-        _restaurant_id: restaurantId,
-      });
-      if (!isMember) {
-        const { data: isAdm } = await admin.rpc("is_admin", { user_id: user.id });
+      const { data: member } = await admin
+        .from("restaurant_members")
+        .select("user_id")
+        .eq("restaurant_id", restaurantId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!member) {
+        const { data: isAdm } = await admin.rpc("is_admin", { p_user_id: user.id });
         if (!isAdm) return json({ error: "Forbidden" }, 403);
       }
     }
