@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Snowflake, Flame, Thermometer, Refrigerator, Loader2, Hash } from "lucide-react";
+import { Snowflake, Flame, Thermometer, Refrigerator, Loader2, Hash, Download, X, Trash2 } from "lucide-react";
 import { Label, DischargeReason } from "@/hooks/useLabels";
-import { classifyExpiry, CONSERVATION_LABEL, REASON_LABEL } from "@/lib/labels/utils";
+import { classifyExpiry, CONSERVATION_LABEL, REASON_LABEL, toCsv, downloadCsv } from "@/lib/labels/utils";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -28,19 +27,23 @@ const conservationIcon = (c: string | null) => {
   }
 };
 
-const statusBadge = (l: Label) => {
-  if (l.status === "discharged") return <Badge variant="secondary">Baixado</Badge>;
-  if (l.status === "expired") return <Badge className="bg-destructive text-destructive-foreground">Vencido</Badge>;
-  return <Badge className="bg-success text-success-foreground">Ativo</Badge>;
+const statusPill = (l: Label) => {
+  if (l.status === "discharged") return { label: "Baixado", style: { backgroundColor: "#2D2D44", color: "#A0AEC0" } };
+  if (l.status === "expired") return { label: "Vencido", style: { backgroundColor: "#7F1D1D", color: "#FECACA" } };
+  const c = classifyExpiry(l.expiry_date);
+  if (c === "expired") return { label: "Vencido", style: { backgroundColor: "#7F1D1D", color: "#FECACA" } };
+  if (c === "today") return { label: "Hoje", style: { backgroundColor: "#78350F", color: "#FDE68A" } };
+  if (c === "tomorrow") return { label: "Amanhã", style: { backgroundColor: "#1E3A5F", color: "#BFDBFE" } };
+  return { label: "Ativo", style: { backgroundColor: "#14532D", color: "#BBF7D0" } };
 };
 
-const rowClass = (l: Label) => {
-  if (l.status === "discharged") return "bg-muted/20 opacity-70";
+const leftBorderColor = (l: Label) => {
+  if (l.status === "discharged") return "#2D2D44";
   const c = classifyExpiry(l.expiry_date);
-  if (c === "expired") return "bg-destructive/10 border-l-4 border-l-destructive";
-  if (c === "today") return "bg-warning/10 border-l-4 border-l-warning";
-  if (c === "tomorrow") return "bg-accent/10 border-l-4 border-l-accent";
-  return "";
+  if (c === "expired" || l.status === "expired") return "#E53E3E";
+  if (c === "today") return "#ED8936";
+  if (c === "tomorrow") return "#4299E1";
+  return "#48BB78";
 };
 
 export function LabelsList({ labels, isLoading, selected, onSelectedChange, onBulkDischarge }: Props) {
@@ -67,45 +70,99 @@ export function LabelsList({ labels, isLoading, selected, onSelectedChange, onBu
     );
   }
 
+  const handleExportSelected = () => {
+    const subset = labels.filter((l) => selected.includes(l.id));
+    if (subset.length === 0) return;
+    downloadCsv(`etiquetas-selecionadas-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(subset));
+  };
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-        <div className="flex items-center gap-3">
+      {/* Toolbar compacto / barra de ações em massa */}
+      <div
+        className={cn(
+          "sticky top-0 z-10 flex items-center justify-between gap-3 px-3 py-2 rounded-xl border transition-colors",
+          selected.length > 0
+            ? "bg-[#1A1A2E] border-[#FF6B00]/60 shadow-lg shadow-[#FF6B00]/10"
+            : "bg-[#161626] border-[#2D2D44]"
+        )}
+      >
+        <div className="flex items-center gap-3 min-w-0">
           <Checkbox checked={selected.length === labels.length && labels.length > 0} onCheckedChange={toggleAll} />
-          <span className="text-sm text-muted-foreground">
-            {selected.length > 0 ? `${selected.length} selecionada(s)` : `${labels.length} etiqueta(s)`}
+          <span className="text-xs font-medium text-[#A0AEC0] truncate">
+            {selected.length > 0
+              ? <><span className="text-[#FF6B00] font-bold">{selected.length}</span> selecionada(s) de {labels.length}</>
+              : <>{labels.length} etiqueta(s)</>}
           </span>
         </div>
         {selected.length > 0 && (
-          <Button size="sm" variant="destructive" onClick={() => setBulkReason("use")} className="gap-2">
-            Baixar selecionadas
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={handleExportSelected} className="h-8 gap-1.5 text-[#A0AEC0] hover:text-white hover:bg-[#2D2D44]">
+              <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exportar</span>
+            </Button>
+            <Button size="sm" onClick={() => setBulkReason("use")} className="h-8 gap-1.5 bg-[#E53E3E] hover:bg-[#C53030] text-white">
+              <Trash2 className="h-3.5 w-3.5" /> Baixar
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => onSelectedChange([])} className="h-8 w-8 p-0 text-[#718096] hover:text-white hover:bg-[#2D2D44]" aria-label="Limpar seleção">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className="space-y-2">
+      {/* Lista compacta — 1 linha por etiqueta */}
+      <div className="space-y-1">
         {labels.map((l) => {
           const Icon = conservationIcon(l.conservation_method);
+          const pill = statusPill(l);
+          const isSelected = selected.includes(l.id);
+          const isDischarged = l.status === "discharged";
           return (
-            <div key={l.id} className={cn("flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card/40", rowClass(l))}>
-              <Checkbox checked={selected.includes(l.id)} onCheckedChange={() => toggle(l.id)} />
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold truncate">{l.product_name}</span>
-                  <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-md">#{l.unique_code}</span>
-                  {statusBadge(l)}
-                  {l.discharge_reason && (
-                    <Badge variant="outline" className="text-xs">{REASON_LABEL[l.discharge_reason]}</Badge>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
-                  <span className="flex items-center gap-1"><Icon className="h-3 w-3" /> {CONSERVATION_LABEL[l.conservation_method || ""] || "—"}</span>
-                  <span>Resp: <strong className="text-foreground">{l.employee_name || l.responsible || "—"}</strong></span>
-                  <span>Fab: {format(new Date(l.manufacture_date), "dd/MM HH:mm", { locale: ptBR })}</span>
-                  <span>Val: <strong className="text-foreground">{format(new Date(l.expiry_date), "dd/MM/yyyy", { locale: ptBR })}</strong></span>
-                  {l.batch && <span>Lote: {l.batch}</span>}
-                </div>
+            <div
+              key={l.id}
+              onClick={() => toggle(l.id)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-all",
+                isSelected
+                  ? "bg-[#1F1F3A] border-[#FF6B00]/60"
+                  : "bg-[#1A1A2E] border-[#2D2D44] hover:bg-[#1F1F3A] hover:border-[#3D3D5C]",
+                isDischarged && "opacity-60"
+              )}
+              style={{ borderLeftWidth: 4, borderLeftColor: leftBorderColor(l) }}
+            >
+              <Checkbox checked={isSelected} onCheckedChange={() => toggle(l.id)} onClick={(e) => e.stopPropagation()} />
+
+              {/* Nome + código */}
+              <div className="flex items-center gap-2 min-w-0 flex-[2]">
+                <span className="font-semibold text-sm text-white truncate">{l.product_name}</span>
+                <span className="font-mono text-[10px] text-[#FF6B00] bg-[#FF6B00]/10 px-1.5 py-0.5 rounded shrink-0">#{l.unique_code}</span>
               </div>
+
+              {/* Meta inline */}
+              <div className="hidden md:flex items-center gap-4 text-xs text-[#718096] flex-1 min-w-0">
+                <span className="flex items-center gap-1 shrink-0" title={CONSERVATION_LABEL[l.conservation_method || ""] || "—"}>
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="truncate">
+                  <span className="text-[#A0AEC0]">{l.employee_name || l.responsible || "—"}</span>
+                </span>
+                <span className="shrink-0">
+                  Val: <span className="text-white font-medium">{format(new Date(l.expiry_date), "dd/MM", { locale: ptBR })}</span>
+                </span>
+              </div>
+
+              {/* Status pill */}
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shrink-0"
+                style={pill.style}
+              >
+                {pill.label}
+              </span>
+              {l.discharge_reason && (
+                <span className="hidden sm:inline text-[10px] text-[#A0AEC0] bg-[#2D2D44] px-1.5 py-0.5 rounded shrink-0">
+                  {REASON_LABEL[l.discharge_reason]}
+                </span>
+              )}
             </div>
           );
         })}
