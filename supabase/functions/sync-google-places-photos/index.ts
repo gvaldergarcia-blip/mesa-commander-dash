@@ -7,6 +7,113 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+type GooglePhotoCandidate = {
+  name: string;
+  mediaUrl: string;
+};
+
+type SearchAttempt = {
+  ok: boolean;
+  source: "places-new" | "places-legacy";
+  placeFound: boolean;
+  photos: GooglePhotoCandidate[];
+  errorMessage?: string;
+  status?: number;
+};
+
+async function searchPlacesNew(apiKey: string, query: string): Promise<SearchAttempt> {
+  const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.photos",
+    },
+    body: JSON.stringify({ textQuery: query, maxResultCount: 1, languageCode: "pt-BR" }),
+  });
+
+  if (!searchRes.ok) {
+    const text = await searchRes.text();
+    console.error("Places searchText error:", searchRes.status, text);
+    return {
+      ok: false,
+      source: "places-new",
+      placeFound: false,
+      photos: [],
+      status: searchRes.status,
+      errorMessage: `Places API (New): ${searchRes.status}. ${text.slice(0, 240)}`,
+    };
+  }
+
+  const searchData = await searchRes.json();
+  const place = searchData?.places?.[0];
+  const photos = (place?.photos ?? []).slice(0, 6).map((photo: any) => ({
+    name: photo?.name,
+    mediaUrl: photo?.name
+      ? `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=1600&key=${apiKey}`
+      : "",
+  })).filter((photo: GooglePhotoCandidate) => !!photo.name && !!photo.mediaUrl);
+
+  return {
+    ok: true,
+    source: "places-new",
+    placeFound: !!place,
+    photos,
+  };
+}
+
+async function searchPlacesLegacy(apiKey: string, query: string): Promise<SearchAttempt> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
+  url.searchParams.set("input", query);
+  url.searchParams.set("inputtype", "textquery");
+  url.searchParams.set("fields", "place_id,name,formatted_address,photos");
+  url.searchParams.set("language", "pt-BR");
+  url.searchParams.set("key", apiKey);
+
+  const searchRes = await fetch(url.toString());
+  if (!searchRes.ok) {
+    const text = await searchRes.text();
+    console.error("Places legacy findplacefromtext HTTP error:", searchRes.status, text);
+    return {
+      ok: false,
+      source: "places-legacy",
+      placeFound: false,
+      photos: [],
+      status: searchRes.status,
+      errorMessage: `Places API (legacy): ${searchRes.status}. ${text.slice(0, 240)}`,
+    };
+  }
+
+  const searchData = await searchRes.json();
+  const apiStatus = searchData?.status;
+  if (apiStatus && apiStatus !== "OK" && apiStatus !== "ZERO_RESULTS") {
+    const errorMessage = [searchData?.error_message, apiStatus].filter(Boolean).join(" - ");
+    console.error("Places legacy findplacefromtext API error:", errorMessage);
+    return {
+      ok: false,
+      source: "places-legacy",
+      placeFound: false,
+      photos: [],
+      errorMessage: `Places API (legacy): ${errorMessage || "erro desconhecido"}`,
+    };
+  }
+
+  const place = searchData?.candidates?.[0];
+  const photos = (place?.photos ?? []).slice(0, 6).map((photo: any) => ({
+    name: photo?.photo_reference,
+    mediaUrl: photo?.photo_reference
+      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1600&photo_reference=${encodeURIComponent(photo.photo_reference)}&key=${apiKey}`
+      : "",
+  })).filter((photo: GooglePhotoCandidate) => !!photo.name && !!photo.mediaUrl);
+
+  return {
+    ok: true,
+    source: "places-legacy",
+    placeFound: !!place,
+    photos,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -65,34 +172,31 @@ serve(async (req) => {
 
     const query = [rest.name, rest.address_line, rest.city].filter(Boolean).join(" ");
 
-    // 1) Places API (New): text search to find the place + photos in one call
-    const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": GOOGLE_API_KEY,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.photos",
-      },
-      body: JSON.stringify({ textQuery: query, maxResultCount: 1, languageCode: "pt-BR" }),
-    });
-    if (!searchRes.ok) {
-      const t = await searchRes.text();
-      console.error("Places searchText error:", searchRes.status, t);
+    const attemptNew = await searchPlacesNew(GOOGLE_API_KEY, query);
+    const searchAttempt = attemptNew.ok && attemptNew.placeFound && attemptNew.photos.length > 0
+      ? attemptNew
+      : await searchPlacesLegacy(GOOGLE_API_KEY, query);
+
+    if (!searchAttempt.ok) {
+      const details = [attemptNew.errorMessage, searchAttempt.errorMessage]
+        .filter(Boolean)
+        .join(" | fallback: ");
       return new Response(
-        JSON.stringify({ error: `Google Places API: ${searchRes.status}. ${t.slice(0, 200)}` }),
+        JSON.stringify({
+          error: details || "Não foi possível consultar o Google Places com a chave configurada.",
+        }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const searchData = await searchRes.json();
-    const place = searchData?.places?.[0];
-    if (!place) {
+
+    if (!searchAttempt.placeFound) {
       return new Response(
         JSON.stringify({ error: "Restaurante não encontrado no Google. Verifique nome e endereço ou faça upload manual." }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const photos = (place.photos ?? []).slice(0, 6);
-    if (photos.length === 0) {
+
+    if (searchAttempt.photos.length === 0) {
       return new Response(
         JSON.stringify({ error: "Nenhuma foto encontrada no Google para este local. Faça upload manual." }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -121,14 +225,13 @@ serve(async (req) => {
     }
 
     const saved: any[] = [];
-    for (let i = 0; i < photos.length; i++) {
-      const photoName = photos[i].name; // e.g. "places/XXX/photos/YYY"
-      if (!photoName) continue;
-      const photoUrl = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1600&key=${GOOGLE_API_KEY}`;
-      const photoRes = await fetch(photoUrl);
+    for (let i = 0; i < searchAttempt.photos.length; i++) {
+      const photo = searchAttempt.photos[i];
+      if (!photo?.name || !photo?.mediaUrl) continue;
+      const photoRes = await fetch(photo.mediaUrl);
       if (!photoRes.ok) {
         const t = await photoRes.text();
-        console.error("photo fetch error", i, photoRes.status, t.slice(0, 200));
+        console.error("photo fetch error", searchAttempt.source, i, photoRes.status, t.slice(0, 200));
         continue;
       }
       const arrayBuffer = await photoRes.arrayBuffer();
