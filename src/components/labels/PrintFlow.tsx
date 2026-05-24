@@ -40,6 +40,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [quantityWeight, setQuantityWeight] = useState("");
   const [conservation, setConservation] = useState<string>("refrigerated");
   const [notes, setNotes] = useState("");
+  const [cif, setCif] = useState("");
   const [printQty, setPrintQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,6 +49,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       setNow(new Date());
       setConservation(product.conservation_method || "refrigerated");
       setNotes(product.default_observation || product.notes || "");
+      setCif(product.cif || "");
     }
   }, [product]);
 
@@ -70,7 +72,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
 
   const reset = () => {
     setStep(1); setEmployee(null); setProduct(null);
-    setBatch(""); setQuantityWeight(""); setNotes(""); setPrintQty(1);
+    setBatch(""); setQuantityWeight(""); setNotes(""); setCif(""); setPrintQty(1);
     setProductSearch("");
   };
 
@@ -101,7 +103,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         expiryDate,
         responsible: employee.name,
         notes: notes.trim() || null,
-        cif: product.cif?.trim() || null,
+        cif: cif.trim() || null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
@@ -230,6 +232,11 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
             <div className="space-y-1">
               <Label>Observação</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={200} />
+            </div>
+
+            <div className="space-y-1">
+              <Label>CIF (opcional)</Label>
+              <Input value={cif} onChange={(e) => setCif(e.target.value)} maxLength={80} placeholder="CNPJ ou código do fornecedor" />
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
