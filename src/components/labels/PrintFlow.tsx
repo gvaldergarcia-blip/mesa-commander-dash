@@ -41,6 +41,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [conservation, setConservation] = useState<string>("refrigerated");
   const [notes, setNotes] = useState("");
   const [cif, setCif] = useState("");
+  const [allergens, setAllergens] = useState("");
+  const [ingredients, setIngredients] = useState("");
   const [printQty, setPrintQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -50,6 +52,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       setConservation(product.conservation_method || "refrigerated");
       setNotes(product.default_observation || product.notes || "");
       setCif(product.cif || "");
+      setAllergens((product as any).allergens || "");
+      setIngredients((product as any).ingredients || "");
     }
   }, [product]);
 
@@ -72,7 +76,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
 
   const reset = () => {
     setStep(1); setEmployee(null); setProduct(null);
-    setBatch(""); setQuantityWeight(""); setNotes(""); setCif(""); setPrintQty(1);
+    setBatch(""); setQuantityWeight(""); setNotes(""); setCif("");
+    setAllergens(""); setIngredients(""); setPrintQty(1);
     setProductSearch("");
   };
 
@@ -92,6 +97,9 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         employee_id: employee.id,
         conservation_method: conservation as any,
         notes: notes.trim() || null,
+        cif: cif.trim() || null,
+        allergens: allergens.trim() || null,
+        ingredients: ingredients.trim() || null,
       });
       const scanUrl = `${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}`;
       const qrSvg = renderToStaticMarkup(
@@ -104,6 +112,9 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         responsible: employee.name,
         notes: notes.trim() || null,
         cif: cif.trim() || null,
+        allergens: allergens.trim() || null,
+        ingredients: ingredients.trim() || null,
+        conservationLabel: CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL] || null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
