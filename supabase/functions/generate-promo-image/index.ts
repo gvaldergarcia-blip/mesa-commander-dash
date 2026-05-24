@@ -156,7 +156,50 @@ NO PRICES, NO DISCOUNT BADGES — this is a brand/awareness post, treat it like 
     }
 
     if (realAmbient) {
-      promptText += `\n\nREAL AMBIENT (HIGHEST PRIORITY): An attached image shows the REAL interior of ${restaurantName}. Compose the dish naturally on a table in that exact venue's foreground. Preserve EVERY detail of the interior — furniture, walls, lighting, decor, architecture — unchanged. Soft bokeh background, sharp dish in front. The final image must look like a real photographer captured it inside this exact restaurant.`;
+      // Force visual variety across multiple generations using the same ambient photo
+      const angles = [
+        "low 3/4 angle from the diner's seated perspective, ~30° from the table surface",
+        "high overhead 75°–85° flat-lay capturing the table edge and a slice of the venue behind",
+        "side-on eye-level shot at table height, dish in sharp foreground, deep ambient bokeh",
+        "over-the-shoulder angle as if a guest is reaching toward the plate, ambient visible in the upper third",
+        "wide 35mm establishing shot with the dish offset to the left third and the restaurant interior filling the right two-thirds",
+        "intimate macro-leaning 50mm shot, dish slightly off-center, window light from camera-left, ambient softly defocused",
+      ];
+      const positions = [
+        "dish on the lower-left third of the frame",
+        "dish on the lower-right third",
+        "dish centered with cutlery entering from the right edge",
+        "dish on the upper-left third with a wine glass companion",
+        "dish framed between two out-of-focus foreground elements (glass, bread basket)",
+      ];
+      const lightMoods = [
+        "warm golden-hour window light from camera-left",
+        "cool overcast daylight, soft and even",
+        "moody tungsten evening light with warm highlights and deep shadows",
+        "bright midday diffused light bouncing off pale surfaces",
+      ];
+      const seed = Math.floor(Math.random() * 1_000_000);
+      const angle = angles[seed % angles.length];
+      const position = positions[(seed >> 3) % positions.length];
+      const mood = lightMoods[(seed >> 5) % lightMoods.length];
+
+      promptText += `\n\nREAL AMBIENT (HIGHEST PRIORITY): An attached image shows the REAL interior of ${restaurantName}. Place the dish naturally on a table inside that exact venue. Preserve EVERY architectural detail — walls, furniture, decor, lighting fixtures, ceiling, flooring — UNCHANGED, as if a photographer stood inside and shot the dish on location.
+
+VARIATION DIRECTIVE (variation seed #${seed} — MUST differ from any prior generation in this venue):
+- Camera angle for THIS shot: ${angle}.
+- Dish position in frame: ${position}.
+- Lighting mood: ${mood}.
+- Pick a DIFFERENT table, corner, or vantage point of the venue than an obvious centered hero. Show a new slice of the restaurant each time.
+- Vary plate, cutlery, glassware and props naturally — never reuse the exact same flat-lay twice.
+- Background must remain recognisable as the same restaurant but viewed from a fresh perspective.
+
+PHOTOREALISM (MANDATORY — this is a real-on-location editorial shot, not a render):
+- Output must be INDISTINGUISHABLE from a 35mm full-frame DSLR photograph (Canon R5 / Sony A7R / Hasselblad look).
+- Real physics of light: accurate shadows, soft falloff, believable reflections on cutlery and glass, micro-contrast on the food.
+- Real skin/material textures: tablecloth fibres, ceramic glaze imperfections, food surface moisture and steam.
+- ABSOLUTELY NO 3D-render look, no CGI plastic sheen, no AI-smoothing, no over-saturated colors, no fake bokeh discs.
+- The ambient interior must look photographed (same grain, same white balance, same depth cues) — not pasted onto the dish.
+- If anything looks "AI-generated" — redo lighting, perspective, and texture until it could pass as a phone-uploaded restaurant photo.`;
     }
 
     promptText += `\n\nFinal check: would this image fit on the cover of a premium gastronomy magazine? If not, refine the lighting, typography, and composition until it does.`;
