@@ -235,8 +235,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
             </div>
 
             <div className="space-y-1">
-              <Label>CIF (opcional)</Label>
-              <Input value={cif} onChange={(e) => setCif(e.target.value)} maxLength={80} placeholder="CNPJ ou código do fornecedor" />
+              <Label>CIF — Comunicado de Início de Fabricação (opcional)</Label>
+              <Input
+                value={cif}
+                onChange={(e) => setCif(e.target.value)}
+                maxLength={80}
+                placeholder="Nº do CIF junto à Anvisa/Vigilância Sanitária"
+              />
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
