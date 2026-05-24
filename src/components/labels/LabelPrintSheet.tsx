@@ -11,19 +11,21 @@ export interface PrintLabelData {
   allergens?: string | null;
   ingredients?: string | null;
   conservationLabel?: string | null;
+  storageLocation?: string | null;
   quantity: number;
   batch?: string | null;
   quantityWeight?: string | null;
   restaurantName?: string | null;
   restaurantLogoUrl?: string | null;
+  restaurantCnpj?: string | null;
+  restaurantCep?: string | null;
   /** SVG markup pronto (ex: renderToStaticMarkup(<QRCodeSVG/>)) */
   checklistQrSvg?: string | null;
   /** Texto curto exibido abaixo do QR */
   checklistQrLabel?: string | null;
 }
 
-const fmtDateTime = (d: Date) => format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-const fmtDate = (d: Date) => format(d, "dd/MM/yyyy", { locale: ptBR });
+const fmtDateTime = (d: Date) => format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
 
 const escapeHtml = (s: string) =>
   s
@@ -34,73 +36,74 @@ const escapeHtml = (s: string) =>
     .replace(/'/g, "&#39;");
 
 /**
- * Imprime as etiquetas na própria página, sem pop-up.
- *
- * O Chrome dentro do preview bloqueia janelas novas; por isso criamos uma área
- * temporária fora do app e, durante o @media print, mostramos só a etiqueta.
+ * Imprime as etiquetas no padrão ANVISA (estilo YesChef), 80×40mm.
  */
 export function printLabels(data: PrintLabelData) {
-  const hasQr = !!data.checklistQrSvg;
-  const hasLogo = !!data.restaurantLogoUrl;
-  const headerRight = hasQr
+  const qrBlock = data.checklistQrSvg
     ? `<div class="qr-wrap">${data.checklistQrSvg}${
         data.checklistQrLabel ? `<div class="qr-label">${escapeHtml(data.checklistQrLabel)}</div>` : ""
       }</div>`
-    : hasLogo
-    ? `<img class="logo" src="${escapeHtml(data.restaurantLogoUrl!)}" alt="logo" />`
-    : `<div class="rest-name-top">${escapeHtml(data.restaurantName || "")}</div>`;
+    : "";
 
-  const bodyRows: string[] = [];
-  bodyRows.push(`<div class="cell"><span class="k">Fab:</span> ${escapeHtml(fmtDateTime(data.manufactureDate))}</div>`);
-  bodyRows.push(`<div class="cell"><span class="k">Val:</span> ${escapeHtml(fmtDate(data.expiryDate))}</div>`);
-  bodyRows.push(`<div class="cell"><span class="k">Resp:</span> ${escapeHtml(data.responsible)}</div>`);
-  if (data.batch) bodyRows.push(`<div class="cell"><span class="k">Lote:</span> ${escapeHtml(data.batch)}</div>`);
-  if (data.quantityWeight) bodyRows.push(`<div class="cell"><span class="k">Qtd:</span> ${escapeHtml(data.quantityWeight)}</div>`);
-  if (data.conservationLabel) bodyRows.push(`<div class="cell"><span class="k">Cons:</span> ${escapeHtml(data.conservationLabel)}</div>`);
+  const weight = data.quantityWeight ? `<div class="weight">${escapeHtml(data.quantityWeight)}</div>` : "";
 
-  const labelsHtml = Array.from({ length: data.quantity })
-    .map(
-      () => `
+  const footerLines: string[] = [];
+  footerLines.push(
+    `<div class="f-line"><span class="k">RESP:</span> ${escapeHtml(data.responsible)}</div>`
+  );
+  if (data.restaurantName)
+    footerLines.push(`<div class="f-line est">${escapeHtml(data.restaurantName.toUpperCase())}</div>`);
+  if (data.restaurantCnpj)
+    footerLines.push(`<div class="f-line"><span class="k">CNPJ:</span> ${escapeHtml(data.restaurantCnpj)}</div>`);
+  if (data.cif)
+    footerLines.push(`<div class="f-line"><span class="k">CIF:</span> ${escapeHtml(data.cif)}</div>`);
+  if (data.restaurantCep)
+    footerLines.push(`<div class="f-line"><span class="k">CEP:</span> ${escapeHtml(data.restaurantCep)}</div>`);
+
+  const allergensBlock = data.allergens
+    ? `<div class="allergens">CONTÉM: ${escapeHtml(data.allergens.toUpperCase())}</div>`
+    : "";
+
+  const ingredientsBlock = data.ingredients
+    ? `<div class="ingredients"><span class="k">Ingr:</span> ${escapeHtml(data.ingredients)}</div>`
+    : "";
+
+  const notesBlock = data.notes
+    ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
+    : "";
+
+  const labelHtml = `
         <div class="label">
-          <div class="header">
-            <div class="name">${escapeHtml(data.productName)}</div>
-            <div class="header-right">${headerRight}</div>
+          <div class="top">
+            <div class="top-left">
+              <div class="name">${escapeHtml(data.productName.toUpperCase())}</div>
+              ${data.conservationLabel ? `<div class="cons">${escapeHtml(data.conservationLabel.toUpperCase())}</div>` : ""}
+            </div>
+            ${weight}
           </div>
-          <div class="body">${bodyRows.join("")}</div>
-          ${
-            data.notes
-              ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
-              : ""
-          }
-          ${
-            data.cif
-              ? `<div class="cif"><span class="k">CIF:</span> ${escapeHtml(data.cif)}</div>`
-              : ""
-          }
-          ${
-            data.allergens
-              ? `<div class="allergens"><span class="k">ALERGÊNICOS:</span> ${escapeHtml(data.allergens)}</div>`
-              : ""
-          }
-          ${
-            data.ingredients
-              ? `<div class="ingredients"><span class="k">Ingredientes:</span> ${escapeHtml(data.ingredients)}</div>`
-              : ""
-          }
-          ${
-            data.restaurantName
-              ? `<div class="footer">${escapeHtml(data.restaurantName)}</div>`
-              : ""
-          }
-        </div>`
-    )
-    .join("");
 
+          <div class="dates">
+            <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
+            <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
+            ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}
+            ${data.storageLocation ? `<div class="d-row"><span class="k">LOCAL:</span><span class="v">${escapeHtml(data.storageLocation.toUpperCase())}</span></div>` : ""}
+          </div>
+
+          <div class="bottom">
+            <div class="footer-info">${footerLines.join("")}</div>
+            ${qrBlock}
+          </div>
+
+          ${allergensBlock}
+          ${ingredientsBlock}
+          ${notesBlock}
+        </div>`;
+
+  const labelsHtml = Array.from({ length: data.quantity }).map(() => labelHtml).join("");
   const html = `<main class="label-print-sheet">${labelsHtml}</main>`;
+
   const styleText = `
-  @media screen {
-    .label-print-runtime { display: none !important; }
-  }
+  @media screen { .label-print-runtime { display: none !important; } }
   @media print {
     @page { size: 80mm 40mm; margin: 0; }
     body > *:not(.label-print-runtime) { display: none !important; }
@@ -115,108 +118,37 @@ export function printLabels(data: PrintLabelData) {
       print-color-adjust: exact;
     }
     .label-print-sheet { padding: 0; }
-  .label {
-    width: 80mm;
-    height: 40mm;
-    box-sizing: border-box;
-    border: 1px solid #000;
-    padding: 2mm 3mm;
-    margin: 0;
-    page-break-inside: avoid;
-    break-inside: avoid;
-    page-break-after: always;
-    background: #fff !important;
-    color: #000 !important;
-    font-size: 8pt;
-    line-height: 1.2;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .label:last-child { page-break-after: auto; }
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2mm;
-    border-bottom: 1px solid #000;
-    padding-bottom: 1mm;
-    margin-bottom: 1.5mm;
-  }
-  .name {
-    font-size: 12pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-  }
-  .header-right { flex-shrink: 0; display: flex; align-items: center; }
-  .logo { width: 20px; height: 20px; object-fit: contain; }
-  .rest-name-top { font-size: 8pt; font-weight: 700; text-transform: uppercase; }
-  .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5mm; }
-  .qr-wrap svg { width: 14mm; height: 14mm; display: block; }
-  .qr-label { font-size: 5pt; text-align: center; line-height: 1; max-width: 16mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .body {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 3mm;
-    row-gap: 0.5mm;
-    flex: 1;
-  }
-  .cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 8pt; }
-  .k { font-weight: 700; }
-  .notes {
-    margin-top: 1mm;
-    padding-top: 1mm;
-    border-top: 1px dashed #000;
-    font-style: italic;
-    font-size: 7pt;
-    line-height: 1.15;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .cif {
-    margin-top: 0.5mm;
-    font-size: 7pt;
-    line-height: 1.15;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .allergens {
-    margin-top: 0.5mm;
-    font-size: 7pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    line-height: 1.15;
-    overflow: hidden;
-  }
-  .ingredients {
-    margin-top: 0.5mm;
-    font-size: 6.5pt;
-    line-height: 1.1;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-  .footer {
-    margin-top: 1mm;
-    padding-top: 1mm;
-    border-top: 1px solid #000;
-    text-align: center;
-    font-size: 7pt;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+    .label {
+      width: 80mm; height: 40mm; box-sizing: border-box;
+      padding: 2mm 2.5mm; margin: 0;
+      page-break-inside: avoid; break-inside: avoid; page-break-after: always;
+      background: #fff !important; color: #000 !important;
+      font-size: 7pt; line-height: 1.15;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .label:last-child { page-break-after: auto; }
+    .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 2mm; }
+    .top-left { flex: 1; min-width: 0; }
+    .name { font-size: 11pt; font-weight: 800; letter-spacing: 0.2px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cons { font-size: 7pt; font-weight: 600; color: #000; margin-top: 0.3mm; letter-spacing: 0.3px; }
+    .weight { font-size: 11pt; font-weight: 800; white-space: nowrap; }
+    .dates { margin-top: 1.2mm; border-top: 0.3mm solid #000; border-bottom: 0.3mm solid #000; padding: 1mm 0; }
+    .d-row { display: flex; gap: 2mm; font-size: 7pt; line-height: 1.25; }
+    .d-row .k { font-weight: 700; min-width: 18mm; }
+    .d-row .v { font-weight: 600; }
+    .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 2mm; margin-top: 1mm; flex: 1; }
+    .footer-info { flex: 1; min-width: 0; }
+    .f-line { font-size: 6.5pt; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-line .k { font-weight: 700; }
+    .f-line.est { font-weight: 700; font-size: 7pt; }
+    .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3mm; flex-shrink: 0; }
+    .qr-wrap svg { width: 11mm; height: 11mm; display: block; }
+    .qr-label { font-size: 5.5pt; font-weight: 700; line-height: 1; }
+    .allergens { margin-top: 0.5mm; font-size: 6.5pt; font-weight: 800; letter-spacing: 0.2px; border: 0.3mm solid #000; padding: 0.5mm 1mm; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ingredients { margin-top: 0.5mm; font-size: 6pt; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .ingredients .k { font-weight: 700; }
+    .notes { margin-top: 0.5mm; font-size: 6pt; font-style: italic; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .notes .k { font-weight: 700; font-style: normal; }
   }
   `;
 
