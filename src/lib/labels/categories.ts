@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 export const PRODUCT_CATEGORIES = [
   "Carnes",
   "Aves",
@@ -11,29 +13,20 @@ export const PRODUCT_CATEGORIES = [
 
 export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 
-// Tailwind classes per category (uses semantic tokens where possible)
-export const CATEGORY_COLORS: Record<string, string> = {
-  "Carnes": "bg-red-500/15 text-red-600 border-red-500/30 dark:text-red-400",
-  "Aves": "bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400",
-  "Peixes": "bg-sky-500/15 text-sky-600 border-sky-500/30 dark:text-sky-400",
-  "Laticínios": "bg-blue-500/15 text-blue-600 border-blue-500/30 dark:text-blue-300",
-  "Hortifruti": "bg-green-500/15 text-green-600 border-green-500/30 dark:text-green-400",
-  "Molhos e Bases": "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400",
-  "Sobremesas": "bg-pink-500/15 text-pink-600 border-pink-500/30 dark:text-pink-400",
-  "Outros": "bg-muted text-muted-foreground border-border",
-};
-
-// Left-border accent hex per category (used as inline style)
-export const CATEGORY_BORDER_HEX: Record<string, string> = {
+// Hex accent per category (left border + tinted tags + filter pills)
+export const CATEGORY_HEX: Record<string, string> = {
   "Carnes": "#E53E3E",
-  "Aves": "#DD6B20",
-  "Peixes": "#3182CE",
-  "Laticínios": "#D69E2E",
-  "Hortifruti": "#38A169",
-  "Molhos e Bases": "#805AD5",
-  "Sobremesas": "#D53F8C",
+  "Aves": "#ED8936",
+  "Peixes": "#4299E1",
+  "Laticínios": "#ECC94B",
+  "Hortifruti": "#48BB78",
+  "Molhos e Bases": "#9F7AEA",
+  "Sobremesas": "#ED64A6",
   "Outros": "#718096",
 };
+
+// Used when product has no category (sentinel)
+export const NO_CATEGORY_HEX = "#FF6B00";
 
 export const CATEGORY_ICONS: Record<string, string> = {
   "Carnes": "🥩",
@@ -46,9 +39,13 @@ export const CATEGORY_ICONS: Record<string, string> = {
   "Outros": "",
 };
 
-export function getCategoryBorderHex(category?: string | null): string | null {
-  if (!category) return null;
-  return CATEGORY_BORDER_HEX[category] || null;
+export function getCategoryHex(category?: string | null): string {
+  if (!category) return NO_CATEGORY_HEX;
+  return CATEGORY_HEX[category] || CATEGORY_HEX["Outros"];
+}
+
+export function getCategoryBorderHex(category?: string | null): string {
+  return getCategoryHex(category);
 }
 
 export function getCategoryIcon(category?: string | null): string {
@@ -56,9 +53,19 @@ export function getCategoryIcon(category?: string | null): string {
   return CATEGORY_ICONS[category] || "";
 }
 
-export function getCategoryColor(category?: string | null) {
-  if (!category) return CATEGORY_COLORS["Outros"];
-  return CATEGORY_COLORS[category] || CATEGORY_COLORS["Outros"];
+// Tinted pill style (15% bg + accent text)
+export function getCategoryTagStyle(category?: string | null): CSSProperties {
+  const hex = getCategoryHex(category);
+  return {
+    backgroundColor: `${hex}26`,
+    color: hex,
+    borderColor: `${hex}40`,
+  };
+}
+
+// Backwards-compat (no-op, kept so old imports don't break)
+export function getCategoryColor(_category?: string | null): string {
+  return "";
 }
 
 export type RiskLevel = "critical" | "warning" | "ok";
@@ -66,25 +73,25 @@ export type RiskLevel = "critical" | "warning" | "ok";
 export function getValidityRisk(days: number): {
   level: RiskLevel;
   label: string;
-  classes: string;
+  style: CSSProperties;
 } {
   if (days <= 1) {
     return {
       level: "critical",
       label: "CRÍTICO",
-      classes: "bg-destructive text-destructive-foreground border-destructive",
+      style: { backgroundColor: "#742A2A", color: "#FC8181" },
     };
   }
   if (days <= 3) {
     return {
       level: "warning",
       label: "ATENÇÃO",
-      classes: "bg-yellow-500 text-yellow-950 border-yellow-600 dark:bg-yellow-500/90",
+      style: { backgroundColor: "#744210", color: "#F6AD55" },
     };
   }
   return {
     level: "ok",
     label: "OK",
-    classes: "bg-green-500 text-white border-green-600 dark:bg-green-500/90",
+    style: { backgroundColor: "#1C4532", color: "#68D391" },
   };
 }

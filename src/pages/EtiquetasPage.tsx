@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock } from "lucide-react";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
@@ -13,8 +13,7 @@ import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labe
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
-import { PRODUCT_CATEGORIES, getCategoryColor, getValidityRisk, getCategoryBorderHex, getCategoryIcon } from "@/lib/labels/categories";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PRODUCT_CATEGORIES, getValidityRisk, getCategoryHex, getCategoryIcon, getCategoryTagStyle, NO_CATEGORY_HEX } from "@/lib/labels/categories";
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -187,25 +186,38 @@ export default function EtiquetasPage() {
             </Button>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="space-y-3">
             <Input
               placeholder="Buscar produto..."
               value={productSearchFilter}
               onChange={(e) => setProductSearchFilter(e.target.value)}
-              className="sm:max-w-xs"
+              className="sm:max-w-xs bg-[#1A1A2E] border-[#2D2D44] placeholder:text-[#718096] focus-visible:border-[#FF6B00] focus-visible:ring-0"
             />
-            <Select value={productCategoryFilter} onValueChange={setProductCategoryFilter}>
-              <SelectTrigger className="sm:max-w-[220px]">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                <SelectItem value="__none__">Sem categoria</SelectItem>
-                {PRODUCT_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+              {[
+                { value: "all", label: "Todas" },
+                ...PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c })),
+                { value: "__none__", label: "Sem categoria" },
+              ].map((opt) => {
+                const active = productCategoryFilter === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setProductCategoryFilter(opt.value)}
+                    className={cn(
+                      "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap",
+                      active
+                        ? "border-transparent text-white"
+                        : "bg-[#1A1A2E] border-[#2D2D44] text-[#A0AEC0] hover:bg-[#22223A]"
+                    )}
+                    style={active ? { backgroundColor: "#FF6B00" } : undefined}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {prodLoading ? (
@@ -219,23 +231,30 @@ export default function EtiquetasPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProducts.map((p) => {
                 const risk = getValidityRisk(p.validity_days);
-                const catClasses = getCategoryColor(p.category);
-                const borderHex = getCategoryBorderHex(p.category);
+                const borderHex = getCategoryHex(p.category);
                 const icon = getCategoryIcon(p.category);
+                const tagStyle = getCategoryTagStyle(p.category);
                 return (
                   <div
                     key={p.id}
-                    className="group bg-card/40 border border-border/50 p-5 rounded-2xl hover:border-primary/40"
-                    style={borderHex ? { borderLeftWidth: 4, borderLeftColor: borderHex, borderLeftStyle: "solid" } : undefined}
+                    className="group p-5 rounded-2xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                    style={{
+                      backgroundColor: "#1A1A2E",
+                      borderColor: "#2D2D44",
+                      borderLeftWidth: 4,
+                      borderLeftColor: borderHex,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#FF6B00")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2D2D44")}
                   >
                     <div className="mb-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex-1">{p.name}</h3>
+                        <h3 className="text-base font-semibold truncate flex-1" style={{ color: "#FFFFFF" }}>{p.name}</h3>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className={cn(
-                            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border",
-                            risk.classes
-                          )}>
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                            style={risk.style}
+                          >
                             {risk.label}
                           </span>
                           {icon && (
@@ -246,28 +265,37 @@ export default function EtiquetasPage() {
                         </div>
                       </div>
                       {p.category && (
-                        <span className={cn(
-                          "inline-block mt-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border",
-                          catClasses
-                        )}>
+                        <span
+                          className="inline-block mt-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border"
+                          style={tagStyle}
+                        >
                           {p.category}
                         </span>
                       )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          Validade: <span className="text-foreground font-medium">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span>
-                        </span>
+                      <div className="flex items-center gap-1.5 mt-2 text-xs" style={{ color: "#A0AEC0" }}>
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>Validade: <span className="font-medium text-white">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span></span>
                       </div>
-                      {(p.status === "inactive") && <span className="inline-block mt-2 text-[10px] uppercase font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">Inativo</span>}
-                      {p.notes && <p className="text-xs text-muted-foreground/80 mt-2 italic line-clamp-2">{p.notes}</p>}
+                      {(p.status === "inactive") && <span className="inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded" style={{ color: "#718096", backgroundColor: "#2D2D44" }}>Inativo</span>}
+                      {p.notes && <p className="text-xs mt-2 italic line-clamp-2" style={{ color: "#718096" }}>{p.notes}</p>}
                     </div>
-                    <div className="flex gap-2 pt-3 border-t border-border/50">
-                      <Button variant="ghost" size="sm" className="flex-1 bg-muted/50" onClick={() => { setEditing(p); setFormOpen(true); }}>
+                    <div className="flex gap-2 pt-3 border-t" style={{ borderColor: "#2D2D44" }}>
+                      <button
+                        type="button"
+                        onClick={() => { setEditing(p); setFormOpen(true); }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors hover:bg-[#2D2D44]"
+                        style={{ borderColor: "#2D2D44", color: "#A0AEC0" }}
+                      >
                         <Pencil className="h-3.5 w-3.5" /> Editar
-                      </Button>
-                      <Button variant="ghost" size="sm" className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setDelTarget(p)}>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDelTarget(p)}
+                        className="inline-flex items-center justify-center px-3 py-1.5 rounded-md text-[#FC8181] hover:bg-[#742A2A]/40 transition-colors"
+                        aria-label="Remover"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 );
