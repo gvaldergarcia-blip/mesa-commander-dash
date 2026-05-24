@@ -156,9 +156,47 @@ export default function BaixaRapida() {
       try {
         await new Promise((r) => setTimeout(r, 80));
         if (cancelled) return;
-        try { await start(true); } catch { await stopScanner(); await start(false); }
+        try {
+          await start(true);
+        } catch {
+          await stopScanner();
+          try {
+            await start(false);
+          } catch {
+            await stopScanner();
+            // último recurso: qualquer câmera disponível
+            const scanner = new Html5Qrcode(SCAN_REGION, false);
+            scannerRef.current = scanner;
+            await scanner.start(
+              { facingMode: "user" } as MediaTrackConstraints,
+              { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1, disableFlip: false },
+              (decoded) => {
+                if (handledRef.current) return;
+                const code = extractCode(decoded);
+                if (!code) return;
+                handledRef.current = true;
+                try { navigator.vibrate?.(80); } catch {}
+                void stopScanner();
+                navigate(`/etiquetas/scan/${code}?op=1`);
+              },
+              () => {}
+            );
+          }
+        }
       } catch (err: any) {
-        toast.error(err?.message ?? "Não foi possível acessar a câmera");
+        const name = err?.name || "";
+        const inIframe = window.self !== window.top;
+        let msg = "Não foi possível acessar a câmera.";
+        if (name === "NotAllowedError" || /permission/i.test(err?.message || "")) {
+          msg = "Permissão de câmera negada. Habilite nas configurações do navegador e tente novamente.";
+        } else if (name === "NotFoundError") {
+          msg = "Nenhuma câmera encontrada neste dispositivo.";
+        } else if (name === "NotReadableError") {
+          msg = "A câmera está em uso por outro aplicativo.";
+        } else if (inIframe) {
+          msg = "O preview não tem permissão de câmera. Abra o sistema em uma aba (publicado) para escanear.";
+        }
+        toast.error(msg);
         setPhase("list");
       }
     })();
