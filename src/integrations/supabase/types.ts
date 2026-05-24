@@ -4650,6 +4650,14 @@ export type Database = {
         }
         Returns: string
       }
+      verify_employee_pin: {
+        Args: { p_pin: string; p_restaurant_id: string }
+        Returns: {
+          id: string
+          name: string
+          role: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "owner" | "manager" | "user"

@@ -26,6 +26,7 @@ import ChecklistsPage from "./pages/ChecklistsPage";
 import ChecklistQrValidate from "./pages/ChecklistQrValidate";
 import EtiquetasPage from "./pages/EtiquetasPage";
 import EtiquetaScan from "./pages/EtiquetaScan";
+import BaixaRapida from "./pages/BaixaRapida";
 import CardapioInteligente from "./pages/CardapioInteligente";
 
 
@@ -211,6 +212,7 @@ const App = () => {
                   } />
                   <Route path="/checklists" element={<ChecklistsPage />} />
                   <Route path="/etiquetas" element={<EtiquetasPage />} />
+                  <Route path="/etiquetas/baixa-rapida" element={<BaixaRapida />} />
                   <Route path="/cardapio" element={
                     <RoleGuard><CardapioInteligente /></RoleGuard>
                   } />
