@@ -629,18 +629,43 @@ export default function IACreatorMarketing() {
     setStudioMessages([]);
     setStudioPrompt("");
     setTextConfirmed(false);
-    await new Promise((r) => setTimeout(r, 600));
     const content = generateContent(
       form,
       restaurant?.name || "Restaurante",
       (restaurant as any)?.cuisine || "Gastronomia",
       (restaurant as any)?.city || "São Paulo"
     );
-    setResult(content);
-    // Populate editable fields with generated text
-    setEditableHeadline(content.headline);
-    setEditableSubheadline(content.subheadline);
-    setEditableCta(content.cta);
+
+    // Try AI-generated copy (headline/subheadline/cta) — fallback to local
+    let aiHeadline = content.headline;
+    let aiSubheadline = content.subheadline;
+    let aiCta = content.cta;
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-post-copy", {
+        body: {
+          dishName: form.nomePrato,
+          objetivo: form.objetivo,
+          dia: form.diaSemana,
+          publico: form.publicoAlvo,
+          tom: form.tomVoz,
+          hasDiscount: form.hasDiscount,
+          frase: form.fraseRestaurante || undefined,
+        },
+      });
+      if (error) throw error;
+      const v = data?.copy?.variacoes?.[0];
+      if (v?.headline) aiHeadline = v.headline;
+      if (v?.subheadline) aiSubheadline = v.subheadline;
+      if (v?.cta) aiCta = v.cta;
+    } catch (err) {
+      console.warn("AI copy fallback to local:", err);
+    }
+
+    const finalContent = { ...content, headline: aiHeadline, subheadline: aiSubheadline, cta: aiCta };
+    setResult(finalContent);
+    setEditableHeadline(aiHeadline);
+    setEditableSubheadline(aiSubheadline);
+    setEditableCta(aiCta);
     setEditableLegenda(content.legenda);
     setIsGenerating(false);
     setShowForm(false);
