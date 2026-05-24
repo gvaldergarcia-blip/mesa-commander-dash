@@ -216,7 +216,7 @@ export default function EtiquetaScan() {
               <div className="text-sm text-slate-600 mb-3">Selecione o motivo do descarte:</div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-full inline-flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-500/30 transition-colors">
+                  <button className="w-full inline-flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#E85F00] active:bg-[#CC5500] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#FF6B00]/30 transition-colors">
                     <Trash2 className="h-4 w-4" />
                     Baixar Etiqueta
                     <ChevronDown className="h-4 w-4" />
