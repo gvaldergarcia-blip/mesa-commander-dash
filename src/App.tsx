@@ -27,7 +27,6 @@ import ChecklistQrValidate from "./pages/ChecklistQrValidate";
 import EtiquetasPage from "./pages/EtiquetasPage";
 import EtiquetaScan from "./pages/EtiquetaScan";
 import BaixaRapida from "./pages/BaixaRapida";
-import EtiquetasQuiosque from "./pages/EtiquetasQuiosque";
 import CardapioInteligente from "./pages/CardapioInteligente";
 
 
