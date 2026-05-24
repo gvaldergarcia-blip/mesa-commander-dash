@@ -1466,13 +1466,16 @@ export type Database = {
       }
       label_issuances: {
         Row: {
+          allergens: string | null
           batch: string | null
+          cif: string | null
           conservation_method: string | null
           created_at: string
           discharge_reason: string | null
           employee_id: string | null
           expiry_date: string
           id: string
+          ingredients: string | null
           label_product_id: string | null
           manufacture_date: string
           notes: string | null
@@ -1486,13 +1489,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allergens?: string | null
           batch?: string | null
+          cif?: string | null
           conservation_method?: string | null
           created_at?: string
           discharge_reason?: string | null
           employee_id?: string | null
           expiry_date: string
           id?: string
+          ingredients?: string | null
           label_product_id?: string | null
           manufacture_date?: string
           notes?: string | null
@@ -1506,13 +1512,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allergens?: string | null
           batch?: string | null
+          cif?: string | null
           conservation_method?: string | null
           created_at?: string
           discharge_reason?: string | null
           employee_id?: string | null
           expiry_date?: string
           id?: string
+          ingredients?: string | null
           label_product_id?: string | null
           manufacture_date?: string
           notes?: string | null
@@ -1571,6 +1580,7 @@ export type Database = {
       }
       label_products: {
         Row: {
+          allergens: string | null
           category: string | null
           cif: string | null
           conservation_method: string
@@ -1578,6 +1588,7 @@ export type Database = {
           default_observation: string | null
           group_id: string | null
           id: string
+          ingredients: string | null
           name: string
           notes: string | null
           restaurant_id: string
@@ -1587,6 +1598,7 @@ export type Database = {
           validity_days: number
         }
         Insert: {
+          allergens?: string | null
           category?: string | null
           cif?: string | null
           conservation_method?: string
@@ -1594,6 +1606,7 @@ export type Database = {
           default_observation?: string | null
           group_id?: string | null
           id?: string
+          ingredients?: string | null
           name: string
           notes?: string | null
           restaurant_id: string
@@ -1603,6 +1616,7 @@ export type Database = {
           validity_days: number
         }
         Update: {
+          allergens?: string | null
           category?: string | null
           cif?: string | null
           conservation_method?: string
@@ -1610,6 +1624,7 @@ export type Database = {
           default_observation?: string | null
           group_id?: string | null
           id?: string
+          ingredients?: string | null
           name?: string
           notes?: string | null
           restaurant_id?: string
