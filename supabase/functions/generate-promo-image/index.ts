@@ -89,6 +89,13 @@ PHOTOGRAPHY (THE FOUNDATION):
 - Color grading: rich, warm, editorial — never saturated, never plastic
 - The photo should feel like it was shot by a real food photographer, not generated
 
+REALISM & SCALE (MANDATORY — this is the difference between premium and amateur):
+- The dish MUST be portrayed at its TRUE real-world size and proportion. A tartar, an appetizer, a dessert, a small plate — render it small and refined on the plate, NEVER inflated to fill the frame.
+- Plate, cutlery, glassware, hands and table surface must all be in correct, believable scale relative to each other (a fork is ~20cm, a dinner plate ~27cm, a tartar portion ~8-10cm wide). No giant food, no oversized portions, no cartoon proportions.
+- Reference real restaurant plating: minimalist, centered, with visible plate rim and breathing room around the dish — like a real chef's pass photo, not a fast-food advert.
+- Camera perspective should feel natural: 35-50mm equivalent, slight overhead or 3/4 angle as a human would see it sitting at the table. No fisheye, no extreme close-up that distorts scale.
+- Surfaces, shadows, reflections and depth of field must all behave like real physics — if any element looks "AI-inflated" or unrealistically large, REDO the composition.
+
 TYPOGRAPHY (THE DIFFERENTIATOR):
 - Use a refined typographic system: ONE elegant serif (Playfair Display, Cormorant, Canela) for the headline, ONE clean sans (Inter, Neue Haas, Helvetica Neue) for support text
 - Headline: large, confident, with generous tracking and clear hierarchy
