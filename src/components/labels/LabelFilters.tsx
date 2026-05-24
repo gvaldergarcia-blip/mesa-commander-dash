@@ -55,14 +55,14 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
       "px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap",
       active
         ? "text-white border-transparent"
-        : "bg-[#1A1A2E] border-[#2D2D44] text-[#A0AEC0] hover:bg-[#22223A]"
+        : "bg-[#1E1E2E] border-[#2D2D44] text-[#718096] hover:bg-[#22223A]"
     );
 
   const inputDark =
-    "bg-[#1A1A2E] border-[#2D2D44] placeholder:text-[#718096] focus-visible:border-[#FF6B00] focus-visible:ring-0";
+    "bg-[#1E1E2E] border-[#2D2D44] placeholder:text-[#718096] focus-visible:border-[#FF6B00] focus-visible:ring-0";
 
   return (
-    <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: "#0F0F1A", borderColor: "#2D2D44" }}>
+    <div className="space-y-3 pb-3 border-b" style={{ borderColor: "#2D2D44" }}>
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
         <div className="relative md:col-span-5">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "#718096" }} />
@@ -112,7 +112,7 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
                 type="button"
                 onClick={() => set("conservation", p.value)}
                 className={pillClass(active)}
-                style={active ? { backgroundColor: "#FF6B00" } : undefined}
+                style={active ? { backgroundColor: "#4299E1" } : undefined}
               >
                 {p.label}
               </button>
@@ -120,7 +120,7 @@ export function LabelFilters({ value, onChange, employees, onExport }: Props) {
           })}
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "#2D2D44" }}>
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-2 pl-1">
           <Switch
             id="expiredOnly"
