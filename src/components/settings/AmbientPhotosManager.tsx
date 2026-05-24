@@ -142,7 +142,7 @@ export function AmbientPhotosManager() {
               Nenhuma foto do ambiente cadastrada ainda.
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              Sincronize com o Google ou envie 2–3 fotos do interior.
+              Envie 2–3 fotos do interior.
             </p>
           </div>
         ) : (
