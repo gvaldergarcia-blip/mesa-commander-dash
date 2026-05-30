@@ -453,7 +453,11 @@ export default function BaixaRapida() {
           >
             <X className="h-4 w-4 mr-1" /> Cancelar
           </Button>
-          <style>{`@keyframes scanline{0%{transform:translateY(0)}50%{transform:translateY(240px)}100%{transform:translateY(0)}}`}</style>
+          <style>{`
+            @keyframes scanline{0%{transform:translateY(0)}50%{transform:translateY(240px)}100%{transform:translateY(0)}}
+            #${SCAN_REGION} video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+            #${SCAN_REGION} { display:flex; align-items:center; justify-content:center; }
+          `}</style>
         </div>
       )}
     </div>
