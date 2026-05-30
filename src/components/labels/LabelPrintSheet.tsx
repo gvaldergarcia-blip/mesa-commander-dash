@@ -5,7 +5,6 @@ export interface PrintLabelData {
   productName: string;
   manufactureDate: Date;
   expiryDate: Date;
-  supplierExpiryDate?: Date | null;
   responsible: string;
   notes?: string | null;
   cif?: string | null;
@@ -86,7 +85,6 @@ export function printLabels(data: PrintLabelData) {
           <div class="dates">
             <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
             <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
-            ${data.supplierExpiryDate ? `<div class="d-row sub"><span class="k">VAL. FORNEC.:</span><span class="v">${escapeHtml(format(data.supplierExpiryDate, "dd/MM/yyyy", { locale: ptBR }))}</span></div>` : ""}
             ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}
           </div>
 
@@ -139,8 +137,6 @@ export function printLabels(data: PrintLabelData) {
     .d-row { display: flex; gap: 2mm; font-size: 7pt; line-height: 1.25; }
     .d-row .k { font-weight: 700; min-width: 18mm; }
     .d-row .v { font-weight: 600; }
-    .d-row.sub { font-size: 6pt; opacity: 0.85; }
-    .d-row.sub .k { font-weight: 600; min-width: 18mm; }
     .local-row { margin-top: 1mm; font-size: 7pt; }
     .local-row .k { font-weight: 800; }
     .local-row .v { font-weight: 700; }

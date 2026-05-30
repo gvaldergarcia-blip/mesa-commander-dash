@@ -86,7 +86,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prod-days">Validade pós-manipulação (em dias) *</Label>
+            <Label htmlFor="prod-days">Validade (em dias) *</Label>
             <Input
               id="prod-days"
               type="number"
@@ -97,9 +97,6 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               placeholder="Ex: 5"
               required
             />
-            <p className="text-[11px] text-muted-foreground">
-              Prazo após abrir/manipular o produto — não é a validade original do fornecedor.
-            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
