@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Snowflake, Flame, Thermometer, Refrigerator, Loader2, Hash, Download, X, Trash2 } from "lucide-react";
 import { Label, DischargeReason } from "@/hooks/useLabels";
 import { classifyExpiry, CONSERVATION_LABEL, REASON_LABEL, toCsv, downloadCsv } from "@/lib/labels/utils";
+import { getCategoryHex } from "@/lib/labels/categories";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -39,11 +40,8 @@ const statusPill = (l: Label) => {
 
 const leftBorderColor = (l: Label) => {
   if (l.status === "discharged") return "#2D2D44";
-  const c = classifyExpiry(l.expiry_date);
-  if (c === "expired" || l.status === "expired") return "#E53E3E";
-  if (c === "today") return "#ED8936";
-  if (c === "tomorrow") return "#4299E1";
-  return "#48BB78";
+  // Borda colorida sempre por categoria do produto (com fallback "Outros")
+  return getCategoryHex(l.product_category);
 };
 
 export function LabelsList({ labels, isLoading, selected, onSelectedChange, onBulkDischarge }: Props) {
