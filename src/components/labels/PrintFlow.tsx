@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, Printer, Search, Loader2, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Printer, Search, Loader2, User, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -20,8 +20,10 @@ import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { getSiteBaseUrl } from "@/config/site-url";
 import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 const initials = (name: string) =>
   name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
@@ -39,6 +41,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [productSearch, setProductSearch] = useState("");
 
   const [now, setNow] = useState(new Date());
+  const [supplierExpiry, setSupplierExpiry] = useState<Date | null>(null);
+  const [noSupplierExpiry, setNoSupplierExpiry] = useState(false);
   const [batch, setBatch] = useState("");
   const [quantityWeight, setQuantityWeight] = useState("");
   const [conservation, setConservation] = useState<string>("refrigerated");
@@ -61,6 +65,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       setCif(product.cif || "");
       setAllergens((product as any).allergens || "");
       setIngredients((product as any).ingredients || "");
+      setSupplierExpiry(null);
+      setNoSupplierExpiry(false);
     }
   }, [product]);
 
@@ -105,12 +111,18 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
     }
   };
 
-  const expiryDate = useMemo(() => {
+  const manipulationExpiry = useMemo(() => {
     if (!product) return null;
     const d = new Date(now);
     d.setDate(d.getDate() + product.validity_days);
     return d;
   }, [product, now]);
+
+  const expiryDate = useMemo(() => {
+    if (!manipulationExpiry) return null;
+    if (supplierExpiry && supplierExpiry < manipulationExpiry) return supplierExpiry;
+    return manipulationExpiry;
+  }, [manipulationExpiry, supplierExpiry]);
 
   const activeProducts = useMemo(
     () => products.filter((p) => (p.status ?? "active") === "active"),
@@ -124,6 +136,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
 
   const reset = () => {
     setStep(1); setEmployee(null); setProduct(null);
+    setSupplierExpiry(null); setNoSupplierExpiry(false);
     setBatch(""); setQuantityWeight(""); setNotes(""); setCif("");
     setAllergens(""); setIngredients(""); setStorageLocation(""); setPrintQty(1);
     setProductSearch("");
@@ -157,6 +170,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         productName: product.name,
         manufactureDate: now,
         expiryDate,
+        supplierExpiryDate: supplierExpiry,
         responsible: employee.name,
         notes: notes.trim() || null,
         cif: cif.trim() || null,
@@ -188,7 +202,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
     <div className="space-y-6">
       {/* Steps progress */}
       <div className="flex items-center justify-center gap-2 mb-4">
-        {[1, 2, 3].map((n) => (
+        {[1, 2, 3, 4].map((n) => (
           <div key={n} className={cn(
             "h-2 rounded-full transition-all",
             step >= n ? "bg-primary w-12" : "bg-muted w-6"
@@ -262,7 +276,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 >
                   <div className="font-bold">{p.name}</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {CONSERVATION_LABEL[p.conservation_method || "refrigerated"]} · {p.validity_days} dia(s)
+                    {CONSERVATION_LABEL[p.conservation_method || "refrigerated"]} · {p.validity_days} dia(s) pós-manipulação
                   </div>
                 </button>
               ))}
@@ -271,12 +285,86 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         </div>
       )}
 
-      {step === 3 && product && employee && expiryDate && (
+      {step === 3 && product && employee && manipulationExpiry && (
+        <div className="space-y-5 max-w-xl mx-auto">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /></Button>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold">Qual a validade na embalagem?</h2>
+              <p className="text-sm text-muted-foreground">Produto: <strong>{product.name}</strong></p>
+            </div>
+          </div>
+
+          <Card className="p-5 space-y-4 bg-card/40">
+            <div className="space-y-2">
+              <Label>Validade impressa na embalagem do fornecedor</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={noSupplierExpiry}
+                    className={cn(
+                      "w-full h-12 justify-start text-left font-normal text-base",
+                      !supplierExpiry && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {supplierExpiry ? format(supplierExpiry, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={supplierExpiry ?? undefined}
+                    onSelect={(d) => { setSupplierExpiry(d ?? null); if (d) setNoSupplierExpiry(false); }}
+                    disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">Encontre essa data no rótulo ou embalagem do produto.</p>
+            </div>
+
+            <Button
+              type="button"
+              variant={noSupplierExpiry ? "default" : "outline"}
+              className="w-full"
+              onClick={() => {
+                setNoSupplierExpiry((v) => !v);
+                setSupplierExpiry(null);
+              }}
+            >
+              {noSupplierExpiry ? "✓ Sem validade impressa" : "Não tem validade impressa"}
+            </Button>
+
+            <Button
+              size="lg"
+              className="w-full h-12 font-bold"
+              disabled={!supplierExpiry && !noSupplierExpiry}
+              onClick={() => setStep(4)}
+            >
+              Continuar
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </Card>
+        </div>
+      )}
+
+      {step === 4 && product && employee && expiryDate && manipulationExpiry && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="p-5 space-y-4 bg-card/40">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setStep(3)}><ArrowLeft className="h-4 w-4" /></Button>
               <h2 className="text-xl font-bold flex-1">Confirmar e imprimir</h2>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border/50 space-y-1 text-xs">
+              {supplierExpiry && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Validade do fornecedor:</span><span className="font-semibold">{format(supplierExpiry, "dd/MM/yyyy", { locale: ptBR })}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-muted-foreground">Validade pós-manipulação:</span><span className="font-semibold">{format(manipulationExpiry, "dd/MM/yyyy", { locale: ptBR })} ({product.validity_days} dia(s))</span></div>
+              <div className="flex justify-between pt-1 border-t border-border/40 mt-1"><span className="font-semibold">Validade final na etiqueta:</span><span className="font-bold text-primary">{format(expiryDate, "dd/MM/yyyy", { locale: ptBR })}</span></div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-muted/40 text-sm">
@@ -401,6 +489,12 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                   <span className="font-bold" style={{ minWidth: "75px" }}>VALIDADE:</span>
                   <span className="font-semibold">{format(expiryDate, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                 </div>
+                {supplierExpiry && (
+                  <div className="flex" style={{ fontSize: "8px", lineHeight: 1.3, opacity: 0.85 }}>
+                    <span className="font-semibold" style={{ minWidth: "75px" }}>VAL. FORNEC.:</span>
+                    <span>{format(supplierExpiry, "dd/MM/yyyy", { locale: ptBR })}</span>
+                  </div>
+                )}
                 {batch && (
                   <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
                     <span className="font-bold" style={{ minWidth: "75px" }}>LOTE:</span>
