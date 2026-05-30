@@ -7,12 +7,13 @@ import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { Delete, LogOut, ScanLine, Loader2, X, ArrowRight, Snowflake, Flame, Thermometer, Refrigerator, AlertTriangle } from "lucide-react";
 import { CONSERVATION_LABEL, classifyExpiry } from "@/lib/labels/utils";
+import { getCategoryHex } from "@/lib/labels/categories";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
-type Employee = { id: string; name: string; role: string | null };
+type Employee = { id: string; name: string; role: string | null; sectors?: string[] | null };
 type Phase = "pin" | "list" | "scan";
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
@@ -174,9 +175,25 @@ export default function BaixaRapida() {
   // === LIST ===
   const myLabels = useMemo(() => {
     if (!employee) return [];
-    return labels.filter(
-      (l) => l.employee_id === employee.id && l.status !== "discharged"
-    );
+    const sectors = (employee.sectors ?? []).filter(Boolean);
+    const pending = labels.filter((l) => l.status !== "discharged");
+    const filtered = sectors.length === 0
+      ? pending // sem setores definidos: mostra tudo do restaurante
+      : pending.filter((l) => l.product_category && sectors.includes(l.product_category));
+
+    // Ordenar por urgência: CRÍTICO (vencida/hoje) > ATENÇÃO (amanhã) > OK
+    const rank = (l: typeof filtered[number]) => {
+      const c = classifyExpiry(l.expiry_date);
+      if (c === "expired" || l.status === "expired") return 0;
+      if (c === "today") return 1;
+      if (c === "tomorrow") return 2;
+      return 3;
+    };
+    return [...filtered].sort((a, b) => {
+      const r = rank(a) - rank(b);
+      if (r !== 0) return r;
+      return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
+    });
   }, [labels, employee]);
 
   // === SCANNER ===
