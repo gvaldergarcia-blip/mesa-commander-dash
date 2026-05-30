@@ -17,6 +17,23 @@ type Phase = "pin" | "list" | "scan";
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
+// Configuração padrão do leitor — qrbox responsivo, fps alto e resolução de vídeo elevada
+// para que o html5-qrcode consiga decodificar QRs pequenos impressos em etiquetas 80x40mm.
+const QR_CONFIG = {
+  fps: 15,
+  qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+    const size = Math.floor(minEdge * 0.8);
+    return { width: size, height: size };
+  },
+  disableFlip: false,
+  videoConstraints: {
+    facingMode: { ideal: "environment" },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+  } as MediaTrackConstraints,
+};
+
 const conservationIcon = (c: string | null) => {
   switch (c) {
     case "frozen": return Snowflake;
@@ -31,11 +48,11 @@ function extractCode(raw: string): string | null {
   try {
     const url = new URL(value);
     const seg = url.pathname.split("/").filter(Boolean).pop();
-    if (seg && /^[A-Z0-9]{4,10}$/i.test(seg)) return seg.toUpperCase();
+    if (seg && /^[A-Z0-9]{4,12}$/i.test(seg)) return seg.toUpperCase();
   } catch {
     /* not a URL */
   }
-  const m = value.match(/[A-Z0-9]{4,10}/i);
+  const m = value.match(/[A-Z0-9]{4,12}/i);
   return m ? m[0].toUpperCase() : null;
 }
 
@@ -192,7 +209,7 @@ export default function BaixaRapida() {
         : ({ facingMode: "environment" } as MediaTrackConstraints);
       await scanner.start(
         constraints,
-        { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1, disableFlip: false },
+        QR_CONFIG,
         (decoded) => {
           if (handledRef.current) return;
           const code = extractCode(decoded);
@@ -221,7 +238,7 @@ export default function BaixaRapida() {
             scannerRef.current = scanner;
             await scanner.start(
               { facingMode: "user" } as MediaTrackConstraints,
-              { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1, disableFlip: false },
+              QR_CONFIG,
               (decoded) => {
                 if (handledRef.current) return;
                 const code = extractCode(decoded);
