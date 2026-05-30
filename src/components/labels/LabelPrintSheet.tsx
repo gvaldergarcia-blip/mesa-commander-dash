@@ -139,6 +139,8 @@ export function printLabels(data: PrintLabelData) {
     .d-row { display: flex; gap: 2mm; font-size: 7pt; line-height: 1.25; }
     .d-row .k { font-weight: 700; min-width: 18mm; }
     .d-row .v { font-weight: 600; }
+    .d-row.sub { font-size: 6pt; opacity: 0.85; }
+    .d-row.sub .k { font-weight: 600; min-width: 18mm; }
     .local-row { margin-top: 1mm; font-size: 7pt; }
     .local-row .k { font-weight: 800; }
     .local-row .v { font-weight: 700; }
