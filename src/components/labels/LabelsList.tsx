@@ -1,5 +1,5 @@
 import { Snowflake, Flame, Thermometer, Refrigerator, Loader2, Hash, User, Calendar } from "lucide-react";
-import { Label, DischargeReason } from "@/hooks/useLabels";
+import { Label } from "@/hooks/useLabels";
 import { classifyExpiry, CONSERVATION_LABEL, REASON_LABEL } from "@/lib/labels/utils";
 import { getCategoryHex } from "@/lib/labels/categories";
 import { cn } from "@/lib/utils";
@@ -9,10 +9,6 @@ import { ptBR } from "date-fns/locale";
 interface Props {
   labels: Label[];
   isLoading: boolean;
-  // Mantidos por compatibilidade com EtiquetasPage; sem uso visual (checkboxes removidos).
-  selected?: string[];
-  onSelectedChange?: (ids: string[]) => void;
-  onBulkDischarge?: (reason: DischargeReason) => Promise<void>;
 }
 
 const conservationIcon = (c: string | null) => {

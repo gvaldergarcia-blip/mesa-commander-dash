@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, Printer, Search, Loader2, User } from "lucide-react";
+import { ArrowLeft, Printer, Search, Loader2, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -32,7 +31,6 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const { products, isLoading: prodLoading } = useLabelProducts();
   const { createLabel } = useLabels();
   const { restaurant } = useRestaurant();
-  const qc = useQueryClient();
 
   const [employee, setEmployee] = useState<LabelEmployee | null>(null);
   const [product, setProduct] = useState<LabelProduct | null>(null);
@@ -42,14 +40,6 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [batch, setBatch] = useState("");
   const [quantityWeight, setQuantityWeight] = useState("");
   const [conservation, setConservation] = useState<string>("refrigerated");
-  const [notes, setNotes] = useState("");
-  const [cif, setCif] = useState("");
-  const [allergens, setAllergens] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [storageLocation, setStorageLocation] = useState("");
-  const [cnpjInput, setCnpjInput] = useState("");
-  const [cepInput, setCepInput] = useState("");
-  const [savingLegal, setSavingLegal] = useState(false);
   const [printQty, setPrintQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,53 +47,23 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
     if (product) {
       setNow(new Date());
       setConservation(product.conservation_method || "refrigerated");
-      setNotes(product.default_observation || product.notes || "");
-      setCif(product.cif || "");
-      setAllergens((product as any).allergens || "");
-      setIngredients((product as any).ingredients || "");
     }
   }, [product]);
 
-  // CNPJ/CEP do restaurante para a etiqueta
+  // Dados legais do restaurante (CNPJ + CEP) — puxados de Configurações, NUNCA editáveis aqui.
   const { data: restaurantLegal } = useQuery({
     queryKey: ["restaurant-legal", restaurant?.id],
     enabled: !!restaurant?.id,
     queryFn: async () => {
       const { data } = await (supabase as any)
+        .schema("mesaclik")
         .from("restaurants")
-        .select("cnpj, address")
+        .select("cnpj, zip_code")
         .eq("id", restaurant!.id)
         .maybeSingle();
-      const address: string = data?.address || "";
-      const cepMatch = address.match(/\d{5}-?\d{3}/);
-      return { cnpj: data?.cnpj || null, cep: cepMatch ? cepMatch[0] : null };
+      return { cnpj: data?.cnpj || null, cep: data?.zip_code || null };
     },
   });
-
-  useEffect(() => {
-    setCnpjInput(restaurantLegal?.cnpj || "");
-    setCepInput(restaurantLegal?.cep || "");
-  }, [restaurantLegal?.cnpj, restaurantLegal?.cep]);
-
-  const saveLegal = async () => {
-    if (!restaurant?.id) return;
-    setSavingLegal(true);
-    try {
-      await (supabase as any)
-        .from("restaurants")
-        .update({
-          cnpj: cnpjInput.trim() || null,
-          address: cepInput.trim() ? `CEP ${cepInput.trim()}` : null,
-        })
-        .eq("id", restaurant.id);
-      await qc.invalidateQueries({ queryKey: ["restaurant-legal", restaurant.id] });
-      toast.success("Dados do estabelecimento salvos");
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao salvar");
-    } finally {
-      setSavingLegal(false);
-    }
-  };
 
   const expiryDate = useMemo(() => {
     if (!product) return null;
@@ -124,8 +84,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
 
   const reset = () => {
     setStep(1); setEmployee(null); setProduct(null);
-    setBatch(""); setQuantityWeight(""); setNotes(""); setCif("");
-    setAllergens(""); setIngredients(""); setStorageLocation(""); setPrintQty(1);
+    setBatch(""); setQuantityWeight(""); setPrintQty(1);
     setProductSearch("");
   };
 
@@ -134,6 +93,10 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
     setSubmitting(true);
     try {
       const qty = Math.max(1, Math.min(10, printQty));
+      // Dados do produto (alergênicos, ingredientes, notas) puxados do cadastro.
+      const productNotes = product.default_observation || product.notes || null;
+      const productAllergens = (product as any).allergens || null;
+      const productIngredients = (product as any).ingredients || null;
       const inserted = await createLabel({
         label_product_id: product.id,
         product_name: product.name,
@@ -144,10 +107,10 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         responsible: employee.name,
         employee_id: employee.id,
         conservation_method: conservation as any,
-        notes: notes.trim() || null,
-        cif: cif.trim() || null,
-        allergens: allergens.trim() || null,
-        ingredients: ingredients.trim() || null,
+        notes: productNotes,
+        cif: product.cif || null,
+        allergens: productAllergens,
+        ingredients: productIngredients,
       });
       const scanUrl = `${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}`;
       const qrSvg = renderToStaticMarkup(
@@ -158,18 +121,18 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         manufactureDate: now,
         expiryDate,
         responsible: employee.name,
-        notes: notes.trim() || null,
-        cif: cif.trim() || null,
-        allergens: allergens.trim() || null,
-        ingredients: ingredients.trim() || null,
+        notes: productNotes,
+        cif: product.cif || null,
+        allergens: productAllergens,
+        ingredients: productIngredients,
         conservationLabel: CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL] || null,
-        storageLocation: storageLocation.trim() || null,
+        storageLocation: null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
         restaurantLogoUrl: restaurant?.logo_url || null,
-        restaurantCnpj: cnpjInput.trim() || restaurantLegal?.cnpj || null,
-        restaurantCep: cepInput.trim() || restaurantLegal?.cep || null,
+        restaurantCnpj: restaurantLegal?.cnpj || null,
+        restaurantCep: restaurantLegal?.cep || null,
         checklistQrSvg: qrSvg,
         checklistQrLabel: `#${inserted.unique_code}`,
         quantity: qty,
@@ -291,68 +254,22 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
               <div className="space-y-1"><Label>Qtd / Peso</Label><Input value={quantityWeight} onChange={(e) => setQuantityWeight(e.target.value)} placeholder="500g, 1L..." /></div>
             </div>
 
-            <div className="space-y-1">
-              <Label>Observação</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={200} />
-            </div>
-
-            <div className="space-y-1">
-              <Label>CIF — Comunicado de Início de Fabricação (opcional)</Label>
-              <Input
-                value={cif}
-                onChange={(e) => setCif(e.target.value)}
-                maxLength={80}
-                placeholder="Nº do CIF junto à Anvisa/Vigilância Sanitária"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Alergênicos (RDC 26/2015)</Label>
-              <Input
-                value={allergens}
-                onChange={(e) => setAllergens(e.target.value)}
-                maxLength={200}
-                placeholder="Ex: glúten, leite, ovo, soja"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Ingredientes</Label>
-              <Textarea
-                value={ingredients}
-                onChange={(e) => setIngredients(e.target.value)}
-                rows={2}
-                maxLength={400}
-                placeholder="Em ordem decrescente de quantidade"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Local de armazenamento</Label>
-              <Input
-                value={storageLocation}
-                onChange={(e) => setStorageLocation(e.target.value)}
-                maxLength={40}
-                placeholder="Ex: Geladeira 1, Freezer 2, Bancada"
-              />
-            </div>
-
-            <div className="p-3 rounded-xl border border-border/50 space-y-2">
-              <div className="text-xs uppercase font-bold text-muted-foreground">Dados do estabelecimento (impressos na etiqueta)</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">CNPJ</Label>
-                  <Input value={cnpjInput} onChange={(e) => setCnpjInput(e.target.value)} placeholder="00.000.000/0000-00" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">CEP</Label>
-                  <Input value={cepInput} onChange={(e) => setCepInput(e.target.value)} placeholder="00000-000" />
-                </div>
+            {((product as any).allergens || (product as any).ingredients) && (
+              <div className="p-3 rounded-xl border border-border/50 text-xs space-y-1 bg-muted/30">
+                <div className="text-[10px] uppercase font-bold text-muted-foreground">Dados do produto (impressos automaticamente)</div>
+                {(product as any).allergens && (
+                  <div><span className="font-semibold text-amber-500">⚠ Alergênicos:</span> {(product as any).allergens}</div>
+                )}
+                {(product as any).ingredients && (
+                  <div className="line-clamp-2"><span className="font-semibold">Ingredientes:</span> {(product as any).ingredients}</div>
+                )}
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={saveLegal} disabled={savingLegal} className="w-full">
-                {savingLegal ? "Salvando..." : "Salvar dados do estabelecimento"}
-              </Button>
-            </div>
+            )}
+            {!restaurantLegal?.cnpj && (
+              <div className="text-[11px] text-amber-500/90 border border-amber-500/30 bg-amber-500/5 rounded-lg p-2">
+                CNPJ do estabelecimento não cadastrado. Configure em <strong>Configurações → Restaurante</strong> para que apareça na etiqueta.
+              </div>
+            )}
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
               <span className="text-sm font-semibold">Etiquetas a imprimir</span>
@@ -409,20 +326,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 )}
               </div>
 
-              {/* LOCAL — linha própria */}
-              <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3, marginBottom: "4px" }}>
-                <span className="font-bold" style={{ minWidth: "55px" }}>LOCAL:</span>
-                <span className="font-semibold uppercase">{storageLocation || "—"}</span>
-              </div>
-
               {/* Rodapé + QR */}
               <div className="flex justify-between items-end gap-2 flex-1">
                 <div className="flex-1 min-w-0" style={{ fontSize: "9px", lineHeight: 1.25 }}>
                   <div className="truncate"><span className="font-bold">RESP:</span> {employee.name}</div>
                   {restaurant?.name && <div className="font-bold uppercase truncate">{restaurant.name}</div>}
-                  {(cnpjInput || restaurantLegal?.cnpj) && <div className="truncate"><span className="font-bold">CNPJ:</span> {cnpjInput || restaurantLegal?.cnpj}</div>}
-                  {cif && <div className="truncate"><span className="font-bold">CIF:</span> {cif}</div>}
-                  {(cepInput || restaurantLegal?.cep) && <div className="truncate"><span className="font-bold">CEP:</span> {cepInput || restaurantLegal?.cep}</div>}
+                  {restaurantLegal?.cnpj && <div className="truncate"><span className="font-bold">CNPJ:</span> {restaurantLegal.cnpj}</div>}
+                  {restaurantLegal?.cep && <div className="truncate"><span className="font-bold">CEP:</span> {restaurantLegal.cep}</div>}
                 </div>
                 <div className="flex flex-col items-center shrink-0">
                   <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW`} size={46} level="M" marginSize={0} />
@@ -430,9 +340,9 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 </div>
               </div>
 
-              {allergens && (
+              {(product as any).allergens && (
                 <div className="font-extrabold uppercase text-center border border-black" style={{ fontSize: "9px", padding: "1px 3px", marginTop: "3px", letterSpacing: "0.3px" }}>
-                  CONTÉM: {allergens}
+                  ⚠ CONTÉM: {(product as any).allergens}
                 </div>
               )}
             </div>

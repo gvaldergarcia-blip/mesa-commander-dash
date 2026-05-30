@@ -24,13 +24,12 @@ import { getSiteBaseUrl } from "@/config/site-url";
 export default function EtiquetasPage() {
   const navigate = useNavigate();
   const { products, isLoading: prodLoading, createProduct, updateProduct, deleteProduct, isMutating } = useLabelProducts();
-  const { labels, isLoading: labelsLoading, dischargeBulk } = useLabels();
+  const { labels, isLoading: labelsLoading } = useLabels();
   const { employees } = useLabelEmployees();
 
   const [tab, setTab] = useState("dashboard");
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
   const [statFilter, setStatFilter] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
 
   // Product dialog
   const [formOpen, setFormOpen] = useState(false);
@@ -121,11 +120,6 @@ export default function EtiquetasPage() {
     downloadCsv(`etiquetas-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(filtered));
   };
 
-  const handleBulkDischarge = async (reason: any) => {
-    await dischargeBulk({ ids: selected, reason });
-    setSelected([]);
-  };
-
   return (
     <div className="p-3 md:p-8 space-y-6 max-w-[1500px] mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/50 pb-5">
@@ -188,13 +182,7 @@ export default function EtiquetasPage() {
         {/* ===== ETIQUETAS (lista) ===== */}
         <TabsContent value="etiquetas" className="space-y-5">
           <LabelFilters value={filters} onChange={setFilters} employees={employees} onExport={handleExport} />
-          <LabelsList
-            labels={filtered}
-            isLoading={labelsLoading}
-            selected={selected}
-            onSelectedChange={setSelected}
-            onBulkDischarge={handleBulkDischarge}
-          />
+          <LabelsList labels={filtered} isLoading={labelsLoading} />
         </TabsContent>
 
         {/* ===== IMPRIMIR ===== */}

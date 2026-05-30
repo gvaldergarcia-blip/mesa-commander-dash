@@ -56,6 +56,8 @@ const settingsSchema = z.object({
   menu_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   menu_image_url: z.string().url("URL inválida").or(z.literal("")).optional(),
   logo_url: z.string().url("URL inválida").or(z.literal("")).optional(),
+  cnpj: z.string().max(20).optional(),
+  zip_code: z.string().max(10).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -86,6 +88,8 @@ function SettingsContent() {
       menu_url: "",
       menu_image_url: "",
       logo_url: "",
+      cnpj: "",
+      zip_code: "",
     },
   });
 
@@ -121,6 +125,8 @@ function SettingsContent() {
               menu_url: data.menu_url || "",
               menu_image_url: data.menu_image_url || "",
               logo_url: data.logo_url || "",
+              cnpj: data.cnpj || "",
+              zip_code: data.zip_code || "",
             });
           }
         }
@@ -140,7 +146,7 @@ function SettingsContent() {
       const { data, error } = await (supabase as any)
         .schema('mesaclik')
         .from('restaurants')
-        .select('name, address_line, city, cuisine, about, image_url, menu_url, menu_image_url, logo_url')
+        .select('name, address_line, city, cuisine, about, image_url, menu_url, menu_image_url, logo_url, cnpj, zip_code')
         .eq('id', restaurantId)
         .maybeSingle();
 
@@ -160,6 +166,8 @@ function SettingsContent() {
           menu_url: data.menu_url || "",
           menu_image_url: data.menu_image_url || "",
           logo_url: data.logo_url || "",
+          cnpj: data.cnpj || "",
+          zip_code: data.zip_code || "",
         });
       } else {
         console.warn('[Settings] No data found for restaurant ID:', restaurantId);
@@ -316,6 +324,8 @@ function SettingsContent() {
           menu_url: values.menu_url || null,
           menu_image_url: values.menu_image_url || null,
           logo_url: values.logo_url || null,
+          cnpj: values.cnpj?.trim() || null,
+          zip_code: values.zip_code?.trim() || null,
         })
         .eq('id', restaurantId);
 
@@ -492,6 +502,41 @@ function SettingsContent() {
                               ))}
                             </SelectContent>
                           </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="cnpj"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CNPJ</FormLabel>
+                          <FormControl>
+                            <Input placeholder="00.000.000/0000-00" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Aparece automaticamente nas etiquetas de alimentos impressas.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="zip_code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CEP</FormLabel>
+                          <FormControl>
+                            <Input placeholder="00000-000" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Aparece automaticamente nas etiquetas de alimentos impressas.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
