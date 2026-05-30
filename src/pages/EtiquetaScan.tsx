@@ -145,8 +145,10 @@ export default function EtiquetaScan() {
   // Urgency
   const urgency = isDischarged
     ? { label: "BAIXADA", bg: "#2D2D44", text: "#A0AEC0", border: "#2D2D44" }
-    : isExpired || cls === "today"
-    ? { label: "CRÍTICO", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
+    : isExpired
+    ? { label: "VENCIDA", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
+    : cls === "today"
+    ? { label: "VENCE HOJE", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
     : cls === "tomorrow"
     ? { label: "ATENÇÃO", bg: "#78350F", text: "#FED7AA", border: "#ED8936" }
     : { label: "OK", bg: "#14532D", text: "#BBF7D0", border: "#48BB78" };
