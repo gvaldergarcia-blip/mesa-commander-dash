@@ -1,0 +1,1 @@
+ALTER TABLE mesaclik.restaurants ADD COLUMN IF NOT EXISTS cnpj VARCHAR(20);
