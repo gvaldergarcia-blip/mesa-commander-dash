@@ -157,16 +157,10 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      let preflight: MediaStream;
-      try {
-        preflight = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false,
-        });
-      } catch {
-        preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      }
-
+      // Preflight leve: apenas valida permissão com qualquer câmera disponível.
+      // O scanner já tem fallback traseira → frontal, então não exigimos "environment" aqui
+      // (isso quebrava em desktops e iframes sem câmera traseira).
+      const preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       preflight.getTracks().forEach((track) => track.stop());
       setPhase("scan");
     } catch (err: any) {
