@@ -126,7 +126,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         allergens: productAllergens,
         ingredients: productIngredients,
         conservationLabel: CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL] || null,
-        storageLocation: null,
+        storageLocation: (product as any).storage_location || null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
