@@ -61,7 +61,7 @@ export function printLabels(data: PrintLabelData) {
     footerLines.push(`<div class="f-line"><span class="k">CEP:</span> ${escapeHtml(data.restaurantCep)}</div>`);
 
   const allergensBlock = data.allergens
-    ? `<div class="allergens">CONTÉM: ${escapeHtml(data.allergens.toUpperCase())}</div>`
+    ? `<div class="allergens">⚠ CONTÉM: ${escapeHtml(data.allergens.toUpperCase())}</div>`
     : "";
 
   const ingredientsBlock = data.ingredients

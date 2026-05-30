@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LabelProduct, LabelProductInput } from "@/hooks/useLabelProducts";
-import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
+import { PRODUCT_CATEGORIES, ALLERGEN_OPTIONS } from "@/lib/labels/categories";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -24,8 +25,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [unit, setUnit] = useState<string>("un");
   const [status, setStatus] = useState<string>("active");
   const [category, setCategory] = useState<string>("none");
-  const [cif, setCif] = useState<string>("");
-  const [allergens, setAllergens] = useState<string>("");
+  const [allergens, setAllergens] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string>("");
 
   useEffect(() => {
@@ -37,11 +37,18 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setUnit(product?.unit ?? "un");
       setStatus(product?.status ?? "active");
       setCategory(product?.category ?? "none");
-      setCif(product?.cif ?? "");
-      setAllergens(product?.allergens ?? "");
+      setAllergens(
+        product?.allergens
+          ? product.allergens.split(",").map((s) => s.trim()).filter(Boolean)
+          : []
+      );
       setIngredients(product?.ingredients ?? "");
     }
   }, [open, product]);
+
+  const toggleAllergen = (a: string) => {
+    setAllergens((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,8 +64,8 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       unit,
       status: status as any,
       category: category === "none" ? null : category,
-      cif: cif.trim() || null,
-      allergens: allergens.trim() || null,
+      cif: null,
+      allergens: allergens.length ? allergens.join(", ") : null,
       ingredients: ingredients.trim() || null,
     });
     onOpenChange(false);
@@ -148,33 +155,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prod-cif">CIF — Comunicado de Início de Fabricação (opcional)</Label>
-            <Input
-              id="prod-cif"
-              value={cif}
-              onChange={(e) => setCif(e.target.value)}
-              placeholder="Nº do CIF junto à Anvisa/Vigilância Sanitária"
-              maxLength={80}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Se preenchido, aparece na etiqueta impressa abaixo do campo Obs.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="prod-allergens">Alergênicos (RDC 26/2015) — opcional</Label>
-            <Input
-              id="prod-allergens"
-              value={allergens}
-              onChange={(e) => setAllergens(e.target.value)}
-              placeholder="Ex: contém glúten, leite, ovo, soja"
-              maxLength={200}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Será impresso em destaque na etiqueta (obrigatório se contiver alergênicos).
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="prod-ingredients">Ingredientes — opcional</Label>
+            <Label htmlFor="prod-ingredients">Ingredientes principais (opcional)</Label>
             <Textarea
               id="prod-ingredients"
               value={ingredients}
@@ -183,6 +164,32 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               maxLength={400}
               rows={2}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Alergênicos (RDC 26/2015) — opcional</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {ALLERGEN_OPTIONS.map((a) => {
+                const active = allergens.includes(a);
+                return (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => toggleAllergen(a)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                      active
+                        ? "bg-amber-500/20 border-amber-500/60 text-amber-200"
+                        : "bg-muted/40 border-border/40 text-muted-foreground hover:bg-muted/60"
+                    )}
+                  >
+                    {a}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Se selecionados, aparecem em destaque na etiqueta impressa com ícone de alerta.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="prod-notes">Observação (opcional)</Label>
