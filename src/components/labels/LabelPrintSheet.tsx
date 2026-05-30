@@ -5,6 +5,7 @@ export interface PrintLabelData {
   productName: string;
   manufactureDate: Date;
   expiryDate: Date;
+  supplierExpiryDate?: Date | null;
   responsible: string;
   notes?: string | null;
   cif?: string | null;
@@ -85,6 +86,7 @@ export function printLabels(data: PrintLabelData) {
           <div class="dates">
             <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
             <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
+            ${data.supplierExpiryDate ? `<div class="d-row sub"><span class="k">VAL. FORNEC.:</span><span class="v">${escapeHtml(format(data.supplierExpiryDate, "dd/MM/yyyy", { locale: ptBR }))}</span></div>` : ""}
             ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}
           </div>
 
