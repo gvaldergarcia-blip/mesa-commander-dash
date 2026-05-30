@@ -1,0 +1,1 @@
+ALTER TABLE public.label_products ADD COLUMN IF NOT EXISTS storage_location text;
