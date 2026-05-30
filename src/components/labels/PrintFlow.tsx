@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, ArrowRight, Printer, Search, Loader2, User } from "lucide-react";
+import { ArrowLeft, Printer, Search, Loader2, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -32,7 +31,6 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const { products, isLoading: prodLoading } = useLabelProducts();
   const { createLabel } = useLabels();
   const { restaurant } = useRestaurant();
-  const qc = useQueryClient();
 
   const [employee, setEmployee] = useState<LabelEmployee | null>(null);
   const [product, setProduct] = useState<LabelProduct | null>(null);
@@ -42,14 +40,6 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [batch, setBatch] = useState("");
   const [quantityWeight, setQuantityWeight] = useState("");
   const [conservation, setConservation] = useState<string>("refrigerated");
-  const [notes, setNotes] = useState("");
-  const [cif, setCif] = useState("");
-  const [allergens, setAllergens] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [storageLocation, setStorageLocation] = useState("");
-  const [cnpjInput, setCnpjInput] = useState("");
-  const [cepInput, setCepInput] = useState("");
-  const [savingLegal, setSavingLegal] = useState(false);
   const [printQty, setPrintQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,53 +47,23 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
     if (product) {
       setNow(new Date());
       setConservation(product.conservation_method || "refrigerated");
-      setNotes(product.default_observation || product.notes || "");
-      setCif(product.cif || "");
-      setAllergens((product as any).allergens || "");
-      setIngredients((product as any).ingredients || "");
     }
   }, [product]);
 
-  // CNPJ/CEP do restaurante para a etiqueta
+  // Dados legais do restaurante (CNPJ + CEP) — puxados de Configurações, NUNCA editáveis aqui.
   const { data: restaurantLegal } = useQuery({
     queryKey: ["restaurant-legal", restaurant?.id],
     enabled: !!restaurant?.id,
     queryFn: async () => {
       const { data } = await (supabase as any)
+        .schema("mesaclik")
         .from("restaurants")
-        .select("cnpj, address")
+        .select("cnpj, zip_code")
         .eq("id", restaurant!.id)
         .maybeSingle();
-      const address: string = data?.address || "";
-      const cepMatch = address.match(/\d{5}-?\d{3}/);
-      return { cnpj: data?.cnpj || null, cep: cepMatch ? cepMatch[0] : null };
+      return { cnpj: data?.cnpj || null, cep: data?.zip_code || null };
     },
   });
-
-  useEffect(() => {
-    setCnpjInput(restaurantLegal?.cnpj || "");
-    setCepInput(restaurantLegal?.cep || "");
-  }, [restaurantLegal?.cnpj, restaurantLegal?.cep]);
-
-  const saveLegal = async () => {
-    if (!restaurant?.id) return;
-    setSavingLegal(true);
-    try {
-      await (supabase as any)
-        .from("restaurants")
-        .update({
-          cnpj: cnpjInput.trim() || null,
-          address: cepInput.trim() ? `CEP ${cepInput.trim()}` : null,
-        })
-        .eq("id", restaurant.id);
-      await qc.invalidateQueries({ queryKey: ["restaurant-legal", restaurant.id] });
-      toast.success("Dados do estabelecimento salvos");
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao salvar");
-    } finally {
-      setSavingLegal(false);
-    }
-  };
 
   const expiryDate = useMemo(() => {
     if (!product) return null;
@@ -124,8 +84,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
 
   const reset = () => {
     setStep(1); setEmployee(null); setProduct(null);
-    setBatch(""); setQuantityWeight(""); setNotes(""); setCif("");
-    setAllergens(""); setIngredients(""); setStorageLocation(""); setPrintQty(1);
+    setBatch(""); setQuantityWeight(""); setPrintQty(1);
     setProductSearch("");
   };
 
@@ -134,6 +93,10 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
     setSubmitting(true);
     try {
       const qty = Math.max(1, Math.min(10, printQty));
+      // Dados do produto (alergênicos, ingredientes, notas) puxados do cadastro.
+      const productNotes = product.default_observation || product.notes || null;
+      const productAllergens = (product as any).allergens || null;
+      const productIngredients = (product as any).ingredients || null;
       const inserted = await createLabel({
         label_product_id: product.id,
         product_name: product.name,
@@ -144,10 +107,10 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         responsible: employee.name,
         employee_id: employee.id,
         conservation_method: conservation as any,
-        notes: notes.trim() || null,
-        cif: cif.trim() || null,
-        allergens: allergens.trim() || null,
-        ingredients: ingredients.trim() || null,
+        notes: productNotes,
+        cif: product.cif || null,
+        allergens: productAllergens,
+        ingredients: productIngredients,
       });
       const scanUrl = `${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}`;
       const qrSvg = renderToStaticMarkup(
@@ -158,18 +121,18 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         manufactureDate: now,
         expiryDate,
         responsible: employee.name,
-        notes: notes.trim() || null,
-        cif: cif.trim() || null,
-        allergens: allergens.trim() || null,
-        ingredients: ingredients.trim() || null,
+        notes: productNotes,
+        cif: product.cif || null,
+        allergens: productAllergens,
+        ingredients: productIngredients,
         conservationLabel: CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL] || null,
-        storageLocation: storageLocation.trim() || null,
+        storageLocation: null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
         restaurantLogoUrl: restaurant?.logo_url || null,
-        restaurantCnpj: cnpjInput.trim() || restaurantLegal?.cnpj || null,
-        restaurantCep: cepInput.trim() || restaurantLegal?.cep || null,
+        restaurantCnpj: restaurantLegal?.cnpj || null,
+        restaurantCep: restaurantLegal?.cep || null,
         checklistQrSvg: qrSvg,
         checklistQrLabel: `#${inserted.unique_code}`,
         quantity: qty,
