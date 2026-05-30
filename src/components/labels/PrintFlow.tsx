@@ -326,6 +326,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 )}
               </div>
 
+              {(product as any).storage_location && (
+                <div style={{ fontSize: "10px", marginTop: "3px" }}>
+                  <span className="font-extrabold uppercase">LOCAL:</span>{" "}
+                  <span className="font-bold uppercase">{(product as any).storage_location}</span>
+                </div>
+              )}
+
               {/* Rodapé + QR */}
               <div className="flex justify-between items-end gap-2 flex-1">
                 <div className="flex-1 min-w-0" style={{ fontSize: "9px", lineHeight: 1.25 }}>
