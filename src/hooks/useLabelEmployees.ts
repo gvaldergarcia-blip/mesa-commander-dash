@@ -9,6 +9,7 @@ export interface LabelEmployee {
   name: string;
   role: string | null;
   pin: string | null;
+  whatsapp_phone: string | null;
   status: "active" | "inactive";
   created_at: string;
 }
@@ -17,6 +18,7 @@ export interface LabelEmployeeInput {
   name: string;
   role?: string | null;
   pin?: string | null;
+  whatsapp_phone?: string | null;
   status?: "active" | "inactive";
 }
 
@@ -46,6 +48,7 @@ export function useLabelEmployees() {
         name: input.name.trim(),
         role: input.role?.trim() || null,
         pin: input.pin?.trim() || null,
+        whatsapp_phone: input.whatsapp_phone?.trim() || null,
         status: input.status ?? "active",
       });
       if (error) throw error;
@@ -65,6 +68,7 @@ export function useLabelEmployees() {
           name: input.name.trim(),
           role: input.role?.trim() || null,
           pin: input.pin?.trim() || null,
+          whatsapp_phone: input.whatsapp_phone?.trim() || null,
           status: input.status ?? "active",
         })
         .eq("id", id);
