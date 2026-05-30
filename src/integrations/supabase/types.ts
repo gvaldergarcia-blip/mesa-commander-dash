@@ -1646,6 +1646,51 @@ export type Database = {
           },
         ]
       }
+      label_verifications: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          id: string
+          label_id: string
+          notes: string | null
+          restaurant_id: string
+          verified_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          label_id: string
+          notes?: string | null
+          restaurant_id: string
+          verified_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          label_id?: string
+          notes?: string | null
+          restaurant_id?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_verifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "label_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_verifications_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "label_issuances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_posts: {
         Row: {
           created_at: string
@@ -4675,6 +4720,10 @@ export type Database = {
           name: string
           role: string
         }[]
+      }
+      verify_label_by_code: {
+        Args: { _code: string; _employee_id?: string; _notes?: string }
+        Returns: Json
       }
     }
     Enums: {
