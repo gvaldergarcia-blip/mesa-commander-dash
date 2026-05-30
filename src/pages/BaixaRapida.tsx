@@ -394,8 +394,8 @@ export default function BaixaRapida() {
               <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[#FF6B00]" /></div>
             ) : myLabels.length === 0 ? (
               <div className="text-center py-16 text-[#718096]">
-                <ScanLine className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                <p className="font-medium text-white">Nenhuma etiqueta pendente</p>
+                <div className="text-5xl mb-3">✅</div>
+                <p className="font-medium text-white">Todos os produtos do seu setor estão em dia</p>
                 <p className="text-sm mt-1">Use o botão Escanear para qualquer etiqueta.</p>
               </div>
             ) : (
@@ -403,7 +403,13 @@ export default function BaixaRapida() {
                 const Icon = conservationIcon(l.conservation_method);
                 const cls = classifyExpiry(l.expiry_date);
                 const isExp = cls === "expired" || l.status === "expired";
-                const borderColor = isExp ? "#E53E3E" : cls === "today" ? "#ED8936" : cls === "tomorrow" ? "#4299E1" : "#48BB78";
+                const borderColor = getCategoryHex(l.product_category);
+                const urgency =
+                  isExp || cls === "today"
+                    ? { label: "CRÍTICO", bg: "#7F1D1D", fg: "#FECACA" }
+                    : cls === "tomorrow"
+                    ? { label: "ATENÇÃO", bg: "#78350F", fg: "#FDE68A" }
+                    : { label: "OK", bg: "#14532D", fg: "#BBF7D0" };
                 return (
                   <button
                     key={l.id}
@@ -414,7 +420,12 @@ export default function BaixaRapida() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-white truncate">{l.product_name}</span>
-                        {isExp && <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#7F1D1D] text-[#FECACA] shrink-0 flex items-center gap-0.5"><AlertTriangle className="h-3 w-3" /> Vencida</span>}
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                          style={{ backgroundColor: urgency.bg, color: urgency.fg }}
+                        >
+                          {urgency.label}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-[#A0AEC0]">
                         <span className="flex items-center gap-1"><Icon className="h-3 w-3" /> {CONSERVATION_LABEL[l.conservation_method || ""] || "—"}</span>
