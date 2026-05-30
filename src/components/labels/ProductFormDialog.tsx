@@ -47,8 +47,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
     e.preventDefault();
     const days = parseInt(validityDays, 10);
     if (!name.trim() || isNaN(days) || days <= 0) return;
+    const trimmed = name.trim();
+    const normalizedName = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
     await onSubmit({
-      name,
+      name: normalizedName,
       validity_days: days,
       notes,
       conservation_method: conservation as any,

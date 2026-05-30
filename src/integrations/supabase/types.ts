@@ -1439,6 +1439,7 @@ export type Database = {
           pin: string | null
           restaurant_id: string
           role: string | null
+          sectors: string[]
           status: string
           updated_at: string
           whatsapp_phone: string | null
@@ -1450,6 +1451,7 @@ export type Database = {
           pin?: string | null
           restaurant_id: string
           role?: string | null
+          sectors?: string[]
           status?: string
           updated_at?: string
           whatsapp_phone?: string | null
@@ -1461,6 +1463,7 @@ export type Database = {
           pin?: string | null
           restaurant_id?: string
           role?: string | null
+          sectors?: string[]
           status?: string
           updated_at?: string
           whatsapp_phone?: string | null
@@ -4719,6 +4722,7 @@ export type Database = {
           id: string
           name: string
           role: string
+          sectors: string[]
         }[]
       }
       verify_label_by_code: {

@@ -9,6 +9,8 @@ import { Button as UButton } from "@/components/ui/button";
 import { Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
 
 interface Props {
   open: boolean;
@@ -24,6 +26,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
   const [pin, setPin] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [sectors, setSectors] = useState<string[]>([]);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
@@ -33,14 +36,22 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       setPin(employee?.pin ?? "");
       setWhatsapp(employee?.whatsapp_phone ?? "");
       setStatus(employee?.status ?? "active");
+      setSectors(employee?.sectors ?? []);
     }
   }, [open, employee]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    if (pin && !/^[0-9]{4}$/.test(pin)) return;
-    await onSubmit({ name, role, pin: pin || null, whatsapp_phone: whatsapp || null, status });
+    if (!/^[0-9]{4}$/.test(pin)) {
+      toast.error("PIN obrigatório (4 dígitos)");
+      return;
+    }
+    if (sectors.length === 0) {
+      toast.error("Selecione ao menos um setor de responsabilidade");
+      return;
+    }
+    await onSubmit({ name, role, pin, whatsapp_phone: whatsapp || null, status, sectors });
     onOpenChange(false);
   };
 
@@ -96,6 +107,30 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
             <Input value={role} onChange={(e) => setRole(e.target.value)} maxLength={50} placeholder="Ex: Chef, Auxiliar" />
           </div>
           <div className="space-y-2">
+            <Label>Setores responsáveis *</Label>
+            <div className="grid grid-cols-2 gap-1.5 p-3 rounded-md border border-border/60 bg-muted/20 max-h-48 overflow-y-auto">
+              {PRODUCT_CATEGORIES.map((cat) => {
+                const checked = sectors.includes(cat);
+                return (
+                  <label key={cat} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => {
+                        setSectors((prev) =>
+                          v ? [...prev, cat] : prev.filter((s) => s !== cat)
+                        );
+                      }}
+                    />
+                    <span className="truncate">{cat}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              No Modo Operador, este funcionário verá apenas etiquetas das categorias selecionadas.
+            </p>
+          </div>
+          <div className="space-y-2">
             <Label>WhatsApp (com DDD)</Label>
             <div className="flex gap-2">
               <Input
@@ -113,8 +148,14 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>PIN (4 dígitos)</Label>
-              <Input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="Opcional" />
+              <Label>PIN (4 dígitos) *</Label>
+              <Input
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="Ex: 1234"
+                required
+                inputMode="numeric"
+              />
             </div>
             <div className="space-y-2">
               <Label>Status</Label>

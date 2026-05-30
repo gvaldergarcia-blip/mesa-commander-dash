@@ -20,6 +20,7 @@ export interface Label {
   responsible: string | null;
   employee_id: string | null;
   employee_name?: string | null;
+  product_category?: string | null;
   conservation_method: ConservationMethod | null;
   notes: string | null;
   cif: string | null;
@@ -63,7 +64,7 @@ export function useLabels() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("label_issuances")
-        .select("*, employee:employee_id ( name )")
+        .select("*, employee:employee_id ( name ), product:label_product_id ( category )")
         .eq("restaurant_id", restaurantId)
         .order("created_at", { ascending: false })
         .limit(1000);
@@ -71,6 +72,7 @@ export function useLabels() {
       const rows = (data || []).map((r: any) => ({
         ...r,
         employee_name: r.employee?.name ?? null,
+        product_category: r.product?.category ?? null,
       })) as Label[];
       // Recalc effective status
       return rows.map((l) => ({ ...l, status: computeLiveStatus(l) }));
