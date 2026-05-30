@@ -113,7 +113,7 @@ export default function EtiquetaScan() {
   };
 
   const closeNav = () => {
-    if (employee) navigate("/baixa-rapida");
+    if (employee) navigate("/etiquetas/baixa-rapida");
     else navigate(-1);
   };
 

@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getSiteBaseUrl } from "@/config/site-url";
 
 export default function EtiquetasPage() {
   const navigate = useNavigate();
@@ -37,6 +38,27 @@ export default function EtiquetasPage() {
   const [delTarget, setDelTarget] = useState<LabelProduct | null>(null);
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
   const [productSearchFilter, setProductSearchFilter] = useState<string>("");
+
+  const handleOpenOperatorMode = () => {
+    const operatorPath = "/etiquetas/baixa-rapida";
+    const isPreviewHost = typeof window !== "undefined" && (
+      window.location.hostname.includes("lovable.app") ||
+      window.location.hostname.includes("lovableproject.com")
+    );
+
+    if (isPreviewHost) {
+      const publishedUrl = `${getSiteBaseUrl()}${operatorPath}`;
+      const opened = window.open(publishedUrl, "_blank", "noopener,noreferrer");
+
+      if (!opened && window.top) {
+        window.top.location.href = publishedUrl;
+      }
+
+      return;
+    }
+
+    navigate(operatorPath);
+  };
 
   const stats = useMemo(() => computeStats(labels), [labels]);
 
@@ -120,7 +142,7 @@ export default function EtiquetasPage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button
-            onClick={() => navigate("/etiquetas/baixa-rapida")}
+            onClick={handleOpenOperatorMode}
             size="lg"
             variant="outline"
             className="gap-2 border-[#FF6B00]/40 text-[#FF6B00] hover:bg-[#FF6B00]/10 hover:text-[#FF6B00]"
