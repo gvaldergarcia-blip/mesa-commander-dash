@@ -158,11 +158,8 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      // Preflight leve: apenas valida permissão com qualquer câmera disponível.
-      // O scanner já tem fallback traseira → frontal, então não exigimos "environment" aqui
-      // (isso quebrava em desktops e iframes sem câmera traseira).
-      const preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      preflight.getTracks().forEach((track) => track.stop());
+      // Sem preflight: o próprio scanner abre a câmera uma única vez.
+      // Isso evita dois prompts de permissão em sequência.
       setPhase("scan");
     } catch (err: any) {
       console.error("[BaixaRapida] camera preflight error:", err);
