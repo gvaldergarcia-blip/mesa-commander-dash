@@ -1,0 +1,1 @@
+ALTER TABLE public.label_employees ADD COLUMN IF NOT EXISTS whatsapp_phone text;

@@ -1441,6 +1441,7 @@ export type Database = {
           role: string | null
           status: string
           updated_at: string
+          whatsapp_phone: string | null
         }
         Insert: {
           created_at?: string
@@ -1451,6 +1452,7 @@ export type Database = {
           role?: string | null
           status?: string
           updated_at?: string
+          whatsapp_phone?: string | null
         }
         Update: {
           created_at?: string
@@ -1461,6 +1463,7 @@ export type Database = {
           role?: string | null
           status?: string
           updated_at?: string
+          whatsapp_phone?: string | null
         }
         Relationships: []
       }
