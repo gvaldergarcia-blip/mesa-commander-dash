@@ -254,68 +254,22 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
               <div className="space-y-1"><Label>Qtd / Peso</Label><Input value={quantityWeight} onChange={(e) => setQuantityWeight(e.target.value)} placeholder="500g, 1L..." /></div>
             </div>
 
-            <div className="space-y-1">
-              <Label>Observação</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={200} />
-            </div>
-
-            <div className="space-y-1">
-              <Label>CIF — Comunicado de Início de Fabricação (opcional)</Label>
-              <Input
-                value={cif}
-                onChange={(e) => setCif(e.target.value)}
-                maxLength={80}
-                placeholder="Nº do CIF junto à Anvisa/Vigilância Sanitária"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Alergênicos (RDC 26/2015)</Label>
-              <Input
-                value={allergens}
-                onChange={(e) => setAllergens(e.target.value)}
-                maxLength={200}
-                placeholder="Ex: glúten, leite, ovo, soja"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Ingredientes</Label>
-              <Textarea
-                value={ingredients}
-                onChange={(e) => setIngredients(e.target.value)}
-                rows={2}
-                maxLength={400}
-                placeholder="Em ordem decrescente de quantidade"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Local de armazenamento</Label>
-              <Input
-                value={storageLocation}
-                onChange={(e) => setStorageLocation(e.target.value)}
-                maxLength={40}
-                placeholder="Ex: Geladeira 1, Freezer 2, Bancada"
-              />
-            </div>
-
-            <div className="p-3 rounded-xl border border-border/50 space-y-2">
-              <div className="text-xs uppercase font-bold text-muted-foreground">Dados do estabelecimento (impressos na etiqueta)</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">CNPJ</Label>
-                  <Input value={cnpjInput} onChange={(e) => setCnpjInput(e.target.value)} placeholder="00.000.000/0000-00" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">CEP</Label>
-                  <Input value={cepInput} onChange={(e) => setCepInput(e.target.value)} placeholder="00000-000" />
-                </div>
+            {((product as any).allergens || (product as any).ingredients) && (
+              <div className="p-3 rounded-xl border border-border/50 text-xs space-y-1 bg-muted/30">
+                <div className="text-[10px] uppercase font-bold text-muted-foreground">Dados do produto (impressos automaticamente)</div>
+                {(product as any).allergens && (
+                  <div><span className="font-semibold text-amber-500">⚠ Alergênicos:</span> {(product as any).allergens}</div>
+                )}
+                {(product as any).ingredients && (
+                  <div className="line-clamp-2"><span className="font-semibold">Ingredientes:</span> {(product as any).ingredients}</div>
+                )}
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={saveLegal} disabled={savingLegal} className="w-full">
-                {savingLegal ? "Salvando..." : "Salvar dados do estabelecimento"}
-              </Button>
-            </div>
+            )}
+            {!restaurantLegal?.cnpj && (
+              <div className="text-[11px] text-amber-500/90 border border-amber-500/30 bg-amber-500/5 rounded-lg p-2">
+                CNPJ do estabelecimento não cadastrado. Configure em <strong>Configurações → Restaurante</strong> para que apareça na etiqueta.
+              </div>
+            )}
 
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
               <span className="text-sm font-semibold">Etiquetas a imprimir</span>
@@ -372,20 +326,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 )}
               </div>
 
-              {/* LOCAL — linha própria */}
-              <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3, marginBottom: "4px" }}>
-                <span className="font-bold" style={{ minWidth: "55px" }}>LOCAL:</span>
-                <span className="font-semibold uppercase">{storageLocation || "—"}</span>
-              </div>
-
               {/* Rodapé + QR */}
               <div className="flex justify-between items-end gap-2 flex-1">
                 <div className="flex-1 min-w-0" style={{ fontSize: "9px", lineHeight: 1.25 }}>
                   <div className="truncate"><span className="font-bold">RESP:</span> {employee.name}</div>
                   {restaurant?.name && <div className="font-bold uppercase truncate">{restaurant.name}</div>}
-                  {(cnpjInput || restaurantLegal?.cnpj) && <div className="truncate"><span className="font-bold">CNPJ:</span> {cnpjInput || restaurantLegal?.cnpj}</div>}
-                  {cif && <div className="truncate"><span className="font-bold">CIF:</span> {cif}</div>}
-                  {(cepInput || restaurantLegal?.cep) && <div className="truncate"><span className="font-bold">CEP:</span> {cepInput || restaurantLegal?.cep}</div>}
+                  {restaurantLegal?.cnpj && <div className="truncate"><span className="font-bold">CNPJ:</span> {restaurantLegal.cnpj}</div>}
+                  {restaurantLegal?.cep && <div className="truncate"><span className="font-bold">CEP:</span> {restaurantLegal.cep}</div>}
                 </div>
                 <div className="flex flex-col items-center shrink-0">
                   <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW`} size={46} level="M" marginSize={0} />
@@ -393,9 +340,9 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 </div>
               </div>
 
-              {allergens && (
+              {(product as any).allergens && (
                 <div className="font-extrabold uppercase text-center border border-black" style={{ fontSize: "9px", padding: "1px 3px", marginTop: "3px", letterSpacing: "0.3px" }}>
-                  CONTÉM: {allergens}
+                  ⚠ CONTÉM: {(product as any).allergens}
                 </div>
               )}
             </div>
