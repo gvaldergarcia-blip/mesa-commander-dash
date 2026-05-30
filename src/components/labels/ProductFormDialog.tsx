@@ -27,6 +27,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [category, setCategory] = useState<string>("none");
   const [allergens, setAllergens] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string>("");
+  const [storageLocation, setStorageLocation] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -43,6 +44,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
           : []
       );
       setIngredients(product?.ingredients ?? "");
+      setStorageLocation((product as any)?.storage_location ?? "");
     }
   }, [open, product]);
 
@@ -67,6 +69,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       cif: null,
       allergens: allergens.length ? allergens.join(", ") : null,
       ingredients: ingredients.trim() || null,
+      storage_location: storageLocation.trim() || null,
     });
     onOpenChange(false);
   };
@@ -163,6 +166,16 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               placeholder="Em ordem decrescente de quantidade"
               maxLength={400}
               rows={2}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="prod-storage">Local de armazenamento (opcional)</Label>
+            <Input
+              id="prod-storage"
+              value={storageLocation}
+              onChange={(e) => setStorageLocation(e.target.value)}
+              placeholder="Ex: Geladeira 1, Freezer 2"
+              maxLength={50}
             />
           </div>
           <div className="space-y-2">
