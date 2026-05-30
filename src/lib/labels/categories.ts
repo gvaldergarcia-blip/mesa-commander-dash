@@ -57,6 +57,24 @@ export const CATEGORY_ICONS: Record<string, string> = {
   "Outros": "",
 };
 
+// Lista oficial de alergênicos (RDC 26/2015 + Codex)
+export const ALLERGEN_OPTIONS = [
+  "Glúten",
+  "Crustáceos",
+  "Ovos",
+  "Peixes",
+  "Amendoim",
+  "Soja",
+  "Leite",
+  "Nozes",
+  "Aipo",
+  "Mostarda",
+  "Gergelim",
+  "Sulfitos",
+  "Tremoço",
+  "Moluscos",
+] as const;
+
 export function getCategoryHex(category?: string | null): string {
   if (!category) return NO_CATEGORY_HEX;
   return CATEGORY_HEX[category] || CATEGORY_HEX["Outros"];

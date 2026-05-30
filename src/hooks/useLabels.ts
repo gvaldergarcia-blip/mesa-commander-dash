@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { toast } from "sonner";
 
-export type LabelStatus = "active" | "expired" | "discharged" | "consumed" | "discarded";
+export type LabelStatus = "active" | "expired" | "discharged";
 export type ConservationMethod = "refrigerated" | "frozen" | "ambient" | "hot";
 export type DischargeReason = "use" | "loss" | "error";
 
@@ -48,11 +48,7 @@ export interface LabelCreateInput {
   ingredients?: string | null;
 }
 
-function computeLiveStatus(l: Label): LabelStatus {
-  if (l.status === "discharged" || l.status === "consumed" || l.status === "discarded") return l.status;
-  if (new Date(l.expiry_date) < new Date()) return "expired";
-  return "active";
-}
+import { getLabelEffectiveStatus } from "@/lib/labels/utils";
 
 export function useLabels() {
   const restaurantId = useRestaurantId();
@@ -75,7 +71,7 @@ export function useLabels() {
         product_category: r.product?.category ?? null,
       })) as Label[];
       // Recalc effective status
-      return rows.map((l) => ({ ...l, status: computeLiveStatus(l) }));
+      return rows.map((l) => ({ ...l, status: getLabelEffectiveStatus(l) }));
     },
     refetchInterval: 60_000,
   });

@@ -39,6 +39,16 @@ export function classifyExpiry(expiry: string | Date): DayClass {
   return "future";
 }
 
+/**
+ * Fonte única da verdade para o status efetivo de uma etiqueta.
+ * Substitui computeLiveStatus.
+ */
+export function getLabelEffectiveStatus(l: { status: string; expiry_date: string | Date }): "active" | "expired" | "discharged" {
+  if (l.status === "discharged") return "discharged";
+  if (new Date(l.expiry_date) < new Date()) return "expired";
+  return "active";
+}
+
 export interface LabelStats {
   expired: number;
   today: number;
@@ -51,7 +61,7 @@ export function computeStats(labels: Label[]): LabelStats {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   labels.forEach((l) => {
-    if (l.status === "discharged" || l.status === "consumed" || l.status === "discarded") {
+    if (l.status === "discharged") {
       // still counts toward month total
       if (new Date(l.created_at) >= monthStart) stats.monthTotal++;
       return;
