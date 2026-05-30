@@ -126,7 +126,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         allergens: productAllergens,
         ingredients: productIngredients,
         conservationLabel: CONSERVATION_LABEL[conservation as keyof typeof CONSERVATION_LABEL] || null,
-        storageLocation: null,
+        storageLocation: (product as any).storage_location || null,
         batch: batch.trim() || null,
         quantityWeight: quantityWeight.trim() || null,
         restaurantName: restaurant?.name || null,
@@ -325,6 +325,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                   </div>
                 )}
               </div>
+
+              {(product as any).storage_location && (
+                <div style={{ fontSize: "10px", marginTop: "3px" }}>
+                  <span className="font-extrabold uppercase">LOCAL:</span>{" "}
+                  <span className="font-bold uppercase">{(product as any).storage_location}</span>
+                </div>
+              )}
 
               {/* Rodapé + QR */}
               <div className="flex justify-between items-end gap-2 flex-1">

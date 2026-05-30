@@ -1599,6 +1599,7 @@ export type Database = {
           notes: string | null
           restaurant_id: string
           status: string
+          storage_location: string | null
           unit: string
           updated_at: string
           validity_days: number
@@ -1617,6 +1618,7 @@ export type Database = {
           notes?: string | null
           restaurant_id: string
           status?: string
+          storage_location?: string | null
           unit?: string
           updated_at?: string
           validity_days: number
@@ -1635,6 +1637,7 @@ export type Database = {
           notes?: string | null
           restaurant_id?: string
           status?: string
+          storage_location?: string | null
           unit?: string
           updated_at?: string
           validity_days?: number

@@ -18,6 +18,7 @@ export interface LabelProduct {
   cif?: string | null;
   allergens?: string | null;
   ingredients?: string | null;
+  storage_location?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ export interface LabelProductInput {
   cif?: string | null;
   allergens?: string | null;
   ingredients?: string | null;
+  storage_location?: string | null;
 }
 
 export function useLabelProducts() {
@@ -75,6 +77,7 @@ export function useLabelProducts() {
           cif: input.cif?.trim() || null,
           allergens: input.allergens?.trim() || null,
           ingredients: input.ingredients?.trim() || null,
+          storage_location: input.storage_location?.trim() || null,
         })
         .select()
         .single();
@@ -105,6 +108,7 @@ export function useLabelProducts() {
           cif: input.cif?.trim() || null,
           allergens: input.allergens?.trim() || null,
           ingredients: input.ingredients?.trim() || null,
+          storage_location: input.storage_location?.trim() || null,
         })
         .eq("id", id)
         .select()
