@@ -489,6 +489,12 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                   <span className="font-bold" style={{ minWidth: "75px" }}>VALIDADE:</span>
                   <span className="font-semibold">{format(expiryDate, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                 </div>
+                {supplierExpiry && (
+                  <div className="flex" style={{ fontSize: "8px", lineHeight: 1.3, opacity: 0.85 }}>
+                    <span className="font-semibold" style={{ minWidth: "75px" }}>VAL. FORNEC.:</span>
+                    <span>{format(supplierExpiry, "dd/MM/yyyy", { locale: ptBR })}</span>
+                  </div>
+                )}
                 {batch && (
                   <div className="flex" style={{ fontSize: "10px", lineHeight: 1.3 }}>
                     <span className="font-bold" style={{ minWidth: "75px" }}>LOTE:</span>
