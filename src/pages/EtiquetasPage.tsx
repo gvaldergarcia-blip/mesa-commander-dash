@@ -46,8 +46,14 @@ export default function EtiquetasPage() {
       window.location.hostname.includes("lovableproject.com")
     );
 
-    if (isPreviewHost && window.top) {
-      window.top.location.href = `${getSiteBaseUrl()}${operatorPath}`;
+    if (isPreviewHost) {
+      const publishedUrl = `${getSiteBaseUrl()}${operatorPath}`;
+      const opened = window.open(publishedUrl, "_blank", "noopener,noreferrer");
+
+      if (!opened && window.top) {
+        window.top.location.href = publishedUrl;
+      }
+
       return;
     }
 
