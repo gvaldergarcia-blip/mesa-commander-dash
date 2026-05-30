@@ -43,7 +43,11 @@ export function EmployeesManager() {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate">{e.name}</div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="truncate">{e.role || "—"}</span>
+                  <span className="truncate">
+                    {[e.role || "—", (e.sectors ?? []).join(", ")]
+                      .filter((s) => s && s.trim().length > 0)
+                      .join(" · ")}
+                  </span>
                   {e.status === "inactive" && <Badge variant="secondary" className="text-[10px]">Inativo</Badge>}
                 </div>
               </div>
