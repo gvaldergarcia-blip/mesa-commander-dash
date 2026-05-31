@@ -14,7 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
 type Employee = { id: string; name: string; role: string | null; sectors?: string[] | null };
-type Phase = "pin" | "list" | "scan";
+type Phase = "pin" | "list" | "camera-permission" | "scan";
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
@@ -153,18 +153,19 @@ export default function BaixaRapida() {
 
     try {
       setStartingScan(true);
+      setPhase("camera-permission");
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      // Preflight dentro do gesto do clique (requisito de browsers para getUserMedia).
-      // O navegador só pergunta permissão UMA vez por domínio — depois disso abre direto.
       const preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       preflight.getTracks().forEach((track) => track.stop());
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
       setPhase("scan");
     } catch (err: any) {
       console.error("[BaixaRapida] camera preflight error:", err);
+      setPhase("list");
       toast.error(getCameraErrorMessage(err));
     } finally {
       setStartingScan(false);
@@ -291,7 +292,13 @@ export default function BaixaRapida() {
           <div>
             <div className="text-sm font-bold tracking-tight">Modo Operador</div>
             <div className="text-[10px] uppercase tracking-widest text-[#718096]">
-              {phase === "pin" ? "Identifique-se" : phase === "scan" ? "Escaneando" : employee?.name}
+              {phase === "pin"
+                ? "Identifique-se"
+                : phase === "camera-permission"
+                ? "Autorizando câmera"
+                : phase === "scan"
+                ? "Escaneando"
+                : employee?.name}
             </div>
           </div>
         </div>
@@ -454,6 +461,20 @@ export default function BaixaRapida() {
       )}
 
       {/* ============== PHASE: SCAN ============== */}
+      {phase === "camera-permission" && (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-6 gap-4 bg-black text-center">
+          <div className="h-16 w-16 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#FF6B00]" />
+          </div>
+          <div className="space-y-2 max-w-sm">
+            <h1 className="text-xl font-bold text-white">Autorize o uso da câmera</h1>
+            <p className="text-sm text-[#A0AEC0]">
+              Toque em Permitir no aviso do navegador. Assim que a câmera for liberada, o leitor abre automaticamente.
+            </p>
+          </div>
+        </div>
+      )}
+
       {phase === "scan" && (
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4 bg-black">
           <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden bg-black border-2 border-[#FF6B00]/40">
