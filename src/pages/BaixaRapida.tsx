@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 type Employee = { id: string; name: string; role: string | null; sectors?: string[] | null };
 type Phase = "pin" | "list" | "camera-permission" | "scan";
+type ScannerInput = Parameters<Html5Qrcode["start"]>[0];
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
@@ -129,6 +130,13 @@ export default function BaixaRapida() {
   const getCameraErrorMessage = (err: any) => {
     const name = err?.name || "";
     const isSecure = window.isSecureContext;
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|Instagram|FBAN|FBAV/i.test(ua);
+
+    if (isIOS && !isSafari) {
+      return "No iPhone, o scanner funciona melhor no Safari. Abra o sistema no Safari e tente novamente.";
+    }
 
     if (name === "NotAllowedError" || /permission|denied/i.test(err?.message || "")) {
       return "Permissão de câmera negada. Libere a câmera nas configurações do Safari/navegador e tente novamente.";
@@ -161,15 +169,40 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
+      let grantedDeviceId: string | undefined;
+
       try {
-        await startScannerSession({ facingMode: { exact: "environment" } } as MediaTrackConstraints);
+        const permissionStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+
+        const grantedTrack = permissionStream.getVideoTracks()[0];
+        const settings = grantedTrack?.getSettings?.();
+        grantedDeviceId = typeof settings?.deviceId === "string" ? settings.deviceId : undefined;
+        permissionStream.getTracks().forEach((track) => track.stop());
+      } catch (permissionErr: any) {
+        console.error("[BaixaRapida] camera permission error:", permissionErr);
+        throw permissionErr;
+      }
+
+      try {
+        await startScannerSession(
+          grantedDeviceId
+            ? ({ deviceId: { exact: grantedDeviceId } } as ScannerInput)
+            : ({ facingMode: { exact: "environment" } } as ScannerInput)
+        );
       } catch {
         await stopScanner();
         try {
-          await startScannerSession({ facingMode: "environment" } as MediaTrackConstraints);
+          await startScannerSession({ facingMode: "environment" } as ScannerInput);
         } catch {
           await stopScanner();
-          await startScannerSession({ facingMode: "user" } as MediaTrackConstraints);
+          await startScannerSession({ facingMode: "user" } as ScannerInput);
         }
       }
 
@@ -218,7 +251,7 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
-  const startScannerSession = async (constraints: MediaTrackConstraints) => {
+  const startScannerSession = async (constraints: ScannerInput) => {
     const scanner = new Html5Qrcode(SCAN_REGION, false);
     scannerRef.current = scanner;
     await scanner.start(
