@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
@@ -153,18 +154,28 @@ export default function BaixaRapida() {
 
     try {
       setStartingScan(true);
-      setPhase("camera-permission");
+      handledRef.current = false;
+      flushSync(() => setPhase("camera-permission"));
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      const preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      preflight.getTracks().forEach((track) => track.stop());
-      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      try {
+        await startScannerSession({ facingMode: { exact: "environment" } } as MediaTrackConstraints);
+      } catch {
+        await stopScanner();
+        try {
+          await startScannerSession({ facingMode: "environment" } as MediaTrackConstraints);
+        } catch {
+          await stopScanner();
+          await startScannerSession({ facingMode: "user" } as MediaTrackConstraints);
+        }
+      }
+
       setPhase("scan");
     } catch (err: any) {
-      console.error("[BaixaRapida] camera preflight error:", err);
+      console.error("[BaixaRapida] camera start error:", err);
       setPhase("list");
       toast.error(getCameraErrorMessage(err));
     } finally {
@@ -207,71 +218,33 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
+  const startScannerSession = async (constraints: MediaTrackConstraints) => {
+    const scanner = new Html5Qrcode(SCAN_REGION, false);
+    scannerRef.current = scanner;
+    await scanner.start(
+      constraints,
+      QR_CONFIG,
+      (decoded) => {
+        if (handledRef.current) return;
+        const code = extractCode(decoded);
+        if (!code) return;
+        handledRef.current = true;
+        try { navigator.vibrate?.(80); } catch {}
+        void stopScanner();
+        navigate(`/etiquetas/scan/${code}?op=1`);
+      },
+      () => {}
+    );
+  };
+
   useEffect(() => {
-    if (phase !== "scan") return;
-    handledRef.current = false;
-    let cancelled = false;
+    if (phase === "scan" || phase === "camera-permission") return;
+    void stopScanner();
+  }, [phase]);
 
-    const start = async (exact: boolean) => {
-      const scanner = new Html5Qrcode(SCAN_REGION, false);
-      scannerRef.current = scanner;
-      const constraints = exact
-        ? ({ facingMode: { exact: "environment" } } as MediaTrackConstraints)
-        : ({ facingMode: "environment" } as MediaTrackConstraints);
-      await scanner.start(
-        constraints,
-        QR_CONFIG,
-        (decoded) => {
-          if (handledRef.current) return;
-          const code = extractCode(decoded);
-          if (!code) return;
-          handledRef.current = true;
-          try { navigator.vibrate?.(80); } catch {}
-          void stopScanner();
-          navigate(`/etiquetas/scan/${code}?op=1`);
-        },
-        () => {}
-      );
-    };
-
-    (async () => {
-      try {
-        try {
-          await start(true);
-        } catch {
-          await stopScanner();
-          try {
-            await start(false);
-          } catch {
-            await stopScanner();
-            // último recurso: qualquer câmera disponível
-            const scanner = new Html5Qrcode(SCAN_REGION, false);
-            scannerRef.current = scanner;
-            await scanner.start(
-              { facingMode: "user" } as MediaTrackConstraints,
-              QR_CONFIG,
-              (decoded) => {
-                if (handledRef.current) return;
-                const code = extractCode(decoded);
-                if (!code) return;
-                handledRef.current = true;
-                try { navigator.vibrate?.(80); } catch {}
-                void stopScanner();
-                navigate(`/etiquetas/scan/${code}?op=1`);
-              },
-              () => {}
-            );
-          }
-        }
-      } catch (err: any) {
-        console.error("[BaixaRapida] camera error:", err);
-        toast.error(getCameraErrorMessage(err));
-        setPhase("list");
-      }
-    })();
-
-    return () => { cancelled = true; void stopScanner(); };
-  }, [phase, navigate]);
+  useEffect(() => {
+    return () => { void stopScanner(); };
+  }, []);
 
   // Refetch labels on returning from scan
   useEffect(() => {
