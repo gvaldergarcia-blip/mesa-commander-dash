@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
@@ -153,18 +154,28 @@ export default function BaixaRapida() {
 
     try {
       setStartingScan(true);
-      setPhase("camera-permission");
+      handledRef.current = false;
+      flushSync(() => setPhase("camera-permission"));
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      const preflight = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      preflight.getTracks().forEach((track) => track.stop());
-      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      try {
+        await startScannerSession({ facingMode: { exact: "environment" } } as MediaTrackConstraints);
+      } catch {
+        await stopScanner();
+        try {
+          await startScannerSession({ facingMode: "environment" } as MediaTrackConstraints);
+        } catch {
+          await stopScanner();
+          await startScannerSession({ facingMode: "user" } as MediaTrackConstraints);
+        }
+      }
+
       setPhase("scan");
     } catch (err: any) {
-      console.error("[BaixaRapida] camera preflight error:", err);
+      console.error("[BaixaRapida] camera start error:", err);
       setPhase("list");
       toast.error(getCameraErrorMessage(err));
     } finally {
@@ -207,71 +218,33 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
+  const startScannerSession = async (constraints: MediaTrackConstraints) => {
+    const scanner = new Html5Qrcode(SCAN_REGION, false);
+    scannerRef.current = scanner;
+    await scanner.start(
+      constraints,
+      QR_CONFIG,
+      (decoded) => {
+        if (handledRef.current) return;
+        const code = extractCode(decoded);
+        if (!code) return;
+        handledRef.current = true;
+        try { navigator.vibrate?.(80); } catch {}
+        void stopScanner();
+        navigate(`/etiquetas/scan/${code}?op=1`);
+      },
+      () => {}
+    );
+  };
+
   useEffect(() => {
-    if (phase !== "scan") return;
-    handledRef.current = false;
-    let cancelled = false;
+    if (phase === "scan" || phase === "camera-permission") return;
+    void stopScanner();
+  }, [phase]);
 
-    const start = async (exact: boolean) => {
-      const scanner = new Html5Qrcode(SCAN_REGION, false);
-      scannerRef.current = scanner;
-      const constraints = exact
-        ? ({ facingMode: { exact: "environment" } } as MediaTrackConstraints)
-        : ({ facingMode: "environment" } as MediaTrackConstraints);
-      await scanner.start(
-        constraints,
-        QR_CONFIG,
-        (decoded) => {
-          if (handledRef.current) return;
-          const code = extractCode(decoded);
-          if (!code) return;
-          handledRef.current = true;
-          try { navigator.vibrate?.(80); } catch {}
-          void stopScanner();
-          navigate(`/etiquetas/scan/${code}?op=1`);
-        },
-        () => {}
-      );
-    };
-
-    (async () => {
-      try {
-        try {
-          await start(true);
-        } catch {
-          await stopScanner();
-          try {
-            await start(false);
-          } catch {
-            await stopScanner();
-            // último recurso: qualquer câmera disponível
-            const scanner = new Html5Qrcode(SCAN_REGION, false);
-            scannerRef.current = scanner;
-            await scanner.start(
-              { facingMode: "user" } as MediaTrackConstraints,
-              QR_CONFIG,
-              (decoded) => {
-                if (handledRef.current) return;
-                const code = extractCode(decoded);
-                if (!code) return;
-                handledRef.current = true;
-                try { navigator.vibrate?.(80); } catch {}
-                void stopScanner();
-                navigate(`/etiquetas/scan/${code}?op=1`);
-              },
-              () => {}
-            );
-          }
-        }
-      } catch (err: any) {
-        console.error("[BaixaRapida] camera error:", err);
-        toast.error(getCameraErrorMessage(err));
-        setPhase("list");
-      }
-    })();
-
-    return () => { cancelled = true; void stopScanner(); };
-  }, [phase, navigate]);
+  useEffect(() => {
+    return () => { void stopScanner(); };
+  }, []);
 
   // Refetch labels on returning from scan
   useEffect(() => {
@@ -461,21 +434,7 @@ export default function BaixaRapida() {
       )}
 
       {/* ============== PHASE: SCAN ============== */}
-      {phase === "camera-permission" && (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-6 gap-4 bg-black text-center">
-          <div className="h-16 w-16 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#FF6B00]" />
-          </div>
-          <div className="space-y-2 max-w-sm">
-            <h1 className="text-xl font-bold text-white">Autorize o uso da câmera</h1>
-            <p className="text-sm text-[#A0AEC0]">
-              Toque em Permitir no aviso do navegador. Assim que a câmera for liberada, o leitor abre automaticamente.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {phase === "scan" && (
+      {(phase === "camera-permission" || phase === "scan") && (
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4 bg-black">
           <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden bg-black border-2 border-[#FF6B00]/40">
             <div id={SCAN_REGION} className="w-full h-full" />
@@ -484,9 +443,24 @@ export default function BaixaRapida() {
               className="pointer-events-none absolute left-8 right-8 h-0.5 bg-[#FF6B00] shadow-[0_0_16px_#FF6B00] animate-[scanline_1.6s_ease-in-out_infinite]"
               style={{ top: 32 }}
             />
+            {phase === "camera-permission" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center px-6">
+                <div className="h-16 w-16 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-[#FF6B00]" />
+                </div>
+                <div className="space-y-2 max-w-xs">
+                  <h1 className="text-xl font-bold text-white">Autorize o uso da câmera</h1>
+                  <p className="text-sm text-[#A0AEC0]">
+                    Toque em Permitir no aviso do navegador. Assim que a câmera for liberada, o leitor abre automaticamente.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
           <p className="text-sm text-[#A0AEC0] text-center max-w-xs">
-            Aponte a câmera para o QR Code da etiqueta. A baixa abre automaticamente.
+            {phase === "camera-permission"
+              ? "Estamos aguardando a liberação da câmera pelo navegador."
+              : "Aponte a câmera para o QR Code da etiqueta. A baixa abre automaticamente."}
           </p>
           <Button
             variant="outline"
