@@ -49,8 +49,8 @@ export default function EtiquetasPage() {
       const publishedUrl = `${getSiteBaseUrl()}${operatorPath}`;
       const opened = window.open(publishedUrl, "_blank", "noopener,noreferrer");
 
-      if (!opened && window.top) {
-        window.top.location.href = publishedUrl;
+      if (!opened) {
+        window.location.href = publishedUrl;
       }
 
       return;
