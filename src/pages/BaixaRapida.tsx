@@ -21,6 +21,14 @@ type ScannerConfig = Parameters<Html5Qrcode["start"]>[1];
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
+function getBrowserInfo() {
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|Instagram|FBAN|FBAV/i.test(ua);
+
+  return { ua, isIOS, isSafari };
+}
+
 // Configuração padrão do leitor — qrbox responsivo, fps alto e resolução de vídeo elevada
 // para que o html5-qrcode consiga decodificar QRs pequenos impressos em etiquetas 80x40mm.
 const QR_CONFIG_BASE: ScannerConfig = {
@@ -34,8 +42,7 @@ const QR_CONFIG_BASE: ScannerConfig = {
 };
 
 function getScannerConfig(attempt: ScannerInput): ScannerConfig {
-  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const { isIOS } = getBrowserInfo();
 
   if (typeof attempt === "string" || isIOS) {
     return QR_CONFIG_BASE;
@@ -144,9 +151,7 @@ export default function BaixaRapida() {
   const getCameraErrorMessage = (err: any) => {
     const name = err?.name || "";
     const isSecure = window.isSecureContext;
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const isSafari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|Instagram|FBAN|FBAV/i.test(ua);
+    const { isIOS, isSafari } = getBrowserInfo();
 
     if (isIOS && !isSafari) {
       return "No iPhone, o scanner funciona melhor no Safari. Abra o sistema no Safari e tente novamente.";
@@ -177,16 +182,14 @@ export default function BaixaRapida() {
     try {
       setStartingScan(true);
       handledRef.current = false;
-      flushSync(() => setPhase("camera-permission"));
+      flushSync(() => setPhase("scan"));
+      await ensureScannerRegionSoon();
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      await new Promise((resolve) => window.setTimeout(resolve, 80));
       await startScannerWithFallbacks();
-
-      setPhase("scan");
     } catch (err: any) {
       console.error("[BaixaRapida] camera start error:", err);
       setPhase("list");
@@ -231,18 +234,45 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
-  const waitForScannerRegion = async () => {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const region = document.getElementById(SCAN_REGION);
-      if (region) return region;
-      await new Promise((resolve) => window.setTimeout(resolve, 30));
+  const ensureScannerRegion = () => {
+    const region = document.getElementById(SCAN_REGION);
+
+    if (!region) {
+      throw new Error("Área do scanner não ficou pronta.");
     }
 
-    throw new Error("Área do scanner não ficou pronta a tempo.");
+    return region;
+  };
+
+  const ensureScannerRegionSoon = async () => {
+    const immediateRegion = document.getElementById(SCAN_REGION);
+    if (immediateRegion) return immediateRegion;
+
+    return await new Promise<HTMLElement>((resolve, reject) => {
+      let frame = 0;
+
+      const check = () => {
+        const region = document.getElementById(SCAN_REGION);
+        if (region) {
+          resolve(region);
+          return;
+        }
+
+        frame += 1;
+        if (frame > 2) {
+          reject(new Error("Área do scanner não ficou pronta."));
+          return;
+        }
+
+        window.requestAnimationFrame(check);
+      };
+
+      window.requestAnimationFrame(check);
+    });
   };
 
   const startScannerSession = async (constraints: ScannerInput) => {
-    await waitForScannerRegion();
+    await ensureScannerRegionSoon();
     const scanner = new Html5Qrcode(SCAN_REGION, false);
     scannerRef.current = scanner;
     await scanner.start(
@@ -262,34 +292,57 @@ export default function BaixaRapida() {
   };
 
   const startScannerWithFallbacks = async () => {
-    const attempts: ScannerInput[] = [
-      { facingMode: { exact: "environment" } } as ScannerInput,
-      { facingMode: "environment" } as ScannerInput,
-      { facingMode: "user" } as ScannerInput,
-    ];
-
-    try {
-      const cameras = await Html5Qrcode.getCameras();
-      const backCamera = cameras.find((camera) => /back|rear|traseira|environment/i.test(camera.label));
-
-      if (backCamera?.id) {
-        attempts.unshift(backCamera.id);
-      } else if (cameras[0]?.id) {
-        attempts.unshift(cameras[0].id);
-      }
-    } catch (cameraListError) {
-      console.warn("[BaixaRapida] could not list cameras:", cameraListError);
-    }
+    const { isIOS } = getBrowserInfo();
+    const attempts: ScannerInput[] = isIOS
+      ? [
+          { facingMode: "environment" } as ScannerInput,
+          { facingMode: "user" } as ScannerInput,
+        ]
+      : [
+          { facingMode: { exact: "environment" } } as ScannerInput,
+          { facingMode: "environment" } as ScannerInput,
+          { facingMode: "user" } as ScannerInput,
+        ];
 
     let lastError: unknown;
 
     for (const attempt of attempts) {
       try {
-        await stopScanner();
+        if (scannerRef.current) {
+          await stopScanner();
+        }
+
         await startScannerSession(attempt);
         return;
       } catch (error) {
         lastError = error;
+        console.warn("[BaixaRapida] scanner attempt failed:", attempt, error);
+      }
+    }
+
+    if (!isIOS) {
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        const orderedCameraIds = [
+          ...cameras.filter((camera) => /back|rear|traseira|environment/i.test(camera.label)).map((camera) => camera.id),
+          ...cameras.filter((camera) => !/back|rear|traseira|environment/i.test(camera.label)).map((camera) => camera.id),
+        ];
+
+        for (const cameraId of orderedCameraIds) {
+          try {
+            if (scannerRef.current) {
+              await stopScanner();
+            }
+
+            await startScannerSession(cameraId);
+            return;
+          } catch (error) {
+            lastError = error;
+            console.warn("[BaixaRapida] camera id attempt failed:", cameraId, error);
+          }
+        }
+      } catch (cameraListError) {
+        console.warn("[BaixaRapida] could not list cameras:", cameraListError);
       }
     }
 
