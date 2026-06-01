@@ -169,42 +169,8 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      let grantedDeviceId: string | undefined;
-
-      try {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        });
-
-        const grantedTrack = permissionStream.getVideoTracks()[0];
-        const settings = grantedTrack?.getSettings?.();
-        grantedDeviceId = typeof settings?.deviceId === "string" ? settings.deviceId : undefined;
-        permissionStream.getTracks().forEach((track) => track.stop());
-      } catch (permissionErr: any) {
-        console.error("[BaixaRapida] camera permission error:", permissionErr);
-        throw permissionErr;
-      }
-
-      try {
-        await startScannerSession(
-          grantedDeviceId
-            ? ({ deviceId: { exact: grantedDeviceId } } as ScannerInput)
-            : ({ facingMode: { exact: "environment" } } as ScannerInput)
-        );
-      } catch {
-        await stopScanner();
-        try {
-          await startScannerSession({ facingMode: "environment" } as ScannerInput);
-        } catch {
-          await stopScanner();
-          await startScannerSession({ facingMode: "user" } as ScannerInput);
-        }
-      }
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+      await startScannerWithFallbacks();
 
       setPhase("scan");
     } catch (err: any) {
@@ -251,7 +217,18 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
+  const waitForScannerRegion = async () => {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const region = document.getElementById(SCAN_REGION);
+      if (region) return region;
+      await new Promise((resolve) => window.setTimeout(resolve, 30));
+    }
+
+    throw new Error("Área do scanner não ficou pronta a tempo.");
+  };
+
   const startScannerSession = async (constraints: ScannerInput) => {
+    await waitForScannerRegion();
     const scanner = new Html5Qrcode(SCAN_REGION, false);
     scannerRef.current = scanner;
     await scanner.start(
@@ -268,6 +245,40 @@ export default function BaixaRapida() {
       },
       () => {}
     );
+  };
+
+  const startScannerWithFallbacks = async () => {
+    const attempts: ScannerInput[] = [
+      { facingMode: "environment" } as ScannerInput,
+      { facingMode: "user" } as ScannerInput,
+    ];
+
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      const backCamera = cameras.find((camera) => /back|rear|traseira|environment/i.test(camera.label));
+
+      if (backCamera?.id) {
+        attempts.unshift(backCamera.id);
+      } else if (cameras[0]?.id) {
+        attempts.unshift(cameras[0].id);
+      }
+    } catch (cameraListError) {
+      console.warn("[BaixaRapida] could not list cameras:", cameraListError);
+    }
+
+    let lastError: unknown;
+
+    for (const attempt of attempts) {
+      try {
+        await stopScanner();
+        await startScannerSession(attempt);
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
   };
 
   useEffect(() => {
