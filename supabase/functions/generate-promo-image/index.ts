@@ -89,6 +89,18 @@ PHOTOGRAPHY (THE FOUNDATION):
 - Color grading: rich, warm, editorial — never saturated, never plastic
 - The photo should feel like it was shot by a real food photographer, not generated
 
+SCENE COHERENCE (CRITICAL — read carefully):
+- The final image must be ONE single coherent photograph, not a collage of a dish + a background + text.
+- Every prop on the table (glass, cutlery, napkin, bread, sauce dish) must make sense together: same lighting direction, same shadow length, same surface, same depth of field. NO floating glass of water with no purpose, NO random props pasted in.
+- Only include props that a real food stylist would place for THIS dish. When in doubt, remove props — minimalism wins.
+- Background and foreground must share the SAME light source, SAME color temperature, SAME grain. If the background is a restaurant interior, the dish must cast a shadow consistent with the venue's light.
+- The composition must look like a real photographer set up ONE shot — not like a dish was cut out and pasted onto an ambient photo with text on top.
+
+TYPOGRAPHY PLACEMENT (CRITICAL):
+- Headline and support text MUST sit on a CLEAN, UNCLUTTERED area of the photograph — empty wall, blurred background, dark surface, or sky. NEVER over people, faces, plants with high detail, or busy furniture.
+- If the natural background has no clean area for text, add a subtle vertical or radial gradient (dark→transparent) ONLY in the text zone, so the headline reads cleanly without covering important scene elements.
+- Text must feel printed INTO the scene (like a magazine cover printed over a real photo), not floating above it.
+
 REALISM & SCALE (MANDATORY — this is the difference between premium and amateur):
 - The dish MUST be portrayed at its TRUE real-world size and proportion. A tartar, an appetizer, a dessert, a small plate — render it small and refined on the plate, NEVER inflated to fill the frame.
 - Plate, cutlery, glassware, hands and table surface must all be in correct, believable scale relative to each other (a fork is ~20cm, a dinner plate ~27cm, a tartar portion ~8-10cm wide). No giant food, no oversized portions, no cartoon proportions.
