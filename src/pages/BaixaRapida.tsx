@@ -183,6 +183,7 @@ export default function BaixaRapida() {
       setStartingScan(true);
       handledRef.current = false;
       flushSync(() => setPhase("scan"));
+      await ensureScannerRegionSoon();
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Seu navegador não suporta acesso à câmera.");
@@ -243,8 +244,35 @@ export default function BaixaRapida() {
     return region;
   };
 
+  const ensureScannerRegionSoon = async () => {
+    const immediateRegion = document.getElementById(SCAN_REGION);
+    if (immediateRegion) return immediateRegion;
+
+    return await new Promise<HTMLElement>((resolve, reject) => {
+      let frame = 0;
+
+      const check = () => {
+        const region = document.getElementById(SCAN_REGION);
+        if (region) {
+          resolve(region);
+          return;
+        }
+
+        frame += 1;
+        if (frame > 2) {
+          reject(new Error("Área do scanner não ficou pronta."));
+          return;
+        }
+
+        window.requestAnimationFrame(check);
+      };
+
+      window.requestAnimationFrame(check);
+    });
+  };
+
   const startScannerSession = async (constraints: ScannerInput) => {
-    ensureScannerRegion();
+    await ensureScannerRegionSoon();
     const scanner = new Html5Qrcode(SCAN_REGION, false);
     scannerRef.current = scanner;
     await scanner.start(
