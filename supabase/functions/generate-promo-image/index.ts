@@ -152,7 +152,13 @@ NO PRICES, NO DISCOUNT BADGES — this is a brand/awareness post, treat it like 
     }
 
     if (referenceImage) {
-      promptText += `\n\nDISH REFERENCE: An attached image shows the actual dish. Preserve its identity (ingredients, plating, colors) but upgrade the cinematography: better lighting, sharper focus, editorial composition, magazine-grade finish.`;
+      promptText += `\n\nDISH REFERENCE (HIGHEST PRIORITY — TREAT AS GROUND TRUTH):
+- An attached image shows the ACTUAL dish that must appear in the final art.
+- You MUST use this exact dish — same ingredients, same plating, same proportions, same colors, same garnish — as the hero of the composition. Do NOT invent a different dish or substitute it with a generic stock burger/plate/pasta.
+- Re-light, re-frame, and re-compose the dish so it integrates naturally into the editorial scene (background, table, props, headline area). Adjust angle, crop, depth of field and shadows so the dish looks like it was PHOTOGRAPHED on location for THIS layout — never pasted on top.
+- HYPER-REALISM (mandatory): meat must look like real grilled meat with sear marks and natural juices, bread/buns must have real crust texture and crumb, cheese must melt with believable viscosity, vegetables must show fresh micro-textures, sauces must reflect light like real liquids. ZERO plastic sheen, ZERO CGI/3D look, ZERO over-saturated cartoon colors. It must be indistinguishable from a 35mm DSLR food-photography shot.
+- Keep the dish at TRUE real-world scale relative to plate, cutlery, hands and table — never inflate the food to fill the frame.
+- If the reference photo has a distracting or low-quality background, REPLACE only the background to match the editorial scene, but PRESERVE the dish itself untouched in identity and detail.`;
     }
 
     if (realAmbient) {
