@@ -169,42 +169,8 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      let grantedDeviceId: string | undefined;
-
-      try {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        });
-
-        const grantedTrack = permissionStream.getVideoTracks()[0];
-        const settings = grantedTrack?.getSettings?.();
-        grantedDeviceId = typeof settings?.deviceId === "string" ? settings.deviceId : undefined;
-        permissionStream.getTracks().forEach((track) => track.stop());
-      } catch (permissionErr: any) {
-        console.error("[BaixaRapida] camera permission error:", permissionErr);
-        throw permissionErr;
-      }
-
-      try {
-        await startScannerSession(
-          grantedDeviceId
-            ? ({ deviceId: { exact: grantedDeviceId } } as ScannerInput)
-            : ({ facingMode: { exact: "environment" } } as ScannerInput)
-        );
-      } catch {
-        await stopScanner();
-        try {
-          await startScannerSession({ facingMode: "environment" } as ScannerInput);
-        } catch {
-          await stopScanner();
-          await startScannerSession({ facingMode: "user" } as ScannerInput);
-        }
-      }
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+      await startScannerWithFallbacks();
 
       setPhase("scan");
     } catch (err: any) {
@@ -251,7 +217,18 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
+  const waitForScannerRegion = async () => {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const region = document.getElementById(SCAN_REGION);
+      if (region) return region;
+      await new Promise((resolve) => window.setTimeout(resolve, 30));
+    }
+
+    throw new Error("Área do scanner não ficou pronta a tempo.");
+  };
+
   const startScannerSession = async (constraints: ScannerInput) => {
+    await waitForScannerRegion();
     const scanner = new Html5Qrcode(SCAN_REGION, false);
     scannerRef.current = scanner;
     await scanner.start(
@@ -268,6 +245,40 @@ export default function BaixaRapida() {
       },
       () => {}
     );
+  };
+
+  const startScannerWithFallbacks = async () => {
+    const attempts: ScannerInput[] = [
+      { facingMode: "environment" } as ScannerInput,
+      { facingMode: "user" } as ScannerInput,
+    ];
+
+    try {
+      const cameras = await Html5Qrcode.getCameras();
+      const backCamera = cameras.find((camera) => /back|rear|traseira|environment/i.test(camera.label));
+
+      if (backCamera?.id) {
+        attempts.unshift(backCamera.id);
+      } else if (cameras[0]?.id) {
+        attempts.unshift(cameras[0].id);
+      }
+    } catch (cameraListError) {
+      console.warn("[BaixaRapida] could not list cameras:", cameraListError);
+    }
+
+    let lastError: unknown;
+
+    for (const attempt of attempts) {
+      try {
+        await stopScanner();
+        await startScannerSession(attempt);
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
   };
 
   useEffect(() => {
@@ -292,7 +303,7 @@ export default function BaixaRapida() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-[#2D2D44] bg-[#161626]">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center shadow-[0_10px_24px_rgba(255,107,0,0.12)]">
             <ScanLine className="h-5 w-5 text-[#FF6B00]" />
           </div>
           <div>
@@ -310,11 +321,11 @@ export default function BaixaRapida() {
         </div>
         <div className="flex items-center gap-2">
           {employee && (
-            <Button size="sm" variant="ghost" onClick={handleLogout} className="text-[#A0AEC0] hover:text-white hover:bg-[#2D2D44] gap-1.5">
+            <Button size="sm" variant="ghost" onClick={handleLogout} className="rounded-full text-[#A0AEC0] hover:text-white hover:bg-[#2D2D44] gap-1.5">
               <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={() => navigate("/etiquetas")} className="text-[#718096] hover:text-white hover:bg-[#2D2D44]">
+          <Button size="sm" variant="ghost" onClick={() => navigate("/etiquetas")} className="rounded-full text-[#718096] hover:text-white hover:bg-[#2D2D44]">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -426,7 +437,7 @@ export default function BaixaRapida() {
                   <button
                     key={l.id}
                     onClick={() => navigate(`/etiquetas/scan/${l.unique_code}?op=1`)}
-                    className="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl bg-[#1A1A2E] border border-[#2D2D44] hover:bg-[#1F1F3A] active:scale-[0.99] transition-all"
+                    className="w-full text-left flex items-center gap-3 px-3 py-3 rounded-[1.35rem] bg-[#1A1A2E] border border-[#2D2D44] hover:bg-[#1F1F3A] active:scale-[0.99] transition-all"
                     style={{ borderLeftWidth: 4, borderLeftColor: borderColor }}
                   >
                     <div className="flex-1 min-w-0">
@@ -457,7 +468,7 @@ export default function BaixaRapida() {
             <Button
               onClick={handleStartScan}
               disabled={startingScan}
-              className="w-full h-14 text-base bg-[#FF6B00] hover:bg-[#E55A00] text-white gap-2 shadow-lg shadow-[#FF6B00]/20"
+              className="w-full h-16 rounded-full text-base bg-[#FF6B00] hover:bg-[#E55A00] text-white gap-2 shadow-[0_20px_40px_rgba(255,107,0,0.22)]"
             >
               {startingScan ? <Loader2 className="h-6 w-6 animate-spin" /> : <ScanLine className="h-6 w-6" />}
               {startingScan ? "Abrindo câmera..." : "Escanear etiqueta"}
@@ -469,9 +480,9 @@ export default function BaixaRapida() {
       {/* ============== PHASE: SCAN ============== */}
       {(phase === "camera-permission" || phase === "scan") && (
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4 bg-black">
-          <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden bg-black border-2 border-[#FF6B00]/40">
+          <div className="relative w-full max-w-sm aspect-square rounded-[2rem] overflow-hidden bg-black border-2 border-[#FF6B00]/40 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
             <div id={SCAN_REGION} className="w-full h-full" />
-            <div className="pointer-events-none absolute inset-8 border-2 border-[#FF6B00]/70 rounded-lg" />
+            <div className="pointer-events-none absolute inset-8 border-2 border-[#FF6B00]/70 rounded-[1.5rem]" />
             <div
               className="pointer-events-none absolute left-8 right-8 h-0.5 bg-[#FF6B00] shadow-[0_0_16px_#FF6B00] animate-[scanline_1.6s_ease-in-out_infinite]"
               style={{ top: 32 }}
@@ -498,7 +509,7 @@ export default function BaixaRapida() {
           <Button
             variant="outline"
             onClick={() => setPhase("list")}
-            className="bg-transparent border-[#2D2D44] text-[#A0AEC0] hover:bg-[#2D2D44] hover:text-white"
+            className="rounded-full bg-transparent border-[#2D2D44] text-[#A0AEC0] hover:bg-[#2D2D44] hover:text-white"
           >
             <X className="h-4 w-4 mr-1" /> Cancelar
           </Button>
