@@ -20,7 +20,7 @@ import {
   ClipboardList,
   Tag,
   Monitor,
-  ChefHat,
+  
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ const allNavigation = [
   { name: "Fila", href: "/queue", icon: Users, requiresFeature: null, requiresModule: 'fila' as const, adminOnly: false },
   { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null, requiresModule: 'reserva' as const, adminOnly: false },
   { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null, requiresModule: null, adminOnly: true },
-  { name: "Cardápio Auto pilot (Em desenvolvimento)", href: "/cardapio", icon: ChefHat, requiresFeature: null, requiresModule: null, adminOnly: true },
+  
   { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null, adminOnly: true },
   { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null, adminOnly: true },
   { name: "MesaClik Studio", href: "/marketing/creator", icon: Sparkles, requiresFeature: null, requiresModule: null, adminOnly: true },
