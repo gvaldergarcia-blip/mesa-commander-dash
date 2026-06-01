@@ -17,12 +17,13 @@ import { toast } from "sonner";
 type Employee = { id: string; name: string; role: string | null; sectors?: string[] | null };
 type Phase = "pin" | "list" | "camera-permission" | "scan";
 type ScannerInput = Parameters<Html5Qrcode["start"]>[0];
+type ScannerConfig = Parameters<Html5Qrcode["start"]>[1];
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
 // Configuração padrão do leitor — qrbox responsivo, fps alto e resolução de vídeo elevada
 // para que o html5-qrcode consiga decodificar QRs pequenos impressos em etiquetas 80x40mm.
-const QR_CONFIG = {
+const QR_CONFIG_BASE: ScannerConfig = {
   fps: 15,
   qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
     const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
@@ -30,12 +31,25 @@ const QR_CONFIG = {
     return { width: size, height: size };
   },
   disableFlip: false,
-  videoConstraints: {
-    facingMode: { ideal: "environment" },
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-  } as MediaTrackConstraints,
 };
+
+function getScannerConfig(attempt: ScannerInput): ScannerConfig {
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (typeof attempt === "string" || isIOS) {
+    return QR_CONFIG_BASE;
+  }
+
+  return {
+    ...QR_CONFIG_BASE,
+    videoConstraints: {
+      ...attempt,
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    } as MediaTrackConstraints,
+  };
+}
 
 const conservationIcon = (c: string | null) => {
   switch (c) {
@@ -233,7 +247,7 @@ export default function BaixaRapida() {
     scannerRef.current = scanner;
     await scanner.start(
       constraints,
-      QR_CONFIG,
+      getScannerConfig(constraints),
       (decoded) => {
         if (handledRef.current) return;
         const code = extractCode(decoded);
@@ -249,6 +263,7 @@ export default function BaixaRapida() {
 
   const startScannerWithFallbacks = async () => {
     const attempts: ScannerInput[] = [
+      { facingMode: { exact: "environment" } } as ScannerInput,
       { facingMode: "environment" } as ScannerInput,
       { facingMode: "user" } as ScannerInput,
     ];
