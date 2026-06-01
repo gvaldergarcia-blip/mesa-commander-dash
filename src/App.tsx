@@ -212,9 +212,6 @@ const App = () => {
                   <Route path="/checklists" element={<ChecklistsPage />} />
                   <Route path="/etiquetas" element={<EtiquetasPage />} />
                   <Route path="/etiquetas/baixa-rapida" element={<BaixaRapida />} />
-                  <Route path="/cardapio" element={
-                    <RoleGuard><CardapioInteligente /></RoleGuard>
-                  } />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
