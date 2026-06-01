@@ -139,7 +139,7 @@ export default function EtiquetasPage() {
             onClick={handleOpenOperatorMode}
             size="lg"
             variant="outline"
-            className="gap-2 border-[#FF6B00]/40 text-[#FF6B00] hover:bg-[#FF6B00]/10 hover:text-[#FF6B00]"
+            className="gap-2 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
           >
             <ScanLine className="h-4 w-4" /> Modo Operador
           </Button>
@@ -213,7 +213,7 @@ export default function EtiquetasPage() {
               placeholder="Buscar produto..."
               value={productSearchFilter}
               onChange={(e) => setProductSearchFilter(e.target.value)}
-              className="sm:max-w-xs bg-[#1A1A2E] border-[#2D2D44] placeholder:text-[#718096] focus-visible:border-[#FF6B00] focus-visible:ring-0"
+              className="sm:max-w-xs bg-background border-input placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-0"
             />
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
               {[
@@ -225,7 +225,7 @@ export default function EtiquetasPage() {
                 let activeStyle: React.CSSProperties | undefined;
                 if (active) {
                   if (opt.value === "all") {
-                    activeStyle = { backgroundColor: "#FF6B00", color: "#FFFFFF", borderColor: "transparent" };
+                    activeStyle = { backgroundColor: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", borderColor: "transparent" };
                   } else {
                     const hex = opt.value === "__none__" ? NO_CATEGORY_HEX : getCategoryHex(opt.value);
                     activeStyle = {
@@ -242,7 +242,7 @@ export default function EtiquetasPage() {
                     onClick={() => setProductCategoryFilter(opt.value)}
                     className={cn(
                       "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap",
-                      !active && "bg-[#1E1E2E] border-[#2D2D44] text-[#718096] hover:bg-[#22223A]"
+                      !active && "bg-muted border-border text-muted-foreground hover:bg-muted/70"
                     )}
                     style={activeStyle}
                   >
@@ -270,10 +270,10 @@ export default function EtiquetasPage() {
                 return (
                   <div
                     key={p.id}
-                    className="group relative p-5 rounded-2xl border border-white/[0.06] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-white/15 hover:shadow-[0_20px_60px_-20px_rgba(255,107,0,0.35)] overflow-hidden"
+                    className="group relative p-5 rounded-2xl border border-border bg-card backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_60px_-20px_hsl(var(--primary)/0.35)] overflow-hidden"
                     style={{
-                      background: `linear-gradient(135deg, ${withAlpha(borderHex, 0.10)} 0%, rgba(255,255,255,0.02) 45%, rgba(15,15,26,0.55) 100%)`,
-                      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px -16px ${withAlpha(borderHex, 0.4)}`,
+                      backgroundImage: `linear-gradient(135deg, ${withAlpha(borderHex, 0.12)} 0%, transparent 60%)`,
+                      boxShadow: `0 8px 32px -16px ${withAlpha(borderHex, 0.4)}`,
                     }}
                   >
                     <span
@@ -290,10 +290,10 @@ export default function EtiquetasPage() {
                     />
                     <div className="mb-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-lg font-semibold truncate flex-1 text-white tracking-tight">{p.name}</h3>
+                        <h3 className="text-lg font-semibold truncate flex-1 text-foreground tracking-tight">{p.name}</h3>
                         <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md backdrop-blur-md border border-white/10"
+                            className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md backdrop-blur-md border border-border"
                             style={risk.style}
                           >
                             {risk.label}
@@ -319,25 +319,25 @@ export default function EtiquetasPage() {
                           {p.category}
                         </span>
                       )}
-                      <div className="flex items-center gap-1.5 mt-3 text-xs text-white/60">
+                      <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
-                        <span>Validade: <span className="font-semibold text-white">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span></span>
+                        <span>Validade: <span className="font-semibold text-foreground">{p.validity_days} {p.validity_days === 1 ? "dia" : "dias"}</span></span>
                       </div>
-                      {(p.status === "inactive") && <span className="inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-white/5 text-white/50 border border-white/10">Inativo</span>}
-                      {p.notes && <p className="text-xs mt-2 italic line-clamp-2 text-white/50">{p.notes}</p>}
+                      {(p.status === "inactive") && <span className="inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">Inativo</span>}
+                      {p.notes && <p className="text-xs mt-2 italic line-clamp-2 text-muted-foreground">{p.notes}</p>}
                     </div>
-                    <div className="flex gap-2 pt-3 border-t border-white/[0.06]">
+                    <div className="flex gap-2 pt-3 border-t border-border">
                       <button
                         type="button"
                         onClick={() => { setEditing(p); setFormOpen(true); }}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-xs font-medium text-white/80 transition-all hover:bg-white/[0.08] hover:border-white/20"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-muted/40 text-xs font-medium text-foreground/80 transition-all hover:bg-muted hover:border-border"
                       >
                         <Pencil className="h-3.5 w-3.5" /> Editar
                       </button>
                       <button
                         type="button"
                         onClick={() => setDelTarget(p)}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-[#FC8181] border border-white/10 bg-white/[0.03] hover:bg-[#742A2A]/40 hover:border-[#FC8181]/30 transition-all"
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-destructive border border-border bg-muted/40 hover:bg-destructive/10 hover:border-destructive/30 transition-all"
                         aria-label="Remover"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
