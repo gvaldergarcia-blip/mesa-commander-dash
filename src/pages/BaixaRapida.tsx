@@ -280,7 +280,10 @@ export default function BaixaRapida() {
 
     for (const attempt of attempts) {
       try {
-        await stopScanner();
+        if (scannerRef.current) {
+          await stopScanner();
+        }
+
         await startScannerSession(attempt);
         return;
       } catch (error) {
@@ -299,7 +302,10 @@ export default function BaixaRapida() {
 
         for (const cameraId of orderedCameraIds) {
           try {
-            await stopScanner();
+            if (scannerRef.current) {
+              await stopScanner();
+            }
+
             await startScannerSession(cameraId);
             return;
           } catch (error) {
