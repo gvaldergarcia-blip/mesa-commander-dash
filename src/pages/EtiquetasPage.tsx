@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, ScanLine } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock } from "lucide-react";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
@@ -17,12 +17,9 @@ import { PRODUCT_CATEGORIES, getValidityRisk, getCategoryHex, getCategoryIcon, g
 import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getSiteBaseUrl } from "@/config/site-url";
 
 export default function EtiquetasPage() {
-  const navigate = useNavigate();
   const { products, isLoading: prodLoading, createProduct, updateProduct, deleteProduct, isMutating } = useLabelProducts();
   const { labels, isLoading: labelsLoading } = useLabels();
   const { employees } = useLabelEmployees();
@@ -37,27 +34,6 @@ export default function EtiquetasPage() {
   const [delTarget, setDelTarget] = useState<LabelProduct | null>(null);
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
   const [productSearchFilter, setProductSearchFilter] = useState<string>("");
-
-  const handleOpenOperatorMode = () => {
-    const operatorPath = "/etiquetas/baixa-rapida";
-    const isPreviewHost = typeof window !== "undefined" && (
-      window.location.hostname.includes("lovable.app") ||
-      window.location.hostname.includes("lovableproject.com")
-    );
-
-    if (isPreviewHost) {
-      const publishedUrl = `${getSiteBaseUrl()}${operatorPath}`;
-      const opened = window.open(publishedUrl, "_blank", "noopener,noreferrer");
-
-      if (!opened) {
-        window.location.href = publishedUrl;
-      }
-
-      return;
-    }
-
-    navigate(operatorPath);
-  };
 
   const stats = useMemo(() => computeStats(labels), [labels]);
 
@@ -135,14 +111,6 @@ export default function EtiquetasPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            onClick={handleOpenOperatorMode}
-            size="lg"
-            variant="outline"
-            className="gap-2 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-          >
-            <ScanLine className="h-4 w-4" /> Modo Operador
-          </Button>
           <Button onClick={() => setTab("imprimir")} size="lg" className="gap-2 shadow-lg shadow-primary/20">
             <Printer className="h-4 w-4" /> Nova etiqueta
           </Button>
