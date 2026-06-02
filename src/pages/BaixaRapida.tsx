@@ -236,6 +236,7 @@ export default function BaixaRapida() {
   // === SCANNER ===
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
+  const pause = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
   const stopScanner = async () => {
     const s = scannerRef.current;
@@ -244,27 +245,57 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
-  const openCameraWithinGesture = async () => {
+  const releaseWarmupStream = async (stream: MediaStream) => {
+    const tracks = stream.getTracks();
+
+    const endedPromises = tracks.map(
+      (track) =>
+        new Promise<void>((resolve) => {
+          if (track.readyState === "ended") {
+            resolve();
+            return;
+          }
+
+          track.addEventListener("ended", () => resolve(), { once: true });
+        })
+    );
+
+    tracks.forEach((track) => track.stop());
+
+    await Promise.race([Promise.all(endedPromises).then(() => undefined), pause(180)]);
+  };
+
+  const openCameraWithinGesture = async (): Promise<WarmupCameraResult | null> => {
     const { isIOS, isSafari } = getBrowserInfo();
-    if (!isIOS || !isSafari) return;
+    if (!isIOS || !isSafari) return null;
 
     console.info("[BaixaRapida] iPhone/Safari preflight getUserMedia");
 
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: "environment" },
+      video: { facingMode: { ideal: "environment" } },
     });
 
-    stream.getTracks().forEach((track) => track.stop());
+    const track = stream.getVideoTracks()[0] ?? null;
+    const deviceId = track?.getSettings?.().deviceId ?? null;
+
+    console.info("[BaixaRapida] warmup stream acquired", {
+      hasDeviceId: Boolean(deviceId),
+      label: track?.label || null,
+    });
+
+    await releaseWarmupStream(stream);
+
+    return { deviceId };
   };
 
-  const warmupCameraPermission = async () => {
+  const warmupCameraPermission = async (): Promise<WarmupCameraResult | null> => {
     const { isIOS, isSafari } = getBrowserInfo();
-    if (!isIOS || !isSafari) return;
+    if (!isIOS || !isSafari) return null;
 
     flushSync(() => setPhase("camera-permission"));
     ensureScannerRegion();
-    await openCameraWithinGesture();
+    return openCameraWithinGesture();
   };
 
   const ensureScannerRegion = () => {
