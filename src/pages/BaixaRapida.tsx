@@ -18,6 +18,7 @@ type Employee = { id: string; name: string; role: string | null; sectors?: strin
 type Phase = "pin" | "list" | "camera-permission" | "scan";
 type ScannerInput = Parameters<Html5Qrcode["start"]>[0];
 type ScannerConfig = Parameters<Html5Qrcode["start"]>[1];
+type WarmupCameraResult = { deviceId: string | null };
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
@@ -150,6 +151,8 @@ export default function BaixaRapida() {
 
   const getCameraErrorMessage = (err: any) => {
     const name = err?.name || "";
+    const rawMessage = typeof err === "string" ? err : typeof err?.message === "string" ? err.message : "";
+    const normalizedError = `${name} ${rawMessage}`.toLowerCase();
     const isSecure = window.isSecureContext;
     const { isIOS, isSafari } = getBrowserInfo();
 
@@ -157,7 +160,11 @@ export default function BaixaRapida() {
       return "No iPhone, o scanner funciona melhor no Safari. Abra o sistema no Safari e tente novamente.";
     }
 
-    if (name === "NotAllowedError" || /permission|denied/i.test(err?.message || "")) {
+    if (/notreadableerror|aborterror|trackstarterror|could not start video source|device in use|start video source/i.test(normalizedError)) {
+      return "A câmera foi liberada, mas o vídeo não iniciou no iPhone. Feche outras abas ou apps usando a câmera e tente novamente.";
+    }
+
+    if (name === "NotAllowedError" || /permission denied|permission dismissed|user denied|denied permission/i.test(normalizedError)) {
       return "Permissão de câmera negada. Libere a câmera nas configurações do Safari/navegador e tente novamente.";
     }
 
