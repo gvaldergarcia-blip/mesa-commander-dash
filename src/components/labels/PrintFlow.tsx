@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
-import { getSiteBaseUrl } from "@/config/site-url";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3;
