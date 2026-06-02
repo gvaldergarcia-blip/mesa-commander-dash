@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Brain, TrendingDown, TrendingUp, AlertTriangle, Target, RefreshCw,
   Sparkles, BadgePercent, Calendar, ArrowRight, Loader2, CheckCircle2,
-  XCircle, Minus, ShieldCheck, BarChart3, Gauge
+  XCircle, ShieldCheck, Gauge, ChevronDown, ChevronUp, Send, Heart, Megaphone, Eye
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase/client';
 import { useRestaurant } from '@/contexts/RestaurantContext';
@@ -84,24 +85,16 @@ type CustomerAIAnalysisProps = {
   };
 };
 
-const riskConfig: Record<RiskLevel, { label: string; color: string; icon: typeof TrendingDown; bg: string }> = {
-  baixo: { label: 'Baixo', color: 'text-success', icon: CheckCircle2, bg: 'bg-success/10' },
-  medio: { label: 'Médio', color: 'text-warning', icon: Minus, bg: 'bg-warning/10' },
-  alto: { label: 'Alto', color: 'text-destructive', icon: AlertTriangle, bg: 'bg-destructive/10' },
+const riskConfig: Record<RiskLevel, { label: string; color: string }> = {
+  baixo: { label: 'Baixo', color: 'text-success' },
+  medio: { label: 'Médio', color: 'text-warning' },
+  alto: { label: 'Alto', color: 'text-destructive' },
 };
 
-const sensibilityConfig: Record<SensibilityLevel, { label: string; color: string; bg: string }> = {
-  baixa: { label: 'Baixa', color: 'text-muted-foreground', bg: 'bg-muted' },
-  media: { label: 'Média', color: 'text-warning', bg: 'bg-warning/10' },
-  alta: { label: 'Alta', color: 'text-success', bg: 'bg-success/10' },
-};
-
-const actionTypeConfig: Record<string, { label: string; color: string; icon: typeof Target }> = {
-  enviar_promocao: { label: 'Enviar Promoção', color: 'text-primary', icon: BadgePercent },
-  fidelizar: { label: 'Fidelizar', color: 'text-amber-500', icon: Sparkles },
-  recuperar: { label: 'Recuperar', color: 'text-warning', icon: RefreshCw },
-  nao_agir: { label: 'Nenhuma Ação', color: 'text-success', icon: ShieldCheck },
-  acompanhar: { label: 'Acompanhar', color: 'text-blue-500', icon: Target },
+const sensibilityConfig: Record<SensibilityLevel, { label: string; color: string }> = {
+  baixa: { label: 'Baixa', color: 'text-muted-foreground' },
+  media: { label: 'Média', color: 'text-warning' },
+  alta: { label: 'Alta', color: 'text-success' },
 };
 
 const segmentoColorMap: Record<string, string> = {
@@ -114,24 +107,55 @@ const segmentoColorMap: Record<string, string> = {
   vermelho: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
+/** Texto neutro padrão quando não há dado suficiente para uma métrica */
+const INSUFFICIENT = 'Dados insuficientes';
+
+/** Reduz uma frase longa a impacto curto (corta no primeiro ponto/quebra ou 90 chars) */
+function shorten(text: string | undefined | null, maxLen = 90): string {
+  if (!text) return '';
+  const firstSentence = text.split(/[.!?\n]/)[0].trim();
+  const base = firstSentence.length >= 12 ? firstSentence : text;
+  return base.length > maxLen ? base.slice(0, maxLen - 1).trimEnd() + '…' : base;
+}
+
 function RFMBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-semibold">{value}/5</span>
+        <span className="text-muted-foreground font-light tracking-wide uppercase">{label}</span>
+        <span className="font-semibold tabular-nums">{value}/5</span>
       </div>
-      <Progress value={value * 20} className="h-2" />
+      <Progress value={value * 20} className="h-1.5" />
     </div>
   );
 }
 
+/** Sugestão de ação contextual por segmento */
+function segmentAction(segmentoId?: string, segmentoLabel?: string): { label: string; icon: typeof Send } {
+  const id = (segmentoId || segmentoLabel || '').toLowerCase();
+  if (id.includes('fiel') || id.includes('vip') || id.includes('our')) {
+    return { label: 'Enviar reconhecimento', icon: Heart };
+  }
+  if (id.includes('risco') || id.includes('inativ') || id.includes('perdi')) {
+    return { label: 'Criar campanha de reativação', icon: Megaphone };
+  }
+  if (id.includes('novo') || id.includes('explor')) {
+    return { label: 'Enviar boas-vindas', icon: Send };
+  }
+  if (id.includes('promiss') || id.includes('cresc')) {
+    return { label: 'Enviar promoção', icon: BadgePercent };
+  }
+  return { label: 'Enviar ação', icon: Send };
+}
+
 export function CustomerAIAnalysis({ customerId, customerData, metrics, historyData }: CustomerAIAnalysisProps) {
   const { restaurantId } = useRestaurant();
+  const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<CustomerAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const fetchAnalysis = async () => {
     setLoading(true);
@@ -247,237 +271,251 @@ export function CustomerAIAnalysis({ customerId, customerData, metrics, historyD
   const retencao30d = analysis.retencao_30d || analysis.probabilidade_retorno;
   if (!riscoPerda || !retencao30d) return null;
 
-  const RiskIcon = riskConfig[riscoPerda.nivel]?.icon || Minus;
-  const ActionIcon = actionTypeConfig[analysis.sugestao_acao.tipo]?.icon || Target;
-  const isNoAction = analysis.sugestao_acao.tipo === 'nao_agir' || analysis.sugestao_acao.tipo === 'acompanhar';
-
   const rfm = analysis.score_rfm;
   const segmento = analysis.segmento;
   const probRetorno = analysis.probabilidade_retorno_30d;
-  
+
+  /* --------- HERO: métrica principal gigante (Probabilidade de Retorno 30d) --------- */
+  const heroScore = probRetorno?.score;
+  const heroAvailable = typeof heroScore === 'number' && heroScore >= 0;
+  const heroColorClass = !heroAvailable
+    ? 'text-muted-foreground'
+    : heroScore >= 70 ? 'text-success'
+    : heroScore >= 40 ? 'text-warning'
+    : 'text-destructive';
+  const heroLabel = !heroAvailable
+    ? 'Sem leitura'
+    : heroScore >= 70 ? 'Alta chance de retorno'
+    : heroScore >= 40 ? 'Retorno incerto'
+    : 'Baixa chance de retorno';
+  const heroSubtitle = heroAvailable
+    ? shorten(probRetorno?.explicacao, 80) || `${heroLabel} nos próximos 30 dias`
+    : INSUFFICIENT;
+
+  const SegAction = segmentAction(segmento?.id, segmento?.label);
+
+  const handleSegmentAction = () => {
+    navigate(`/marketing/creator?customer_id=${customerId}`);
+  };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 pb-4">
+    <Card className="overflow-hidden border-border/60">
+      {/* HEADER */}
+      <CardHeader className="pb-3 border-b border-border/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-primary/10 rounded-lg"><Brain className="w-5 h-5 text-primary" /></div>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+              <Brain className="w-4 h-4 text-primary" />
+            </div>
             <div>
-              <CardTitle className="text-lg">IA de Análise do Cliente</CardTitle>
-              <CardDescription className="text-xs">Análise estratégica gerada pela MesaClik IA</CardDescription>
+              <CardTitle className="text-base font-semibold tracking-tight">Análise de IA</CardTitle>
+              <CardDescription className="text-xs font-light">MesaClik IA · perfil estratégico</CardDescription>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {segmento && (
-              <Badge variant="outline" className={cn("text-xs font-semibold", segmentoColorMap[segmento.cor] || 'bg-muted')}>
-                {segmento.label}
-              </Badge>
-            )}
-            <Button variant="ghost" size="icon" onClick={fetchAnalysis} disabled={loading}>
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={fetchAnalysis} disabled={loading} aria-label="Recalcular">
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+          </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-5 pt-5">
-        {/* Resumo */}
-        <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium mb-1">Resumo Inteligente</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">{analysis.resumo}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Score RFM + Probabilidade */}
-        {(rfm || probRetorno) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Score RFM */}
-            {rfm && (
-              <Card className="border-border/50">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Gauge className="w-4 h-4 text-primary" />
-                      <p className="text-sm font-semibold">Score RFM</p>
-                    </div>
-                    <span className={cn(
-                      "text-2xl font-bold",
-                      rfm.score_composto >= 80 ? 'text-success' :
-                      rfm.score_composto >= 60 ? 'text-primary' :
-                      rfm.score_composto >= 40 ? 'text-warning' : 'text-destructive'
-                    )}>
-                      {rfm.score_composto}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <RFMBar label="Recência" value={rfm.recencia} />
-                    <RFMBar label="Frequência" value={rfm.frequencia} />
-                    <RFMBar label="Valor" value={rfm.valor} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{rfm.explicacao}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Probabilidade de Retorno */}
-            {probRetorno && (
-              <Card className="border-border/50">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-primary" />
-                      <p className="text-sm font-semibold">Retorno (30d)</p>
-                    </div>
-                    <span className={cn(
-                      "text-2xl font-bold",
-                      probRetorno.score >= 70 ? 'text-success' :
-                      probRetorno.score >= 40 ? 'text-warning' : 'text-destructive'
-                    )}>
-                      {probRetorno.score}%
-                    </span>
-                  </div>
-                  <Progress value={probRetorno.score} className="h-2" />
-                  {probRetorno.fatores_positivos?.length > 0 && (
-                    <div className="space-y-1">
-                      {probRetorno.fatores_positivos.slice(0, 3).map((f, i) => (
-                        <p key={i} className="text-xs text-success flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 shrink-0" /> {f}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {probRetorno.fatores_negativos?.length > 0 && (
-                    <div className="space-y-1">
-                      {probRetorno.fatores_negativos.slice(0, 2).map((f, i) => (
-                        <p key={i} className="text-xs text-destructive flex items-center gap-1">
-                          <XCircle className="w-3 h-3 shrink-0" /> {f}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">{probRetorno.explicacao}</p>
-                </CardContent>
-              </Card>
-            )}
-
-          </div>
-        )}
-
-        {/* Segmento do cliente */}
-        {segmento && (
-          <div className={cn("p-4 rounded-lg border", segmentoColorMap[segmento.cor] || 'bg-muted')}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">{segmento.label}</p>
-                <p className="text-xs text-muted-foreground mt-1">{segmento.acao_sugerida}</p>
+      {/* HERO */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent pointer-events-none" />
+        <div className="relative px-6 py-8 md:py-10">
+          <div className="flex items-start justify-between gap-6 flex-wrap">
+            <div className="min-w-0">
+              <p className="metric-label">Probabilidade de retorno · 30 dias</p>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className={cn('metric-display text-7xl md:text-8xl', heroColorClass)}>
+                  {heroAvailable ? heroScore : '—'}
+                </span>
+                {heroAvailable && <span className="text-2xl font-light text-muted-foreground">%</span>}
               </div>
-              {analysis.tendencia && (
-                <Badge variant="outline" className={cn(
-                  "text-xs gap-1",
-                  analysis.tendencia === 'crescendo' ? 'bg-success/10 text-success' :
-                  analysis.tendencia === 'diminuindo' ? 'bg-destructive/10 text-destructive' :
-                  'bg-muted text-muted-foreground'
-                )}>
-                  {analysis.tendencia === 'crescendo' ? <TrendingUp className="w-3 h-3" /> :
-                   analysis.tendencia === 'diminuindo' ? <TrendingDown className="w-3 h-3" /> : null}
-                  {analysis.tendencia === 'crescendo' ? 'Crescendo' : analysis.tendencia === 'diminuindo' ? 'Diminuindo' : 'Estável'}
+              <p className="mt-3 text-sm font-medium text-foreground">{heroLabel}</p>
+              <p className="text-xs text-muted-foreground font-light mt-1">{heroSubtitle}</p>
+            </div>
+
+            {/* Segmento + ação inline */}
+            {segmento ? (
+              <div className="flex flex-col items-start md:items-end gap-2 max-w-[260px]">
+                <Badge variant="outline" className={cn('text-xs font-semibold', segmentoColorMap[segmento.cor] || 'bg-muted')}>
+                  {segmento.label}
                 </Badge>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Perfil de Comportamento */}
-        <div>
-          <p className="text-sm font-medium mb-2 flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-muted-foreground" /> Perfil de Comportamento
-          </p>
-          <p className="text-sm text-muted-foreground pl-6 leading-relaxed">{analysis.perfil_comportamento}</p>
-        </div>
-
-        {/* Métricas calculadas */}
-        {analysis.metricas_calculadas && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 rounded-lg bg-muted/30 text-center">
-              <p className="text-xs text-muted-foreground">Taxa Cancelamento</p>
-              <p className={cn("text-sm font-semibold", analysis.metricas_calculadas.taxa_cancelamento > 30 ? 'text-destructive' : 'text-foreground')}>
-                {analysis.metricas_calculadas.taxa_cancelamento}%
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30 text-center">
-              <p className="text-xs text-muted-foreground">Freq. Média</p>
-              <p className="text-sm font-semibold">
-                {analysis.metricas_calculadas.frequencia_media_dias != null ? `${analysis.metricas_calculadas.frequencia_media_dias}d` : 'N/A'}
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/30 text-center">
-              <p className="text-xs text-muted-foreground">Canal Preferido</p>
-              <p className="text-sm font-semibold capitalize">{analysis.metricas_calculadas.tipo_preferido}</p>
-            </div>
-          </div>
-        )}
-
-        <Separator />
-
-        {/* Cards de Risco / Sensibilidade / Retenção */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className={cn("p-3 rounded-lg text-center", riskConfig[riscoPerda.nivel]?.bg || 'bg-muted')}>
-            <RiskIcon className={cn("w-5 h-5 mx-auto mb-1", riskConfig[riscoPerda.nivel]?.color)} />
-            <p className="text-xs text-muted-foreground">Risco de Perda</p>
-            <p className={cn("text-sm font-semibold", riskConfig[riscoPerda.nivel]?.color)}>
-              {riskConfig[riscoPerda.nivel]?.label || riscoPerda.nivel}
-            </p>
-          </div>
-          <div className={cn("p-3 rounded-lg text-center", sensibilityConfig[analysis.sensibilidade_promocao.nivel]?.bg || 'bg-muted')}>
-            <BadgePercent className={cn("w-5 h-5 mx-auto mb-1", sensibilityConfig[analysis.sensibilidade_promocao.nivel]?.color)} />
-            <p className="text-xs text-muted-foreground">Sensibilidade</p>
-            <p className={cn("text-sm font-semibold", sensibilityConfig[analysis.sensibilidade_promocao.nivel]?.color)}>
-              {sensibilityConfig[analysis.sensibilidade_promocao.nivel]?.label || analysis.sensibilidade_promocao.nivel}
-            </p>
-          </div>
-          <div className={cn("p-3 rounded-lg text-center", sensibilityConfig[retencao30d.nivel]?.bg || 'bg-muted')}>
-            <Calendar className={cn("w-5 h-5 mx-auto mb-1", sensibilityConfig[retencao30d.nivel]?.color)} />
-            <p className="text-xs text-muted-foreground">Retenção (30d)</p>
-            <p className={cn("text-sm font-semibold", sensibilityConfig[retencao30d.nivel]?.color)}>
-              {sensibilityConfig[retencao30d.nivel]?.label || retencao30d.nivel}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2 text-xs text-muted-foreground">
-          <p><strong>Risco de Perda:</strong> {riscoPerda.justificativa}</p>
-          <p><strong>Promoções:</strong> {analysis.sensibilidade_promocao.justificativa}</p>
-          <p><strong>Retenção:</strong> {retencao30d.justificativa}</p>
-        </div>
-
-        <Separator />
-
-        {/* Sugestão de Ação */}
-        <div className={cn("p-4 rounded-lg border", isNoAction ? "bg-success/5 border-success/20" : "bg-primary/5 border-primary/20")}>
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-background">
-              <ActionIcon className={cn("w-5 h-5", actionTypeConfig[analysis.sugestao_acao.tipo]?.color || 'text-muted-foreground')} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-semibold">Sugestão Inteligente</p>
-                <Badge variant="secondary" className={cn("text-xs", isNoAction && "bg-success/10 text-success border-success/30")}>
-                  {actionTypeConfig[analysis.sugestao_acao.tipo]?.label || analysis.sugestao_acao.tipo}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">{analysis.sugestao_acao.descricao}</p>
-              {analysis.sugestao_acao.momento_ideal && (
-                <p className="text-xs text-primary mt-2 flex items-center gap-1">
-                  <ArrowRight className="w-3 h-3" /> {analysis.sugestao_acao.momento_ideal}
+                <p className="text-xs text-muted-foreground font-light text-left md:text-right">
+                  {shorten(segmento.acao_sugerida, 70) || INSUFFICIENT}
                 </p>
-              )}
-            </div>
+                <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={handleSegmentAction}>
+                  <SegAction.icon className="w-3.5 h-3.5" />
+                  {SegAction.label}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">{INSUFFICIENT}</p>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* MÉTRICAS SECUNDÁRIAS (máx 3) */}
+      <CardContent className="pt-5 space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* RFM */}
+          <div className="p-4 rounded-xl border border-border/60 bg-muted/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Gauge className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="metric-label">Score RFM</span>
+            </div>
+            {rfm ? (
+              <>
+                <div className={cn(
+                  'metric-display text-3xl',
+                  rfm.score_composto >= 80 ? 'text-success' :
+                  rfm.score_composto >= 60 ? 'text-primary' :
+                  rfm.score_composto >= 40 ? 'text-warning' : 'text-destructive'
+                )}>
+                  {rfm.score_composto}
+                </div>
+                <p className="text-xs text-muted-foreground font-light mt-2 line-clamp-1">
+                  {shorten(rfm.explicacao, 70)}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground font-light italic">{INSUFFICIENT}</p>
+            )}
+          </div>
+
+          {/* Risco de Perda */}
+          <div className="p-4 rounded-xl border border-border/60 bg-muted/20">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="metric-label">Risco de perda</span>
+            </div>
+            <div className={cn('metric-display text-3xl', riskConfig[riscoPerda.nivel]?.color || 'text-muted-foreground')}>
+              {riskConfig[riscoPerda.nivel]?.label || INSUFFICIENT}
+            </div>
+            <p className="text-xs text-muted-foreground font-light mt-2 line-clamp-1">
+              {shorten(riscoPerda.justificativa, 70) || INSUFFICIENT}
+            </p>
+          </div>
+
+          {/* Sensibilidade Promo */}
+          <div className="p-4 rounded-xl border border-border/60 bg-muted/20">
+            <div className="flex items-center gap-2 mb-2">
+              <BadgePercent className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="metric-label">Sensível a promo</span>
+            </div>
+            <div className={cn('metric-display text-3xl', sensibilityConfig[analysis.sensibilidade_promocao.nivel]?.color || 'text-muted-foreground')}>
+              {sensibilityConfig[analysis.sensibilidade_promocao.nivel]?.label || INSUFFICIENT}
+            </div>
+            <p className="text-xs text-muted-foreground font-light mt-2 line-clamp-1">
+              {shorten(analysis.sensibilidade_promocao.justificativa, 70) || INSUFFICIENT}
+            </p>
+          </div>
+        </div>
+
+        {/* SÍNTESE */}
+        <div className="p-4 rounded-xl bg-muted/30 border border-border/50 flex items-start gap-3">
+          <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-sm font-medium text-foreground leading-snug line-clamp-1">
+            {shorten(analysis.resumo, 110) || INSUFFICIENT}
+          </p>
+        </div>
+
+        {/* DETALHES EXPANSÍVEIS */}
+        <Collapsible open={expanded} onOpenChange={setExpanded}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-muted-foreground hover:text-foreground">
+              <span className="flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5" />
+                {expanded ? 'Recolher detalhes' : 'Ver detalhes completos'}
+              </span>
+              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4 pt-4">
+            {/* RFM breakdown */}
+            {rfm && (
+              <div className="p-4 rounded-xl border border-border/60 space-y-3">
+                <p className="metric-label">Decomposição RFM</p>
+                <RFMBar label="Recência" value={rfm.recencia} />
+                <RFMBar label="Frequência" value={rfm.frequencia} />
+                <RFMBar label="Valor" value={rfm.valor} />
+              </div>
+            )}
+
+            {/* Fatores de retorno */}
+            {probRetorno && (probRetorno.fatores_positivos?.length || probRetorno.fatores_negativos?.length) ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {probRetorno.fatores_positivos?.length > 0 && (
+                  <div className="p-3 rounded-xl border border-success/20 bg-success/5">
+                    <p className="metric-label text-success mb-2">A favor</p>
+                    <ul className="space-y-1">
+                      {probRetorno.fatores_positivos.slice(0, 3).map((f, i) => (
+                        <li key={i} className="text-xs text-foreground flex items-start gap-1.5 leading-snug">
+                          <CheckCircle2 className="w-3 h-3 text-success shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{shorten(f, 70)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {probRetorno.fatores_negativos?.length > 0 && (
+                  <div className="p-3 rounded-xl border border-destructive/20 bg-destructive/5">
+                    <p className="metric-label text-destructive mb-2">Contra</p>
+                    <ul className="space-y-1">
+                      {probRetorno.fatores_negativos.slice(0, 3).map((f, i) => (
+                        <li key={i} className="text-xs text-foreground flex items-start gap-1.5 leading-snug">
+                          <XCircle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
+                          <span className="line-clamp-1">{shorten(f, 70)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* Métricas calculadas com tratamento de ausência */}
+            {analysis.metricas_calculadas && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl border border-border/60 text-center">
+                  <p className="metric-label">Cancelamento</p>
+                  <p className={cn('metric-display text-2xl mt-1', analysis.metricas_calculadas.taxa_cancelamento > 30 ? 'text-destructive' : 'text-foreground')}>
+                    {analysis.metricas_calculadas.taxa_cancelamento}<span className="text-sm font-light text-muted-foreground">%</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl border border-border/60 text-center">
+                  <p className="metric-label">Freq. média</p>
+                  {analysis.metricas_calculadas.frequencia_media_dias != null ? (
+                    <p className="metric-display text-2xl mt-1 text-foreground">
+                      {analysis.metricas_calculadas.frequencia_media_dias}<span className="text-sm font-light text-muted-foreground">d</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground font-light italic mt-3">{INSUFFICIENT}</p>
+                  )}
+                </div>
+                <div className="p-3 rounded-xl border border-border/60 text-center">
+                  <p className="metric-label">Canal</p>
+                  {analysis.metricas_calculadas.tipo_preferido ? (
+                    <p className="text-base font-semibold capitalize mt-2 text-foreground">
+                      {analysis.metricas_calculadas.tipo_preferido}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground font-light italic mt-3">{INSUFFICIENT}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Perfil + tendência */}
+            {analysis.perfil_comportamento && (
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/50">
+                <p className="metric-label mb-1">Perfil</p>
+                <p className="text-sm text-foreground font-light leading-snug">{shorten(analysis.perfil_comportamento, 120)}</p>
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
