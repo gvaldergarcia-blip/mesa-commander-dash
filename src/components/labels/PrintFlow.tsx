@@ -18,6 +18,7 @@ import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { toast } from "sonner";
+import { getSiteBaseUrl } from "@/config/site-url";
 
 type Step = 1 | 2 | 3;
 
@@ -112,7 +113,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         ingredients: productIngredients,
       });
       const qrSvg = renderToStaticMarkup(
-        <QRCodeSVG value={inserted.unique_code} size={144} level="L" marginSize={1} />
+        <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}?op=1`} size={144} level="L" marginSize={1} />
       );
       printLabels({
         productName: product.name,
