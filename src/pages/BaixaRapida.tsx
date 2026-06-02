@@ -6,6 +6,7 @@ import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { useLabels } from "@/hooks/useLabels";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Delete, LogOut, ScanLine, Loader2, X, ArrowRight, Snowflake, Flame, Thermometer, Refrigerator, AlertTriangle } from "lucide-react";
 import { CONSERVATION_LABEL, classifyExpiry } from "@/lib/labels/utils";
 import { getCategoryHex } from "@/lib/labels/categories";
@@ -100,6 +101,7 @@ export default function BaixaRapida() {
   });
   const [startingScan, setStartingScan] = useState(false);
   const [processingFileScan, setProcessingFileScan] = useState(false);
+  const [manualCode, setManualCode] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { isIOS, isSafari } = getBrowserInfo();
   const shouldUseNativePhotoScanner = isIOS && isSafari;
@@ -311,6 +313,19 @@ export default function BaixaRapida() {
     }
 
     await handleNativePhotoScan(file);
+  };
+
+  const handleManualCodeSubmit = async () => {
+    const code = extractCode(manualCode);
+
+    if (!code) {
+      toast.error("Digite o código da etiqueta como aparece abaixo do QR.");
+      return;
+    }
+
+    handledRef.current = true;
+    await stopScanner();
+    navigate(`/etiquetas/scan/${code}?op=1`);
   };
 
   const releaseWarmupStream = async (stream: MediaStream) => {
@@ -723,6 +738,38 @@ export default function BaixaRapida() {
               {processingFileScan ? "Lendo foto..." : "Abrir câmera/fotos"}
             </Button>
           )}
+          <div className="w-full max-w-sm rounded-[1.5rem] border border-[#2D2D44] bg-[#161626] p-3 space-y-2">
+            <div>
+              <p className="text-sm font-semibold text-white">Código da etiqueta</p>
+              <p className="text-xs text-[#A0AEC0]">Se o QR estiver difícil de ler, digite o código impresso abaixo dele.</p>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleManualCodeSubmit();
+                  }
+                }}
+                inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Ex.: ABC123"
+                className="h-12 border-[#2D2D44] bg-[#0F0F1A] text-white placeholder:text-[#718096] uppercase"
+              />
+              <Button
+                type="button"
+                onClick={() => void handleManualCodeSubmit()}
+                disabled={!manualCode.trim()}
+                className="h-12 rounded-full bg-[#FF6B00] px-5 hover:bg-[#E55A00]"
+              >
+                Abrir
+              </Button>
+            </div>
+          </div>
           <Button
             variant="outline"
             onClick={() => setPhase("list")}
