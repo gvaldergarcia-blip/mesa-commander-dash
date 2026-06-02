@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,9 +20,6 @@ import {
 import { toast } from "sonner";
 
 type Action = "verify" | "use" | "loss" | "error";
-type Employee = { id: string; name: string; role: string | null };
-
-const OPERATOR_KEY = "yeschef-operator-session";
 
 const LOSS_REASONS = [
   { value: "vencimento", label: "Vencimento" },
@@ -50,14 +47,6 @@ export default function EtiquetaScan() {
   const [lossReason, setLossReason] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Operator session (from /baixa-rapida flow)
-  const employee = useMemo<Employee | null>(() => {
-    try {
-      const raw = sessionStorage.getItem(OPERATOR_KEY);
-      return raw ? (JSON.parse(raw) as Employee) : null;
-    } catch { return null; }
-  }, []);
-
   const load = async () => {
     if (!code) return;
     setLoading(true);
@@ -77,7 +66,7 @@ export default function EtiquetaScan() {
       if (action === "verify") {
         const { data, error } = await (supabase as any).rpc("verify_label_by_code", {
           _code: code,
-          _employee_id: employee?.id ?? null,
+          _employee_id: null,
           _notes: notes.trim() || null,
         });
         if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao verificar");
@@ -94,7 +83,7 @@ export default function EtiquetaScan() {
         const { data, error } = await (supabase as any).rpc("discharge_label_by_code", {
           _code: code,
           _reason: reasonKey,
-          _employee_id: employee?.id ?? null,
+          _employee_id: null,
           _notes: composedNotes || null,
         });
         if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao baixar");
@@ -113,8 +102,7 @@ export default function EtiquetaScan() {
   };
 
   const closeNav = () => {
-    if (employee) navigate("/etiquetas/baixa-rapida");
-    else navigate(-1);
+    navigate(-1);
   };
 
   if (loading) {
@@ -167,7 +155,7 @@ export default function EtiquetaScan() {
             <div>
               <div className="text-sm font-bold tracking-tight">Etiqueta</div>
               <div className="text-[10px] uppercase tracking-widest text-[#718096]">
-                {employee ? employee.name : "Modo Gestor"}
+                Baixa direta por QR
               </div>
             </div>
           </div>
@@ -356,7 +344,6 @@ export default function EtiquetaScan() {
               {action === "verify"
                 ? "Será registrado que você verificou esta etiqueta e ela está OK."
                 : "Esta ação não pode ser desfeita."}
-              {employee && <> Registrando como <strong className="text-white">{employee.name}</strong>.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
 

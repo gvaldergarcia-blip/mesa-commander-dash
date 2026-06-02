@@ -127,7 +127,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              No Modo Operador, este funcionário verá apenas etiquetas das categorias selecionadas.
+              Este funcionário ficará vinculado às etiquetas das categorias selecionadas.
             </p>
           </div>
           <div className="space-y-2">
