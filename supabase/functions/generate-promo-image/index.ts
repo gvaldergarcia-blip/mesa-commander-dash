@@ -149,7 +149,9 @@ FORBIDDEN (instant rejection):
 - Decorative emoji clusters, hashtags, web URLs
 `;
 
-    if (hasDiscount && originalPrice && promoPrice) {
+    if (noText) {
+      promptText = `${sharedArtDirection}\n\nNO PRICES, NO BADGES, NO LOGOS, NO ADDRESS, NO TEXT OF ANY KIND. Pure editorial food photograph only.`;
+    } else if (hasDiscount && originalPrice && promoPrice) {
       promptText = `${sharedArtDirection}
 
 PRICE TREATMENT (this is a promotional post):
@@ -162,11 +164,11 @@ PRICE TREATMENT (this is a promotional post):
 
 NO PRICES, NO DISCOUNT BADGES — this is a brand/awareness post, treat it like an editorial feature, not a sale flyer.`;
     }
-    if (includeLogo && logoUrl) {
+    if (!noText && includeLogo && logoUrl) {
       promptText += `\n\nLOGO: The restaurant's actual logo is attached. Place it EXACTLY as provided (do not recreate), small and refined, in a top corner. Treat it as a premium brand mark, with proper margin and breathing room.`;
     }
 
-    if (includeAddress && address) {
+    if (!noText && includeAddress && address) {
       promptText += `\n\nADDRESS: Place "${address}" as a tiny, refined sans-serif line at the very bottom edge — editorial caption style, not promotional.`;
     }
 
