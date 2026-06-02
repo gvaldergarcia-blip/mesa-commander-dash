@@ -51,6 +51,16 @@ serve(async (req) => {
     const includeLogo = body.includeLogo ?? false;
     const includeAddress = body.includeAddress ?? false;
     const noText = !!body.noText;
+    // Layout do texto na arte gerada
+    //   'overlay' (padrão): texto sobre a imagem com gradiente sutil de baixo pra cima
+    //   'outside': texto fora da imagem — área escura/clara abaixo OU lateral, prato 100% visível
+    //   'none': sem nenhum texto, só foto editorial (+ logo/assinatura se habilitados em outro fluxo)
+    const textLayoutRaw = typeof body.textLayout === 'string' ? body.textLayout : 'overlay';
+    const textLayout: 'overlay' | 'outside' | 'none' =
+      textLayoutRaw === 'outside' ? 'outside' :
+      textLayoutRaw === 'none' ? 'none' : 'overlay';
+    // Se o usuário marcou noText, força layout 'none' por consistência
+    const effectiveLayout: 'overlay' | 'outside' | 'none' = noText ? 'none' : textLayout;
 
     if (!dishName) {
       return new Response(JSON.stringify({ error: "Nome do prato é obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -71,7 +81,7 @@ serve(async (req) => {
     // Cereal, Bon Appétit, Le Cordon Bleu). Menos regras, mais visão.
     // Tipografia editorial, composição cinematográfica, fotografia 4K.
 
-    const textBlock = noText
+    const textBlock = noText || effectiveLayout === 'none'
       ? `TEXT CONTENT:
 • NO TEXT AT ALL. This is a pure editorial food photograph. Do NOT render any headline, subtitle, CTA, signature, restaurant name, address, prices, badges, watermarks, emojis, hashtags or any written characters anywhere in the image.
 • The composition should leave breathing room but contain ZERO typography.`
@@ -86,6 +96,39 @@ SPELLING (NON-NEGOTIABLE):
 - If unsure about a word, REMOVE it rather than misspell. Less is more.
 - No invented words, no Spanish substitutions (com NOT con, uma NOT una, já NOT jâ)
 - Prefer 2–4 words per text block. Editorial restraint over noise.`;
+
+    // ===== SISTEMA TIPOGRÁFICO FIXO (consistência de feed) =====
+    // Toda arte gerada usa o MESMO sistema de duas famílias.
+    // A IA deve variar APENAS peso, tamanho e tracking — NUNCA família.
+    const lockedTypographySystem = `
+LOCKED TYPOGRAPHY SYSTEM (NON-NEGOTIABLE — same for every post of this restaurant, so the feed feels like ONE brand):
+- DISPLAY family (headline only): "Playfair Display" — elegant high-contrast serif, weights 600/700/900.
+- BODY family (subtitle, CTA, signature, price, address): "Inter" — clean geometric sans-serif, weights 300/400/500/600.
+- You may ONLY vary weight, size, letter-spacing and case (UPPERCASE / Title Case). NEVER swap to another font family, NEVER use script/handwritten/condensed/decorative fonts, NEVER mix in a third family.
+- If a font you would normally pick is not Playfair Display or Inter, fall back to the closest weight of those two families.
+- Treat this as a brand kit: every post in this restaurant's Instagram feed must look like it came from the same designer.`;
+
+    // ===== LAYOUT DO TEXTO =====
+    const layoutBlock =
+      effectiveLayout === 'outside'
+        ? `
+TEXT LAYOUT — "TEXT OUTSIDE THE PHOTO" (CRITICAL):
+- The composition is split into TWO clean zones inside the 1:1 frame:
+  (1) PHOTOGRAPH ZONE: the dish photo occupies the TOP ~72% of the canvas — full bleed left/right, perfectly clean, ZERO text on the food image.
+  (2) TEXT ZONE: a solid editorial bar occupies the BOTTOM ~28% — a flat color block sampled from the dish palette (warm cream, deep charcoal, or matte burgundy). All typography lives HERE, never on the dish.
+- Alternative: if vertical split feels wrong for this dish, use a LEFT/RIGHT split (photo ~70% left, solid text bar ~30% right). Pick whichever serves the dish better.
+- The dish photograph itself must remain 100% uncovered — no overlay, no gradient on the food, no text crossing into the photo zone.
+- The text zone is flat and editorial (think a Bon Appétit cover spine): generous padding, clear hierarchy, restrained.`
+        : effectiveLayout === 'none'
+        ? `
+TEXT LAYOUT — "NO TEXT":
+- Pure editorial food photograph. No bars, no overlays, no typography zones. The whole frame is photography only.`
+        : `
+TEXT LAYOUT — "OVERLAY WITH BOTTOM GRADIENT" (CRITICAL):
+- Typography sits ON the photograph, anchored to the BOTTOM third of the frame.
+- Apply a SUBTLE vertical gradient from semi-opaque dark at the very bottom edge fading to fully transparent around 55–60% up the frame. This gradient is for legibility only — it must be smooth and almost invisible at its top edge.
+- NEVER use an opaque rectangle, NEVER place a solid box of color in the middle of the photo. The dish must remain fully visible and uncovered.
+- Typography NEVER crosses over the dish itself — the dish must be composed in the upper or central area so the bottom gradient zone is naturally free of food.`;
 
     const sharedArtDirection = `
 You are an award-winning art director for a luxury gastronomy magazine (think Kinfolk, Cereal, Bon Appétit). Create ONE Instagram post (1:1, 1080×1080) for the restaurant below. The result must look like a premium editorial cover, NOT a generic stock-photo template.
@@ -136,6 +179,9 @@ LAYOUT (THE ARCHITECTURE):
 - One clear focal point (the dish) + one clear typographic moment
 - Asymmetric, intentional, breathing — feel of a magazine cover, not a flyer
 - Restaurant name appears once, small and refined, as a signature (bottom or top corner)
+
+${lockedTypographySystem}
+${layoutBlock}
 
 ${textBlock}
 
