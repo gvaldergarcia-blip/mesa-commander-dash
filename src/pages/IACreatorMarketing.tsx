@@ -1179,6 +1179,19 @@ export default function IACreatorMarketing() {
                           </p>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                          <label className="flex items-center justify-between gap-3 rounded-md border border-input bg-background px-3 py-2 cursor-pointer">
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-semibold">Gerar imagem sem nenhum texto</p>
+                              <p className="text-[11px] text-muted-foreground">Só a foto editorial do prato, sem headline, subtítulo, CTA ou assinatura.</p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={noImageText}
+                              onChange={(e) => setNoImageText(e.target.checked)}
+                              className="h-4 w-4 accent-primary"
+                            />
+                          </label>
+                          {!noImageText && (<>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">Título principal (headline)</Label>
                             <Input
@@ -1203,6 +1216,7 @@ export default function IACreatorMarketing() {
                               placeholder="Ex: Garanta sua mesa agora!"
                             />
                           </div>
+                          </>)}
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">Legenda do Instagram</Label>
                             <textarea
