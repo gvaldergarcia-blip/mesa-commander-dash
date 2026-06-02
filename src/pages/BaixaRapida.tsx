@@ -194,12 +194,12 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      await warmupCameraPermission();
+      const warmupResult = await warmupCameraPermission();
 
       flushSync(() => setPhase("scan"));
       ensureScannerRegion();
 
-      await startScannerWithFallbacks();
+      await startScannerWithFallbacks(warmupResult?.deviceId ?? null);
     } catch (err: any) {
       console.error("[BaixaRapida] camera start error:", err);
       setPhase("list");
@@ -328,45 +328,17 @@ export default function BaixaRapida() {
     );
   };
 
-  const startScannerWithFallbacks = async () => {
+  const startScannerWithFallbacks = async (preferredDeviceId: string | null = null) => {
     const { isIOS } = getBrowserInfo();
     let lastError: unknown;
 
     if (isIOS) {
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        const orderedCameraIds = [
-          ...cameras
-            .filter((camera) => /back|rear|traseira|environment|wide|1x/i.test(camera.label))
-            .map((camera) => camera.id),
-          ...[...cameras]
-            .reverse()
-            .filter((camera) => !/back|rear|traseira|environment|wide|1x/i.test(camera.label))
-            .map((camera) => camera.id),
-        ];
-
-        for (const cameraId of orderedCameraIds) {
-          try {
-            if (scannerRef.current) {
-              await stopScanner();
-            }
-
-            console.info("[BaixaRapida] starting scanner with camera id:", cameraId);
-            await startScannerSession(cameraId);
-            return;
-          } catch (error) {
-            lastError = error;
-            console.warn("[BaixaRapida] iOS camera id attempt failed:", cameraId, error);
-          }
-        }
-      } catch (cameraListError) {
-        lastError = cameraListError;
-        console.warn("[BaixaRapida] could not list iOS cameras:", cameraListError);
-      }
+      await pause(180);
     }
 
     const attempts: ScannerInput[] = isIOS
       ? [
+          ...(preferredDeviceId ? [preferredDeviceId] : []),
           { facingMode: "environment" } as ScannerInput,
           { facingMode: "user" } as ScannerInput,
         ]
