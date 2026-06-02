@@ -137,17 +137,7 @@ LAYOUT (THE ARCHITECTURE):
 - Asymmetric, intentional, breathing — feel of a magazine cover, not a flyer
 - Restaurant name appears once, small and refined, as a signature (bottom or top corner)
 
-TEXT CONTENT (Brazilian Portuguese — render EXACTLY, no Spanish):
-• HEADLINE: "${headlineText}"
-${subtitleText ? `• SUPPORT LINE: "${subtitleText}"` : ''}
-${ctaText ? `• CALL TO ACTION: "${ctaText}"` : ''}
-• SIGNATURE: "${restaurantName}"
-
-SPELLING (NON-NEGOTIABLE):
-- Every word must match the source above letter-by-letter
-- If unsure about a word, REMOVE it rather than misspell. Less is more.
-- No invented words, no Spanish substitutions (com NOT con, uma NOT una, já NOT jâ)
-- Prefer 2–4 words per text block. Editorial restraint over noise.
+${textBlock}
 
 FORBIDDEN (instant rejection):
 - Generic stock-photo aesthetic, AI-template look, clip-art, cartoonish style
