@@ -140,14 +140,14 @@ export function printLabels(data: PrintLabelData) {
     .local-row { margin-top: 1mm; font-size: 7pt; }
     .local-row .k { font-weight: 800; }
     .local-row .v { font-weight: 700; }
-    .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 2mm; margin-top: 1mm; flex: 1; }
+    .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5mm; margin-top: 1mm; flex: 1; }
     .footer-info { flex: 1; min-width: 0; }
     .f-line { font-size: 6.5pt; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-line .k { font-weight: 700; }
     .f-line.est { font-weight: 700; font-size: 7pt; }
-    .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.3mm; flex-shrink: 0; }
-    .qr-wrap svg { width: 11mm; height: 11mm; display: block; }
-    .qr-label { font-size: 5.5pt; font-weight: 700; line-height: 1; }
+    .qr-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.4mm; flex: 0 0 15mm; }
+    .qr-wrap svg { width: 15mm; height: 15mm; display: block; }
+    .qr-label { font-size: 6pt; font-weight: 800; line-height: 1; letter-spacing: 0; }
     .allergens { margin-top: 0.5mm; font-size: 6.5pt; font-weight: 800; letter-spacing: 0.2px; border: 0.3mm solid #000; padding: 0.5mm 1mm; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ingredients { margin-top: 0.5mm; font-size: 6pt; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .ingredients .k { font-weight: 700; }
