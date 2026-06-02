@@ -292,6 +292,41 @@ export default function BaixaRapida() {
 
   const startScannerWithFallbacks = async () => {
     const { isIOS } = getBrowserInfo();
+    let lastError: unknown;
+
+    if (isIOS) {
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        const orderedCameraIds = [
+          ...cameras
+            .filter((camera) => /back|rear|traseira|environment|wide|1x/i.test(camera.label))
+            .map((camera) => camera.id),
+          ...[...cameras]
+            .reverse()
+            .filter((camera) => !/back|rear|traseira|environment|wide|1x/i.test(camera.label))
+            .map((camera) => camera.id),
+        ];
+
+        for (const cameraId of orderedCameraIds) {
+          try {
+            if (scannerRef.current) {
+              await stopScanner();
+            }
+
+            console.info("[BaixaRapida] starting scanner with camera id:", cameraId);
+            await startScannerSession(cameraId);
+            return;
+          } catch (error) {
+            lastError = error;
+            console.warn("[BaixaRapida] iOS camera id attempt failed:", cameraId, error);
+          }
+        }
+      } catch (cameraListError) {
+        lastError = cameraListError;
+        console.warn("[BaixaRapida] could not list iOS cameras:", cameraListError);
+      }
+    }
+
     const attempts: ScannerInput[] = isIOS
       ? [
           { facingMode: "environment" } as ScannerInput,
@@ -302,8 +337,6 @@ export default function BaixaRapida() {
           { facingMode: "environment" } as ScannerInput,
           { facingMode: "user" } as ScannerInput,
         ];
-
-    let lastError: unknown;
 
     for (const attempt of attempts) {
       try {
@@ -546,8 +579,12 @@ export default function BaixaRapida() {
       )}
 
       {/* ============== PHASE: SCAN ============== */}
-      {(phase === "camera-permission" || phase === "scan") && (
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4 bg-black">
+      <div
+        className={cn(
+          "flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4 bg-black",
+          phase !== "camera-permission" && phase !== "scan" && "hidden"
+        )}
+      >
           <div className="relative w-full max-w-sm aspect-square rounded-[2rem] overflow-hidden bg-black border-2 border-[#FF6B00]/40 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
             <div id={SCAN_REGION} className="w-full h-full" />
             <div className="pointer-events-none absolute inset-8 border-2 border-[#FF6B00]/70 rounded-[1.5rem]" />
@@ -587,7 +624,6 @@ export default function BaixaRapida() {
             #${SCAN_REGION} { display:flex; align-items:center; justify-content:center; }
           `}</style>
         </div>
-      )}
     </div>
   );
 }
