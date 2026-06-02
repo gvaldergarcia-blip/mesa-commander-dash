@@ -18,6 +18,7 @@ type Employee = { id: string; name: string; role: string | null; sectors?: strin
 type Phase = "pin" | "list" | "camera-permission" | "scan";
 type ScannerInput = Parameters<Html5Qrcode["start"]>[0];
 type ScannerConfig = Parameters<Html5Qrcode["start"]>[1];
+type WarmupCameraResult = { deviceId: string | null };
 const STORAGE_KEY = "yeschef-operator-session";
 const SCAN_REGION = "operator-qr-reader";
 
@@ -150,6 +151,8 @@ export default function BaixaRapida() {
 
   const getCameraErrorMessage = (err: any) => {
     const name = err?.name || "";
+    const rawMessage = typeof err === "string" ? err : typeof err?.message === "string" ? err.message : "";
+    const normalizedError = `${name} ${rawMessage}`.toLowerCase();
     const isSecure = window.isSecureContext;
     const { isIOS, isSafari } = getBrowserInfo();
 
@@ -157,7 +160,11 @@ export default function BaixaRapida() {
       return "No iPhone, o scanner funciona melhor no Safari. Abra o sistema no Safari e tente novamente.";
     }
 
-    if (name === "NotAllowedError" || /permission|denied/i.test(err?.message || "")) {
+    if (/notreadableerror|aborterror|trackstarterror|could not start video source|device in use|start video source/i.test(normalizedError)) {
+      return "A câmera foi liberada, mas o vídeo não iniciou no iPhone. Feche outras abas ou apps usando a câmera e tente novamente.";
+    }
+
+    if (name === "NotAllowedError" || /permission denied|permission dismissed|user denied|denied permission/i.test(normalizedError)) {
       return "Permissão de câmera negada. Libere a câmera nas configurações do Safari/navegador e tente novamente.";
     }
 
@@ -187,12 +194,12 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      await warmupCameraPermission();
+      const warmupResult = await warmupCameraPermission();
 
       flushSync(() => setPhase("scan"));
       ensureScannerRegion();
 
-      await startScannerWithFallbacks();
+      await startScannerWithFallbacks(warmupResult?.deviceId ?? null);
     } catch (err: any) {
       console.error("[BaixaRapida] camera start error:", err);
       setPhase("list");
@@ -229,6 +236,7 @@ export default function BaixaRapida() {
   // === SCANNER ===
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
+  const pause = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
   const stopScanner = async () => {
     const s = scannerRef.current;
@@ -237,27 +245,57 @@ export default function BaixaRapida() {
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
   };
 
-  const openCameraWithinGesture = async () => {
+  const releaseWarmupStream = async (stream: MediaStream) => {
+    const tracks = stream.getTracks();
+
+    const endedPromises = tracks.map(
+      (track) =>
+        new Promise<void>((resolve) => {
+          if (track.readyState === "ended") {
+            resolve();
+            return;
+          }
+
+          track.addEventListener("ended", () => resolve(), { once: true });
+        })
+    );
+
+    tracks.forEach((track) => track.stop());
+
+    await Promise.race([Promise.all(endedPromises).then(() => undefined), pause(180)]);
+  };
+
+  const openCameraWithinGesture = async (): Promise<WarmupCameraResult | null> => {
     const { isIOS, isSafari } = getBrowserInfo();
-    if (!isIOS || !isSafari) return;
+    if (!isIOS || !isSafari) return null;
 
     console.info("[BaixaRapida] iPhone/Safari preflight getUserMedia");
 
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: "environment" },
+      video: { facingMode: { ideal: "environment" } },
     });
 
-    stream.getTracks().forEach((track) => track.stop());
+    const track = stream.getVideoTracks()[0] ?? null;
+    const deviceId = track?.getSettings?.().deviceId ?? null;
+
+    console.info("[BaixaRapida] warmup stream acquired", {
+      hasDeviceId: Boolean(deviceId),
+      label: track?.label || null,
+    });
+
+    await releaseWarmupStream(stream);
+
+    return { deviceId };
   };
 
-  const warmupCameraPermission = async () => {
+  const warmupCameraPermission = async (): Promise<WarmupCameraResult | null> => {
     const { isIOS, isSafari } = getBrowserInfo();
-    if (!isIOS || !isSafari) return;
+    if (!isIOS || !isSafari) return null;
 
     flushSync(() => setPhase("camera-permission"));
     ensureScannerRegion();
-    await openCameraWithinGesture();
+    return openCameraWithinGesture();
   };
 
   const ensureScannerRegion = () => {
@@ -290,45 +328,17 @@ export default function BaixaRapida() {
     );
   };
 
-  const startScannerWithFallbacks = async () => {
+  const startScannerWithFallbacks = async (preferredDeviceId: string | null = null) => {
     const { isIOS } = getBrowserInfo();
     let lastError: unknown;
 
     if (isIOS) {
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        const orderedCameraIds = [
-          ...cameras
-            .filter((camera) => /back|rear|traseira|environment|wide|1x/i.test(camera.label))
-            .map((camera) => camera.id),
-          ...[...cameras]
-            .reverse()
-            .filter((camera) => !/back|rear|traseira|environment|wide|1x/i.test(camera.label))
-            .map((camera) => camera.id),
-        ];
-
-        for (const cameraId of orderedCameraIds) {
-          try {
-            if (scannerRef.current) {
-              await stopScanner();
-            }
-
-            console.info("[BaixaRapida] starting scanner with camera id:", cameraId);
-            await startScannerSession(cameraId);
-            return;
-          } catch (error) {
-            lastError = error;
-            console.warn("[BaixaRapida] iOS camera id attempt failed:", cameraId, error);
-          }
-        }
-      } catch (cameraListError) {
-        lastError = cameraListError;
-        console.warn("[BaixaRapida] could not list iOS cameras:", cameraListError);
-      }
+      await pause(180);
     }
 
     const attempts: ScannerInput[] = isIOS
       ? [
+          ...(preferredDeviceId ? [preferredDeviceId] : []),
           { facingMode: "environment" } as ScannerInput,
           { facingMode: "user" } as ScannerInput,
         ]
