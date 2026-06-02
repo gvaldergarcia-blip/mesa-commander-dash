@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { useLabels } from "@/hooks/useLabels";
 import { Html5Qrcode } from "html5-qrcode";
+import jsQR from "jsqr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Delete, LogOut, ScanLine, Loader2, X, ArrowRight, Snowflake, Flame, Thermometer, Refrigerator, AlertTriangle } from "lucide-react";
@@ -80,6 +81,60 @@ function extractCode(raw: string): string | null {
   }
   const m = value.match(/[A-Z0-9]{4,12}/i);
   return m ? m[0].toUpperCase() : null;
+}
+
+async function decodeQrFromImageFile(file: File): Promise<string | null> {
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Não foi possível abrir a foto selecionada."));
+      img.src = imageUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (!context) {
+      throw new Error("Não foi possível processar a foto selecionada.");
+    }
+
+    canvas.width = image.naturalWidth || image.width;
+    canvas.height = image.naturalHeight || image.height;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const attempts = [
+      { sx: 0, sy: 0, sw: canvas.width, sh: canvas.height },
+      {
+        sx: Math.max(0, Math.floor(canvas.width * 0.12)),
+        sy: Math.max(0, Math.floor(canvas.height * 0.12)),
+        sw: Math.max(1, Math.floor(canvas.width * 0.76)),
+        sh: Math.max(1, Math.floor(canvas.height * 0.76)),
+      },
+      {
+        sx: Math.max(0, Math.floor(canvas.width * 0.22)),
+        sy: Math.max(0, Math.floor(canvas.height * 0.22)),
+        sw: Math.max(1, Math.floor(canvas.width * 0.56)),
+        sh: Math.max(1, Math.floor(canvas.height * 0.56)),
+      },
+    ];
+
+    for (const attempt of attempts) {
+      const imageData = context.getImageData(attempt.sx, attempt.sy, attempt.sw, attempt.sh);
+      const decoded = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
+
+      const code = extractCode(decoded?.data ?? "");
+      if (code) return code;
+    }
+
+    return null;
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
 }
 
 export default function BaixaRapida() {
@@ -279,11 +334,7 @@ export default function BaixaRapida() {
       ensureScannerRegion();
       await stopScanner();
 
-      const scanner = new Html5Qrcode(SCAN_REGION, false);
-      scannerRef.current = scanner;
-
-      const decoded = await scanner.scanFile(file, false);
-      const code = extractCode(decoded);
+      const code = await decodeQrFromImageFile(file);
 
       if (!code) {
         throw new Error("QR Code não reconhecido na imagem selecionada.");
@@ -291,7 +342,6 @@ export default function BaixaRapida() {
 
       handledRef.current = true;
       try { navigator.vibrate?.(80); } catch {}
-      await stopScanner();
       navigate(`/etiquetas/scan/${code}?op=1`);
     } catch (err) {
       console.error("[BaixaRapida] native photo scan error:", err);
