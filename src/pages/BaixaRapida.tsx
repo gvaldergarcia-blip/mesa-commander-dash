@@ -334,7 +334,14 @@ export default function BaixaRapida() {
       ensureScannerRegion();
       await stopScanner();
 
-      const code = await decodeQrFromImageFile(file);
+      let code = await decodeQrFromImageFile(file);
+
+      if (!code) {
+        const scanner = new Html5Qrcode(SCAN_REGION, false);
+        scannerRef.current = scanner;
+        const decoded = await scanner.scanFile(file, false);
+        code = extractCode(decoded);
+      }
 
       if (!code) {
         throw new Error("QR Code não reconhecido na imagem selecionada.");
@@ -342,6 +349,7 @@ export default function BaixaRapida() {
 
       handledRef.current = true;
       try { navigator.vibrate?.(80); } catch {}
+      await stopScanner();
       navigate(`/etiquetas/scan/${code}?op=1`);
     } catch (err) {
       console.error("[BaixaRapida] native photo scan error:", err);
