@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,6 +99,10 @@ export default function BaixaRapida() {
     }
   });
   const [startingScan, setStartingScan] = useState(false);
+  const [processingFileScan, setProcessingFileScan] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { isIOS, isSafari } = getBrowserInfo();
+  const shouldUseNativePhotoScanner = isIOS && isSafari;
 
   useEffect(() => {
     if (employee && phase === "pin") setPhase("list");
@@ -184,7 +188,26 @@ export default function BaixaRapida() {
   };
 
   const handleStartScan = async () => {
-    if (startingScan) return;
+    if (startingScan || processingFileScan) return;
+
+    if (shouldUseNativePhotoScanner) {
+      try {
+        handledRef.current = false;
+        flushSync(() => setPhase("scan"));
+        ensureScannerRegion();
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+          fileInputRef.current.click();
+          return;
+        }
+        throw new Error("Não foi possível abrir a câmera do iPhone.");
+      } catch (err: any) {
+        console.error("[BaixaRapida] native photo scan open error:", err);
+        setPhase("list");
+        toast.error("Não consegui abrir a câmera/fotos do iPhone. Tente novamente.");
+        return;
+      }
+    }
 
     try {
       setStartingScan(true);
@@ -243,6 +266,51 @@ export default function BaixaRapida() {
     scannerRef.current = null;
     if (!s) return;
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
+  };
+
+  const handleNativePhotoScan = async (file: File) => {
+    handledRef.current = false;
+    setProcessingFileScan(true);
+
+    try {
+      flushSync(() => setPhase("scan"));
+      ensureScannerRegion();
+      await stopScanner();
+
+      const scanner = new Html5Qrcode(SCAN_REGION, false);
+      scannerRef.current = scanner;
+
+      const decoded = await scanner.scanFile(file, false);
+      const code = extractCode(decoded);
+
+      if (!code) {
+        throw new Error("QR Code não reconhecido na imagem selecionada.");
+      }
+
+      handledRef.current = true;
+      try { navigator.vibrate?.(80); } catch {}
+      await stopScanner();
+      navigate(`/etiquetas/scan/${code}?op=1`);
+    } catch (err) {
+      console.error("[BaixaRapida] native photo scan error:", err);
+      await stopScanner();
+      toast.error("Não consegui ler o QR desta foto. Tente novamente com a etiqueta inteira no enquadramento e boa luz.");
+    } finally {
+      setProcessingFileScan(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleNativePhotoInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    await handleNativePhotoScan(file);
   };
 
   const releaseWarmupStream = async (stream: MediaStream) => {
@@ -411,6 +479,15 @@ export default function BaixaRapida() {
   // ===================== RENDER =====================
   return (
     <div className="fixed inset-0 z-50 bg-[#0F0F1A] text-white overflow-hidden flex flex-col">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleNativePhotoInputChange}
+      />
+
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-[#2D2D44] bg-[#161626]">
         <div className="flex items-center gap-2">
@@ -602,6 +679,19 @@ export default function BaixaRapida() {
               className="pointer-events-none absolute left-8 right-8 h-0.5 bg-[#FF6B00] shadow-[0_0_16px_#FF6B00] animate-[scanline_1.6s_ease-in-out_infinite]"
               style={{ top: 32 }}
             />
+            {shouldUseNativePhotoScanner && phase === "scan" && !processingFileScan && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center px-6">
+                <div className="h-16 w-16 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center">
+                  <ScanLine className="h-8 w-8 text-[#FF6B00]" />
+                </div>
+                <div className="space-y-2 max-w-xs">
+                  <h1 className="text-xl font-bold text-white">Abrir câmera do iPhone</h1>
+                  <p className="text-sm text-[#A0AEC0]">
+                    No Safari, vamos usar a câmera/foto nativa do iPhone para ler a etiqueta com mais estabilidade.
+                  </p>
+                </div>
+              </div>
+            )}
             {phase === "camera-permission" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center px-6">
                 <div className="h-16 w-16 rounded-2xl bg-[#FF6B00]/15 border border-[#FF6B00]/30 flex items-center justify-center">
@@ -617,10 +707,22 @@ export default function BaixaRapida() {
             )}
           </div>
           <p className="text-sm text-[#A0AEC0] text-center max-w-xs">
-            {phase === "camera-permission"
+            {shouldUseNativePhotoScanner && phase === "scan"
+              ? "Toque em abrir câmera/fotos para fotografar a etiqueta ou escolher uma imagem já tirada."
+              : phase === "camera-permission"
               ? "Estamos aguardando a liberação da câmera pelo navegador."
               : "Aponte a câmera para o QR Code da etiqueta. A baixa abre automaticamente."}
           </p>
+          {shouldUseNativePhotoScanner && phase === "scan" && (
+            <Button
+              onClick={handleStartScan}
+              disabled={processingFileScan}
+              className="w-full max-w-sm h-14 rounded-full text-base bg-[#FF6B00] hover:bg-[#E55A00] text-white gap-2 shadow-[0_20px_40px_rgba(255,107,0,0.22)]"
+            >
+              {processingFileScan ? <Loader2 className="h-5 w-5 animate-spin" /> : <ScanLine className="h-5 w-5" />}
+              {processingFileScan ? "Lendo foto..." : "Abrir câmera/fotos"}
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => setPhase("list")}
