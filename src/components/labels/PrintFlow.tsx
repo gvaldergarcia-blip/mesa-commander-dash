@@ -341,8 +341,13 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                   {restaurantLegal?.cep && <div className="truncate"><span className="font-bold">CEP:</span> {restaurantLegal.cep}</div>}
                 </div>
                 <div className="flex flex-col items-center shrink-0">
-                  <QRCodeSVG value="ABC123" size={54} level="L" marginSize={1} />
-                  <div className="font-bold" style={{ fontSize: "8px" }}>#XXXXXX</div>
+                  <QRCodeSVG
+                    value={`${getSiteBaseUrl()}/etiquetas/scan/preview`}
+                    size={54}
+                    level="L"
+                    marginSize={1}
+                  />
+                  <div className="font-bold" style={{ fontSize: "8px" }}>#PREVIEW</div>
                 </div>
               </div>
 
