@@ -531,6 +531,10 @@ export default function IACreatorMarketing() {
   const [editableLegenda, setEditableLegenda] = useState("");
   const [textConfirmed, setTextConfirmed] = useState(false);
   const [noImageText, setNoImageText] = useState(false);
+  // Layout do texto na arte: 'overlay' (sobre a imagem com gradiente),
+  // 'outside' (texto fora — área dedicada), 'none' (sem texto, só foto)
+  type TextLayout = 'overlay' | 'outside' | 'none';
+  const [textLayout, setTextLayout] = useState<TextLayout>('overlay');
 
   // Ambiente Real
   const [realAmbient, setRealAmbient] = useState(false);
@@ -697,10 +701,11 @@ export default function IACreatorMarketing() {
         restaurantId: restaurant?.id || undefined,
         userId: user?.id || undefined,
         // Custom text overrides from editable fields
-        customHeadline: noImageText ? undefined : (editableHeadline || undefined),
-        customSubheadline: noImageText ? undefined : (editableSubheadline || undefined),
-        customCta: noImageText ? undefined : (editableCta || undefined),
-        noText: noImageText,
+        customHeadline: (noImageText || textLayout === 'none') ? undefined : (editableHeadline || undefined),
+        customSubheadline: (noImageText || textLayout === 'none') ? undefined : (editableSubheadline || undefined),
+        customCta: (noImageText || textLayout === 'none') ? undefined : (editableCta || undefined),
+        noText: noImageText || textLayout === 'none',
+        textLayout,
         realAmbient: realAmbient && !!selectedAmbientUrl,
         ambientPhotoUrl: realAmbient ? selectedAmbientUrl || undefined : undefined,
       };
@@ -1179,19 +1184,56 @@ export default function IACreatorMarketing() {
                           </p>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          <label className="flex items-center justify-between gap-3 rounded-md border border-input bg-background px-3 py-2 cursor-pointer">
-                            <div className="space-y-0.5">
-                              <p className="text-xs font-semibold">Gerar imagem sem nenhum texto</p>
-                              <p className="text-[11px] text-muted-foreground">Só a foto editorial do prato, sem headline, subtítulo, CTA ou assinatura.</p>
+                          {/* Seletor de layout do texto — 3 modos */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium">Layout do texto na arte</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { id: 'overlay' as const, label: 'Sobre a foto', hint: 'Gradiente sutil no rodapé' },
+                                { id: 'outside' as const, label: 'Fora da foto', hint: 'Faixa dedicada · prato livre' },
+                                { id: 'none'    as const, label: 'Sem texto',   hint: 'Só foto editorial' },
+                              ].map((opt) => {
+                                const active = textLayout === opt.id && !noImageText;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={opt.id}
+                                    onClick={() => { setTextLayout(opt.id); setNoImageText(opt.id === 'none'); }}
+                                    className={`group text-left rounded-md border px-3 py-2.5 transition ${active ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-input bg-background hover:border-primary/40'}`}
+                                  >
+                                    {/* mini preview wireframe */}
+                                    <div className="relative h-10 w-full rounded-sm overflow-hidden border border-border/60 bg-muted mb-2">
+                                      <div className="absolute inset-1 rounded-[2px] bg-gradient-to-br from-primary/30 to-primary/10" />
+                                      {opt.id === 'overlay' && (
+                                        <>
+                                          <div className="absolute inset-x-1 bottom-1 h-4 rounded-[2px] bg-gradient-to-t from-foreground/70 to-transparent" />
+                                          <div className="absolute left-2 bottom-2 h-0.5 w-6 bg-background/90" />
+                                          <div className="absolute left-2 bottom-3.5 h-0.5 w-4 bg-background/70" />
+                                        </>
+                                      )}
+                                      {opt.id === 'outside' && (
+                                        <>
+                                          <div className="absolute inset-x-1 top-1 bottom-3 rounded-[2px] bg-gradient-to-br from-primary/40 to-primary/15" />
+                                          <div className="absolute inset-x-1 bottom-1 h-2 rounded-[2px] bg-foreground/80" />
+                                          <div className="absolute left-2 bottom-1.5 h-0.5 w-4 bg-background/90" />
+                                        </>
+                                      )}
+                                      {opt.id === 'none' && (
+                                        <div className="absolute inset-1 rounded-[2px] bg-gradient-to-br from-primary/40 to-primary/15" />
+                                      )}
+                                    </div>
+                                    <p className={`text-[11px] font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>{opt.label}</p>
+                                    <p className="text-[10px] text-muted-foreground leading-snug">{opt.hint}</p>
+                                  </button>
+                                );
+                              })}
                             </div>
-                            <input
-                              type="checkbox"
-                              checked={noImageText}
-                              onChange={(e) => setNoImageText(e.target.checked)}
-                              className="h-4 w-4 accent-primary"
-                            />
-                          </label>
-                          {!noImageText && (<>
+                            <p className="text-[10px] text-muted-foreground">
+                              Tipografia fixa: <span className="font-medium text-foreground">Playfair Display</span> (títulos) + <span className="font-medium text-foreground">Inter</span> (corpo). Garante feed coeso entre todos os posts.
+                            </p>
+                          </div>
+
+                          {!noImageText && textLayout !== 'none' && (<>
                           <div className="space-y-1.5">
                             <Label className="text-xs font-medium">Título principal (headline)</Label>
                             <Input
