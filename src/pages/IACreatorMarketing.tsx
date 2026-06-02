@@ -530,6 +530,7 @@ export default function IACreatorMarketing() {
   const [editableCta, setEditableCta] = useState("");
   const [editableLegenda, setEditableLegenda] = useState("");
   const [textConfirmed, setTextConfirmed] = useState(false);
+  const [noImageText, setNoImageText] = useState(false);
 
   // Ambiente Real
   const [realAmbient, setRealAmbient] = useState(false);
