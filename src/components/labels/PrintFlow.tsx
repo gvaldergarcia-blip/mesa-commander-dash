@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
-import { getSiteBaseUrl } from "@/config/site-url";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3;
@@ -112,9 +111,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         allergens: productAllergens,
         ingredients: productIngredients,
       });
-      const scanUrl = `${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}`;
       const qrSvg = renderToStaticMarkup(
-        <QRCodeSVG value={scanUrl} size={120} level="M" marginSize={0} />
+        <QRCodeSVG value={inserted.unique_code} size={144} level="L" marginSize={1} />
       );
       printLabels({
         productName: product.name,
@@ -342,7 +340,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                   {restaurantLegal?.cep && <div className="truncate"><span className="font-bold">CEP:</span> {restaurantLegal.cep}</div>}
                 </div>
                 <div className="flex flex-col items-center shrink-0">
-                  <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/EXEMPLO`} size={46} level="M" marginSize={0} />
+                  <QRCodeSVG value="ABC123" size={54} level="L" marginSize={1} />
                   <div className="font-bold" style={{ fontSize: "8px" }}>#XXXXXX</div>
                 </div>
               </div>
