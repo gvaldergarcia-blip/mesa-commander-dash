@@ -182,12 +182,14 @@ export default function BaixaRapida() {
     try {
       setStartingScan(true);
       handledRef.current = false;
-      flushSync(() => setPhase("scan"));
-      ensureScannerRegion();
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
+
+      await openCameraWithinGesture();
+      flushSync(() => setPhase("scan"));
+      ensureScannerRegion();
 
       await startScannerWithFallbacks();
     } catch (err: any) {
@@ -232,6 +234,18 @@ export default function BaixaRapida() {
     scannerRef.current = null;
     if (!s) return;
     try { if (s.isScanning) await s.stop(); await s.clear(); } catch {}
+  };
+
+  const openCameraWithinGesture = async () => {
+    const { isIOS, isSafari } = getBrowserInfo();
+    if (!isIOS || !isSafari) return;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: "environment" },
+    });
+
+    stream.getTracks().forEach((track) => track.stop());
   };
 
   const ensureScannerRegion = () => {
