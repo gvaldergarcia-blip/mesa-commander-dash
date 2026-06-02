@@ -187,7 +187,8 @@ export default function BaixaRapida() {
         throw new Error("Seu navegador não suporta acesso à câmera.");
       }
 
-      await openCameraWithinGesture();
+      await warmupCameraPermission();
+
       flushSync(() => setPhase("scan"));
       ensureScannerRegion();
 
@@ -248,6 +249,15 @@ export default function BaixaRapida() {
     });
 
     stream.getTracks().forEach((track) => track.stop());
+  };
+
+  const warmupCameraPermission = async () => {
+    const { isIOS, isSafari } = getBrowserInfo();
+    if (!isIOS || !isSafari) return;
+
+    flushSync(() => setPhase("camera-permission"));
+    ensureScannerRegion();
+    await openCameraWithinGesture();
   };
 
   const ensureScannerRegion = () => {
