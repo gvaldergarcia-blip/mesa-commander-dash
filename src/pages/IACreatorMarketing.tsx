@@ -531,6 +531,10 @@ export default function IACreatorMarketing() {
   const [editableLegenda, setEditableLegenda] = useState("");
   const [textConfirmed, setTextConfirmed] = useState(false);
   const [noImageText, setNoImageText] = useState(false);
+  // Layout do texto na arte: 'overlay' (sobre a imagem com gradiente),
+  // 'outside' (texto fora — área dedicada), 'none' (sem texto, só foto)
+  type TextLayout = 'overlay' | 'outside' | 'none';
+  const [textLayout, setTextLayout] = useState<TextLayout>('overlay');
 
   // Ambiente Real
   const [realAmbient, setRealAmbient] = useState(false);
