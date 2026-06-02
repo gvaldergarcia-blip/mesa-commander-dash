@@ -50,6 +50,7 @@ serve(async (req) => {
     const hasDiscount = body.hasDiscount ?? true;
     const includeLogo = body.includeLogo ?? false;
     const includeAddress = body.includeAddress ?? false;
+    const noText = !!body.noText;
 
     if (!dishName) {
       return new Response(JSON.stringify({ error: "Nome do prato é obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -61,14 +62,30 @@ serve(async (req) => {
     // Build prompt based on whether discount exists
     let promptText: string;
 
-    const headlineText = customHeadline || dishName;
-    const subtitleText = customSubheadline || '';
-    const ctaText = customCta || '';
+    const headlineText = noText ? '' : (customHeadline || dishName);
+    const subtitleText = noText ? '' : (customSubheadline || '');
+    const ctaText = noText ? '' : (customCta || '');
 
     // === ART DIRECTION PREMIUM ===
     // Filosofia: pensar como direção de arte de revista gastronômica (Kinfolk,
     // Cereal, Bon Appétit, Le Cordon Bleu). Menos regras, mais visão.
     // Tipografia editorial, composição cinematográfica, fotografia 4K.
+
+    const textBlock = noText
+      ? `TEXT CONTENT:
+• NO TEXT AT ALL. This is a pure editorial food photograph. Do NOT render any headline, subtitle, CTA, signature, restaurant name, address, prices, badges, watermarks, emojis, hashtags or any written characters anywhere in the image.
+• The composition should leave breathing room but contain ZERO typography.`
+      : `TEXT CONTENT (Brazilian Portuguese — render EXACTLY, no Spanish):
+• HEADLINE: "${headlineText}"
+${subtitleText ? `• SUPPORT LINE: "${subtitleText}"` : ''}
+${ctaText ? `• CALL TO ACTION: "${ctaText}"` : ''}
+• SIGNATURE: "${restaurantName}"
+
+SPELLING (NON-NEGOTIABLE):
+- Every word must match the source above letter-by-letter
+- If unsure about a word, REMOVE it rather than misspell. Less is more.
+- No invented words, no Spanish substitutions (com NOT con, uma NOT una, já NOT jâ)
+- Prefer 2–4 words per text block. Editorial restraint over noise.`;
 
     const sharedArtDirection = `
 You are an award-winning art director for a luxury gastronomy magazine (think Kinfolk, Cereal, Bon Appétit). Create ONE Instagram post (1:1, 1080×1080) for the restaurant below. The result must look like a premium editorial cover, NOT a generic stock-photo template.
@@ -120,17 +137,7 @@ LAYOUT (THE ARCHITECTURE):
 - Asymmetric, intentional, breathing — feel of a magazine cover, not a flyer
 - Restaurant name appears once, small and refined, as a signature (bottom or top corner)
 
-TEXT CONTENT (Brazilian Portuguese — render EXACTLY, no Spanish):
-• HEADLINE: "${headlineText}"
-${subtitleText ? `• SUPPORT LINE: "${subtitleText}"` : ''}
-${ctaText ? `• CALL TO ACTION: "${ctaText}"` : ''}
-• SIGNATURE: "${restaurantName}"
-
-SPELLING (NON-NEGOTIABLE):
-- Every word must match the source above letter-by-letter
-- If unsure about a word, REMOVE it rather than misspell. Less is more.
-- No invented words, no Spanish substitutions (com NOT con, uma NOT una, já NOT jâ)
-- Prefer 2–4 words per text block. Editorial restraint over noise.
+${textBlock}
 
 FORBIDDEN (instant rejection):
 - Generic stock-photo aesthetic, AI-template look, clip-art, cartoonish style
@@ -142,7 +149,9 @@ FORBIDDEN (instant rejection):
 - Decorative emoji clusters, hashtags, web URLs
 `;
 
-    if (hasDiscount && originalPrice && promoPrice) {
+    if (noText) {
+      promptText = `${sharedArtDirection}\n\nNO PRICES, NO BADGES, NO LOGOS, NO ADDRESS, NO TEXT OF ANY KIND. Pure editorial food photograph only.`;
+    } else if (hasDiscount && originalPrice && promoPrice) {
       promptText = `${sharedArtDirection}
 
 PRICE TREATMENT (this is a promotional post):
@@ -155,11 +164,11 @@ PRICE TREATMENT (this is a promotional post):
 
 NO PRICES, NO DISCOUNT BADGES — this is a brand/awareness post, treat it like an editorial feature, not a sale flyer.`;
     }
-    if (includeLogo && logoUrl) {
+    if (!noText && includeLogo && logoUrl) {
       promptText += `\n\nLOGO: The restaurant's actual logo is attached. Place it EXACTLY as provided (do not recreate), small and refined, in a top corner. Treat it as a premium brand mark, with proper margin and breathing room.`;
     }
 
-    if (includeAddress && address) {
+    if (!noText && includeAddress && address) {
       promptText += `\n\nADDRESS: Place "${address}" as a tiny, refined sans-serif line at the very bottom edge — editorial caption style, not promotional.`;
     }
 
