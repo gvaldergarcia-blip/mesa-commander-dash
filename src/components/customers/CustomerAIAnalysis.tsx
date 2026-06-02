@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Brain, TrendingDown, TrendingUp, AlertTriangle, Target, RefreshCw,
-  Sparkles, BadgePercent, Calendar, ArrowRight, Loader2, CheckCircle2,
-  XCircle, ShieldCheck, Gauge, ChevronDown, ChevronUp, Send, Heart, Megaphone, Eye
+  Brain, AlertTriangle, RefreshCw, Sparkles, BadgePercent, Loader2,
+  CheckCircle2, XCircle, Gauge, ChevronDown, ChevronUp, Send, Heart, Megaphone, Eye
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
