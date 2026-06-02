@@ -290,7 +290,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
             <div className="text-xs uppercase text-muted-foreground mb-3 font-semibold">Pré-visualização · 80×40mm</div>
             <div
               className="bg-white text-black font-sans overflow-hidden flex flex-col mx-auto shadow"
-              style={{ width: "340px", height: "170px", padding: "10px 12px", fontSize: "10px", lineHeight: 1.2 }}
+              style={{ width: "340px", minHeight: "170px", padding: "10px 12px", fontSize: "10px", lineHeight: 1.2 }}
             >
               {/* Topo: nome + peso */}
               <div className="flex items-start justify-between gap-2">
