@@ -240,6 +240,8 @@ export default function BaixaRapida() {
     const { isIOS, isSafari } = getBrowserInfo();
     if (!isIOS || !isSafari) return;
 
+    console.info("[BaixaRapida] iPhone/Safari preflight getUserMedia");
+
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: "environment" },
@@ -299,6 +301,7 @@ export default function BaixaRapida() {
           await stopScanner();
         }
 
+        console.info("[BaixaRapida] starting scanner attempt:", attempt);
         await startScannerSession(attempt);
         return;
       } catch (error) {
