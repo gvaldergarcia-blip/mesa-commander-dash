@@ -701,10 +701,11 @@ export default function IACreatorMarketing() {
         restaurantId: restaurant?.id || undefined,
         userId: user?.id || undefined,
         // Custom text overrides from editable fields
-        customHeadline: noImageText ? undefined : (editableHeadline || undefined),
-        customSubheadline: noImageText ? undefined : (editableSubheadline || undefined),
-        customCta: noImageText ? undefined : (editableCta || undefined),
-        noText: noImageText,
+        customHeadline: (noImageText || textLayout === 'none') ? undefined : (editableHeadline || undefined),
+        customSubheadline: (noImageText || textLayout === 'none') ? undefined : (editableSubheadline || undefined),
+        customCta: (noImageText || textLayout === 'none') ? undefined : (editableCta || undefined),
+        noText: noImageText || textLayout === 'none',
+        textLayout,
         realAmbient: realAmbient && !!selectedAmbientUrl,
         ambientPhotoUrl: realAmbient ? selectedAmbientUrl || undefined : undefined,
       };
