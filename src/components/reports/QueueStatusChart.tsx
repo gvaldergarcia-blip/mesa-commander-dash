@@ -42,6 +42,7 @@ export function QueueStatusChart({ seated, waiting, called, canceled, noShow, cl
 
   // Usar totalEntries como denominador (mesma base de cálculo da conversão)
   const total = totalEntries;
+  const uniqueCategories = data.length;
 
   // Audit em dev
   if (import.meta.env.DEV) {
@@ -71,6 +72,46 @@ export function QueueStatusChart({ seated, waiting, called, canceled, noShow, cl
             <Users className="w-12 h-12 mb-3 opacity-30" />
             <p className="font-medium">Sem dados de fila</p>
             <p className="text-sm">Adicione entradas para visualizar</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Quando há apenas uma categoria, eliminar o donut 100% e mostrar número grande
+  if (uniqueCategories === 1) {
+    const only = data[0];
+    const labelLower = only.name.toLowerCase();
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center text-lg">
+            <div className="p-2 bg-primary/10 rounded-lg mr-3">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
+            Status da Fila
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {total} {total === 1 ? 'entrada' : 'entradas'} no período
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 flex items-center justify-center gap-5">
+            <div
+              className="h-16 w-16 rounded-2xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: `${only.color}22`, color: only.color, boxShadow: `inset 0 0 0 1px ${only.color}55` }}
+            >
+              <Users className="h-8 w-8" />
+            </div>
+            <div className="text-left">
+              <p className="metric-display text-6xl md:text-7xl text-foreground animate-fade-in">
+                {only.value}
+              </p>
+              <p className="mt-2 text-sm font-light text-muted-foreground">
+                {only.value === 1 ? 'entrada' : 'entradas'} —{' '}
+                <span style={{ color: only.color }} className="font-medium">{labelLower === 'atendidos' ? 'todas atendidas' : `todas ${labelLower.toLowerCase()}`}</span>
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Clock, Calendar, TrendingUp, XCircle, CheckCircle2 } from "lucide-react";
+import { Clock, Calendar, XCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PeakInfoCardProps {
   peakHour: string;
@@ -8,65 +8,102 @@ interface PeakInfoCardProps {
   totalCanceled: number;
 }
 
+function MetricTile({
+  value,
+  label,
+  caption,
+  icon: Icon,
+  tone,
+}: {
+  value: string | number;
+  label: string;
+  caption: string;
+  icon: typeof Clock;
+  tone: "success" | "destructive";
+}) {
+  const toneMap = {
+    success: {
+      ring: "hover:border-success/60 hover:shadow-[0_18px_40px_-22px_hsl(var(--success)/0.7)]",
+      bgIcon: "bg-success/15 text-success ring-1 ring-success/30",
+      number: "text-success",
+    },
+    destructive: {
+      ring: "hover:border-destructive/60 hover:shadow-[0_18px_40px_-22px_hsl(var(--destructive)/0.7)]",
+      bgIcon: "bg-destructive/15 text-destructive ring-1 ring-destructive/30",
+      number: "text-destructive",
+    },
+  } as const;
+  const t = toneMap[tone];
+  return (
+    <div className={cn(
+      "group relative rounded-2xl border border-border bg-card p-5 md:p-6 transition-all duration-300",
+      t.ring
+    )}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-[0.14em] font-light text-muted-foreground">{label}</p>
+          <p className={cn("mt-3 metric-display text-5xl md:text-6xl animate-fade-in", t.number)}>{value}</p>
+          <p className="mt-2 text-[11px] font-light text-muted-foreground/80">{caption}</p>
+        </div>
+        <div className={cn("h-14 w-14 shrink-0 rounded-full flex items-center justify-center", t.bgIcon)}>
+          <Icon className="h-7 w-7" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightTile({
+  value,
+  label,
+  caption,
+  icon: Icon,
+}: {
+  value: string;
+  label: string;
+  caption: string;
+  icon: typeof Clock;
+}) {
+  return (
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-2xl p-5 md:p-6 border transition-all duration-300",
+        "border-primary/30 hover:border-primary/60",
+        "bg-gradient-to-br from-primary/15 via-primary/5 to-transparent",
+        "hover:shadow-[0_22px_50px_-22px_hsl(var(--primary)/0.65)]"
+      )}
+    >
+      <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] font-medium text-primary/80">
+            <Sparkles className="h-3 w-3" />
+            Insight
+          </div>
+          <p className="mt-2 text-[11px] uppercase tracking-[0.14em] font-light text-muted-foreground">{label}</p>
+          <p className="mt-2 metric-display text-5xl md:text-6xl text-foreground animate-fade-in truncate">{value}</p>
+          <p className="mt-2 text-[11px] font-light text-muted-foreground/80">{caption}</p>
+        </div>
+        <div className="h-14 w-14 shrink-0 rounded-full flex items-center justify-center bg-primary/20 text-primary ring-1 ring-primary/40">
+          <Icon className="h-7 w-7" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PeakInfoCard({ peakHour, peakDay, totalServed, totalCanceled }: PeakInfoCardProps) {
-  // Formatar dia de pico
-  const formattedPeakDay = peakDay && peakDay !== '-' 
+  const formattedPeakDay = peakDay && peakDay !== '-'
     ? peakDay.charAt(0).toUpperCase() + peakDay.slice(1)
-    : '-';
+    : 'Aguardando';
+  const peakHourValue = peakHour && peakHour !== '-' ? peakHour : 'Aguardando';
 
   return (
-    <Card className="border-border">
-      <CardContent className="p-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Total Atendidos */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10 border border-success/20">
-            <div className="p-2 rounded-lg bg-success/20">
-              <CheckCircle2 className="w-5 h-5 text-success" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-success">{totalServed}</p>
-              <p className="text-xs text-muted-foreground">Total Atendidos</p>
-              <p className="text-[10px] text-muted-foreground/70">Fila + Reservas</p>
-            </div>
-          </div>
-
-          {/* Total Cancelados */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <div className="p-2 rounded-lg bg-destructive/20">
-              <XCircle className="w-5 h-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-destructive">{totalCanceled}</p>
-              <p className="text-xs text-muted-foreground">Total Cancelados</p>
-              <p className="text-[10px] text-muted-foreground/70">Fila + Reservas</p>
-            </div>
-          </div>
-
-          {/* Horário de Pico */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="p-2 rounded-lg bg-primary/20">
-              <Clock className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-primary">{peakHour}</p>
-              <p className="text-xs text-muted-foreground">Horário de Pico</p>
-              <p className="text-[10px] text-muted-foreground/70">Maior volume</p>
-            </div>
-          </div>
-
-          {/* Dia de Pico */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-accent/10 border border-accent/20">
-            <div className="p-2 rounded-lg bg-accent/20">
-              <Calendar className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-accent-foreground truncate">{formattedPeakDay}</p>
-              <p className="text-xs text-muted-foreground">Dia de Pico</p>
-              <p className="text-[10px] text-muted-foreground/70">Maior movimento</p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+      <MetricTile value={totalServed} label="Total Atendidos" caption="Fila + Reservas" icon={CheckCircle2} tone="success" />
+      <MetricTile value={totalCanceled} label="Total Cancelados" caption="Fila + Reservas" icon={XCircle} tone="destructive" />
+      <InsightTile value={peakHourValue} label="Horário de Pico" caption="Maior volume no período" icon={Clock} />
+      <InsightTile value={formattedPeakDay} label="Dia de Pico" caption="Maior movimento" icon={Calendar} />
+    </div>
   );
 }
