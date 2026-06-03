@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lightbulb, TrendingUp, TrendingDown, Clock, Users, Calendar, AlertTriangle } from "lucide-react";
+import { Brain, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface InsightsCardProps {
   peakHour: string;
@@ -19,6 +20,14 @@ interface InsightsCardProps {
  * Insights determinísticos baseados APENAS em dados reais
  * Não gera frases sobre satisfação, NPS ou métricas que não existem
  */
+type InsightType = "success" | "warning" | "info";
+interface Insight {
+  icon: typeof TrendingUp;
+  text: string;
+  type: InsightType;
+  impact: number; // ranking de prioridade (maior = mais importante)
+}
+
 export function InsightsCard({
   peakHour,
   peakDay,
@@ -31,163 +40,145 @@ export function InsightsCard({
   previousAvgWait = 0,
   previousConversionRate = 0,
 }: InsightsCardProps) {
-  // Gerar insights DETERMINÍSTICOS baseados apenas em dados reais
-  const insights: Array<{
-    icon: typeof Lightbulb;
-    text: string;
-    type: "success" | "warning" | "info";
-  }> = [];
+  const insights: Insight[] = [];
 
-  // Insight: Dia de pico (se houver dados)
-  if (peakDay && peakDay !== '-') {
-    const dayCapitalized = peakDay.charAt(0).toUpperCase() + peakDay.slice(1);
-    insights.push({
-      icon: Calendar,
-      text: `${dayCapitalized} apresenta o maior volume de entradas no período analisado.`,
-      type: "info",
-    });
-  }
-
-  // Insight: Horário de pico (se houver dados)
-  if (peakHour && peakHour !== '-') {
-    insights.push({
-      icon: Clock,
-      text: `O horário das ${peakHour} concentra a maioria das entradas.`,
-      type: "info",
-    });
-  }
-
-  // Insight: Tempo de espera comparativo
+  // Tempo de espera vs período anterior (comparação obrigatória)
   if (avgWaitTime > 0 && previousAvgWait > 0) {
     const diff = avgWaitTime - previousAvgWait;
+    const pct = Math.round((Math.abs(diff) / previousAvgWait) * 100);
     if (diff < 0) {
       insights.push({
         icon: TrendingDown,
-        text: `Tempo médio de espera reduziu ${Math.abs(diff)} minutos em relação ao período anterior.`,
+        text: `↓ Tempo de espera caiu ${pct}% vs período anterior (${avgWaitTime} min)`,
         type: "success",
+        impact: 80 + pct,
       });
-    } else if (diff > 5) {
+    } else if (diff > 0) {
       insights.push({
         icon: TrendingUp,
-        text: `Tempo médio de espera aumentou ${diff} minutos. Considere otimizar o fluxo de atendimento.`,
+        text: `↑ Tempo de espera subiu ${pct}% vs período anterior (${avgWaitTime} min)`,
         type: "warning",
-      });
-    }
-  } else if (avgWaitTime > 0) {
-    // Sem comparativo, apenas informar o tempo atual
-    if (avgWaitTime <= 15) {
-      insights.push({
-        icon: Clock,
-        text: `Tempo médio de espera de ${avgWaitTime} minutos está dentro da média ideal.`,
-        type: "success",
-      });
-    } else if (avgWaitTime > 30) {
-      insights.push({
-        icon: AlertTriangle,
-        text: `Tempo médio de espera de ${avgWaitTime} minutos. Considere estratégias para reduzir.`,
-        type: "warning",
+        impact: 75 + pct,
       });
     }
   }
 
-  // Insight: Taxa de conversão comparativa
+  // Taxa de conversão vs período anterior
   if (conversionRate > 0 && previousConversionRate > 0) {
     const diff = conversionRate - previousConversionRate;
-    if (diff > 5) {
+    if (diff >= 3) {
       insights.push({
         icon: TrendingUp,
-        text: `Taxa de conversão subiu ${diff}% em relação ao período anterior.`,
+        text: `↑ Conversão da fila cresceu ${diff}% vs período anterior`,
         type: "success",
+        impact: 70 + diff,
       });
-    } else if (diff < -5) {
+    } else if (diff <= -3) {
       insights.push({
         icon: TrendingDown,
-        text: `Taxa de conversão caiu ${Math.abs(diff)}% em relação ao período anterior.`,
+        text: `↓ Conversão da fila caiu ${Math.abs(diff)}% vs período anterior`,
         type: "warning",
+        impact: 85 + Math.abs(diff),
       });
     }
   }
 
-  // Insight: VIP (apenas se houver dados)
-  if (vipCustomers > 0 && totalServed > 0) {
-    const vipPercentage = Math.round((vipCustomers / totalServed) * 100);
-    if (vipPercentage >= 10) {
-      insights.push({
-        icon: Users,
-        text: `Clientes VIP (5+ visitas) representam ${vipPercentage}% da base. Considere programas de fidelização.`,
-        type: "success",
-      });
-    }
-  }
-
-  // Insight: Cancelamentos (se significativo)
-  if (totalCanceled > 0 && totalServed > 0) {
-    const cancelPercentage = Math.round((totalCanceled / (totalServed + totalCanceled)) * 100);
-    if (cancelPercentage > 20) {
-      insights.push({
-        icon: AlertTriangle,
-        text: `${cancelPercentage}% das entradas foram canceladas. Analise os motivos para reduzir esse índice.`,
-        type: "warning",
-      });
-    }
-  }
-
-  // Insight: No-show (se houver dados)
+  // No-show alto (comparação contra benchmark de 10%)
   if (noShowRate > 10) {
     insights.push({
       icon: AlertTriangle,
-      text: `Taxa de não comparecimento de ${noShowRate}%. Considere confirmação prévia via SMS.`,
+      text: `⚠ No-show em ${noShowRate}% — acima do limite saudável de 10%`,
       type: "warning",
+      impact: 60 + noShowRate,
+    });
+  } else if (noShowRate === 0 && (totalServed > 0)) {
+    insights.push({
+      icon: CheckCircle2,
+      text: `↓ No-show zerado no período — melhor resultado recente`,
+      type: "success",
+      impact: 55,
     });
   }
 
+  // Cancelamento expressivo
+  if (totalCanceled > 0 && totalServed > 0) {
+    const cancelPct = Math.round((totalCanceled / (totalServed + totalCanceled)) * 100);
+    if (cancelPct > 20) {
+      insights.push({
+        icon: AlertTriangle,
+        text: `⚠ ${cancelPct}% das entradas foram canceladas — acima da média de mercado (≈10%)`,
+        type: "warning",
+        impact: 50 + cancelPct,
+      });
+    }
+  }
+
+  // VIP share
+  if (vipCustomers > 0 && totalServed > 0) {
+    const vipPct = Math.round((vipCustomers / totalServed) * 100);
+    if (vipPct >= 15) {
+      insights.push({
+        icon: TrendingUp,
+        text: `↑ ${vipPct}% dos atendidos são VIP — base fiel acima da média do setor (~8%)`,
+        type: "success",
+        impact: 45,
+      });
+    }
+  }
+
+  const top = insights
+    .sort((a, b) => b.impact - a.impact)
+    .slice(0, 4);
+
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-accent/5">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center text-lg">
           <div className="p-2 bg-primary/10 rounded-lg mr-3">
-            <Lightbulb className="w-5 h-5 text-primary" />
+            <Brain className="w-5 h-5 text-primary" />
           </div>
-          Insights do Período
+          Inteligência do Período
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Análises baseadas nos dados reais do seu restaurante
+        <p className="text-sm font-light text-muted-foreground">
+          Comparações vs período anterior — ordenadas por impacto
         </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {insights.length > 0 ? (
-            insights.map((insight, index) => (
+          {top.length > 0 ? (
+            top.map((insight, index) => (
               <div
                 key={index}
-                className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
-                  insight.type === "success"
-                    ? "bg-success/10 border border-success/20"
-                    : insight.type === "warning"
-                    ? "bg-warning/10 border border-warning/20"
-                    : "bg-muted/50 border border-border"
-                }`}
+                className={cn(
+                  "flex items-start gap-3 p-3.5 rounded-xl border transition-all animate-fade-in",
+                  insight.type === "success" && "bg-success/10 border-success/25 hover:border-success/50",
+                  insight.type === "warning" && "bg-warning/10 border-warning/25 hover:border-warning/50",
+                  insight.type === "info" && "bg-muted/50 border-border"
+                )}
               >
                 <insight.icon
-                  className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                    insight.type === "success"
-                      ? "text-success"
-                      : insight.type === "warning"
-                      ? "text-warning"
-                      : "text-primary"
-                  }`}
+                  className={cn(
+                    "w-4 h-4 mt-0.5 flex-shrink-0",
+                    insight.type === "success" && "text-success",
+                    insight.type === "warning" && "text-warning",
+                    insight.type === "info" && "text-primary"
+                  )}
                 />
-                <p className="text-sm text-foreground leading-relaxed">
+                <p className="text-sm text-foreground leading-relaxed font-medium">
                   {insight.text}
                 </p>
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Dados insuficientes para gerar insights no período selecionado.
-              <br />
-              <span className="text-xs">Adicione mais entradas na fila ou reservas para ver análises.</span>
-            </p>
+            <div className="flex flex-col items-center text-center py-8">
+              <Brain className="h-8 w-8 text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">
+                Sem variações relevantes no período.
+              </p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                Volte quando houver mais dados acumulados.
+              </p>
+            </div>
           )}
         </div>
       </CardContent>
