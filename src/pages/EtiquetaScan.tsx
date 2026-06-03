@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle,
@@ -40,6 +40,7 @@ const conservationIcon = (c: string | null) => {
 export default function EtiquetaScan() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState<any>(null);
   const [action, setAction] = useState<Action | null>(null);
@@ -57,6 +58,15 @@ export default function EtiquetaScan() {
   };
 
   useEffect(() => { load(); }, [code]);
+
+  useEffect(() => {
+    const requestedAction = searchParams.get("op");
+    if (loading || !label?.found || label?.status === "discharged" || action) return;
+
+    if (requestedAction === "1" || requestedAction === "use") {
+      setAction("use");
+    }
+  }, [searchParams, loading, label, action]);
 
   const handleConfirm = async () => {
     if (!action || !code) return;
