@@ -112,13 +112,17 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
     }
     const digits = whatsapp.replace(/\D/g, "");
     if (digits.length < 10) {
-      toast.error("Informe um WhatsApp válido com DDD");
+      toast.error("Informe um telefone válido com DDD");
       return;
     }
     setTestingReport(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-label-daily-report", {
-        body: { employee_id: employee.id, mode: "test" },
+        body: {
+          employee_id: employee.id,
+          mode: "test",
+          phone_override: digits.startsWith("55") ? `+${digits}` : `+55${digits}`,
+        },
       });
       if (error) throw error;
       if ((data as any)?.success) toast.success("Relatório de teste enviado!");
