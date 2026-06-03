@@ -89,10 +89,25 @@ export default {
             height: "0",
           },
         },
+        "pulse-ring-danger": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--destructive) / 0.45)" },
+          "50%": { boxShadow: "0 0 0 6px hsl(var(--destructive) / 0)" },
+        },
+        "row-fade-in": {
+          "0%": { opacity: "0", transform: "translateY(4px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "icon-nudge": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "50%": { transform: "translateX(3px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-ring-danger": "pulse-ring-danger 2.2s ease-in-out infinite",
+        "row-fade-in": "row-fade-in 0.35s ease-out both",
+        "icon-nudge": "icon-nudge 0.6s ease-in-out infinite",
       },
     },
   },
