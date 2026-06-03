@@ -1440,6 +1440,10 @@ export type Database = {
           restaurant_id: string
           role: string | null
           sectors: string[]
+          sms_daily_enabled: boolean
+          sms_daily_hour: number
+          sms_immediate_alerts: boolean
+          sms_include_checklists: boolean
           status: string
           updated_at: string
           whatsapp_phone: string | null
@@ -1452,6 +1456,10 @@ export type Database = {
           restaurant_id: string
           role?: string | null
           sectors?: string[]
+          sms_daily_enabled?: boolean
+          sms_daily_hour?: number
+          sms_immediate_alerts?: boolean
+          sms_include_checklists?: boolean
           status?: string
           updated_at?: string
           whatsapp_phone?: string | null
@@ -1464,6 +1472,10 @@ export type Database = {
           restaurant_id?: string
           role?: string | null
           sectors?: string[]
+          sms_daily_enabled?: boolean
+          sms_daily_hour?: number
+          sms_immediate_alerts?: boolean
+          sms_include_checklists?: boolean
           status?: string
           updated_at?: string
           whatsapp_phone?: string | null
@@ -1648,6 +1660,53 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "label_product_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_sms_logs: {
+        Row: {
+          employee_id: string | null
+          error: string | null
+          id: string
+          kind: string
+          message: string
+          phone: string
+          restaurant_id: string
+          sent_at: string
+          status: string
+          triggered_label_id: string | null
+        }
+        Insert: {
+          employee_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          message: string
+          phone: string
+          restaurant_id: string
+          sent_at?: string
+          status?: string
+          triggered_label_id?: string | null
+        }
+        Update: {
+          employee_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          message?: string
+          phone?: string
+          restaurant_id?: string
+          sent_at?: string
+          status?: string
+          triggered_label_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_sms_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "label_employees"
             referencedColumns: ["id"]
           },
         ]

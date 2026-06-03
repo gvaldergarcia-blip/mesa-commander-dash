@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare } from "lucide-react";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { ProductFormDialog } from "@/components/labels/ProductFormDialog";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
+import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
@@ -118,12 +119,13 @@ export default function EtiquetasPage() {
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="grid grid-cols-5 w-full md:w-auto md:inline-grid">
+        <TabsList className="grid grid-cols-6 w-full md:w-auto md:inline-grid">
           <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span></TabsTrigger>
           <TabsTrigger value="etiquetas" className="gap-2"><List className="h-4 w-4" /> <span className="hidden sm:inline">Etiquetas</span></TabsTrigger>
           <TabsTrigger value="imprimir" className="gap-2"><Printer className="h-4 w-4" /> <span className="hidden sm:inline">Imprimir</span></TabsTrigger>
           <TabsTrigger value="produtos" className="gap-2"><Package className="h-4 w-4" /> <span className="hidden sm:inline">Produtos</span></TabsTrigger>
           <TabsTrigger value="funcionarios" className="gap-2"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Funcionários</span></TabsTrigger>
+          <TabsTrigger value="sms" className="gap-2"><MessageSquare className="h-4 w-4" /> <span className="hidden sm:inline">SMS</span></TabsTrigger>
         </TabsList>
 
         {/* ===== DASHBOARD ===== */}
@@ -321,6 +323,15 @@ export default function EtiquetasPage() {
         {/* ===== FUNCIONÁRIOS ===== */}
         <TabsContent value="funcionarios">
           <EmployeesManager />
+        </TabsContent>
+
+        {/* ===== HISTÓRICO DE SMS ===== */}
+        <TabsContent value="sms" className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Histórico de SMS</h2>
+            <p className="text-sm text-muted-foreground">Todos os relatórios e alertas enviados aos funcionários.</p>
+          </div>
+          <SmsLogsTab />
         </TabsContent>
       </Tabs>
 

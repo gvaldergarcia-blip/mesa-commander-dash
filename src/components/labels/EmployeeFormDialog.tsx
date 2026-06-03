@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
+import { Switch } from "@/components/ui/switch";
+import { Bell, MessageSquare } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -28,6 +30,11 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [sectors, setSectors] = useState<string[]>([]);
   const [testing, setTesting] = useState(false);
+  const [smsDaily, setSmsDaily] = useState(false);
+  const [smsHour, setSmsHour] = useState(8);
+  const [smsImmediate, setSmsImmediate] = useState(true);
+  const [smsChecklists, setSmsChecklists] = useState(false);
+  const [testingReport, setTestingReport] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -37,6 +44,10 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       setWhatsapp(employee?.whatsapp_phone ?? "");
       setStatus(employee?.status ?? "active");
       setSectors(employee?.sectors ?? []);
+      setSmsDaily(employee?.sms_daily_enabled ?? false);
+      setSmsHour(employee?.sms_daily_hour ?? 8);
+      setSmsImmediate(employee?.sms_immediate_alerts ?? true);
+      setSmsChecklists(employee?.sms_include_checklists ?? false);
     }
   }, [open, employee]);
 
@@ -51,7 +62,13 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       toast.error("Selecione ao menos um setor de responsabilidade");
       return;
     }
-    await onSubmit({ name, role, pin, whatsapp_phone: whatsapp || null, status, sectors });
+    await onSubmit({
+      name, role, pin, whatsapp_phone: whatsapp || null, status, sectors,
+      sms_daily_enabled: smsDaily,
+      sms_daily_hour: smsHour,
+      sms_immediate_alerts: smsImmediate,
+      sms_include_checklists: smsChecklists,
+    });
     onOpenChange(false);
   };
 
@@ -88,9 +105,34 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
     }
   };
 
+  const handleTestReport = async () => {
+    if (!employee?.id) {
+      toast.error("Salve o funcionário antes de testar o relatório");
+      return;
+    }
+    const digits = whatsapp.replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast.error("Informe um WhatsApp válido com DDD");
+      return;
+    }
+    setTestingReport(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-label-daily-report", {
+        body: { employee_id: employee.id, mode: "test" },
+      });
+      if (error) throw error;
+      if ((data as any)?.success) toast.success("Relatório de teste enviado!");
+      else toast.error((data as any)?.error || (data as any)?.sms?.message || "Falha ao enviar teste");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao enviar relatório de teste");
+    } finally {
+      setTestingReport(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{employee ? "Editar Funcionário" : "Novo Funcionário"}</DialogTitle>
           <DialogDescription>
@@ -167,6 +209,66 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Notificações SMS</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Receber relatório diário</Label>
+                <p className="text-xs text-muted-foreground">Resumo do status das etiquetas dos seus setores.</p>
+              </div>
+              <Switch checked={smsDaily} onCheckedChange={setSmsDaily} />
+            </div>
+
+            {smsDaily && (
+              <div className="space-y-2 pl-1">
+                <Label className="text-xs">Horário</Label>
+                <Select value={String(smsHour)} onValueChange={(v) => setSmsHour(Number(v))}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 18 }, (_, i) => i + 6).map((h) => (
+                      <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Alertas imediatos de vencimento</Label>
+                <p className="text-xs text-muted-foreground">Avisa assim que uma etiqueta vence (ignora horário).</p>
+              </div>
+              <Switch checked={smsImmediate} onCheckedChange={setSmsImmediate} />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Incluir resumo de checklists</Label>
+                <p className="text-xs text-muted-foreground">Adiciona pendências de checklists ao relatório.</p>
+              </div>
+              <Switch checked={smsChecklists} onCheckedChange={setSmsChecklists} />
+            </div>
+
+            <UButton
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={handleTestReport}
+              disabled={testingReport || !employee?.id}
+            >
+              {testingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+              Enviar teste agora
+            </UButton>
+            {!employee?.id && (
+              <p className="text-[11px] text-muted-foreground text-center">Salve o cadastro para testar o envio.</p>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>
