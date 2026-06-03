@@ -4,6 +4,20 @@ const LEGACY_ROOT_DOMAINS = new Set([
   'https://www.mesaclik.com.br',
 ]);
 
+const PREVIEW_HOST_PATTERNS = [
+  /\.lovableproject\.com$/i,
+  /\.lovable\.app$/i,
+  /\.lovable\.dev$/i,
+];
+
+function isLocalhost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+}
+
+function isLovablePreviewHost(hostname: string): boolean {
+  return PREVIEW_HOST_PATTERNS.some((pattern) => pattern.test(hostname));
+}
+
 function normalizePublicAppUrl(url?: string | null): string | null {
   if (!url) return null;
 
@@ -26,7 +40,21 @@ export function getSiteBaseUrl(): string {
   }
 
   if (typeof window !== 'undefined') {
-    return normalizePublicAppUrl(window.location.origin) ?? OFFICIAL_APP_URL;
+    const runtimeUrl = normalizePublicAppUrl(window.location.origin);
+
+    if (runtimeUrl) {
+      const hostname = new URL(runtimeUrl).hostname;
+
+      if (isLocalhost(hostname)) {
+        return runtimeUrl;
+      }
+
+      if (isLovablePreviewHost(hostname)) {
+        return OFFICIAL_APP_URL;
+      }
+
+      return runtimeUrl;
+    }
   }
 
   return OFFICIAL_APP_URL;
