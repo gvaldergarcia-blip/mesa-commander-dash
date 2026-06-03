@@ -196,18 +196,29 @@ function CustomersPageContent() {
 
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-          <p className="text-muted-foreground mt-1">CRM completo • {customers.length} clientes cadastrados</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-none text-foreground">
+            Clientes
+          </h1>
+          <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <span>CRM completo</span>
+            <span className="inline-block h-1 w-1 rounded-full bg-orange-500" />
+            <span className="text-foreground/80">
+              <span className="font-semibold text-foreground">{customers.length}</span> clientes
+            </span>
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setQrModalOpen(true)} className="gap-2">
+          <Button variant="outline" onClick={() => setQrModalOpen(true)} className="gap-2 h-11">
             <QrCode className="h-4 w-4" />
             QR Code de Cadastro
           </Button>
-          <Button onClick={() => setCreateCustomerOpen(true)} className="gap-2">
-            <UserPlus className="h-4 w-4" />
+          <Button
+            onClick={() => setCreateCustomerOpen(true)}
+            className="gap-2 h-11 group shadow-sm hover:shadow-md transition-all"
+          >
+            <UserPlus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />
             Cadastrar cliente
           </Button>
         </div>
