@@ -113,7 +113,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
         ingredients: productIngredients,
       });
       const qrSvg = renderToStaticMarkup(
-        <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}`} size={144} level="L" marginSize={1} />
+        <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}?op=1`} size={144} level="L" marginSize={1} />
       );
       printLabels({
         productName: product.name,
@@ -342,7 +342,7 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
                 </div>
                 <div className="flex flex-col items-center shrink-0">
                   <QRCodeSVG
-                    value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW`}
+                    value={`${getSiteBaseUrl()}/etiquetas/scan/PREVIEW?op=1`}
                     size={54}
                     level="L"
                     marginSize={1}
