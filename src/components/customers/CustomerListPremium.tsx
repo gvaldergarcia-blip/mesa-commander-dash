@@ -1,4 +1,4 @@
-import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail, MailPlus, Clock, Cake, RefreshCw, ArrowLeftRight } from "lucide-react";
+import { Send, Star, TrendingUp, Zap, AlertTriangle, Mail, MailPlus, RefreshCw, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,53 @@ function getDaysAgo(dateString: string) {
   return `${days}d atrás`;
 }
 
+function getDaysSince(dateString: string) {
+  return Math.floor((Date.now() - new Date(dateString).getTime()) / (24 * 60 * 60 * 1000));
+}
+
+type HealthLevel = 'active' | 'cooling' | 'at_risk';
+
+function getHealth(customer: RestaurantCustomer): HealthLevel {
+  const days = getDaysSince(customer.last_seen_at);
+  if (days <= 14) return 'active';
+  if (days <= 30) return 'cooling';
+  return 'at_risk';
+}
+
+const healthConfig: Record<HealthLevel, { bar: string; ring: string; label: string }> = {
+  active: { bar: 'bg-emerald-500', ring: 'ring-emerald-500/30', label: 'Cliente ativo' },
+  cooling: { bar: 'bg-amber-500', ring: 'ring-amber-500/30', label: 'Esfriando — última visita 15-30 dias' },
+  at_risk: { bar: 'bg-destructive', ring: 'ring-destructive/30', label: 'Em risco — sem visita há mais de 30 dias' },
+};
+
+// Palette of distinct, accessible avatar colors
+const AVATAR_PALETTE = [
+  'bg-gradient-to-br from-rose-500 to-rose-700',
+  'bg-gradient-to-br from-orange-500 to-orange-700',
+  'bg-gradient-to-br from-amber-500 to-amber-700',
+  'bg-gradient-to-br from-emerald-500 to-emerald-700',
+  'bg-gradient-to-br from-teal-500 to-teal-700',
+  'bg-gradient-to-br from-sky-500 to-sky-700',
+  'bg-gradient-to-br from-blue-500 to-blue-700',
+  'bg-gradient-to-br from-indigo-500 to-indigo-700',
+  'bg-gradient-to-br from-violet-500 to-violet-700',
+  'bg-gradient-to-br from-fuchsia-500 to-fuchsia-700',
+  'bg-gradient-to-br from-pink-500 to-pink-700',
+  'bg-gradient-to-br from-lime-500 to-lime-700',
+];
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getAvatarColor(customer: RestaurantCustomer): string {
+  const seed = customer.customer_name || customer.customer_email || customer.id || '?';
+  return AVATAR_PALETTE[hashString(seed) % AVATAR_PALETTE.length];
+}
 function getCustomerStatuses(customer: RestaurantCustomer): CustomerStatus[] {
   const statuses: CustomerStatus[] = [];
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -85,98 +132,131 @@ function CustomerRow({
   onSendPromotion,
   onRequestConsent,
   insightMessage,
+  index,
 }: { 
   customer: RestaurantCustomer; 
   onViewProfile: (id: string) => void;
   onSendPromotion: (customer: RestaurantCustomer) => void;
   onRequestConsent?: (customer: RestaurantCustomer) => void;
   insightMessage: string | null;
+  index: number;
 }) {
   const statuses = getCustomerStatuses(customer);
   const primaryStatus = getPrimaryStatus(statuses);
   const config = statusConfig[primaryStatus];
   const Icon = config.icon;
   const origin = originConfig[customer.origin] || originConfig.manual;
+  const health = getHealth(customer);
+  const healthCfg = healthConfig[health];
+  const avatarColor = getAvatarColor(customer);
 
   return (
-    <Card 
-      className="group hover:shadow-md transition-all duration-200 hover:border-primary/30 cursor-pointer"
+    <Card
+      className={cn(
+        "group relative overflow-hidden cursor-pointer border bg-card animate-row-fade-in",
+        "transition-all duration-200 hover:bg-muted/40 hover:shadow-md hover:border-foreground/15",
+      )}
+      style={{ animationDelay: `${Math.min(index, 20) * 25}ms` }}
       onClick={() => onViewProfile(customer.id)}
     >
-      <CardContent className="p-4">
+      {/* Health vertical bar */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={cn(
+                "absolute left-0 top-0 bottom-0 w-1.5",
+                healthCfg.bar,
+                health === 'at_risk' && 'animate-pulse',
+              )}
+            />
+          </TooltipTrigger>
+          <TooltipContent side="right">{healthCfg.label}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <CardContent className="pl-6 pr-4 py-5">
         <div className="flex items-center gap-4">
           {/* Avatar + Name */}
-          <div className="flex items-center gap-3 min-w-[180px] flex-1">
-            <div className="relative">
-              <Avatar className="h-11 w-11 border-2 border-background shadow-sm">
-                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground font-semibold text-sm">
-                  {getInitials(customer.customer_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className={cn(
-                "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background",
-                config.dotColor
-              )} />
-            </div>
+          <div className="flex items-center gap-4 min-w-[200px] flex-1">
+            <Avatar className={cn(
+              "h-12 w-12 ring-2 ring-background shadow-md transition-transform duration-200 group-hover:scale-105",
+              healthCfg.ring,
+            )}>
+              <AvatarFallback className={cn("text-white font-bold text-sm", avatarColor)}>
+                {getInitials(customer.customer_name)}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <p className="font-semibold text-foreground truncate text-sm">
+                <p className="font-bold text-foreground truncate text-[15px] leading-tight">
                   {customer.customer_name || 'Sem nome'}
                 </p>
                 {customer.vip && <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />}
                 {customer.is_birthday_soon && <span className="flex-shrink-0">🎂</span>}
               </div>
-              <p className="text-xs text-muted-foreground truncate">
-                {customer.customer_email}
-              </p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-xs text-muted-foreground/80 truncate mt-0.5 max-w-[260px]">
+                      {customer.customer_email || customer.customer_phone || '—'}
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent>{customer.customer_email || customer.customer_phone || 'Sem contato'}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
-          {/* Status + Origin Badges */}
-          <div className="hidden md:flex items-center gap-1.5 min-w-[180px] flex-wrap">
-            <Badge variant="outline" className={cn("gap-1 text-[11px]", config.className)}>
+          {/* Status + Origin Pills */}
+          <div className="hidden md:flex items-center gap-1.5 min-w-[200px] flex-wrap">
+            <Badge variant="outline" className={cn(
+              "gap-1 rounded-full text-[10px] font-medium px-2.5 py-0.5 border",
+              config.className,
+            )}>
               <Icon className="w-3 h-3" />
               {config.label}
             </Badge>
-            <Badge variant="outline" className={cn("gap-1 text-[10px]", origin.className)}>
+            <Badge variant="outline" className={cn(
+              "gap-1 rounded-full text-[10px] font-medium px-2.5 py-0.5 border",
+              origin.className,
+            )}>
               {origin.emoji} {origin.label}
             </Badge>
           </div>
 
-          {/* Tags */}
-          <div className="hidden lg:flex items-center gap-1 min-w-[120px] max-w-[200px] flex-wrap">
-            {customer.tags.slice(0, 2).filter(t => 
-              !['Veio pela fila', 'Veio pela reserva', 'Usa fila e reserva', 'VIP'].includes(t)
-            ).map((tag, i) => (
-              <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-
-          {/* Insight */}
-          {insightMessage && (
-            <div className="hidden xl:block flex-1 min-w-[160px] max-w-[240px]">
-              <p className="text-xs text-muted-foreground italic line-clamp-2">
-                "{insightMessage}"
-              </p>
+          {/* Insight (italic, subdued) */}
+          {insightMessage ? (
+            <div className="hidden xl:block flex-1 min-w-[160px] max-w-[280px]">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-xs italic text-muted-foreground/70 line-clamp-2 leading-relaxed">
+                      &ldquo;{insightMessage}&rdquo;
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">{insightMessage}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
+          ) : (
+            <div className="hidden xl:block flex-1 min-w-[160px] max-w-[280px]" />
           )}
 
-          {/* Last Visit */}
-          <div className="hidden md:block min-w-[80px] text-right">
-            <p className="text-sm font-medium">{getDaysAgo(customer.last_seen_at)}</p>
-            <p className="text-[10px] text-muted-foreground">última visita</p>
+          {/* Last Visit — fixed column */}
+          <div className="hidden md:block w-[110px] text-right shrink-0">
+            <p className="text-sm font-semibold text-foreground tabular-nums">{getDaysAgo(customer.last_seen_at)}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium mt-0.5">última visita</p>
           </div>
 
-          {/* Visits */}
-          <div className="hidden sm:block min-w-[60px] text-center">
-            <p className="text-lg font-bold">{customer.total_visits}</p>
-            <p className="text-[10px] text-muted-foreground">visitas</p>
+          {/* Visits — fixed column */}
+          <div className="hidden sm:flex flex-col items-center w-[70px] shrink-0">
+            <p className="text-2xl font-black leading-none text-foreground tabular-nums">{customer.total_visits}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-medium mt-1">visitas</p>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="flex items-center gap-1 ml-auto sm:ml-2">
             <TooltipProvider>
               {customer.marketing_optin ? (
                 <Tooltip>
@@ -184,7 +264,7 @@ function CustomerRow({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                      className="h-9 w-9 p-0 text-primary hover:text-primary hover:bg-primary/10"
                       onClick={(e) => { e.stopPropagation(); onSendPromotion(customer); }}
                     >
                       <Send className="w-4 h-4" />
@@ -198,7 +278,7 @@ function CustomerRow({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      className="h-9 w-9 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
                       onClick={(e) => { e.stopPropagation(); onRequestConsent(customer); }}
                     >
                       <MailPlus className="w-4 h-4" />
@@ -209,7 +289,7 @@ function CustomerRow({
               ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground opacity-50 cursor-not-allowed" disabled>
+                    <Button size="sm" variant="ghost" className="h-9 w-9 p-0 text-muted-foreground opacity-50 cursor-not-allowed" disabled>
                       <Send className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
@@ -217,6 +297,8 @@ function CustomerRow({
                 </Tooltip>
               )}
             </TooltipProvider>
+            {/* Reveal arrow on hover */}
+            <ChevronRight className="h-5 w-5 text-muted-foreground/40 -ml-1 opacity-0 -translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-orange-500" />
           </div>
         </div>
       </CardContent>
@@ -250,20 +332,25 @@ export function CustomerListPremium({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between px-1">
-        <p className="text-sm text-muted-foreground">{customers.length} cliente{customers.length !== 1 ? 's' : ''}</p>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{customers.length}</span> cliente{customers.length !== 1 ? 's' : ''}
+        </p>
       </div>
-      {customers.map((customer) => (
-        <CustomerRow
-          key={customer.id}
-          customer={customer}
-          onViewProfile={onViewProfile}
-          onSendPromotion={onSendPromotion}
-          onRequestConsent={onRequestConsent}
-          insightMessage={getInsightMessage(customer)}
-        />
-      ))}
+      <div className="space-y-2.5">
+        {customers.map((customer, idx) => (
+          <CustomerRow
+            key={customer.id}
+            customer={customer}
+            onViewProfile={onViewProfile}
+            onSendPromotion={onSendPromotion}
+            onRequestConsent={onRequestConsent}
+            insightMessage={getInsightMessage(customer)}
+            index={idx}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -21,50 +21,63 @@ type KPICardProps = {
   variant: 'success' | 'primary' | 'accent' | 'info' | 'warning' | 'birthday' | 'recurrent';
   filterKey: string;
   onClick?: (filter: string) => void;
+  highlight?: 'danger-pulse' | 'gold' | null;
 };
 
-function KPICard({ title, value, subtitle, icon: Icon, variant, filterKey, onClick }: KPICardProps) {
+function KPICard({ title, value, subtitle, icon: Icon, variant, filterKey, onClick, highlight }: KPICardProps) {
   const variants = {
-    success: "border-success/30 bg-gradient-to-br from-success/5 to-success/10 hover:from-success/10 hover:to-success/15",
-    primary: "border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/15",
-    accent: "border-accent/30 bg-gradient-to-br from-accent/5 to-accent/10 hover:from-accent/10 hover:to-accent/15",
-    info: "border-blue-500/30 bg-gradient-to-br from-blue-500/5 to-blue-500/10 hover:from-blue-500/10 hover:to-blue-500/15",
-    warning: "border-destructive/30 bg-gradient-to-br from-destructive/5 to-destructive/10 hover:from-destructive/10 hover:to-destructive/15",
-    birthday: "border-pink-500/30 bg-gradient-to-br from-pink-500/5 to-pink-500/10 hover:from-pink-500/10 hover:to-pink-500/15",
-    recurrent: "border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 hover:from-emerald-500/10 hover:to-emerald-500/15",
+    success: "border-success/25 bg-gradient-to-br from-success/[0.04] to-success/[0.09] hover:border-success/60",
+    primary: "border-primary/25 bg-gradient-to-br from-primary/[0.04] to-primary/[0.09] hover:border-primary/60",
+    accent: "border-accent/25 bg-gradient-to-br from-accent/[0.04] to-accent/[0.09] hover:border-accent/60",
+    info: "border-blue-500/25 bg-gradient-to-br from-blue-500/[0.04] to-blue-500/[0.09] hover:border-blue-500/60",
+    warning: "border-destructive/30 bg-gradient-to-br from-destructive/[0.05] to-destructive/[0.10] hover:border-destructive/70",
+    birthday: "border-pink-500/25 bg-gradient-to-br from-pink-500/[0.04] to-pink-500/[0.10] hover:border-pink-500/60",
+    recurrent: "border-emerald-500/25 bg-gradient-to-br from-emerald-500/[0.04] to-emerald-500/[0.09] hover:border-emerald-500/60",
   };
 
   const iconVariants = {
-    success: "bg-success/20 text-success",
-    primary: "bg-primary/20 text-primary",
-    accent: "bg-accent/20 text-accent",
-    info: "bg-blue-500/20 text-blue-500",
-    warning: "bg-destructive/20 text-destructive",
-    birthday: "bg-pink-500/20 text-pink-500",
-    recurrent: "bg-emerald-500/20 text-emerald-500",
+    success: "bg-success text-success-foreground shadow-success/30",
+    primary: "bg-primary text-primary-foreground shadow-primary/30",
+    accent: "bg-accent text-accent-foreground shadow-accent/30",
+    info: "bg-blue-500 text-white shadow-blue-500/30",
+    warning: "bg-destructive text-destructive-foreground shadow-destructive/30",
+    birthday: "bg-pink-500 text-white shadow-pink-500/30",
+    recurrent: "bg-emerald-500 text-white shadow-emerald-500/30",
   };
 
+  const isGold = highlight === 'gold' && value > 0;
+  const isDangerPulse = highlight === 'danger-pulse' && value > 0;
+
   return (
-    <Card 
+    <Card
       className={cn(
-        "transition-all duration-200 cursor-pointer group",
-        variants[variant]
+        "relative cursor-pointer overflow-hidden border transition-all duration-300 shadow-sm",
+        "hover:-translate-y-0.5 hover:shadow-lg",
+        variants[variant],
+        isGold && "border-amber-400/70 ring-1 ring-amber-400/40 shadow-amber-200/40",
+        isDangerPulse && "animate-pulse-ring-danger border-destructive/60",
       )}
       onClick={() => onClick?.(filterKey)}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold tracking-tight">{value}</p>
-            <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+      <CardContent className="p-5 min-h-[140px] flex flex-col justify-between gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {title}
+          </p>
+          <div
+            className={cn(
+              "h-10 w-10 rounded-full flex items-center justify-center shadow-md transition-transform duration-300 group-hover:scale-110",
+              iconVariants[variant],
+            )}
+          >
+            <Icon className="h-5 w-5" strokeWidth={2.4} />
           </div>
-          <div className={cn(
-            "p-2.5 rounded-xl transition-transform group-hover:scale-110",
-            iconVariants[variant]
-          )}>
-            <Icon className="h-4 w-4" />
-          </div>
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-5xl font-black tracking-tighter leading-none text-foreground tabular-nums">
+            {value}
+          </p>
+          <p className="text-xs font-light text-muted-foreground">{subtitle}</p>
         </div>
       </CardContent>
     </Card>
@@ -82,7 +95,7 @@ export function CustomerStrategicKPIs({
   onFilterClick,
 }: CustomerStrategicKPIsProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 group/grid">
       <KPICard
         title="Ativos"
         value={activeCustomers}
@@ -111,13 +124,14 @@ export function CustomerStrategicKPIs({
         onClick={onFilterClick}
       />
       <KPICard
-        title="🎂 Aniversário"
+        title="Aniversário"
         value={birthdayThisMonth}
         subtitle="Este mês"
         icon={Cake}
         variant="birthday"
         filterKey="birthday"
         onClick={onFilterClick}
+        highlight="gold"
       />
       <KPICard
         title="Opt-in"
@@ -145,6 +159,7 @@ export function CustomerStrategicKPIs({
         variant="warning"
         filterKey="inactive"
         onClick={onFilterClick}
+        highlight="danger-pulse"
       />
     </div>
   );
