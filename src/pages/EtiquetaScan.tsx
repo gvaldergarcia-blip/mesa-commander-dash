@@ -124,6 +124,21 @@ export default function EtiquetaScan() {
   }
 
   if (!label?.found) {
+    if (code === "PREVIEW") {
+      return (
+        <div className="min-h-screen bg-[#0F0F1A] flex items-center justify-center p-4">
+          <div className="bg-[#161626] border border-[#2D2D44] rounded-3xl shadow-xl p-8 max-w-md text-center">
+            <Package className="h-12 w-12 mx-auto text-[#FF6B00] mb-3" />
+            <h1 className="text-xl font-bold text-white">QR de pré-visualização</h1>
+            <p className="text-[#A0AEC0] mt-2">
+              Este é apenas um QR de exemplo exibido na tela de impressão.
+              Imprima uma etiqueta real para escanear e dar baixa.
+            </p>
+            <button onClick={closeNav} className="mt-5 px-4 py-2 rounded-lg bg-[#FF6B00] text-white font-semibold">Voltar</button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#0F0F1A] flex items-center justify-center p-4">
         <div className="bg-[#161626] border border-[#2D2D44] rounded-3xl shadow-xl p-8 max-w-md text-center">
