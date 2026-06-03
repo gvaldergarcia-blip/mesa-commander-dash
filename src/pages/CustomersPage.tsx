@@ -235,9 +235,8 @@ function CustomersPageContent() {
         onFilterClick={handleFilterClick}
       />
 
-      <Card className="border-dashed">
-        <CardContent className="p-4">
-          <CustomerFiltersClean
+      <div className="rounded-xl border bg-card/40 backdrop-blur p-4 shadow-sm">
+        <CustomerFiltersClean
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             statusFilter={statusFilter}
@@ -250,9 +249,8 @@ function CustomersPageContent() {
             onPeriodFilterChange={setPeriodFilter}
             sortBy={sortBy}
             onSortByChange={setSortBy}
-          />
-        </CardContent>
-      </Card>
+        />
+      </div>
 
       <CustomerListPremium
         customers={filteredCustomers}
