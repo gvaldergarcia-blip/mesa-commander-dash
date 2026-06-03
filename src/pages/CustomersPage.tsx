@@ -9,7 +9,6 @@ import { useSendPromotion } from "@/hooks/useSendPromotion";
 import { useCustomerInsights, generateInsightsForCustomer } from "@/hooks/useCustomerInsights";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { CustomerStrategicKPIs } from "@/components/customers/CustomerStrategicKPIs";
 import { CustomerListPremium } from "@/components/customers/CustomerListPremium";
 import { CustomerFiltersClean } from "@/components/customers/CustomerFiltersClean";
