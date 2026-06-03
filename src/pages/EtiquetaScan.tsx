@@ -4,15 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle,
   Utensils, AlertTriangle, Package, X, Building2, Hash, Printer, ShieldCheck,
-  Snowflake, Flame, Thermometer, Refrigerator,
+  Snowflake, Flame, Thermometer, Refrigerator, Trash2, ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CONSERVATION_LABEL, REASON_LABEL, classifyExpiry } from "@/lib/labels/utils";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -20,6 +16,7 @@ import {
 import { toast } from "sonner";
 
 type Action = "verify" | "use" | "loss" | "error";
+type Reason = "use" | "loss" | "error";
 
 const LOSS_REASONS = [
   { value: "vencimento", label: "Vencimento" },
@@ -44,6 +41,7 @@ export default function EtiquetaScan() {
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState<any>(null);
   const [action, setAction] = useState<Action | null>(null);
+  const [reason, setReason] = useState<Reason | null>(null);
   const [notes, setNotes] = useState("");
   const [lossReason, setLossReason] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
@@ -64,43 +62,54 @@ export default function EtiquetaScan() {
     if (loading || !label?.found || label?.status === "discharged" || action) return;
 
     if (requestedAction === "1" || requestedAction === "use") {
-      setAction("use");
+      setReason("use");
     }
   }, [searchParams, loading, label, action]);
 
-  const handleConfirm = async () => {
-    if (!action || !code) return;
+  const handleVerify = async () => {
+    if (!code) return;
     setSubmitting(true);
-
     try {
-      if (action === "verify") {
-        const { data, error } = await (supabase as any).rpc("verify_label_by_code", {
-          _code: code,
-          _employee_id: null,
-          _notes: notes.trim() || null,
-        });
-        if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao verificar");
-        toast.success("Etiqueta verificada");
-      } else {
-        const reasonKey = action; // 'use' | 'loss' | 'error'
-        const composedNotes =
-          action === "loss"
-            ? [LOSS_REASONS.find((r) => r.value === lossReason)?.label, notes.trim()]
-                .filter(Boolean)
-                .join(" — ")
-            : notes.trim() || null;
+      const { data, error } = await (supabase as any).rpc("verify_label_by_code", {
+        _code: code,
+        _employee_id: null,
+        _notes: notes.trim() || null,
+      });
+      if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao verificar");
+      toast.success("Etiqueta verificada");
+      setNotes("");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Erro");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-        const { data, error } = await (supabase as any).rpc("discharge_label_by_code", {
-          _code: code,
-          _reason: reasonKey,
-          _employee_id: null,
-          _notes: composedNotes || null,
-        });
-        if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao baixar");
-        toast.success(REASON_LABEL[reasonKey] + " registrada");
-      }
+  const handleDischarge = async () => {
+    if (!reason || !code) return;
+    if (reason === "loss" && !lossReason) {
+      toast.error("Selecione o motivo da perda");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const composedNotes =
+        reason === "loss"
+          ? [LOSS_REASONS.find((r) => r.value === lossReason)?.label, notes.trim()]
+              .filter(Boolean)
+              .join(" — ")
+          : notes.trim() || null;
 
-      setAction(null);
+      const { data, error } = await (supabase as any).rpc("discharge_label_by_code", {
+        _code: code,
+        _reason: reason,
+        _employee_id: null,
+        _notes: composedNotes || null,
+      });
+      if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao baixar");
+      toast.success(REASON_LABEL[reason] + " registrada");
+      setReason(null);
       setNotes("");
       setLossReason("");
       await load();
@@ -169,7 +178,7 @@ export default function EtiquetaScan() {
   const ConsIcon = conservationIcon(label.conservation_method);
 
   return (
-    <div className="min-h-screen bg-[#0F0F1A] text-white p-3 pb-24">
+    <div className="min-h-screen bg-[#0F0F1A] text-white p-3 pb-40">
       <div className="max-w-md mx-auto pt-2">
         {/* Header */}
         <div className="flex items-center justify-between px-1 py-3 mb-3">
@@ -189,20 +198,31 @@ export default function EtiquetaScan() {
           </button>
         </div>
 
+        {/* Code field (Yeschef-style outlined input) */}
+        <div className="mb-3 rounded-2xl border border-[#2D2D44] bg-[#161626] px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[#718096]">
+            <Hash className="h-4 w-4" />
+            <span className="text-[10px] uppercase tracking-widest font-semibold">Código</span>
+          </div>
+          <div className="font-mono font-bold text-base tracking-[0.2em] text-[#FF6B00]">
+            {label.unique_code}
+          </div>
+        </div>
+
         {/* Card */}
         <div
           className="bg-[#161626] rounded-3xl border border-[#2D2D44] overflow-hidden"
           style={{ borderLeftWidth: 4, borderLeftColor: urgency.border }}
         >
-          {/* Top: code + urgency badge */}
-          <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-[#718096] mb-1">
-                <Hash className="h-3 w-3" /> Código
-              </div>
-              <div className="font-mono font-bold text-lg tracking-widest text-[#FF6B00]">
-                #{label.unique_code}
-              </div>
+          {/* Product name + status badge */}
+          <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2 min-w-0">
+              {!isDischarged ? (
+                <CheckCircle2 className="h-6 w-6 text-[#48BB78] shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="h-6 w-6 text-[#A0AEC0] shrink-0 mt-0.5" />
+              )}
+              <h2 className="text-2xl font-bold text-white leading-tight">{label.product_name}</h2>
             </div>
             <span
               className="px-3 py-1.5 rounded-full text-[11px] font-extrabold tracking-wider shrink-0"
@@ -210,11 +230,6 @@ export default function EtiquetaScan() {
             >
               {urgency.label}
             </span>
-          </div>
-
-          {/* Product name */}
-          <div className="px-5 pb-4">
-            <h2 className="text-2xl font-bold text-white leading-tight">{label.product_name}</h2>
           </div>
 
           {/* Meta grid */}
@@ -316,131 +331,152 @@ export default function EtiquetaScan() {
           )}
         </div>
 
-        {/* Actions (only if not discharged) */}
+        {/* Reason picker + sticky action bar (only if not discharged) */}
         {!isDischarged && (
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <ActionButton
-              color="#48BB78"
-              icon={<ShieldCheck className="h-5 w-5" />}
-              label="Verificar"
-              hint="Está OK"
-              onClick={() => setAction("verify")}
-            />
-            <ActionButton
-              color="#4299E1"
-              icon={<Utensils className="h-5 w-5" />}
-              label="Uso"
-              hint="Consumido"
-              onClick={() => setAction("use")}
-            />
-            <ActionButton
-              color="#E53E3E"
-              icon={<AlertTriangle className="h-5 w-5" />}
-              label="Perda"
-              hint="Venceu / estragou"
-              onClick={() => setAction("loss")}
-            />
-            <ActionButton
-              color="#718096"
-              icon={<Printer className="h-5 w-5" />}
-              label="Erro Impressão"
-              hint="Reimprimir"
-              onClick={() => setAction("error")}
-            />
-          </div>
+          <>
+            <div className="mt-5">
+              <div className="text-[11px] uppercase tracking-widest text-[#718096] font-semibold mb-2 px-1">
+                Selecione o motivo da baixa:
+              </div>
+              <div className="space-y-2">
+                <ReasonOption
+                  selected={reason === "use"}
+                  onClick={() => setReason("use")}
+                  icon={<Utensils className="h-5 w-5" />}
+                  color="#48BB78"
+                  title="Baixa por Uso"
+                  hint="Produto utilizado"
+                />
+                <ReasonOption
+                  selected={reason === "loss"}
+                  onClick={() => setReason("loss")}
+                  icon={<AlertTriangle className="h-5 w-5" />}
+                  color="#E53E3E"
+                  title="Baixa por Perda"
+                  hint="Produto descartado"
+                />
+                <ReasonOption
+                  selected={reason === "error"}
+                  onClick={() => setReason("error")}
+                  icon={<Printer className="h-5 w-5" />}
+                  color="#ED8936"
+                  title="Baixa por Erro"
+                  hint="Impressão errada"
+                />
+              </div>
+
+              {reason === "loss" && (
+                <div className="mt-3 space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold px-1">
+                    Motivo da perda *
+                  </label>
+                  <Select value={lossReason} onValueChange={setLossReason}>
+                    <SelectTrigger className="bg-[#161626] border-[#2D2D44] text-white">
+                      <SelectValue placeholder="Selecione o motivo" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#161626] border-[#2D2D44] text-white">
+                      {LOSS_REASONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value} className="text-white focus:bg-[#2D2D44] focus:text-white">
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {reason && (
+                <Textarea
+                  placeholder="Observação (opcional)"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  maxLength={200}
+                  className="mt-3 bg-[#161626] border-[#2D2D44] text-white placeholder:text-[#4A5568]"
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={handleVerify}
+                disabled={submitting}
+                className="w-full mt-4 text-xs font-semibold text-[#48BB78] hover:text-[#3da066] py-2 flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Apenas verificar (está OK)
+              </button>
+            </div>
+
+            {/* Sticky bottom action */}
+            <div className="fixed bottom-0 inset-x-0 px-3 pb-4 pt-3 bg-gradient-to-t from-[#0F0F1A] via-[#0F0F1A]/95 to-transparent">
+              <div className="max-w-md mx-auto">
+                <button
+                  onClick={handleDischarge}
+                  disabled={!reason || submitting || (reason === "loss" && !lossReason)}
+                  className="w-full h-14 rounded-2xl bg-[#E53E3E] hover:bg-[#c53030] disabled:bg-[#2D2D44] disabled:text-[#4A5568] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors"
+                >
+                  {submitting ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 className="h-5 w-5" />
+                      Baixar Etiqueta
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         <p className="text-center text-[11px] text-[#4A5568] pt-6">
           MesaClik © {new Date().getFullYear()}
         </p>
       </div>
-
-      {/* Confirm dialog */}
-      <AlertDialog open={!!action} onOpenChange={(o) => { if (!o) { setAction(null); setNotes(""); setLossReason(""); } }}>
-        <AlertDialogContent className="bg-[#161626] border-[#2D2D44] text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">
-              {action === "verify" && "Confirmar verificação"}
-              {action === "use" && "Confirmar baixa por uso"}
-              {action === "loss" && "Confirmar baixa por perda"}
-              {action === "error" && "Confirmar erro de impressão"}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-[#A0AEC0]">
-              {action === "verify"
-                ? "Será registrado que você verificou esta etiqueta e ela está OK."
-                : "Esta ação não pode ser desfeita."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          {action === "loss" && (
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-[#A0AEC0] font-semibold">
-                Motivo da perda *
-              </label>
-              <Select value={lossReason} onValueChange={setLossReason}>
-                <SelectTrigger className="bg-[#1A1A2E] border-[#2D2D44] text-white">
-                  <SelectValue placeholder="Selecione o motivo" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#161626] border-[#2D2D44] text-white">
-                  {LOSS_REASONS.map((r) => (
-                    <SelectItem key={r.value} value={r.value} className="text-white focus:bg-[#2D2D44] focus:text-white">
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <Textarea
-            placeholder="Observação (opcional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            maxLength={200}
-            className="bg-[#1A1A2E] border-[#2D2D44] text-white placeholder:text-[#4A5568]"
-          />
-
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={submitting}
-              className="bg-transparent border-[#2D2D44] text-[#A0AEC0] hover:bg-[#2D2D44] hover:text-white"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={submitting || (action === "loss" && !lossReason)}
-              className={
-                action === "verify" ? "bg-[#48BB78] hover:bg-[#3da066] text-white" :
-                action === "use" ? "bg-[#4299E1] hover:bg-[#3182ce] text-white" :
-                action === "loss" ? "bg-[#E53E3E] hover:bg-[#c53030] text-white" :
-                "bg-[#718096] hover:bg-[#5a6573] text-white"
-              }
-              onClick={(e) => { e.preventDefault(); handleConfirm(); }}
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirmar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
 
-function ActionButton({
-  color, icon, label, hint, onClick,
-}: { color: string; icon: React.ReactNode; label: string; hint: string; onClick: () => void }) {
+function ReasonOption({
+  selected, onClick, icon, color, title, hint,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  color: string;
+  title: string;
+  hint: string;
+}) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="min-h-[88px] rounded-2xl flex flex-col items-center justify-center gap-1 text-white font-bold shadow-lg active:scale-[0.97] transition-transform px-3 py-3"
-      style={{ background: color, boxShadow: `0 8px 24px -8px ${color}80` }}
+      className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left transition-all active:scale-[0.99]"
+      style={{
+        background: selected ? `${color}1F` : "#161626",
+        borderWidth: 1,
+        borderStyle: "solid",
+        borderColor: selected ? color : "#2D2D44",
+        boxShadow: selected ? `0 0 0 3px ${color}25` : "none",
+      }}
     >
-      <div className="flex items-center gap-2">
+      <div
+        className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: `${color}22`, color }}
+      >
         {icon}
-        <span className="text-base">{label}</span>
       </div>
-      <span className="text-[11px] font-medium opacity-90">{hint}</span>
+      <div className="min-w-0 flex-1">
+        <div className="text-white font-bold text-sm">{title}</div>
+        <div className="text-[#A0AEC0] text-xs">{hint}</div>
+      </div>
+      <div
+        className="h-5 w-5 rounded-full border-2 shrink-0"
+        style={{
+          borderColor: selected ? color : "#2D2D44",
+          background: selected ? color : "transparent",
+        }}
+      />
     </button>
   );
 }
