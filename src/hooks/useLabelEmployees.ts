@@ -13,6 +13,10 @@ export interface LabelEmployee {
   sectors: string[];
   status: "active" | "inactive";
   created_at: string;
+  sms_daily_enabled?: boolean;
+  sms_daily_hour?: number;
+  sms_immediate_alerts?: boolean;
+  sms_include_checklists?: boolean;
 }
 
 export interface LabelEmployeeInput {
@@ -22,6 +26,10 @@ export interface LabelEmployeeInput {
   whatsapp_phone?: string | null;
   sectors?: string[];
   status?: "active" | "inactive";
+  sms_daily_enabled?: boolean;
+  sms_daily_hour?: number;
+  sms_immediate_alerts?: boolean;
+  sms_include_checklists?: boolean;
 }
 
 export function useLabelEmployees() {
@@ -53,6 +61,10 @@ export function useLabelEmployees() {
         whatsapp_phone: input.whatsapp_phone?.trim() || null,
         sectors: input.sectors ?? [],
         status: input.status ?? "active",
+        sms_daily_enabled: input.sms_daily_enabled ?? false,
+        sms_daily_hour: input.sms_daily_hour ?? 8,
+        sms_immediate_alerts: input.sms_immediate_alerts ?? true,
+        sms_include_checklists: input.sms_include_checklists ?? false,
       });
       if (error) throw error;
     },
@@ -74,6 +86,10 @@ export function useLabelEmployees() {
           whatsapp_phone: input.whatsapp_phone?.trim() || null,
           sectors: input.sectors ?? [],
           status: input.status ?? "active",
+          sms_daily_enabled: input.sms_daily_enabled ?? false,
+          sms_daily_hour: input.sms_daily_hour ?? 8,
+          sms_immediate_alerts: input.sms_immediate_alerts ?? true,
+          sms_include_checklists: input.sms_include_checklists ?? false,
         })
         .eq("id", id);
       if (error) throw error;
