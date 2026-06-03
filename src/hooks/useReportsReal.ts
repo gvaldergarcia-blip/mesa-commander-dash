@@ -135,7 +135,10 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
           p_start_date: previousStartDate.toISOString(),
           p_end_date: previousEndDate.toISOString()
         }),
-        supabase.from('customers').select('id, total_visits, vip_status, created_at')
+        supabase
+          .from('restaurant_customers')
+          .select('id, total_visits, total_queue_visits, total_reservation_visits, vip, created_at')
+          .eq('restaurant_id', restaurantId)
       ]);
 
       // ============================================
@@ -307,16 +310,22 @@ export function useReportsReal(period: PeriodType = '30days', sourceType: Source
         ? Math.round((allServed.reduce((sum, e) => sum + (e.party_size || 0), 0) / allServed.length) * 10) / 10
         : 0;
 
-      // Clientes
-      const newCustomers = customers?.filter(c => {
+      // Clientes (escopo do restaurante via restaurant_customers — fonte única do CRM)
+      const newCustomers = customers?.filter((c: any) => {
         if (!c.created_at) return false;
         const createdAt = new Date(c.created_at);
         return createdAt >= startDate && createdAt <= endDate;
       }).length || 0;
-      
-      const vipCustomers = customers?.filter(c => 
-        c.vip_status === true || (c.total_visits && c.total_visits >= 10)
-      ).length || 0;
+
+      // VIP = 10+ visitas (regra única do projeto). Considera total_visits
+      // OU soma fila+reserva como fallback, e respeita flag manual `vip`.
+      const vipCustomers = customers?.filter((c: any) => {
+        if (c.vip === true) return true;
+        const visits =
+          (c.total_visits ?? 0) ||
+          ((c.total_queue_visits ?? 0) + (c.total_reservation_visits ?? 0));
+        return visits >= 10;
+      }).length || 0;
 
       // ============================================
       // RESULTADO FINAL
