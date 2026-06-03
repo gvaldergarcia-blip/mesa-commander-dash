@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, ArrowDownUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +47,6 @@ export function CustomerFiltersClean({
   onSortByChange,
 }: CustomerFiltersCleanProps) {
   const activeFiltersCount = [
-    statusFilter !== 'all',
     sourceFilter !== 'all',
     marketingFilter !== 'all',
     periodFilter !== 'all',
@@ -61,54 +60,45 @@ export function CustomerFiltersClean({
     onSearchChange('');
   };
 
+  const statusChips: { value: CustomerFilter; label: string; emoji: string; activeClass: string }[] = [
+    { value: 'all', label: 'Todos', emoji: '', activeClass: 'bg-foreground text-background border-foreground' },
+    { value: 'vip', label: 'VIP', emoji: '⭐', activeClass: 'bg-amber-500 text-white border-amber-500' },
+    { value: 'recurrent', label: 'Recorrentes', emoji: '🔄', activeClass: 'bg-emerald-500 text-white border-emerald-500' },
+    { value: 'active', label: 'Ativos', emoji: '🟢', activeClass: 'bg-success text-success-foreground border-success' },
+    { value: 'new', label: 'Novos', emoji: '🆕', activeClass: 'bg-blue-500 text-white border-blue-500' },
+    { value: 'birthday', label: 'Aniversário', emoji: '🎂', activeClass: 'bg-pink-500 text-white border-pink-500' },
+    { value: 'inactive', label: 'Em risco', emoji: '🔴', activeClass: 'bg-destructive text-destructive-foreground border-destructive' },
+  ];
+
   return (
-    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-      {/* Search */}
-      <div className="relative flex-1 w-full sm:max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, e-mail, telefone ou tag..."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 h-10"
-        />
-        {searchTerm && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-            onClick={() => onSearchChange('')}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        {/* Search */}
+        <div className="relative flex-1 w-full sm:max-w-md group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-orange-500" />
+          <Input
+            placeholder="Buscar por nome, e-mail, telefone ou tag..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9 h-11 transition-all focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/30 focus-visible:ring-offset-0"
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+              onClick={() => onSearchChange('')}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
 
-      {/* Quick Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Status Quick Filter */}
-        <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-          <SelectTrigger className={cn(
-            "w-[150px] h-10",
-            statusFilter !== 'all' && "border-primary bg-primary/5"
-          )}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="vip">⭐ VIP</SelectItem>
-            <SelectItem value="new">🆕 Novos</SelectItem>
-            <SelectItem value="active">🟢 Ativos</SelectItem>
-            <SelectItem value="recurrent">🔄 Recorrentes</SelectItem>
-            <SelectItem value="birthday">🎂 Aniversariantes</SelectItem>
-            <SelectItem value="inactive">🔴 Em risco</SelectItem>
-          </SelectContent>
-        </Select>
-
+        <div className="flex items-center gap-2">
         {/* More Filters */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="default" className="h-10 gap-2">
+            <Button variant="outline" size="default" className="h-11 gap-2">
               <SlidersHorizontal className="h-4 w-4" />
               Filtros
               {activeFiltersCount > 0 && (
@@ -180,7 +170,8 @@ export function CustomerFiltersClean({
 
         {/* Sort */}
         <Select value={sortBy} onValueChange={onSortByChange}>
-          <SelectTrigger className="w-[160px] h-10">
+          <SelectTrigger className="w-[180px] h-11 group/sort gap-2">
+            <ArrowDownUp className="h-4 w-4 text-muted-foreground transition-transform duration-300 group-hover/sort:-translate-y-0.5 group-hover/sort:text-orange-500" />
             <SelectValue placeholder="Ordenar" />
           </SelectTrigger>
           <SelectContent>
@@ -190,6 +181,31 @@ export function CustomerFiltersClean({
             <SelectItem value="birthday">Aniversário</SelectItem>
           </SelectContent>
         </Select>
+        </div>
+      </div>
+
+      {/* Status chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {statusChips.map((chip) => {
+          const active = statusFilter === chip.value;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => onStatusFilterChange(chip.value)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200",
+                "hover:-translate-y-0.5 hover:shadow-sm",
+                active
+                  ? cn(chip.activeClass, "shadow-md")
+                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30",
+              )}
+            >
+              {chip.emoji && <span className="text-sm leading-none">{chip.emoji}</span>}
+              {chip.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
