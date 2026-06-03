@@ -13,6 +13,7 @@ interface Body {
   employee_id: string;
   mode?: "scheduled" | "test" | "expiry_alert";
   triggered_label_id?: string;
+  phone_override?: string;
 }
 
 function trim(msg: string, max = MAX_LEN) {
@@ -28,7 +29,7 @@ serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const { employee_id, mode = "scheduled", triggered_label_id }: Body = await req.json();
+    const { employee_id, mode = "scheduled", triggered_label_id, phone_override }: Body = await req.json();
     if (!employee_id) {
       return new Response(JSON.stringify({ error: "employee_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -39,7 +40,9 @@ serve(async (req) => {
       .from("label_employees").select("*").eq("id", employee_id).single();
     if (empErr || !emp) throw new Error(empErr?.message || "Funcionário não encontrado");
 
-    if (!emp.whatsapp_phone) {
+    const rawPhone = phone_override?.trim() || emp.whatsapp_phone;
+
+    if (!rawPhone) {
       return new Response(JSON.stringify({ error: "Funcionário sem telefone" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -134,7 +137,7 @@ serve(async (req) => {
     const message = trim(linhas.join("\n"));
 
     // Send SMS via internal bridge
-    const phoneDigits = emp.whatsapp_phone.replace(/\D/g, "");
+    const phoneDigits = rawPhone.replace(/\D/g, "");
     const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
 
     const smsRes = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
