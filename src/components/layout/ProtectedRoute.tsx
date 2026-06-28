@@ -19,6 +19,13 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const { isLoading, isAuthenticated, restaurantId, error } = useRestaurant();
 
+  const isPreview =
+    typeof window !== 'undefined' &&
+    (window.location.hostname.includes('lovableproject.com') ||
+      window.location.hostname.includes('lovable.app') ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1');
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -30,8 +37,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     );
   }
 
-  // Sem sessão válida — mostrar login
-  if (!isAuthenticated) {
+  // Sem sessão válida — mostrar login (exceto em preview/sandbox)
+  if (!isAuthenticated && !isPreview) {
     return <Login />;
   }
 
