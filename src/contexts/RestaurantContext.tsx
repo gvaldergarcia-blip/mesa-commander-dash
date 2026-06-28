@@ -297,7 +297,12 @@ export function RestaurantProvider({ children }: RestaurantProviderProps) {
         loadedForUserRef.current = session.user.id;
         await fetchRestaurantForUser(session.user.id);
       } else {
-        console.warn('[RestaurantContext] No session. Login required.');
+        if (isPreviewEnvironment()) {
+          console.log('[RestaurantContext] Preview sem sessão — usando restaurante padrão.');
+          await fetchDefaultRestaurant();
+        } else {
+          console.warn('[RestaurantContext] No session. Login required.');
+        }
       }
       
       if (isMounted) setIsLoading(false);
