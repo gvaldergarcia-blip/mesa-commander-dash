@@ -22,13 +22,19 @@ function normalizeE164(phone: string) {
 
 function getWhatsAppFromNumber() {
   const configured = Deno.env.get("TWILIO_WHATSAPP_NUMBER")?.trim();
-  if (configured && /^\+\d{10,15}$/.test(configured)) return configured;
-
-  if (configured) {
-    console.warn(`[send-sms] TWILIO_WHATSAPP_NUMBER inválido (${configured}). Usando sandbox oficial do Twilio.`);
+  if (!configured) {
+    throw new Error("TWILIO_WHATSAPP_NUMBER não configurado. Configure o WhatsApp Sender aprovado no Twilio.");
   }
 
-  return "+14155238886";
+  if (!/^\+\d{10,15}$/.test(configured)) {
+    throw new Error("TWILIO_WHATSAPP_NUMBER inválido. Use formato E.164, exemplo: +15559775978.");
+  }
+
+  if (configured === "+14155238886") {
+    throw new Error("TWILIO_WHATSAPP_NUMBER ainda está no Sandbox do Twilio. Use o WhatsApp Sender aprovado em produção para aparecer o nome da marca.");
+  }
+
+  return configured;
 }
 
 async function sendMessage(
@@ -87,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
     const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
     if (!TWILIO_PHONE_NUMBER) throw new Error("TWILIO_PHONE_NUMBER not configured");
 
-    // WhatsApp Sandbox number - use env var only when it is valid E.164, otherwise fallback to Twilio sandbox
+    // WhatsApp production sender only. Do not fallback to sandbox because sandbox shows Twilio branding.
     const TWILIO_WHATSAPP_NUMBER = getWhatsAppFromNumber();
 
     const { to, message, channel = 'both' }: SmsRequest = await req.json();
