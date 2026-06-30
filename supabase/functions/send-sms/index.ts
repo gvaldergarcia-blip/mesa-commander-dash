@@ -10,6 +10,25 @@ const corsHeaders = {
 interface SmsRequest {
   to: string;
   message: string;
+  channel?: 'both' | 'sms' | 'whatsapp';
+}
+
+function normalizeE164(phone: string) {
+  const trimmed = String(phone || '').trim();
+  if (trimmed.startsWith('+')) return trimmed;
+  const digits = trimmed.replace(/\D/g, '');
+  return digits.startsWith('55') ? `+${digits}` : `+55${digits}`;
+}
+
+function getWhatsAppFromNumber() {
+  const configured = Deno.env.get("TWILIO_WHATSAPP_NUMBER")?.trim();
+  if (configured && /^\+\d{10,15}$/.test(configured)) return configured;
+
+  if (configured) {
+    console.warn(`[send-sms] TWILIO_WHATSAPP_NUMBER inválido (${configured}). Usando sandbox oficial do Twilio.`);
+  }
+
+  return "+14155238886";
 }
 
 async function sendMessage(
@@ -68,30 +87,41 @@ const handler = async (req: Request): Promise<Response> => {
     const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
     if (!TWILIO_PHONE_NUMBER) throw new Error("TWILIO_PHONE_NUMBER not configured");
 
-    // WhatsApp Sandbox number - use env var if set, otherwise default to Twilio sandbox
-    const TWILIO_WHATSAPP_NUMBER = Deno.env.get("TWILIO_WHATSAPP_NUMBER") || "+14155238886";
+    // WhatsApp Sandbox number - use env var only when it is valid E.164, otherwise fallback to Twilio sandbox
+    const TWILIO_WHATSAPP_NUMBER = getWhatsAppFromNumber();
 
-    const { to, message }: SmsRequest = await req.json();
-    console.log(`[send-sms] Enviando SMS + WhatsApp para ${to} | SMS_FROM=${TWILIO_PHONE_NUMBER} | WA_FROM=${TWILIO_WHATSAPP_NUMBER}`);
+    const { to, message, channel = 'both' }: SmsRequest = await req.json();
+    console.log(`[send-sms] Enviando ${channel} para ${to} | SMS_FROM=${TWILIO_PHONE_NUMBER} | WA_FROM=${TWILIO_WHATSAPP_NUMBER}`);
 
-    const formattedPhone = to.startsWith('+') ? to : `+55${to.replace(/\D/g, '')}`;
+    const formattedPhone = normalizeE164(to);
 
-    // Send SMS and WhatsApp in parallel
+    const skippedSms = { success: false, error: 'Canal SMS não solicitado', channel: 'sms' };
+    const skippedWhatsapp = { success: false, error: 'Canal WhatsApp não solicitado', channel: 'whatsapp' };
+
     const [smsResult, whatsappResult] = await Promise.all([
-      sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'sms'),
-      sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp'),
+      channel === 'sms' || channel === 'both'
+        ? sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'sms')
+        : Promise.resolve(skippedSms),
+      channel === 'whatsapp' || channel === 'both'
+        ? sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp')
+        : Promise.resolve(skippedWhatsapp),
     ]);
 
     console.log('[send-sms] Results:', { sms: smsResult, whatsapp: whatsappResult });
 
-    // At least one channel succeeded
-    if (smsResult.success || whatsappResult.success) {
+    const success = channel === 'whatsapp'
+      ? whatsappResult.success
+      : channel === 'sms'
+      ? smsResult.success
+      : smsResult.success || whatsappResult.success;
+
+    if (success) {
       return new Response(
         JSON.stringify({
           success: true,
           sms: smsResult,
           whatsapp: whatsappResult,
-          message: "Mensagem enviada com sucesso",
+          message: channel === 'whatsapp' ? "WhatsApp enviado com sucesso" : "Mensagem enviada com sucesso",
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
@@ -104,7 +134,11 @@ const handler = async (req: Request): Promise<Response> => {
         error: "SEND_FAILED",
         sms: smsResult,
         whatsapp: whatsappResult,
-        message: "Falha ao enviar SMS e WhatsApp",
+        message: channel === 'whatsapp'
+          ? (whatsappResult.error || "Falha ao enviar WhatsApp")
+          : channel === 'sms'
+          ? (smsResult.error || "Falha ao enviar SMS")
+          : "Falha ao enviar SMS e WhatsApp",
       }),
       { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
