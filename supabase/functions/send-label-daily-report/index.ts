@@ -136,7 +136,7 @@ serve(async (req) => {
 
     const message = trim(linhas.join("\n"));
 
-    // Send SMS via internal bridge
+    // Send WhatsApp via internal bridge
     const phoneDigits = rawPhone.replace(/\D/g, "");
     const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
 
@@ -146,10 +146,10 @@ serve(async (req) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SERVICE_KEY}`,
       },
-      body: JSON.stringify({ to, message }),
+      body: JSON.stringify({ to, message, channel: "whatsapp" }),
     });
     const smsData = await smsRes.json().catch(() => ({}));
-    const success = !!smsData?.success;
+    const success = !!smsData?.whatsapp?.success;
 
     const kind = mode === "test" ? "test" : mode === "expiry_alert" ? "expiry_alert" : "daily";
 
@@ -160,7 +160,7 @@ serve(async (req) => {
       message,
       kind,
       status: success ? "sent" : "failed",
-      error: success ? null : (smsData?.message || smsData?.error || "Falha no envio"),
+      error: success ? null : (smsData?.whatsapp?.error || smsData?.message || smsData?.error || "Falha no envio por WhatsApp"),
       triggered_label_id: triggered_label_id || null,
     });
 

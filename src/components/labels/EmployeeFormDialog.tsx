@@ -91,13 +91,13 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       const { data, error } = await supabase.functions.invoke("send-sms", {
         body: {
           to: digits.startsWith("55") ? `+${digits}` : `+55${digits}`,
+          channel: "whatsapp",
           message: `Olá ${name || "funcionário"}! Esta é uma mensagem de teste do MesaClik Etiquetas. Você receberá lembretes de tarefas por aqui.`,
         },
       });
       if (error) throw error;
       if ((data as any)?.whatsapp?.success) toast.success("WhatsApp de teste enviado!");
-      else if ((data as any)?.sms?.success) toast.success("SMS enviado (WhatsApp falhou — verifique o sandbox)");
-      else toast.error((data as any)?.message || "Falha ao enviar mensagem");
+      else toast.error((data as any)?.whatsapp?.error || (data as any)?.message || "Falha ao enviar WhatsApp");
     } catch (e: any) {
       toast.error(e.message || "Erro ao enviar teste");
     } finally {
