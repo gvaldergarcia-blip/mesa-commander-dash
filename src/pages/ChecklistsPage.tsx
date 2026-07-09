@@ -31,6 +31,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { StockCheckTab } from '@/components/labels/StockCheckTab';
+import { PackageX } from 'lucide-react';
 
 type Mode = 'gestor' | 'equipe';
 
@@ -251,6 +253,10 @@ export default function ChecklistsPage() {
                   {c.name}
                 </TabsTrigger>
               ))}
+              <TabsTrigger value="__stock" className="gap-1.5 text-xs md:text-sm">
+                <PackageX className="h-3.5 w-3.5" />
+                Estoque
+              </TabsTrigger>
             </TabsList>
             {mode === 'gestor' && (
               <Button variant="outline" size="sm" onClick={() => setAddCatOpen(true)} className="self-start md:self-auto">
@@ -282,6 +288,22 @@ export default function ChecklistsPage() {
               </TabsContent>
             );
           })}
+          <TabsContent value="__stock" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PackageX className="h-4 w-4 text-primary" />
+                  Estoque rápido
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Marque com 1 toque cada produto como <span className="font-semibold text-emerald-600">Ok</span> ou <span className="font-semibold text-destructive">Falta</span>. O chef recebe a lista consolidada às 10h.
+                </p>
+                <StockCheckTab />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       )}
 
