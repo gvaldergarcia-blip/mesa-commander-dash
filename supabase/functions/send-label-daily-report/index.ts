@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const PANEL_URL = "https://app.mesaclik.com.br/etiquetas";
 const MAX_LEN = 1200; // ~8 segmentos SMS — relatório completo
+const DEFAULT_LABEL_ALERT_TEMPLATE_SID = "HX1207153b6f2d0899e229d61123f8712e";
 
 interface Body {
   employee_id: string;
@@ -140,21 +141,27 @@ serve(async (req) => {
     const phoneDigits = rawPhone.replace(/\D/g, "");
     const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
 
-    // For expiry alerts, use approved WhatsApp template (mandatory outside 24h window)
+    // For WhatsApp tests/expiry alerts, use approved template (mandatory outside 24h window)
     let smsBody: Record<string, unknown> = { to, message, channel: "both" };
 
-    if (mode === "expiry_alert" && triggered_label_id) {
-      const templateSid = Deno.env.get("TWILIO_WA_TEMPLATE_ETIQUETA_ALERTA");
+    if (mode === "test" || (mode === "expiry_alert" && triggered_label_id)) {
+      const templateSid = Deno.env.get("TWILIO_WA_TEMPLATE_ETIQUETA_ALERTA") || DEFAULT_LABEL_ALERT_TEMPLATE_SID;
       const triggered = relevant.find((l: any) => l.id === triggered_label_id)
         || expiredList[0] || todayList[0] || next24hList[0];
 
-      if (templateSid && triggered) {
-        const productName = (triggered as any).name || (triggered as any).product_name || "produto";
-        const exp = (triggered as any).exp instanceof Date
+      if (templateSid) {
+        const productName = mode === "test"
+          ? "Teste MesaClik"
+          : (triggered as any)?.name || (triggered as any)?.product_name || "produto";
+        const exp = mode === "test"
+          ? now
+          : (triggered as any)?.exp instanceof Date
           ? (triggered as any).exp
           : new Date((triggered as any).expiry_date);
         const diffMin = Math.round((exp.getTime() - now.getTime()) / 60000);
-        const tempo = diffMin <= 0
+        const tempo = mode === "test"
+          ? "agora (mensagem de teste)"
+          : diffMin <= 0
           ? `agora (venceu às ${fmtHora(exp)})`
           : diffMin < 60
           ? `${diffMin}min`
