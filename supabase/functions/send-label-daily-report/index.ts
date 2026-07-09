@@ -140,13 +140,46 @@ serve(async (req) => {
     const phoneDigits = rawPhone.replace(/\D/g, "");
     const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
 
+    // For expiry alerts, use approved WhatsApp template (mandatory outside 24h window)
+    let smsBody: Record<string, unknown> = { to, message, channel: "whatsapp" };
+
+    if (mode === "expiry_alert" && triggered_label_id) {
+      const templateSid = Deno.env.get("TWILIO_WA_TEMPLATE_ETIQUETA_ALERTA");
+      const triggered = relevant.find((l: any) => l.id === triggered_label_id)
+        || expiredList[0] || todayList[0] || next24hList[0];
+
+      if (templateSid && triggered) {
+        const productName = (triggered as any).name || (triggered as any).product_name || "produto";
+        const exp = (triggered as any).exp instanceof Date
+          ? (triggered as any).exp
+          : new Date((triggered as any).expiry_date);
+        const diffMin = Math.round((exp.getTime() - now.getTime()) / 60000);
+        const tempo = diffMin <= 0
+          ? `agora (venceu às ${fmtHora(exp)})`
+          : diffMin < 60
+          ? `${diffMin}min`
+          : `${Math.round(diffMin / 60)}h`;
+
+        smsBody = {
+          to,
+          channel: "whatsapp",
+          contentSid: templateSid,
+          contentVariables: {
+            "1": firstName,
+            "2": String(productName).slice(0, 60),
+            "3": tempo,
+          },
+        };
+      }
+    }
+
     const smsRes = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SERVICE_KEY}`,
       },
-      body: JSON.stringify({ to, message, channel: "whatsapp" }),
+      body: JSON.stringify(smsBody),
     });
     const smsData = await smsRes.json().catch(() => ({}));
     const success = !!smsData?.whatsapp?.success;
