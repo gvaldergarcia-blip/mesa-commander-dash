@@ -136,12 +136,12 @@ serve(async (req) => {
 
     const message = trim(linhas.join("\n"));
 
-    // Send WhatsApp via internal bridge
+    // Send WhatsApp + SMS fallback via internal bridge. SMS must continue even when WhatsApp template delivery fails.
     const phoneDigits = rawPhone.replace(/\D/g, "");
     const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
 
     // For expiry alerts, use approved WhatsApp template (mandatory outside 24h window)
-    let smsBody: Record<string, unknown> = { to, message, channel: "whatsapp" };
+    let smsBody: Record<string, unknown> = { to, message, channel: "both" };
 
     if (mode === "expiry_alert" && triggered_label_id) {
       const templateSid = Deno.env.get("TWILIO_WA_TEMPLATE_ETIQUETA_ALERTA");
@@ -162,7 +162,8 @@ serve(async (req) => {
 
         smsBody = {
           to,
-          channel: "whatsapp",
+          message,
+          channel: "both",
           contentSid: templateSid,
           contentVariables: {
             "1": firstName,
@@ -182,7 +183,7 @@ serve(async (req) => {
       body: JSON.stringify(smsBody),
     });
     const smsData = await smsRes.json().catch(() => ({}));
-    const success = !!smsData?.whatsapp?.success;
+    const success = !!(smsData?.whatsapp?.success || smsData?.sms?.success);
 
     const kind = mode === "test" ? "test" : mode === "expiry_alert" ? "expiry_alert" : "daily";
 
@@ -193,7 +194,7 @@ serve(async (req) => {
       message,
       kind,
       status: success ? "sent" : "failed",
-      error: success ? null : (smsData?.whatsapp?.error || smsData?.message || smsData?.error || "Falha no envio por WhatsApp"),
+      error: success ? null : (smsData?.whatsapp?.error || smsData?.sms?.error || smsData?.message || smsData?.error || "Falha no envio por SMS/WhatsApp"),
       triggered_label_id: triggered_label_id || null,
     });
 

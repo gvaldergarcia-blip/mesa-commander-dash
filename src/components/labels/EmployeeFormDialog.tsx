@@ -91,7 +91,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       const { data, error } = await supabase.functions.invoke("send-sms", {
         body: {
           to: digits.startsWith("55") ? `+${digits}` : `+55${digits}`,
-          channel: "whatsapp",
+          channel: "both",
           // Template aprovado (etiqueta_vencimento_alerta) — obrigatório fora da janela de 24h
           contentSid: "HX1207153b6f2d0899e229d61123f8712e",
           contentVariables: {
@@ -103,8 +103,12 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
         },
       });
       if (error) throw error;
-      if ((data as any)?.whatsapp?.success) toast.success("WhatsApp de teste enviado!");
-      else toast.error((data as any)?.whatsapp?.error || (data as any)?.message || "Falha ao enviar WhatsApp");
+      const smsOk = (data as any)?.sms?.success;
+      const whatsappOk = (data as any)?.whatsapp?.success;
+      if (smsOk && whatsappOk) toast.success("Teste enviado por SMS e WhatsApp!");
+      else if (smsOk) toast.success("SMS de teste enviado. WhatsApp ainda não confirmou envio.");
+      else if (whatsappOk) toast.success("WhatsApp de teste enviado!");
+      else toast.error((data as any)?.whatsapp?.error || (data as any)?.sms?.error || (data as any)?.message || "Falha ao enviar teste");
     } catch (e: any) {
       toast.error(e.message || "Erro ao enviar teste");
     } finally {
