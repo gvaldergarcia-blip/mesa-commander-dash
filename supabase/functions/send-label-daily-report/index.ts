@@ -146,8 +146,16 @@ serve(async (req) => {
 
     if (mode === "test" || (mode === "expiry_alert" && triggered_label_id)) {
       const templateSid = Deno.env.get("TWILIO_WA_TEMPLATE_ETIQUETA_ALERTA") || DEFAULT_LABEL_ALERT_TEMPLATE_SID;
-      const triggered = relevant.find((l: any) => l.id === triggered_label_id)
+      let triggered: any = relevant.find((l: any) => l.id === triggered_label_id)
         || expiredList[0] || todayList[0] || next24hList[0];
+      if (mode === "expiry_alert" && triggered_label_id && !triggered) {
+        const { data: t } = await sb
+          .from("label_issuances")
+          .select("id, product_name, expiry_date")
+          .eq("id", triggered_label_id)
+          .maybeSingle();
+        if (t) triggered = { name: t.product_name, exp: new Date(t.expiry_date) };
+      }
 
       if (templateSid) {
         const productName = mode === "test"
