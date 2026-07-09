@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX } from "lucide-react";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { ProductFormDialog } from "@/components/labels/ProductFormDialog";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
 import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
+import { StockCheckTab } from "@/components/labels/StockCheckTab";
+import { ShoppingListTab } from "@/components/labels/ShoppingListTab";
+import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
@@ -24,6 +27,7 @@ export default function EtiquetasPage() {
   const { products, isLoading: prodLoading, createProduct, updateProduct, deleteProduct, isMutating } = useLabelProducts();
   const { labels, isLoading: labelsLoading } = useLabels();
   const { employees } = useLabelEmployees();
+  const { missingProducts } = useStockStatus();
 
   const [tab, setTab] = useState("dashboard");
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
@@ -119,10 +123,20 @@ export default function EtiquetasPage() {
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="grid grid-cols-6 w-full md:w-auto md:inline-grid">
+        <TabsList className="grid grid-cols-4 md:grid-cols-8 w-full md:w-auto md:inline-grid">
           <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span></TabsTrigger>
           <TabsTrigger value="etiquetas" className="gap-2"><List className="h-4 w-4" /> <span className="hidden sm:inline">Etiquetas</span></TabsTrigger>
           <TabsTrigger value="imprimir" className="gap-2"><Printer className="h-4 w-4" /> <span className="hidden sm:inline">Imprimir</span></TabsTrigger>
+          <TabsTrigger value="compras" className="gap-2 relative">
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Compras</span>
+            {missingProducts.length > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                {missingProducts.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="estoque" className="gap-2"><PackageX className="h-4 w-4" /> <span className="hidden sm:inline">Estoque</span></TabsTrigger>
           <TabsTrigger value="produtos" className="gap-2"><Package className="h-4 w-4" /> <span className="hidden sm:inline">Produtos</span></TabsTrigger>
           <TabsTrigger value="funcionarios" className="gap-2"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Funcionários</span></TabsTrigger>
           <TabsTrigger value="sms" className="gap-2"><MessageSquare className="h-4 w-4" /> <span className="hidden sm:inline">SMS</span></TabsTrigger>
@@ -162,6 +176,24 @@ export default function EtiquetasPage() {
               <PrintFlow onFinished={() => setTab("dashboard")} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ===== LISTA DE COMPRAS ===== */}
+        <TabsContent value="compras" className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Lista de compras</h2>
+            <p className="text-sm text-muted-foreground">Produtos em falta marcados pela equipe. Quando chegar, marque como recebido e já imprima a etiqueta.</p>
+          </div>
+          <ShoppingListTab onPrintProduct={() => setTab("imprimir")} />
+        </TabsContent>
+
+        {/* ===== ESTOQUE (marcação rápida) ===== */}
+        <TabsContent value="estoque" className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">Estoque rápido</h2>
+            <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto como Ok ou Falta. As faltas aparecem automaticamente na Lista de compras.</p>
+          </div>
+          <StockCheckTab />
         </TabsContent>
 
         {/* ===== PRODUTOS ===== */}

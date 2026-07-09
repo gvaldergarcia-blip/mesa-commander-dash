@@ -2078,6 +2078,60 @@ export type Database = {
         }
         Relationships: []
       }
+      product_stock_status: {
+        Row: {
+          created_at: string
+          id: string
+          marked_at: string
+          marked_by_employee_id: string | null
+          marked_by_name: string | null
+          notes: string | null
+          product_id: string
+          restaurant_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marked_at?: string
+          marked_by_employee_id?: string | null
+          marked_by_name?: string | null
+          notes?: string | null
+          product_id: string
+          restaurant_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marked_at?: string
+          marked_by_employee_id?: string | null
+          marked_by_name?: string | null
+          notes?: string | null
+          product_id?: string
+          restaurant_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_status_marked_by_employee_id_fkey"
+            columns: ["marked_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "label_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stock_status_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -3899,6 +3953,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stock_check_logs: {
+        Row: {
+          created_at: string
+          id: string
+          marked_by_employee_id: string | null
+          marked_by_name: string | null
+          product_id: string
+          product_name: string
+          restaurant_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marked_by_employee_id?: string | null
+          marked_by_name?: string | null
+          product_id: string
+          product_name: string
+          restaurant_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marked_by_employee_id?: string | null
+          marked_by_name?: string | null
+          product_id?: string
+          product_name?: string
+          restaurant_id?: string
+          status?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
