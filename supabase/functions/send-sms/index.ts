@@ -44,7 +44,7 @@ function describeTwilioFailure(data: any, channel: 'sms' | 'whatsapp') {
   const message = data?.error_message || data?.message;
 
   if (channel === 'whatsapp' && code === 63112) {
-    return "WhatsApp não enviado: o número configurado em TWILIO_WHATSAPP_NUMBER não está associado a um WhatsApp Sender válido neste Account SID da Twilio. Confirme se o Sender aprovado está no mesmo projeto/conta da conexão Twilio usada pelo MesaClik.";
+    return "WhatsApp não enviado (Twilio 63112): o app enviou com o Sender correto, mas a Meta/Twilio ainda está bloqueando a WABA/Business Portfolio conectado a esse número. Verifique Business Verification, status da WABA e 2FA do número no Meta Business Manager/Twilio.";
   }
 
   if (channel === 'whatsapp' && code === 63016) {
