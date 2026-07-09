@@ -187,6 +187,8 @@ serve(async (req) => {
 
     const kind = mode === "test" ? "test" : mode === "expiry_alert" ? "expiry_alert" : "daily";
 
+    const whatsappError = smsData?.whatsapp?.success ? null : smsData?.whatsapp?.error;
+
     await sb.from("label_sms_logs").insert({
       restaurant_id: emp.restaurant_id,
       employee_id: emp.id,
@@ -194,7 +196,7 @@ serve(async (req) => {
       message,
       kind,
       status: success ? "sent" : "failed",
-      error: success ? null : (smsData?.whatsapp?.error || smsData?.sms?.error || smsData?.message || smsData?.error || "Falha no envio por SMS/WhatsApp"),
+      error: whatsappError || (!success ? (smsData?.sms?.error || smsData?.message || smsData?.error || "Falha no envio por SMS/WhatsApp") : null),
       triggered_label_id: triggered_label_id || null,
     });
 

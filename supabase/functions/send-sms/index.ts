@@ -39,6 +39,48 @@ function getWhatsAppFromNumber() {
   return configured;
 }
 
+function describeTwilioFailure(data: any, channel: 'sms' | 'whatsapp') {
+  const code = data?.error_code || data?.code;
+  const message = data?.error_message || data?.message;
+
+  if (channel === 'whatsapp' && code === 63112) {
+    return "WhatsApp não enviado: o número configurado em TWILIO_WHATSAPP_NUMBER não está associado a um WhatsApp Sender válido neste Account SID da Twilio. Confirme se o Sender aprovado está no mesmo projeto/conta da conexão Twilio usada pelo MesaClik.";
+  }
+
+  if (channel === 'whatsapp' && code === 63016) {
+    return "WhatsApp não enviado: fora da janela de 24h é obrigatório usar template aprovado pela Meta/Twilio.";
+  }
+
+  return message || (code ? `Twilio error ${code}` : `${channel} failed`);
+}
+
+async function waitForTwilioStatus(
+  sid: string,
+  lovableKey: string,
+  twilioKey: string,
+  channel: 'sms' | 'whatsapp',
+) {
+  if (channel !== 'whatsapp' || !sid) return null;
+
+  // WhatsApp failures such as invalid Sender often appear moments after Twilio accepts the POST.
+  for (const delay of [900, 1600]) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    const statusResponse = await fetch(`${GATEWAY_URL}/Messages/${sid}.json`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": twilioKey,
+      },
+    });
+    const statusData = await statusResponse.json().catch(() => ({}));
+    if (!statusResponse.ok) continue;
+    if (["failed", "undelivered"].includes(statusData?.status)) return statusData;
+    if (["sent", "delivered", "read"].includes(statusData?.status)) return statusData;
+  }
+
+  return null;
+}
+
 async function sendMessage(
   to: string,
   from: string,
@@ -80,10 +122,21 @@ async function sendMessage(
 
     if (!response.ok) {
       console.error(`[send-sms] ${channel} error:`, data);
-      return { success: false, error: data.message || `${channel} failed`, channel };
+      return { success: false, error: describeTwilioFailure(data, channel), channel };
     }
 
-    console.log(`[send-sms] ${channel} sent:`, data.sid);
+    const finalStatus = await waitForTwilioStatus(data.sid, lovableKey, twilioKey, channel);
+    if (finalStatus && ["failed", "undelivered"].includes(finalStatus.status)) {
+      console.error(`[send-sms] ${channel} delivery failed:`, finalStatus);
+      return {
+        success: false,
+        sid: data.sid,
+        error: describeTwilioFailure(finalStatus, channel),
+        channel,
+      };
+    }
+
+    console.log(`[send-sms] ${channel} sent:`, data.sid, finalStatus?.status ? `status=${finalStatus.status}` : 'status=pending');
     return { success: true, sid: data.sid, channel };
   } catch (err: any) {
     console.error(`[send-sms] ${channel} exception:`, err);
