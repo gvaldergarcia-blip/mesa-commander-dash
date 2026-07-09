@@ -106,10 +106,10 @@ const handler = async (req: Request): Promise<Response> => {
     const TWILIO_PHONE_NUMBER = Deno.env.get("TWILIO_PHONE_NUMBER");
     if (!TWILIO_PHONE_NUMBER) throw new Error("TWILIO_PHONE_NUMBER not configured");
 
-    // WhatsApp production sender only. Do not fallback to sandbox because sandbox shows Twilio branding.
-    const TWILIO_WHATSAPP_NUMBER = getWhatsAppFromNumber();
-
     const { to, message, channel = 'both', contentSid, contentVariables }: SmsRequest = await req.json();
+    const TWILIO_WHATSAPP_NUMBER = channel === 'whatsapp' || channel === 'both'
+      ? getWhatsAppFromNumber()
+      : null;
     console.log(`[send-sms] Enviando ${channel} para ${to} | SMS_FROM=${TWILIO_PHONE_NUMBER} | WA_FROM=${TWILIO_WHATSAPP_NUMBER}`);
 
     const formattedPhone = normalizeE164(to);
@@ -122,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
         ? sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message || '', LOVABLE_API_KEY, TWILIO_API_KEY, 'sms')
         : Promise.resolve(skippedSms),
       channel === 'whatsapp' || channel === 'both'
-        ? sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER, message || '', LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp', contentSid, contentVariables)
+        ? sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER!, message || '', LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp', contentSid, contentVariables)
         : Promise.resolve(skippedWhatsapp),
     ]);
 
