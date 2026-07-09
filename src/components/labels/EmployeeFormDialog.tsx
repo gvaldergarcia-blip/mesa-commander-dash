@@ -92,7 +92,14 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
         body: {
           to: digits.startsWith("55") ? `+${digits}` : `+55${digits}`,
           channel: "whatsapp",
-          message: `Olá ${name || "funcionário"}! Esta é uma mensagem de teste do MesaClik Etiquetas. Você receberá lembretes de tarefas por aqui.`,
+          // Template aprovado (etiqueta_vencimento_alerta) — obrigatório fora da janela de 24h
+          contentSid: "HX1207153b6f2d0899e229d61123f8712e",
+          contentVariables: {
+            "1": (name || "funcionário").split(" ")[0],
+            "2": "Teste MesaClik",
+            "3": "agora (mensagem de teste)",
+          },
+          message: `Olá ${name || "funcionário"}! Teste MesaClik Etiquetas.`,
         },
       });
       if (error) throw error;
