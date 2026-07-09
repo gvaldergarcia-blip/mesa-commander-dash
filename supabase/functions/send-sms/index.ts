@@ -9,8 +9,10 @@ const corsHeaders = {
 
 interface SmsRequest {
   to: string;
-  message: string;
+  message?: string;
   channel?: 'both' | 'sms' | 'whatsapp';
+  contentSid?: string;
+  contentVariables?: Record<string, string>;
 }
 
 function normalizeE164(phone: string) {
@@ -43,12 +45,27 @@ async function sendMessage(
   body: string,
   lovableKey: string,
   twilioKey: string,
-  channel: 'sms' | 'whatsapp'
+  channel: 'sms' | 'whatsapp',
+  contentSid?: string,
+  contentVariables?: Record<string, string>,
 ): Promise<{ success: boolean; sid?: string; error?: string; channel: string }> {
   const formattedTo = channel === 'whatsapp' ? `whatsapp:${to}` : to;
   const formattedFrom = channel === 'whatsapp' ? `whatsapp:${from}` : from;
 
   try {
+    const params: Record<string, string> = {
+      To: formattedTo,
+      From: formattedFrom,
+    };
+    if (channel === 'whatsapp' && contentSid) {
+      params.ContentSid = contentSid;
+      if (contentVariables && Object.keys(contentVariables).length) {
+        params.ContentVariables = JSON.stringify(contentVariables);
+      }
+    } else {
+      params.Body = body;
+    }
+
     const response = await fetch(`${GATEWAY_URL}/Messages.json`, {
       method: "POST",
       headers: {
@@ -56,11 +73,7 @@ async function sendMessage(
         "X-Connection-Api-Key": twilioKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({
-        To: formattedTo,
-        From: formattedFrom,
-        Body: body,
-      }),
+      body: new URLSearchParams(params),
     });
 
     const data = await response.json();
@@ -96,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
     // WhatsApp production sender only. Do not fallback to sandbox because sandbox shows Twilio branding.
     const TWILIO_WHATSAPP_NUMBER = getWhatsAppFromNumber();
 
-    const { to, message, channel = 'both' }: SmsRequest = await req.json();
+    const { to, message, channel = 'both', contentSid, contentVariables }: SmsRequest = await req.json();
     console.log(`[send-sms] Enviando ${channel} para ${to} | SMS_FROM=${TWILIO_PHONE_NUMBER} | WA_FROM=${TWILIO_WHATSAPP_NUMBER}`);
 
     const formattedPhone = normalizeE164(to);
@@ -106,10 +119,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const [smsResult, whatsappResult] = await Promise.all([
       channel === 'sms' || channel === 'both'
-        ? sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'sms')
+        ? sendMessage(formattedPhone, TWILIO_PHONE_NUMBER, message || '', LOVABLE_API_KEY, TWILIO_API_KEY, 'sms')
         : Promise.resolve(skippedSms),
       channel === 'whatsapp' || channel === 'both'
-        ? sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER, message, LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp')
+        ? sendMessage(formattedPhone, TWILIO_WHATSAPP_NUMBER, message || '', LOVABLE_API_KEY, TWILIO_API_KEY, 'whatsapp', contentSid, contentVariables)
         : Promise.resolve(skippedWhatsapp),
     ]);
 
