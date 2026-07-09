@@ -234,11 +234,11 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       )}
 
       {step === 3 && product && employee && expiryDate && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-5 space-y-4 bg-card/40">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <Card className="p-3 md:p-5 space-y-3 md:space-y-4 bg-card/40">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /></Button>
-              <h2 className="text-xl font-bold flex-1">Confirmar e imprimir</h2>
+              <h2 className="text-lg md:text-xl font-bold flex-1">Confirmar e imprimir</h2>
             </div>
 
             <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-muted/40 text-sm">
@@ -286,10 +286,10 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
           </Card>
 
           {/* Preview */}
-          <Card className="p-5 bg-card/40">
+          <Card className="p-3 md:p-5 bg-card/40 overflow-hidden">
             <div className="text-xs uppercase text-muted-foreground mb-3 font-semibold">Pré-visualização · 80×40mm</div>
             <div
-              className="bg-white text-black font-sans overflow-hidden flex flex-col mx-auto shadow"
+              className="bg-white text-black font-sans overflow-hidden flex flex-col mx-auto shadow max-w-full"
               style={{ width: "340px", minHeight: "170px", padding: "10px 12px", fontSize: "10px", lineHeight: 1.2 }}
             >
               {/* Topo: nome + peso */}
