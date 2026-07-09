@@ -69,7 +69,7 @@ export function ShoppingListTab({ onPrintProduct }: ShoppingListTabProps) {
           {items.map(({ status, product }) => (
             <div
               key={product.id}
-              className="flex items-center gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5"
+              className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 md:p-4 rounded-xl border border-destructive/30 bg-destructive/5"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -84,12 +84,12 @@ export function ShoppingListTab({ onPrintProduct }: ShoppingListTabProps) {
                   Marcado por {status.marked_by_name || 'Equipe'} · {new Date(status.marked_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 sm:shrink-0">
                 {onPrintProduct && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 flex-1 sm:flex-none h-10"
                     onClick={() => onPrintProduct(product.id)}
                   >
                     <Printer className="h-3.5 w-3.5" /> Etiqueta
@@ -97,7 +97,7 @@ export function ShoppingListTab({ onPrintProduct }: ShoppingListTabProps) {
                 )}
                 <Button
                   size="sm"
-                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                  className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 flex-1 sm:flex-none h-10"
                   disabled={isMutating}
                   onClick={() => markReceived(product.id, product.name)}
                 >

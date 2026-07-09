@@ -102,45 +102,44 @@ export default function EtiquetasPage() {
   };
 
   return (
-    <div className="p-3 md:p-8 space-y-6 max-w-[1500px] mx-auto">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border/50 pb-5">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
-              <Tag className="h-6 w-6 text-primary" />
+    <div className="p-3 md:p-8 space-y-4 md:space-y-6 max-w-[1500px] mx-auto">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-4 border-b border-border/50 pb-4 md:pb-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 md:gap-3 mb-1">
+            <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg border border-primary/20 shrink-0">
+              <Tag className="h-5 w-5 md:h-6 md:w-6 text-primary" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Etiquetas de Alimentos</h1>
+            <h1 className="text-xl md:text-4xl font-bold tracking-tight leading-tight break-words">Etiquetas de Alimentos</h1>
           </div>
-          <p className="text-muted-foreground max-w-xl">
-            Gestão completa de validade, rastreabilidade e baixas para sua cozinha profissional.
+          <p className="text-xs md:text-sm text-muted-foreground max-w-xl">
+            Gestão de validade, rastreabilidade e baixas para sua cozinha.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={() => setTab("imprimir")} size="lg" className="gap-2 shadow-lg shadow-primary/20">
-            <Printer className="h-4 w-4" /> Nova etiqueta
-          </Button>
-        </div>
+        <Button onClick={() => setTab("imprimir")} size="lg" className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
+          <Printer className="h-4 w-4" /> Nova etiqueta
+        </Button>
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        <TabsList className="grid grid-cols-4 md:grid-cols-8 w-full md:w-auto md:inline-grid">
-          <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span></TabsTrigger>
-          <TabsTrigger value="etiquetas" className="gap-2"><List className="h-4 w-4" /> <span className="hidden sm:inline">Etiquetas</span></TabsTrigger>
-          <TabsTrigger value="imprimir" className="gap-2"><Printer className="h-4 w-4" /> <span className="hidden sm:inline">Imprimir</span></TabsTrigger>
-          <TabsTrigger value="compras" className="gap-2 relative">
-            <ShoppingCart className="h-4 w-4" />
-            <span className="hidden sm:inline">Compras</span>
-            {missingProducts.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
-                {missingProducts.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="estoque" className="gap-2"><PackageX className="h-4 w-4" /> <span className="hidden sm:inline">Estoque</span></TabsTrigger>
-          <TabsTrigger value="produtos" className="gap-2"><Package className="h-4 w-4" /> <span className="hidden sm:inline">Produtos</span></TabsTrigger>
-          <TabsTrigger value="funcionarios" className="gap-2"><Users className="h-4 w-4" /> <span className="hidden sm:inline">Funcionários</span></TabsTrigger>
-          <TabsTrigger value="sms" className="gap-2"><MessageSquare className="h-4 w-4" /> <span className="hidden sm:inline">SMS</span></TabsTrigger>
-        </TabsList>
+        <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
+          <TabsList className="inline-flex md:grid md:grid-cols-8 md:w-auto h-auto p-1 gap-1">
+            <TabsTrigger value="dashboard" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><LayoutDashboard className="h-4 w-4" /> Dashboard</TabsTrigger>
+            <TabsTrigger value="etiquetas" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><List className="h-4 w-4" /> Etiquetas</TabsTrigger>
+            <TabsTrigger value="imprimir" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Printer className="h-4 w-4" /> Imprimir</TabsTrigger>
+            <TabsTrigger value="compras" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm relative">
+              <ShoppingCart className="h-4 w-4" /> Compras
+              {missingProducts.length > 0 && (
+                <span className="ml-0.5 h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
+                  {missingProducts.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="estoque" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><PackageX className="h-4 w-4" /> Estoque</TabsTrigger>
+            <TabsTrigger value="produtos" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
+            <TabsTrigger value="funcionarios" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Users className="h-4 w-4" /> Funcionários</TabsTrigger>
+            <TabsTrigger value="sms" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><MessageSquare className="h-4 w-4" /> SMS</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-5">

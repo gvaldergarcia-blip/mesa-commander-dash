@@ -161,29 +161,29 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       {step === 1 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h2 className="text-2xl font-bold">Quem está imprimindo?</h2>
-            <p className="text-sm text-muted-foreground mt-1">Selecione o responsável.</p>
+            <h2 className="text-xl md:text-2xl font-bold">Quem está imprimindo?</h2>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1">Selecione o responsável.</p>
           </div>
           {empLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
           ) : activeEmployees.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border/50 rounded-2xl text-muted-foreground">
-              <User className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p>Cadastre funcionários na aba "Funcionários" primeiro.</p>
+            <div className="text-center py-8 md:py-12 px-4 border border-dashed border-border/50 rounded-2xl text-muted-foreground">
+              <User className="h-8 w-8 md:h-10 md:w-10 mx-auto mb-2 md:mb-3 opacity-40" />
+              <p className="text-sm">Cadastre funcionários na aba "Funcionários" primeiro.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
               {activeEmployees.map((e) => (
                 <button
                   key={e.id}
                   onClick={() => { setEmployee(e); setStep(2); }}
-                  className="p-5 rounded-2xl border border-border/50 bg-card/40 hover:border-primary hover:bg-primary/5 transition-all text-center group"
+                  className="p-3 md:p-5 rounded-2xl border border-border/50 bg-card/40 hover:border-primary hover:bg-primary/5 active:bg-primary/10 transition-all text-center group min-h-[112px]"
                 >
-                  <div className="h-16 w-16 mx-auto rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-2xl mb-3 group-hover:scale-110 transition-transform">
+                  <div className="h-12 w-12 md:h-16 md:w-16 mx-auto rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-lg md:text-2xl mb-2 md:mb-3 group-hover:scale-110 transition-transform">
                     {initials(e.name)}
                   </div>
-                  <div className="font-semibold truncate">{e.name}</div>
-                  {e.role && <div className="text-xs text-muted-foreground truncate">{e.role}</div>}
+                  <div className="font-semibold truncate text-sm md:text-base">{e.name}</div>
+                  {e.role && <div className="text-[10px] md:text-xs text-muted-foreground truncate">{e.role}</div>}
                 </button>
               ))}
             </div>
@@ -196,8 +196,8 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => setStep(1)}><ArrowLeft className="h-4 w-4" /></Button>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold">Escolha o produto</h2>
-              <p className="text-sm text-muted-foreground">Imprimindo como <strong>{employee?.name}</strong></p>
+              <h2 className="text-xl md:text-2xl font-bold">Escolha o produto</h2>
+              <p className="text-xs md:text-sm text-muted-foreground truncate">Como <strong>{employee?.name}</strong></p>
             </div>
           </div>
           <div className="relative">
@@ -234,11 +234,11 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
       )}
 
       {step === 3 && product && employee && expiryDate && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-5 space-y-4 bg-card/40">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <Card className="p-3 md:p-5 space-y-3 md:space-y-4 bg-card/40">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" onClick={() => setStep(2)}><ArrowLeft className="h-4 w-4" /></Button>
-              <h2 className="text-xl font-bold flex-1">Confirmar e imprimir</h2>
+              <h2 className="text-lg md:text-xl font-bold flex-1">Confirmar e imprimir</h2>
             </div>
 
             <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-muted/40 text-sm">
@@ -286,10 +286,10 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
           </Card>
 
           {/* Preview */}
-          <Card className="p-5 bg-card/40">
+          <Card className="p-3 md:p-5 bg-card/40 overflow-hidden">
             <div className="text-xs uppercase text-muted-foreground mb-3 font-semibold">Pré-visualização · 80×40mm</div>
             <div
-              className="bg-white text-black font-sans overflow-hidden flex flex-col mx-auto shadow"
+              className="bg-white text-black font-sans overflow-hidden flex flex-col mx-auto shadow max-w-full"
               style={{ width: "340px", minHeight: "170px", padding: "10px 12px", fontSize: "10px", lineHeight: 1.2 }}
             >
               {/* Topo: nome + peso */}
