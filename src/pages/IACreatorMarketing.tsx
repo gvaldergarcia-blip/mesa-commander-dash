@@ -270,6 +270,7 @@ function GalleryTab({
   const [filterType, setFilterType] = useState<string>("all");
   const [filterGoal, setFilterGoal] = useState<string>("all");
   const [filterAudience, setFilterAudience] = useState<string>("all");
+  const [importing, setImporting] = useState(false);
 
   const fetchAssets = async () => {
     if (!restaurantId) return;
@@ -284,6 +285,21 @@ function GalleryTab({
       setAssets(data as any as PromotionAsset[]);
     }
     setLoading(false);
+  };
+
+  const handleImportPack = async () => {
+    if (!restaurantId) return;
+    if (!confirm("Importar 10 imagens demo (Pack Pizzatto) para a galeria?")) return;
+    setImporting(true);
+    try {
+      const { inserted, errors } = await importPizzattoPack(restaurantId);
+      if (inserted > 0) toast.success(`${inserted} imagens adicionadas à galeria!`);
+      if (errors.length) toast.error(`${errors.length} falharam. Veja o console.`);
+      if (errors.length) console.error("Import pack errors:", errors);
+      await fetchAssets();
+    } finally {
+      setImporting(false);
+    }
   };
 
   useEffect(() => {
