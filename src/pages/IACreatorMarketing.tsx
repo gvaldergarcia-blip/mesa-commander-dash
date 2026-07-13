@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { importPizzattoPack } from "@/lib/demo/pizzattoPack";
 import {
   Sparkles,
   Copy,
