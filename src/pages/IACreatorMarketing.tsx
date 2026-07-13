@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { importPizzattoPack } from "@/lib/demo/pizzattoPack";
 import {
   Sparkles,
   Copy,
@@ -269,6 +270,7 @@ function GalleryTab({
   const [filterType, setFilterType] = useState<string>("all");
   const [filterGoal, setFilterGoal] = useState<string>("all");
   const [filterAudience, setFilterAudience] = useState<string>("all");
+  const [importing, setImporting] = useState(false);
 
   const fetchAssets = async () => {
     if (!restaurantId) return;
@@ -283,6 +285,21 @@ function GalleryTab({
       setAssets(data as any as PromotionAsset[]);
     }
     setLoading(false);
+  };
+
+  const handleImportPack = async () => {
+    if (!restaurantId) return;
+    if (!confirm("Importar 10 imagens demo (Pack Pizzatto) para a galeria?")) return;
+    setImporting(true);
+    try {
+      const { inserted, errors } = await importPizzattoPack(restaurantId);
+      if (inserted > 0) toast.success(`${inserted} imagens adicionadas à galeria!`);
+      if (errors.length) toast.error(`${errors.length} falharam. Veja o console.`);
+      if (errors.length) console.error("Import pack errors:", errors);
+      await fetchAssets();
+    } finally {
+      setImporting(false);
+    }
   };
 
   useEffect(() => {
@@ -348,6 +365,15 @@ function GalleryTab({
         <p className="text-xs text-muted-foreground/70">
           Crie sua primeira campanha na aba <strong>Criar</strong> e ela aparecerá aqui.
         </p>
+        <Button
+          onClick={handleImportPack}
+          disabled={importing || !restaurantId}
+          className="mt-6 gap-2"
+          variant="outline"
+        >
+          {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          Importar Pack Demo (10 imagens)
+        </Button>
       </div>
     );
   }
@@ -407,9 +433,21 @@ function GalleryTab({
         <p className="text-sm text-muted-foreground">
           {filtered.length} {filtered.length === 1 ? "campanha" : "campanhas"}
         </p>
-        <Button variant="outline" size="sm" onClick={fetchAssets} className="gap-1.5 text-xs">
-          <RefreshCw className="w-3 h-3" /> Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImportPack}
+            disabled={importing || !restaurantId}
+            className="gap-1.5 text-xs"
+          >
+            {importing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            Importar Pack Demo
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAssets} className="gap-1.5 text-xs">
+            <RefreshCw className="w-3 h-3" /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
