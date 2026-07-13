@@ -365,6 +365,15 @@ function GalleryTab({
         <p className="text-xs text-muted-foreground/70">
           Crie sua primeira campanha na aba <strong>Criar</strong> e ela aparecerá aqui.
         </p>
+        <Button
+          onClick={handleImportPack}
+          disabled={importing || !restaurantId}
+          className="mt-6 gap-2"
+          variant="outline"
+        >
+          {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          Importar Pack Demo (10 imagens)
+        </Button>
       </div>
     );
   }
@@ -424,9 +433,21 @@ function GalleryTab({
         <p className="text-sm text-muted-foreground">
           {filtered.length} {filtered.length === 1 ? "campanha" : "campanhas"}
         </p>
-        <Button variant="outline" size="sm" onClick={fetchAssets} className="gap-1.5 text-xs">
-          <RefreshCw className="w-3 h-3" /> Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImportPack}
+            disabled={importing || !restaurantId}
+            className="gap-1.5 text-xs"
+          >
+            {importing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            Importar Pack Demo
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAssets} className="gap-1.5 text-xs">
+            <RefreshCw className="w-3 h-3" /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
