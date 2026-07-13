@@ -1,10 +1,22 @@
-import { Snowflake, Flame, Thermometer, Refrigerator, Loader2, Hash, User, Calendar } from "lucide-react";
-import { Label } from "@/hooks/useLabels";
+import { useState } from "react";
+import { Snowflake, Flame, Thermometer, Refrigerator, Loader2, Hash, User, Calendar, PackageCheck } from "lucide-react";
+import { Label, useLabels } from "@/hooks/useLabels";
 import { classifyExpiry, CONSERVATION_LABEL, REASON_LABEL } from "@/lib/labels/utils";
 import { getCategoryHex } from "@/lib/labels/categories";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   labels: Label[];
@@ -38,6 +50,23 @@ const leftBorderColor = (l: Label) => {
 };
 
 export function LabelsList({ labels, isLoading }: Props) {
+  const { dischargeBulk } = useLabels();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const handleConfirmDischarge = async () => {
+    if (!confirmId) return;
+    setBusyId(confirmId);
+    try {
+      await dischargeBulk({ ids: [confirmId], reason: "use" });
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao dar baixa");
+    } finally {
+      setBusyId(null);
+      setConfirmId(null);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
@@ -131,10 +160,47 @@ export function LabelsList({ labels, isLoading }: Props) {
                   </span>
                 </div>
               )}
+
+              {!isDischarged && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmId(l.id)}
+                  disabled={busyId === l.id}
+                  className={cn(
+                    "mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors",
+                    "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground",
+                    "disabled:opacity-60 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {busyId === l.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <PackageCheck className="h-3.5 w-3.5" />
+                  )}
+                  Dar baixa
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+
+      <AlertDialog open={!!confirmId} onOpenChange={(open) => !open && setConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dar baixa nesta etiqueta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A etiqueta será marcada como baixada e sairá da lista de vencidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!busyId}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDischarge} disabled={!!busyId}>
+              {busyId ? "Baixando..." : "Confirmar baixa"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
