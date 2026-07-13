@@ -306,9 +306,18 @@ Deno.serve(async (req) => {
       has_image: Boolean(requestData.image_url),
     }));
 
-    if (!requestData.to_phone || !requestData.subject || !requestData.message) {
+    if (!requestData.subject || !requestData.message) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: to_phone, subject, message" }),
+        JSON.stringify({ error: "Missing required fields: subject, message" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const hasPhone = Boolean(requestData.to_phone && requestData.to_phone.replace(/\D/g, "").length >= 10);
+    const hasEmail = Boolean(requestData.to_email && !requestData.to_email.endsWith('@phone.local'));
+    if (!hasPhone && !hasEmail) {
+      return new Response(
+        JSON.stringify({ error: "Cliente sem telefone válido ou e-mail para envio." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -333,25 +342,28 @@ Deno.serve(async (req) => {
       .join("\n")
       .slice(0, 1600);
 
-    const [smsResult, whatsappResult] = await Promise.all([
-      sendTwilioMessage(requestData.to_phone, msgBody, 'sms'),
-      sendTwilioMessage(requestData.to_phone, msgBody, 'whatsapp', deliveryImageUrl),
-    ]);
+    let smsResult: any = { success: false, skipped: true };
+    let whatsappResult: any = { success: false, skipped: true };
+    if (hasPhone) {
+      [smsResult, whatsappResult] = await Promise.all([
+        sendTwilioMessage(requestData.to_phone!, msgBody, 'sms'),
+        sendTwilioMessage(requestData.to_phone!, msgBody, 'whatsapp', deliveryImageUrl),
+      ]);
+      if (smsResult.success) smsSid = smsResult.sid;
+      if (whatsappResult.success) whatsappSid = whatsappResult.sid;
+      console.log("[send-promotion-direct] SMS:", smsResult, "WhatsApp:", whatsappResult);
 
-    if (smsResult.success) smsSid = smsResult.sid;
-    if (whatsappResult.success) whatsappSid = whatsappResult.sid;
-    console.log("[send-promotion-direct] SMS:", smsResult, "WhatsApp:", whatsappResult);
-
-    if (!smsSid) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: smsResult.error || 'Falha ao enviar SMS',
-          sms: smsResult,
-          whatsapp: whatsappResult,
-        }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (!smsSid && !hasEmail) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: smsResult.error || 'Falha ao enviar SMS',
+            sms: smsResult,
+            whatsapp: whatsappResult,
+          }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     if (requestData.to_email && !requestData.to_email.endsWith('@phone.local')) {
@@ -409,6 +421,18 @@ Deno.serve(async (req) => {
         emailLastEvent = emailResponse.last_event ?? null;
         console.log("Promotion email sent successfully:", emailResponse.id);
       }
+    }
+
+    if (!smsSid && !whatsappSid && !emailMessageId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Nenhum canal de envio disponível teve sucesso.',
+          sms: smsResult,
+          whatsapp: whatsappResult,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(
