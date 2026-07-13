@@ -38,13 +38,15 @@ export function useSendPromotion() {
     
     try {
       const normalizedPhone = data.to_phone?.trim();
-      if (!normalizedPhone) {
-        throw new Error('Telefone é obrigatório para enviar promoção por SMS');
+      const normalizedEmail = data.to_email?.trim();
+      if (!normalizedPhone && !normalizedEmail) {
+        throw new Error('Cliente sem telefone ou e-mail para envio');
       }
 
       const normalizedData: PromotionData = {
         ...data,
-        to_phone: normalizedPhone,
+        to_phone: normalizedPhone || undefined,
+        to_email: normalizedEmail || undefined,
         restaurant_name: data.restaurant_name?.trim() || restaurant?.name || 'MesaClik',
       };
 
@@ -65,13 +67,19 @@ export function useSendPromotion() {
       const whatsappSid = response.whatsappSid as string | undefined;
       const lastEvent = (response.last_event ?? null) as string | null;
 
-      if (!smsSid) {
-        throw new Error(response?.error || response?.sms?.error || 'SMS não foi enviado');
+      if (!smsSid && !whatsappSid && !messageId) {
+        throw new Error(response?.error || 'Nenhum canal de envio teve sucesso');
       }
+
+      const channels = [
+        smsSid && 'SMS',
+        whatsappSid && 'WhatsApp',
+        messageId && 'E-mail',
+      ].filter(Boolean).join(' + ');
 
       toast({
         title: '✅ Promoção enviada com sucesso',
-        description: data.to_email ? 'SMS enviado e e-mail disparado quando disponível.' : 'SMS enviado com sucesso.',
+        description: `Enviado por: ${channels}`,
       });
 
       return { success: true, messageId, smsSid, whatsappSid, lastEvent };
@@ -105,22 +113,22 @@ export function useSendPromotion() {
       };
 
       for (const recipient of recipients) {
-        if (!recipient.phone?.trim()) {
+        if (!recipient.phone?.trim() && !recipient.email?.trim()) {
           failed++;
-          console.error('Failed to send promotion: recipient missing phone', recipient);
+          console.error('Failed to send promotion: recipient missing phone and email', recipient);
           continue;
         }
 
         const result = await supabase.functions.invoke('send-promotion-direct', {
           body: {
             ...normalizedPromotionData,
-            to_email: recipient.email,
-            to_phone: recipient.phone.trim(),
+            to_email: recipient.email?.trim() || undefined,
+            to_phone: recipient.phone?.trim() || undefined,
             to_name: recipient.name,
           },
         });
 
-        if (result.error || !result.data?.success || !result.data?.smsSid) {
+        if (result.error || !result.data?.success) {
           failed++;
           console.error(`Failed to send to ${recipient.email || recipient.phone}:`, result.error || result.data);
         } else {
