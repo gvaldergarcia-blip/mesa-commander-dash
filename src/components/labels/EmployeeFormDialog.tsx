@@ -107,7 +107,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       const whatsappOk = (data as any)?.whatsapp?.success;
       const whatsappError = (data as any)?.whatsapp?.error;
       if (smsOk && whatsappOk) toast.success("Teste enviado por SMS e WhatsApp!");
-      else if (smsOk) toast.warning(whatsappError || "SMS enviado, mas o WhatsApp não confirmou envio.");
+      else if (smsOk) toast.success("SMS enviado");
       else if (whatsappOk) toast.success("WhatsApp de teste enviado!");
       else toast.error(whatsappError || (data as any)?.sms?.error || (data as any)?.message || "Falha ao enviar teste");
     } catch (e: any) {
