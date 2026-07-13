@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
@@ -73,8 +74,32 @@ export function useLabels() {
       // Recalc effective status
       return rows.map((l) => ({ ...l, status: getLabelEffectiveStatus(l) }));
     },
-    refetchInterval: 60_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
+
+  // Realtime: refetch when any label_issuance changes (e.g., discharge via QR on mobile)
+  useEffect(() => {
+    if (!restaurantId) return;
+    const channel = supabase
+      .channel(`label_issuances:${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "label_issuances",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurantId, qc]);
 
   const createLabel = useMutation({
     mutationFn: async (input: LabelCreateInput) => {
