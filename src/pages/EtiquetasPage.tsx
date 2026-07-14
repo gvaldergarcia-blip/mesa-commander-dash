@@ -11,6 +11,7 @@ import { EmployeesManager } from "@/components/labels/EmployeesManager";
 import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
 import { ShoppingListTab } from "@/components/labels/ShoppingListTab";
+import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
@@ -39,6 +40,7 @@ export default function EtiquetasPage() {
   const [delTarget, setDelTarget] = useState<LabelProduct | null>(null);
   const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
   const [productSearchFilter, setProductSearchFilter] = useState<string>("");
+  const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
 
   const stats = useMemo(() => computeStats(labels), [labels]);
 
@@ -143,6 +145,12 @@ export default function EtiquetasPage() {
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-5">
+          <SmartReprintCard
+            onPrintProduct={(pid) => {
+              setPrintInitialProduct(pid);
+              setTab("imprimir");
+            }}
+          />
           <LabelDashboard
             labels={labels}
             stats={stats}
@@ -172,7 +180,13 @@ export default function EtiquetasPage() {
         <TabsContent value="imprimir">
           <Card className="p-4 md:p-8 bg-card/30">
             <CardContent className="p-0">
-              <PrintFlow onFinished={() => setTab("dashboard")} />
+              <PrintFlow
+                initialProductId={printInitialProduct}
+                onFinished={() => {
+                  setPrintInitialProduct(null);
+                  setTab("dashboard");
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>
