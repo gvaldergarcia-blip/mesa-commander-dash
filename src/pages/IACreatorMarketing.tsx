@@ -1521,6 +1521,9 @@ export default function IACreatorMarketing() {
           <TabsContent value="galeria">
             <GalleryTab restaurantId={restaurant?.id} onReuse={handleReuse} />
           </TabsContent>
+          <TabsContent value="autopilot">
+            <StudioAutopilotTab />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
