@@ -37,6 +37,7 @@ export interface LabelProductInput {
   allergens?: string | null;
   ingredients?: string | null;
   storage_location?: string | null;
+  auto_reprint_enabled?: boolean;
 }
 
 export function useLabelProducts() {
@@ -78,6 +79,7 @@ export function useLabelProducts() {
           allergens: input.allergens?.trim() || null,
           ingredients: input.ingredients?.trim() || null,
           storage_location: input.storage_location?.trim() || null,
+          auto_reprint_enabled: input.auto_reprint_enabled ?? true,
         })
         .select()
         .single();
@@ -109,6 +111,7 @@ export function useLabelProducts() {
           allergens: input.allergens?.trim() || null,
           ingredients: input.ingredients?.trim() || null,
           storage_location: input.storage_location?.trim() || null,
+          auto_reprint_enabled: input.auto_reprint_enabled ?? undefined,
         })
         .eq("id", id)
         .select()
