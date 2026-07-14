@@ -28,6 +28,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [allergens, setAllergens] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string>("");
   const [storageLocation, setStorageLocation] = useState<string>("");
+  const [autoReprint, setAutoReprint] = useState<boolean>(true);
 
   useEffect(() => {
     if (open) {
@@ -45,6 +46,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       );
       setIngredients(product?.ingredients ?? "");
       setStorageLocation((product as any)?.storage_location ?? "");
+      setAutoReprint((product as any)?.auto_reprint_enabled ?? true);
     }
   }, [open, product]);
 
@@ -70,6 +72,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       allergens: allergens.length ? allergens.join(", ") : null,
       ingredients: ingredients.trim() || null,
       storage_location: storageLocation.trim() || null,
+      auto_reprint_enabled: autoReprint,
     });
     onOpenChange(false);
   };
@@ -177,6 +180,21 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               placeholder="Ex: Geladeira 1, Freezer 2"
               maxLength={50}
             />
+          </div>
+          <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <input
+              id="prod-auto-reprint"
+              type="checkbox"
+              checked={autoReprint}
+              onChange={(e) => setAutoReprint(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <label htmlFor="prod-auto-reprint" className="text-sm cursor-pointer">
+              <span className="font-semibold">Reimpressão automática</span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Quando uma etiqueta deste produto for baixada, o sistema sugere reemitir automaticamente com nova validade.
+              </p>
+            </label>
           </div>
           <div className="space-y-2">
             <Label>Alergênicos (RDC 26/2015) — opcional</Label>

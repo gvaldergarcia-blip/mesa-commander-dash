@@ -31,6 +31,8 @@ import {
   Bot,
   Send,
 } from "lucide-react";
+import { Zap } from "lucide-react";
+import { StudioAutopilotTab } from "@/components/marketing/StudioAutopilotTab";
 import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -881,6 +883,9 @@ export default function IACreatorMarketing() {
             <TabsTrigger value="galeria" className="gap-1.5">
               <Images className="w-3.5 h-3.5" /> Galeria
             </TabsTrigger>
+            <TabsTrigger value="autopilot" className="gap-1.5">
+              <Zap className="w-3.5 h-3.5" /> Piloto automático
+            </TabsTrigger>
           </TabsList>
 
           {/* ── TAB: CRIAR ────────────────────────────── */}
@@ -1515,6 +1520,9 @@ export default function IACreatorMarketing() {
           {/* ── TAB: GALERIA ──────────────────────────── */}
           <TabsContent value="galeria">
             <GalleryTab restaurantId={restaurant?.id} onReuse={handleReuse} />
+          </TabsContent>
+          <TabsContent value="autopilot">
+            <StudioAutopilotTab />
           </TabsContent>
         </Tabs>
       </div>

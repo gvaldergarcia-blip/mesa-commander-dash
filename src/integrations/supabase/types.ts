@@ -1599,6 +1599,8 @@ export type Database = {
       label_products: {
         Row: {
           allergens: string | null
+          auto_discharge_after_hours: number | null
+          auto_reprint_enabled: boolean
           category: string | null
           cif: string | null
           conservation_method: string
@@ -1618,6 +1620,8 @@ export type Database = {
         }
         Insert: {
           allergens?: string | null
+          auto_discharge_after_hours?: number | null
+          auto_reprint_enabled?: boolean
           category?: string | null
           cif?: string | null
           conservation_method?: string
@@ -1637,6 +1641,8 @@ export type Database = {
         }
         Update: {
           allergens?: string | null
+          auto_discharge_after_hours?: number | null
+          auto_reprint_enabled?: boolean
           category?: string | null
           cif?: string | null
           conservation_method?: string
@@ -1660,6 +1666,57 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "label_product_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_reprint_queue: {
+        Row: {
+          created_at: string
+          id: string
+          label_product_id: string
+          resolved_at: string | null
+          restaurant_id: string
+          source_label_id: string | null
+          status: string
+          suggested_at: string
+          suggested_reason: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label_product_id: string
+          resolved_at?: string | null
+          restaurant_id: string
+          source_label_id?: string | null
+          status?: string
+          suggested_at?: string
+          suggested_reason?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label_product_id?: string
+          resolved_at?: string | null
+          restaurant_id?: string
+          source_label_id?: string | null
+          status?: string
+          suggested_at?: string
+          suggested_reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_reprint_queue_label_product_id_fkey"
+            columns: ["label_product_id"]
+            isOneToOne: false
+            referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_reprint_queue_source_label_id_fkey"
+            columns: ["source_label_id"]
+            isOneToOne: false
+            referencedRelation: "label_issuances"
             referencedColumns: ["id"]
           },
         ]
@@ -3063,7 +3120,10 @@ export type Database = {
           customer_phone: string | null
           id: string
           internal_notes: string | null
+          last_gps_visit_at: string | null
           last_seen_at: string
+          location_consent: boolean
+          location_consent_at: string | null
           loyalty_program_active: boolean
           marketing_optin: boolean
           marketing_optin_at: string | null
@@ -3092,7 +3152,10 @@ export type Database = {
           customer_phone?: string | null
           id?: string
           internal_notes?: string | null
+          last_gps_visit_at?: string | null
           last_seen_at?: string
+          location_consent?: boolean
+          location_consent_at?: string | null
           loyalty_program_active?: boolean
           marketing_optin?: boolean
           marketing_optin_at?: string | null
@@ -3121,7 +3184,10 @@ export type Database = {
           customer_phone?: string | null
           id?: string
           internal_notes?: string | null
+          last_gps_visit_at?: string | null
           last_seen_at?: string
+          location_consent?: boolean
+          location_consent_at?: string | null
           loyalty_program_active?: boolean
           marketing_optin?: boolean
           marketing_optin_at?: string | null
@@ -3515,6 +3581,7 @@ export type Database = {
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
           current_plan: string | null
           device_fingerprint: string | null
+          gps_geofence_radius_m: number
           has_queue: boolean | null
           has_reservation: boolean | null
           home_priority: number
@@ -3524,6 +3591,8 @@ export type Database = {
           is_featured_novidades: boolean
           is_featured_queue: boolean
           is_featured_reservation: boolean
+          latitude: number | null
+          longitude: number | null
           menu_dishes_extracted_at: string | null
           menu_url: string | null
           name: string
@@ -3553,6 +3622,7 @@ export type Database = {
           cuisine: Database["public"]["Enums"]["cuisine_enum"]
           current_plan?: string | null
           device_fingerprint?: string | null
+          gps_geofence_radius_m?: number
           has_queue?: boolean | null
           has_reservation?: boolean | null
           home_priority?: number
@@ -3562,6 +3632,8 @@ export type Database = {
           is_featured_novidades?: boolean
           is_featured_queue?: boolean
           is_featured_reservation?: boolean
+          latitude?: number | null
+          longitude?: number | null
           menu_dishes_extracted_at?: string | null
           menu_url?: string | null
           name: string
@@ -3591,6 +3663,7 @@ export type Database = {
           cuisine?: Database["public"]["Enums"]["cuisine_enum"]
           current_plan?: string | null
           device_fingerprint?: string | null
+          gps_geofence_radius_m?: number
           has_queue?: boolean | null
           has_reservation?: boolean | null
           home_priority?: number
@@ -3600,6 +3673,8 @@ export type Database = {
           is_featured_novidades?: boolean
           is_featured_queue?: boolean
           is_featured_reservation?: boolean
+          latitude?: number | null
+          longitude?: number | null
           menu_dishes_extracted_at?: string | null
           menu_url?: string | null
           name?: string
@@ -3984,6 +4059,87 @@ export type Database = {
           product_name?: string
           restaurant_id?: string
           status?: string
+        }
+        Relationships: []
+      }
+      studio_autopilot_settings: {
+        Row: {
+          auto_publish: boolean
+          categories: string[]
+          created_at: string
+          enabled: boolean
+          last_generated_at: string | null
+          restaurant_id: string
+          updated_at: string
+          weekly_target: number
+        }
+        Insert: {
+          auto_publish?: boolean
+          categories?: string[]
+          created_at?: string
+          enabled?: boolean
+          last_generated_at?: string | null
+          restaurant_id: string
+          updated_at?: string
+          weekly_target?: number
+        }
+        Update: {
+          auto_publish?: boolean
+          categories?: string[]
+          created_at?: string
+          enabled?: boolean
+          last_generated_at?: string | null
+          restaurant_id?: string
+          updated_at?: string
+          weekly_target?: number
+        }
+        Relationships: []
+      }
+      studio_weekly_suggestions: {
+        Row: {
+          created_at: string
+          dish_id: string | null
+          dish_name: string | null
+          id: string
+          image_url: string | null
+          resolved_at: string | null
+          restaurant_id: string
+          reuses_asset_id: string | null
+          status: string
+          suggested_copy: string
+          suggested_hashtags: string | null
+          suggested_publish_at: string | null
+          week_of: string
+        }
+        Insert: {
+          created_at?: string
+          dish_id?: string | null
+          dish_name?: string | null
+          id?: string
+          image_url?: string | null
+          resolved_at?: string | null
+          restaurant_id: string
+          reuses_asset_id?: string | null
+          status?: string
+          suggested_copy: string
+          suggested_hashtags?: string | null
+          suggested_publish_at?: string | null
+          week_of?: string
+        }
+        Update: {
+          created_at?: string
+          dish_id?: string | null
+          dish_name?: string | null
+          id?: string
+          image_url?: string | null
+          resolved_at?: string | null
+          restaurant_id?: string
+          reuses_asset_id?: string | null
+          status?: string
+          suggested_copy?: string
+          suggested_hashtags?: string | null
+          suggested_publish_at?: string | null
+          week_of?: string
         }
         Relationships: []
       }
@@ -4779,6 +4935,14 @@ export type Database = {
         }
         Returns: Json
       }
+      register_gps_visit: {
+        Args: {
+          p_customer_token: string
+          p_latitude: number
+          p_longitude: number
+        }
+        Returns: Json
+      }
       rotate_customer_visits_monthly: { Args: never; Returns: undefined }
       schedule_dish_campaign: {
         Args: {
@@ -4799,6 +4963,10 @@ export type Database = {
           p_source?: string
         }
         Returns: string
+      }
+      set_customer_location_consent: {
+        Args: { p_latitude: number; p_longitude: number; p_token: string }
+        Returns: Json
       }
       set_whatsapp_config: {
         Args: {

@@ -1,107 +1,85 @@
-## Sistema de Notificações SMS para Funcionários (Etiquetas)
+# Plano de execução — Automação total (Etiquetas + GPS + Studio IA)
 
-### Objetivo
-Enviar relatório diário por SMS ao chef/funcionário com status das etiquetas do seu(s) setor(es), alertas imediatos de vencimento, e expor configuração + histórico no painel.
-
----
-
-### 1. Banco de dados (migration)
-
-**Adicionar colunas em `label_employees`:**
-- `sms_daily_enabled boolean default false`
-- `sms_daily_hour int default 8` (06–23)
-- `sms_immediate_alerts boolean default true`
-- `sms_include_checklists boolean default false`
-- (telefone já existe em `whatsapp_phone`)
-
-**Nova tabela `label_sms_logs`:**
-- `id, restaurant_id, employee_id (nullable), phone, message, status ('sent'|'failed'|'delivered'), error, kind ('daily'|'expiry_alert'|'test'|'manual'), sent_at`
-- RLS: membros do restaurante leem; service_role full.
-- GRANTs corretos.
+Três frentes independentes, entregues em ordem de impacto. Nenhuma remove funcionalidade existente — todas somam camadas de automação.
 
 ---
 
-### 2. UI — Perfil do funcionário (`EmployeeFormDialog`)
+## Frente 1 — Etiquetas Autônomas ("cadastre uma vez, o sistema trabalha sozinho")
 
-Nova seção "Notificações SMS" com:
-- Toggle **Receber relatório diário**
-- Dropdown **Horário** (06:00 → 23:00)
-- Toggle **Alertas imediatos de vencimento**
-- Toggle **Incluir resumo de checklists**
-- Telefone (já existe, manter validação BR)
-- Botão **Enviar teste agora** → chama edge `send-label-daily-report` em modo `test`
+**Regra atual:** o operador abre o PrintFlow, escolhe produto, preenche data, imprime.
+**Regra nova:** o produto já tem validade padrão cadastrada — o sistema decide, imprime em lote e avisa sozinho.
 
-Persistir novos campos via `useLabelEmployees`.
+### O que muda
+1. **Cadastro único enriquecido** (`label_products`): adicionar `default_shelf_life_hours`, `default_conservation`, `auto_reprint_enabled`, `preferred_printer_label`.
+2. **Baixa = re-emissão automática:** quando uma etiqueta é dada como `discharged` via QR, um trigger cria uma pendência de nova etiqueta (mesmo produto, nova validade calculada). Fila aparece em "Etiquetas → Pendentes de reimpressão".
+3. **Impressão em lote diária (Sugestão do dia):** ao abrir a página de Etiquetas de manhã, um card mostra "12 etiquetas sugeridas para hoje" baseado no histórico de consumo do restaurante (média móvel de 14 dias por produto). 1 clique imprime todas.
+4. **Alertas proativos já existem** (`check-label-expiry-alerts`) — vou ampliar para incluir "produto X costuma vencer hoje neste horário, quer reemitir?".
+5. **Auto-baixa por vencimento + registro:** etiqueta vencida há mais de X horas (config) entra em `auto_discharged` para não poluir o dashboard.
 
----
-
-### 3. Edge functions
-
-**`send-label-daily-report`** (nova)
-- Input: `{ employee_id, mode: 'scheduled'|'test'|'expiry_alert', triggered_label_id? }`
-- Carrega funcionário, setores, e:
-  - Etiquetas do restaurante nos setores do funcionário
-  - Conta: vencidas, vence hoje, vence em 24h, ok
-  - Opcional: itens de checklist pendentes/atrasados
-- Monta mensagem ≤320 chars:
-  ```
-  [MESACLIK] Olá {nome}.
-  Vencidas: X | Hoje: Y | 24h: Z
-  ⚠ Atenção: {3 primeiros itens}
-  Painel: {link}
-  ```
-  Se tudo ok → `Tudo dentro do prazo ✅` no lugar.
-- Chama `send-sms` interno (delegação SMS já documentada).
-- Grava `label_sms_logs`.
-- Retorna preview da mensagem.
-
-**`schedule-label-sms-reports`** (nova, agendada por cron)
-- Roda a cada hora (`0 * * * *`).
-- Seleciona funcionários com `sms_daily_enabled=true` e `sms_daily_hour = hora-atual-no-fuso-do-restaurante` (assumir America/Sao_Paulo).
-- Invoca `send-label-daily-report` em modo `scheduled` para cada.
-
-**Trigger de alerta imediato:**
-- Em `useLabelProducts`/onde marca etiqueta vencida, ou via cron mais granular (a cada 15 min) verificando etiquetas que **acabaram de vencer** e ainda não tiveram alerta enviado (usar `label_sms_logs` para deduplicar por `triggered_label_id`).
-- Para simplificar: rodar a cada 15 min `check-label-expiry-alerts` que detecta `expires_at <= now()` sem log de alerta, e dispara para funcionários do setor com `sms_immediate_alerts=true`.
-
-Cron via `pg_cron` + `pg_net` (inserts em `supabase.insert`, não migration).
+### Entregáveis técnicos
+- Migração: novas colunas em `label_products`, tabela `label_reprint_queue`, trigger `on_label_discharged_enqueue_reprint`.
+- Hook `useLabelReprintQueue`.
+- Componente `SmartReprintCard` no topo da lista de etiquetas.
+- Update de `check-label-expiry-alerts` para sugerir reemissão.
+- Config de `default_shelf_life_hours` no `ProductFormDialog`.
 
 ---
 
-### 4. Tela de logs
+## Frente 2 — Visitas por GPS (opt-in de promoções = compartilha localização)
 
-**Etiquetas > Relatórios > aba "Histórico de SMS"**
-- Lista paginada de `label_sms_logs`: data/hora, destinatário (nome + telefone mascarado), tipo, status, preview da mensagem (expandir para ver completa).
-- Filtros: período, funcionário, status.
+**Fluxo novo do cliente final:**
+1. Cliente entra na landing de opt-in de promoções (existe em `MarketingOptIn.tsx`).
+2. Ao marcar "Quero receber promoções", o browser pede permissão de geolocalização.
+3. Sem permissão → não completa opt-in (regra opcional, configurável por restaurante).
+4. Com permissão → salva `location_consent = true` + geofence do restaurante em `restaurant_customers`.
+5. Um Service Worker leve (ou verificação periódica via PWA) checa proximidade. Ao entrar no raio de 80m do restaurante por mais de 3 min → dispara `register-gps-visit` que insere em `customer_visits` com `source = 'gps'`.
 
----
+### Entregáveis técnicos
+- Migração: colunas `location_consent`, `location_consent_at`, `last_gps_visit_at` em `restaurant_customers`; colunas `latitude`, `longitude`, `gps_geofence_radius_m` em `restaurants` (se ainda não existirem).
+- Edge function `register-gps-visit` (SECURITY DEFINER RPC internamente, valida distância server-side com Haversine).
+- Componente `GpsConsentGate` em `MarketingOptIn.tsx`.
+- Hook `useGeofenceTracker` (usa `navigator.geolocation.watchPosition` só quando página aberta; para background real é preciso app nativo — anotado como Fase 2).
+- Card "Visitas por GPS" no CRM do cliente mostrando histórico com pin no mapa.
 
-### 5. Conteúdo / regras
-
-- Sempre prefixo `[MESACLIK]`.
-- Sempre link ao painel no fim (`https://app.mesaclik.com.br/etiquetas`).
-- ≤320 chars (validar antes de enviar; truncar lista de itens se exceder).
-- Tudo ok → uma linha resumo positiva.
-- Alertas imediatos ignoram horário.
-
----
-
-### 6. Telefone do chef para teste
-
-O número que receberá o SMS é o cadastrado em `whatsapp_phone` do funcionário (chef). O botão **Enviar teste agora** garante validação ponta-a-ponta antes de ativar o envio diário.
+### Limitações honestas
+- Web puro só rastreia com a aba aberta. Para tracking em background de verdade precisamos do app Capacitor (já temos base). Vou entregar a versão web + deixar o gancho pronto para o mobile.
 
 ---
 
-### Arquivos previstos
-- Migration: colunas + tabela `label_sms_logs`
-- `supabase/functions/send-label-daily-report/index.ts`
-- `supabase/functions/schedule-label-sms-reports/index.ts`
-- `supabase/functions/check-label-expiry-alerts/index.ts`
-- `src/components/labels/EmployeeFormDialog.tsx` (nova seção)
-- `src/hooks/useLabelEmployees.ts` (novos campos)
-- `src/hooks/useLabelSmsLogs.ts` (novo)
-- `src/components/labels/SmsLogsTab.tsx` (novo)
-- `src/pages/EtiquetasPage.tsx` (nova aba em Relatórios)
-- SQL cron via insert tool
+## Frente 3 — MesaClik Studio Autônomo (redes sociais no automático)
 
-Tudo pronto para implementação após aprovação.
+**Regra atual:** operador abre o Studio, digita prompt, gera imagem, aprova, agenda.
+**Regra nova:** o Studio propõe conteúdo semanal sozinho, o dono só aprova/edita.
+
+### O que muda
+1. **Piloto automático semanal:** cron dominical roda `social-suggest-daily` para cada restaurante ativo com Studio ligado. Gera 3-5 sugestões (imagem + copy + melhor horário) para a semana inteira, baseadas em:
+   - Cardápio real (`menu_dishes`) — rotaciona pratos que não apareceram nos últimos 30 dias.
+   - Dias especiais (`restaurant_special_dates`).
+   - Datas comerciais nacionais (Dia dos Namorados, Sexta-feira, etc. — tabela `commercial_dates` seed).
+2. **Fila de aprovação em 1 clique:** nova aba "Aprovar da semana" no Studio com swipe (aprova/pula/edita).
+3. **Auto-post opcional:** quando o restaurante marca "confio, publique sozinho", agendamentos aprovados vão direto para o `dispatch-dish-campaigns` (já existe).
+4. **Reuso inteligente de imagens** — resolve a queixa "alimentar imagens dá trabalho": o Studio prioriza reaproveitar assets já em `promotions_assets` variando só a copy, e só gera imagem nova quando não há material adequado. Reduz de "toda semana subir foto" para "1 sessão de fotos por mês + IA rotacionando".
+
+### Entregáveis técnicos
+- Migração: `studio_autopilot_settings` (por restaurante: enabled, frequency, auto_publish, categories), `studio_weekly_suggestions`.
+- Cron: `schedule-studio-weekly` (domingo 08:00 SP).
+- Update do `social-suggest-daily` para modo semanal em lote.
+- Aba "Piloto automático" em `IACreatorMarketing.tsx` com toggle master + tabela de sugestões pendentes.
+- Componente `WeeklyApprovalQueue`.
+
+---
+
+## Ordem de execução
+
+```text
+Dia 1: Frente 1 (Etiquetas autônomas)  ── mais próximo do que já existe, entrega rápida
+Dia 2: Frente 3 (Studio autopilot)     ── reutiliza edge functions atuais
+Dia 3: Frente 2 (GPS visitas)          ── mais delicada por permissões e privacidade
+```
+
+## Fora do escopo (backlog explícito)
+- Rastreamento GPS em background real (exige app nativo Capacitor publicado).
+- Integração direta com impressora térmica via Bluetooth (hoje é `window.print`).
+- Publicação real no Instagram/Facebook API (hoje é agendamento interno; integração Meta Graph API é fase futura).
+
+Confirma que sigo nessa ordem?

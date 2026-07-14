@@ -25,7 +25,7 @@ type Step = 1 | 2 | 3;
 const initials = (name: string) =>
   name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 
-export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
+export function PrintFlow({ onFinished, initialProductId }: { onFinished?: () => void; initialProductId?: string | null }) {
   const [step, setStep] = useState<Step>(1);
   const { activeEmployees, isLoading: empLoading } = useLabelEmployees();
   const { products, isLoading: prodLoading } = useLabelProducts();
@@ -35,6 +35,16 @@ export function PrintFlow({ onFinished }: { onFinished?: () => void }) {
   const [employee, setEmployee] = useState<LabelEmployee | null>(null);
   const [product, setProduct] = useState<LabelProduct | null>(null);
   const [productSearch, setProductSearch] = useState("");
+
+  useEffect(() => {
+    if (initialProductId && products.length && !product) {
+      const p = products.find((x) => x.id === initialProductId);
+      if (p) {
+        setProduct(p);
+        setStep(3);
+      }
+    }
+  }, [initialProductId, products, product]);
 
   const [now, setNow] = useState(new Date());
   const [batch, setBatch] = useState("");
