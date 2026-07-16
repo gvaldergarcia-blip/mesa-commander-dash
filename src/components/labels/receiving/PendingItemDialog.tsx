@@ -12,6 +12,28 @@ import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { toast } from "sonner";
 import { useReceipts } from "@/hooks/useReceipts";
 
+// Days between today (00:00) and a YYYY-MM-DD date, minimum 1.
+function daysUntil(dateStr: string): number {
+  if (!dateStr) return 1;
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return 1;
+  const target = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getTime();
+  const today = new Date();
+  const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const diff = Math.round((target - todayUTC) / 86400000);
+  return Math.max(1, diff);
+}
+
+// Default date = today + N days, formatted YYYY-MM-DD for <input type="date">.
+function todayPlus(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -37,13 +59,13 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
 
   // new product minimal fields
   const [name, setName] = useState("");
-  const [validity, setValidity] = useState<number>(3);
+  const [validityDate, setValidityDate] = useState<string>(todayPlus(3));
   const [conservation, setConservation] = useState<string>("refrigerated");
   const [category, setCategory] = useState<string>("");
   const [location, setLocation] = useState<string>("");
 
   // existing product patch fields (only missing)
-  const [patchValidity, setPatchValidity] = useState<number>(3);
+  const [patchValidityDate, setPatchValidityDate] = useState<string>(todayPlus(3));
   const [patchConservation, setPatchConservation] = useState<string>("refrigerated");
   const [patchCategory, setPatchCategory] = useState<string>("");
   const [patchLocation, setPatchLocation] = useState<string>("");
@@ -70,7 +92,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
         // create minimal product
         const created = await createProduct({
           name: name.trim() || item.raw_name.trim(),
-          validity_days: validity || 3,
+          validity_days: daysUntil(validityDate),
           conservation_method: (conservation as any) || "refrigerated",
           category: category || null,
           storage_location: location || null,
@@ -82,7 +104,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
         productId = linkProductId;
         // patch missing fields on that product
         const patch: any = {};
-        if (needs.includes("validade pós-abertura")) patch.validity_days = patchValidity;
+        if (needs.includes("validade pós-abertura")) patch.validity_days = daysUntil(patchValidityDate);
         if (needs.includes("conservação")) patch.conservation_method = patchConservation;
         if (needs.includes("setor")) patch.category = patchCategory;
         if (needs.includes("local")) patch.storage_location = patchLocation;
@@ -160,8 +182,16 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
 
               {needs.includes("validade pós-abertura") && (
                 <div className="space-y-1.5">
-                  <Label>Validade pós-abertura (dias)</Label>
-                  <Input type="number" min="1" value={patchValidity} onChange={(e) => setPatchValidity(parseInt(e.target.value) || 1)} />
+                  <Label>Validade (data)</Label>
+                  <Input
+                    type="date"
+                    min={todayPlus(0)}
+                    value={patchValidityDate}
+                    onChange={(e) => setPatchValidityDate(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {daysUntil(patchValidityDate)} dia(s) a partir de hoje
+                  </p>
                 </div>
               )}
               {needs.includes("conservação") && (
@@ -204,8 +234,16 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Validade (dias)</Label>
-                  <Input type="number" min="1" value={validity} onChange={(e) => setValidity(parseInt(e.target.value) || 1)} />
+                  <Label>Validade (data)</Label>
+                  <Input
+                    type="date"
+                    min={todayPlus(0)}
+                    value={validityDate}
+                    onChange={(e) => setValidityDate(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {daysUntil(validityDate)} dia(s) a partir de hoje
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Conservação</Label>
