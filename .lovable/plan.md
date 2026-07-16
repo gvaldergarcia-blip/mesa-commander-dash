@@ -1,85 +1,126 @@
-# Plano de execução — Automação total (Etiquetas + GPS + Studio IA)
+# MesaClik como Sistema Operacional da Cozinha (escopo: /etiquetas)
 
-Três frentes independentes, entregues em ordem de impacto. Nenhuma remove funcionalidade existente — todas somam camadas de automação.
+Toda mudança fica **dentro do módulo Etiquetas**. Nenhum outro módulo do app é tocado.
 
----
+## Diagnóstico
 
-## Frente 1 — Etiquetas Autônomas ("cadastre uma vez, o sistema trabalha sozinho")
+Dentro de `/etiquetas` temos 9 abas que hoje funcionam como ilhas: Dashboard, Recebimento, Etiquetas, Imprimir, Compras, Estoque, Produtos, Funcionários, SMS. Cada uma grava numa tabela própria. Não existe uma fonte única que descreva "o que aconteceu na cozinha hoje". Recebimento virou mais uma ilha.
 
-**Regra atual:** o operador abre o PrintFlow, escolhe produto, preenche data, imprime.
-**Regra nova:** o produto já tem validade padrão cadastrada — o sistema decide, imprime em lote e avisa sozinho.
+## Princípio
 
-### O que muda
-1. **Cadastro único enriquecido** (`label_products`): adicionar `default_shelf_life_hours`, `default_conservation`, `auto_reprint_enabled`, `preferred_printer_label`.
-2. **Baixa = re-emissão automática:** quando uma etiqueta é dada como `discharged` via QR, um trigger cria uma pendência de nova etiqueta (mesmo produto, nova validade calculada). Fila aparece em "Etiquetas → Pendentes de reimpressão".
-3. **Impressão em lote diária (Sugestão do dia):** ao abrir a página de Etiquetas de manhã, um card mostra "12 etiquetas sugeridas para hoje" baseado no histórico de consumo do restaurante (média móvel de 14 dias por produto). 1 clique imprime todas.
-4. **Alertas proativos já existem** (`check-label-expiry-alerts`) — vou ampliar para incluir "produto X costuma vencer hoje neste horário, quer reemitir?".
-5. **Auto-baixa por vencimento + registro:** etiqueta vencida há mais de X horas (config) entra em `auto_discharged` para não poluir o dashboard.
-
-### Entregáveis técnicos
-- Migração: novas colunas em `label_products`, tabela `label_reprint_queue`, trigger `on_label_discharged_enqueue_reprint`.
-- Hook `useLabelReprintQueue`.
-- Componente `SmartReprintCard` no topo da lista de etiquetas.
-- Update de `check-label-expiry-alerts` para sugerir reemissão.
-- Config de `default_shelf_life_hours` no `ProductFormDialog`.
-
----
-
-## Frente 2 — Visitas por GPS (opt-in de promoções = compartilha localização)
-
-**Fluxo novo do cliente final:**
-1. Cliente entra na landing de opt-in de promoções (existe em `MarketingOptIn.tsx`).
-2. Ao marcar "Quero receber promoções", o browser pede permissão de geolocalização.
-3. Sem permissão → não completa opt-in (regra opcional, configurável por restaurante).
-4. Com permissão → salva `location_consent = true` + geofence do restaurante em `restaurant_customers`.
-5. Um Service Worker leve (ou verificação periódica via PWA) checa proximidade. Ao entrar no raio de 80m do restaurante por mais de 3 min → dispara `register-gps-visit` que insere em `customer_visits` com `source = 'gps'`.
-
-### Entregáveis técnicos
-- Migração: colunas `location_consent`, `location_consent_at`, `last_gps_visit_at` em `restaurant_customers`; colunas `latitude`, `longitude`, `gps_geofence_radius_m` em `restaurants` (se ainda não existirem).
-- Edge function `register-gps-visit` (SECURITY DEFINER RPC internamente, valida distância server-side com Haversine).
-- Componente `GpsConsentGate` em `MarketingOptIn.tsx`.
-- Hook `useGeofenceTracker` (usa `navigator.geolocation.watchPosition` só quando página aberta; para background real é preciso app nativo — anotado como Fase 2).
-- Card "Visitas por GPS" no CRM do cliente mostrando histórico com pin no mapa.
-
-### Limitações honestas
-- Web puro só rastreia com a aba aberta. Para tracking em background de verdade precisamos do app Capacitor (já temos base). Vou entregar a versão web + deixar o gancho pronto para o mobile.
-
----
-
-## Frente 3 — MesaClik Studio Autônomo (redes sociais no automático)
-
-**Regra atual:** operador abre o Studio, digita prompt, gera imagem, aprova, agenda.
-**Regra nova:** o Studio propõe conteúdo semanal sozinho, o dono só aprova/edita.
-
-### O que muda
-1. **Piloto automático semanal:** cron dominical roda `social-suggest-daily` para cada restaurante ativo com Studio ligado. Gera 3-5 sugestões (imagem + copy + melhor horário) para a semana inteira, baseadas em:
-   - Cardápio real (`menu_dishes`) — rotaciona pratos que não apareceram nos últimos 30 dias.
-   - Dias especiais (`restaurant_special_dates`).
-   - Datas comerciais nacionais (Dia dos Namorados, Sexta-feira, etc. — tabela `commercial_dates` seed).
-2. **Fila de aprovação em 1 clique:** nova aba "Aprovar da semana" no Studio com swipe (aprova/pula/edita).
-3. **Auto-post opcional:** quando o restaurante marca "confio, publique sozinho", agendamentos aprovados vão direto para o `dispatch-dish-campaigns` (já existe).
-4. **Reuso inteligente de imagens** — resolve a queixa "alimentar imagens dá trabalho": o Studio prioriza reaproveitar assets já em `promotions_assets` variando só a copy, e só gera imagem nova quando não há material adequado. Reduz de "toda semana subir foto" para "1 sessão de fotos por mês + IA rotacionando".
-
-### Entregáveis técnicos
-- Migração: `studio_autopilot_settings` (por restaurante: enabled, frequency, auto_publish, categories), `studio_weekly_suggestions`.
-- Cron: `schedule-studio-weekly` (domingo 08:00 SP).
-- Update do `social-suggest-daily` para modo semanal em lote.
-- Aba "Piloto automático" em `IACreatorMarketing.tsx` com toggle master + tabela de sugestões pendentes.
-- Componente `WeeklyApprovalQueue`.
-
----
-
-## Ordem de execução
+Toda ação da cozinha é um **evento** gravado numa única timeline. As abas viram *janelas* sobre essa timeline. Etiquetas, estoque, relatórios e IA são **consequências automáticas** — nunca dados digitados de novo.
 
 ```text
-Dia 1: Frente 1 (Etiquetas autônomas)  ── mais próximo do que já existe, entrega rápida
-Dia 2: Frente 3 (Studio autopilot)     ── reutiliza edge functions atuais
-Dia 3: Frente 2 (GPS visitas)          ── mais delicada por permissões e privacidade
+                       ┌──────────────────────────┐
+  Recebimento (XML/CSV)│                          │──► Etiquetas (auto)
+  Manipulação          │   kitchen_events         │──► Estoque (auto)
+  Consumo / Perda      │   (fonte única)          │──► Diário Operacional
+  Transferência        │                          │──► Relatórios
+  Impressão / Baixa    └──────────────────────────┘──► IA / Alertas
 ```
 
-## Fora do escopo (backlog explícito)
-- Rastreamento GPS em background real (exige app nativo Capacitor publicado).
-- Integração direta com impressora térmica via Bluetooth (hoje é `window.print`).
-- Publicação real no Instagram/Facebook API (hoje é agendamento interno; integração Meta Graph API é fase futura).
+## Nova arquitetura de dados
 
-Confirma que sigo nessa ordem?
+### 1. `kitchen_events` (nova — coração do módulo)
+Registro imutável. Campos:
+- `event_type` enum: `receipt`, `label_issued`, `label_discharged`, `manipulation`, `consumption`, `loss`, `transfer`, `stock_check`, `purchase_request`
+- `product_id`, `supplier_id`, `employee_id`, `receipt_id`, `label_id` (nullable)
+- `quantity numeric`, `unit text` (opcionais hoje, preparados p/ futuro quantitativo)
+- `occurred_at`, `payload jsonb`
+- `restaurant_id` + RLS por membership + grants
+
+### 2. Tabelas atuais viram projeções
+- `label_issuances`, `label_receipts`, `label_discharges`, `label_stock_movements`, `stock_check_logs`: mantidas. **Triggers** espelham cada insert para `kitchen_events`.
+- `product_stock_status` (Ok/Falta): permanece — passa a ser complementada pela view de saldo.
+- `label_reprint_queue`: continua, disparada por evento `label_discharged` quando `auto_reprint = true`.
+
+### 3. Views derivadas
+- `v_operational_diary` — feed cronológico com joins em produto/fornecedor/funcionário.
+- `v_stock_balance` — soma entradas − saídas por produto. Retorna `null` enquanto `quantity` não for preenchida; funcional para "o que existe hoje" desde já.
+
+### 4. Preparado para o futuro (sem UI agora)
+- **Quantidade real**: campos já existem em `kitchen_events`.
+- **Saídas manuais**: basta inserir evento `consumption` — motor pronto.
+- **Alertas** ("800g de parmesão vencem amanhã"): view cruza `v_stock_balance` × validade das etiquetas ativas.
+- **Sugestão de compra**: cron lê saldo < mínimo e gera `purchase_request`.
+- **IA**: treina em cima de `kitchen_events`.
+
+## Reorganização das abas (dentro de /etiquetas)
+
+De 9 abas para **4 áreas**:
+
+```text
+1. HOJE (nova aba default)
+   ├─ Diário operacional (feed de eventos em tempo real)
+   ├─ Alertas (vence hoje, faltas, sugestões)
+   └─ Ações rápidas (nova etiqueta, novo recebimento)
+
+2. ENTRADAS
+   ├─ Recebimento (XML/CSV/PDF, manual como fallback)
+   ├─ Fornecedores
+   └─ Histórico
+
+3. OPERAÇÃO
+   ├─ Etiquetas ativas
+   ├─ Impressão avulsa
+   ├─ Estoque (check rápido; saldo quantitativo futuro)
+   └─ Baixas / Perdas / Transferências (esqueleto pronto, UI depois)
+
+4. CADASTROS
+   ├─ Produtos (+ Catálogo MesaClik)
+   ├─ Funcionários + SMS
+   └─ Relatórios
+```
+
+Botão "Nova etiqueta" continua existindo como atalho — passa a gravar evento `label_issued` no mesmo fluxo.
+
+## Fluxo unificado (exemplo)
+
+Fornecedor entrega mussarela na terça:
+
+```text
+1. Arrasta XML da NF-e            → parse
+2. Sistema faz matching           → 8 conhecidos, 2 pendentes
+3. Preenche só o que falta        → validade/setor dos 2
+4. Um clique em "Confirmar"       → dispara:
+     • N eventos `receipt`
+     • N eventos `label_issued` (auto)
+     • Aprende aliases
+     • Atualiza fornecedor padrão
+     • Atualiza saldo
+     • Aparece no Diário
+     • Reprint queue se auto_reprint
+     • Alertas recalculam
+```
+
+Nenhuma outra tela precisa ser tocada.
+
+## Plano de migração (sem quebrar nada)
+
+**Passo 1 — Fundação SQL**
+- `kitchen_events` + enum + RLS + grants
+- Views `v_operational_diary` e `v_stock_balance`
+- Triggers de espelhamento em `label_issuances`, `label_receipts`, `label_discharges`, `label_stock_movements`, `stock_check_logs`
+- Backfill dos últimos 90 dias
+
+**Passo 2 — Aba "Hoje"**
+- Nova aba em `EtiquetasPage` alimentada por `v_operational_diary`
+- Vira aba default (Dashboard atual permanece acessível)
+
+**Passo 3 — Recebimento grava via evento**
+- `useReceipts` passa por RPC transacional que cria receipt + itens + movimentos + eventos + etiquetas + aliases num só passo
+- Visualmente idêntico ao usuário
+
+**Passo 4 — Consolidação das abas**
+- Agrupar as 9 abas nas 4 áreas
+- Manter as antigas por 1 ciclo com redirect
+
+**Passo 5 — Campos quantitativos opcionais**
+- `quantity` / `unit` opcionais no recebimento
+- Começa a acumular dado para IA
+
+Cada passo é independente e reversível. Nada fora de `/etiquetas` é tocado.
+
+---
+
+**Se aprovar, começo pelo Passo 1** (migração + triggers + views) — fundação que destrava o resto sem alterar nenhuma tela ainda.
