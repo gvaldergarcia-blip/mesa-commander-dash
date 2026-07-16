@@ -1,0 +1,252 @@
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Sparkles } from "lucide-react";
+import { useLabelProducts } from "@/hooks/useLabelProducts";
+import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
+import { supabase } from "@/integrations/supabase/client";
+import { useRestaurantId } from "@/contexts/RestaurantContext";
+import { toast } from "sonner";
+import { useReceipts } from "@/hooks/useReceipts";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  item: {
+    id: string;
+    raw_name: string;
+    product_id: string | null;
+    missing_fields: string[];
+  } | null;
+  supplierId?: string | null;
+  onDone?: () => void;
+}
+
+// Resolves an "item pendente" — either link to existing product or create a new minimal one,
+// and fill only the missing fields.
+export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone }: Props) {
+  const { products, createProduct } = useLabelProducts();
+  const { linkItemToProduct } = useReceipts();
+  const restaurantId = useRestaurantId();
+
+  const [mode, setMode] = useState<"link" | "new">("new");
+  const [linkProductId, setLinkProductId] = useState<string>("");
+
+  // new product minimal fields
+  const [name, setName] = useState("");
+  const [validity, setValidity] = useState<number>(3);
+  const [conservation, setConservation] = useState<string>("refrigerated");
+  const [category, setCategory] = useState<string>("");
+  const [location, setLocation] = useState<string>("");
+
+  // existing product patch fields (only missing)
+  const [patchValidity, setPatchValidity] = useState<number>(3);
+  const [patchConservation, setPatchConservation] = useState<string>("refrigerated");
+  const [patchCategory, setPatchCategory] = useState<string>("");
+  const [patchLocation, setPatchLocation] = useState<string>("");
+
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setMode(item.product_id ? "link" : "new");
+      setLinkProductId(item.product_id ?? "");
+      setName(item.raw_name);
+    }
+  }, [item]);
+
+  if (!item) return null;
+  const needs = item.missing_fields;
+
+  const handleSubmit = async () => {
+    try {
+      setSaving(true);
+      let productId = item.product_id;
+
+      if (mode === "new" || !productId) {
+        // create minimal product
+        const created = await createProduct({
+          name: name.trim() || item.raw_name.trim(),
+          validity_days: validity || 3,
+          conservation_method: (conservation as any) || "refrigerated",
+          category: category || null,
+          storage_location: location || null,
+          unit: "un",
+          status: "active",
+        });
+        productId = created.id;
+      } else if (mode === "link" && linkProductId) {
+        productId = linkProductId;
+        // patch missing fields on that product
+        const patch: any = {};
+        if (needs.includes("validade pós-abertura")) patch.validity_days = patchValidity;
+        if (needs.includes("conservação")) patch.conservation_method = patchConservation;
+        if (needs.includes("setor")) patch.category = patchCategory;
+        if (needs.includes("local")) patch.storage_location = patchLocation;
+        if (Object.keys(patch).length) {
+          const { error } = await (supabase as any).from("label_products").update(patch).eq("id", productId);
+          if (error) throw error;
+        }
+      }
+
+      if (productId) {
+        await linkItemToProduct({
+          itemId: item.id,
+          productId,
+          rawName: item.raw_name,
+          supplierId: supplierId ?? null,
+        });
+        toast.success("Item resolvido — sistema aprendeu esse nome");
+      }
+      onOpenChange(false);
+      onDone?.();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao resolver item");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Resolver "{item.raw_name}"
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Preencha apenas o que falta. O sistema memoriza e nunca mais pergunta.
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Button
+              variant={mode === "new" ? "default" : "outline"}
+              onClick={() => setMode("new")}
+              size="sm"
+              className="flex-1"
+            >
+              Criar produto
+            </Button>
+            <Button
+              variant={mode === "link" ? "default" : "outline"}
+              onClick={() => setMode("link")}
+              size="sm"
+              className="flex-1"
+              disabled={products.length === 0}
+            >
+              Vincular existente
+            </Button>
+          </div>
+
+          {mode === "link" ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Produto do catálogo</Label>
+                <Select value={linkProductId} onValueChange={setLinkProductId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {needs.includes("validade pós-abertura") && (
+                <div className="space-y-1.5">
+                  <Label>Validade pós-abertura (dias)</Label>
+                  <Input type="number" min="1" value={patchValidity} onChange={(e) => setPatchValidity(parseInt(e.target.value) || 1)} />
+                </div>
+              )}
+              {needs.includes("conservação") && (
+                <div className="space-y-1.5">
+                  <Label>Conservação</Label>
+                  <Select value={patchConservation} onValueChange={setPatchConservation}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="refrigerated">Refrigerado</SelectItem>
+                      <SelectItem value="frozen">Congelado</SelectItem>
+                      <SelectItem value="ambient">Ambiente</SelectItem>
+                      <SelectItem value="hot">Quente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {needs.includes("setor") && (
+                <div className="space-y-1.5">
+                  <Label>Setor / categoria</Label>
+                  <Select value={patchCategory} onValueChange={setPatchCategory}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {needs.includes("local") && (
+                <div className="space-y-1.5">
+                  <Label>Local de armazenamento</Label>
+                  <Input value={patchLocation} onChange={(e) => setPatchLocation(e.target.value)} placeholder="Ex.: Câmara fria 1" />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>Nome oficial do produto</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Validade (dias)</Label>
+                  <Input type="number" min="1" value={validity} onChange={(e) => setValidity(parseInt(e.target.value) || 1)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Conservação</Label>
+                  <Select value={conservation} onValueChange={setConservation}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="refrigerated">Refrigerado</SelectItem>
+                      <SelectItem value="frozen">Congelado</SelectItem>
+                      <SelectItem value="ambient">Ambiente</SelectItem>
+                      <SelectItem value="hot">Quente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Setor</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Local</Label>
+                  <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Opcional" />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Salvar e aprender
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
