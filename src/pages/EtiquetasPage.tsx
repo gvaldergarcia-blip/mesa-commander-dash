@@ -33,6 +33,41 @@ export default function EtiquetasPage() {
   const { missingProducts } = useStockStatus();
 
   const [tab, setTab] = useState("hoje");
+
+  // Map legacy sub-tabs -> primary area, and preserve the sub-tab selection per area.
+  const AREA_OF: Record<string, string> = {
+    hoje: "hoje",
+    recebimento: "entradas",
+    etiquetas: "operacao",
+    imprimir: "operacao",
+    compras: "operacao",
+    estoque: "operacao",
+    produtos: "cadastros",
+    funcionarios: "cadastros",
+    sms: "cadastros",
+    dashboard: "cadastros",
+  };
+  const area = AREA_OF[tab] ?? "hoje";
+
+  const OP_SUBTABS = [
+    { value: "etiquetas", icon: List, label: "Etiquetas" },
+    { value: "imprimir", icon: Printer, label: "Imprimir" },
+    { value: "estoque", icon: PackageX, label: "Estoque" },
+    { value: "compras", icon: ShoppingCart, label: "Compras" },
+  ];
+  const CAD_SUBTABS = [
+    { value: "produtos", icon: Package, label: "Produtos" },
+    { value: "funcionarios", icon: Users, label: "Funcionários" },
+    { value: "dashboard", icon: LayoutDashboard, label: "Relatórios" },
+    { value: "sms", icon: MessageSquare, label: "SMS" },
+  ];
+
+  const goArea = (a: string) => {
+    if (a === "hoje") setTab("hoje");
+    else if (a === "entradas") setTab("recebimento");
+    else if (a === "operacao") setTab(OP_SUBTABS.some((s) => s.value === tab) ? tab : "etiquetas");
+    else if (a === "cadastros") setTab(CAD_SUBTABS.some((s) => s.value === tab) ? tab : "produtos");
+  };
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
@@ -125,27 +160,96 @@ export default function EtiquetasPage() {
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
+        {/* ===== NAV PRIMÁRIA: 4 áreas ===== */}
         <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-          <TabsList className="inline-flex md:grid md:grid-cols-10 md:w-auto h-auto p-1 gap-1">
-            <TabsTrigger value="hoje" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Activity className="h-4 w-4" /> Hoje</TabsTrigger>
-            <TabsTrigger value="dashboard" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><LayoutDashboard className="h-4 w-4" /> Dashboard</TabsTrigger>
-            <TabsTrigger value="recebimento" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><PackagePlus className="h-4 w-4" /> Recebimento</TabsTrigger>
-            <TabsTrigger value="etiquetas" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><List className="h-4 w-4" /> Etiquetas</TabsTrigger>
-            <TabsTrigger value="imprimir" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Printer className="h-4 w-4" /> Imprimir</TabsTrigger>
-            <TabsTrigger value="compras" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm relative">
-              <ShoppingCart className="h-4 w-4" /> Compras
-              {missingProducts.length > 0 && (
-                <span className="ml-0.5 h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
-                  {missingProducts.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="estoque" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><PackageX className="h-4 w-4" /> Estoque</TabsTrigger>
-            <TabsTrigger value="produtos" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
-            <TabsTrigger value="funcionarios" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Users className="h-4 w-4" /> Funcionários</TabsTrigger>
-            <TabsTrigger value="sms" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><MessageSquare className="h-4 w-4" /> SMS</TabsTrigger>
-          </TabsList>
+          <div className="inline-flex md:grid md:grid-cols-4 md:w-full h-auto p-1 gap-1 rounded-lg bg-muted">
+            {[
+              { key: "hoje", icon: Activity, label: "Hoje" },
+              { key: "entradas", icon: PackagePlus, label: "Entradas" },
+              { key: "operacao", icon: List, label: "Operação" },
+              { key: "cadastros", icon: Package, label: "Cadastros" },
+            ].map((a) => {
+              const active = area === a.key;
+              const Icon = a.icon;
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => goArea(a.key)}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-2 whitespace-nowrap px-4 py-2.5 text-xs md:text-sm font-semibold rounded-md transition-all",
+                    active
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" /> {a.label}
+                  {a.key === "operacao" && missingProducts.length > 0 && (
+                    <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
+                      {missingProducts.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        {/* ===== SUB-NAV (Operação / Cadastros) ===== */}
+        {area === "operacao" && (
+          <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
+            <div className="inline-flex gap-1 p-1 rounded-lg border border-border/60 bg-card/40">
+              {OP_SUBTABS.map((s) => {
+                const Icon = s.icon;
+                const active = tab === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setTab(s.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {s.label}
+                    {s.value === "compras" && missingProducts.length > 0 && (
+                      <span className={cn(
+                        "ml-1 h-4 min-w-4 px-1 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
+                        active ? "bg-primary-foreground text-primary" : "bg-destructive text-destructive-foreground"
+                      )}>
+                        {missingProducts.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {area === "cadastros" && (
+          <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
+            <div className="inline-flex gap-1 p-1 rounded-lg border border-border/60 bg-card/40">
+              {CAD_SUBTABS.map((s) => {
+                const Icon = s.icon;
+                const active = tab === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setTab(s.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ===== HOJE (timeline operacional) ===== */}
         <TabsContent value="hoje">

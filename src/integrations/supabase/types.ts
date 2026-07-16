@@ -5255,6 +5255,7 @@ export type Database = {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
       }
+      label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_learn_alias: {
         Args: {
           _product_id: string
