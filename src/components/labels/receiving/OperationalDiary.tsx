@@ -1,7 +1,11 @@
+import { useMemo } from "react";
 import { useLabelMovements } from "@/hooks/useReceipts";
+import { useLabels } from "@/hooks/useLabels";
+import { Button } from "@/components/ui/button";
 import { PackagePlus, Printer, PackageX, RefreshCw, ArrowRightLeft, Sparkles, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { printLabels } from "../LabelPrintSheet";
 
 const EVENT_META: Record<string, { label: string; icon: any; color: string }> = {
   receipt: { label: "Recebimento", icon: PackagePlus, color: "text-emerald-500" },
@@ -14,6 +18,35 @@ const EVENT_META: Record<string, { label: string; icon: any; color: string }> = 
 
 export function OperationalDiary() {
   const { data: movements, isLoading } = useLabelMovements(150);
+  const { labels } = useLabels();
+
+  const labelsById = useMemo(() => {
+    const m = new Map<string, typeof labels[number]>();
+    labels.forEach((l) => m.set(l.id, l));
+    return m;
+  }, [labels]);
+
+  const handlePrint = (labelId: string) => {
+    const l = labelsById.get(labelId);
+    if (!l) return;
+    printLabels({
+      productName: l.product_name,
+      manufactureDate: new Date(l.manufacture_date),
+      expiryDate: new Date(l.expiry_date),
+      responsible: l.responsible || l.employee_name || "—",
+      quantity: l.quantity || 1,
+      notes: l.notes,
+      cif: l.cif,
+      allergens: l.allergens,
+      ingredients: l.ingredients,
+      conservationLabel:
+        l.conservation_method === "refrigerated" ? "Refrigerado" :
+        l.conservation_method === "frozen" ? "Congelado" :
+        l.conservation_method === "hot" ? "Quente" :
+        l.conservation_method === "ambient" ? "Ambiente" : null,
+      batch: l.batch,
+    });
+  };
 
   if (isLoading) {
     return <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div>;
@@ -54,6 +87,17 @@ export function OperationalDiary() {
               <div className="text-xs text-muted-foreground shrink-0">
                 {formatDistanceToNow(new Date(m.occurred_at), { addSuffix: true, locale: ptBR })}
               </div>
+              {m.event_type === "label_issued" && m.issuance_id && labelsById.has(m.issuance_id) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handlePrint(m.issuance_id)}
+                  className="h-7 px-2 gap-1 text-xs shrink-0"
+                >
+                  <Printer className="h-3 w-3" />
+                  Imprimir
+                </Button>
+              )}
             </div>
           );
         })}
