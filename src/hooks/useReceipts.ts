@@ -120,18 +120,21 @@ export function useReceipts() {
       const { error: iErr } = await (supabase as any).from("label_receipt_items").insert(itemsRows);
       if (iErr) throw iErr;
 
-      // 3) update status
-      const anyPending = itemsRows.some((r) => r.needs_info);
-      await (supabase as any)
-        .from("label_receipts")
-        .update({ status: anyPending ? "pending_info" : "ready_to_print" })
-        .eq("id", receipt.id);
+      // 3) Auto-processar itens já reconhecidos:
+      //    gera etiquetas + movimentos + eventos no diário operacional.
+      //    Itens sem produto/incompletos continuam como "Pendências".
+      const { error: pErr } = await (supabase as any).rpc("label_process_ready_items", {
+        _receipt_id: receipt.id,
+      });
+      if (pErr) throw pErr;
 
       return receipt.id as string;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       toast.success("Recebimento registrado");
     },
     onError: (e: any) => toast.error(e.message || "Erro ao registrar recebimento"),
