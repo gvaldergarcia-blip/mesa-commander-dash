@@ -38,7 +38,6 @@ export default function EtiquetasPage() {
   const AREA_OF: Record<string, string> = {
     hoje: "hoje",
     recebimento: "entradas",
-    etiquetas: "operacao",
     imprimir: "operacao",
     compras: "operacao",
     estoque: "operacao",
@@ -50,7 +49,6 @@ export default function EtiquetasPage() {
   const area = AREA_OF[tab] ?? "hoje";
 
   const OP_SUBTABS = [
-    { value: "etiquetas", icon: List, label: "Etiquetas" },
     { value: "imprimir", icon: Printer, label: "Imprimir" },
     { value: "estoque", icon: PackageX, label: "Estoque" },
     { value: "compras", icon: ShoppingCart, label: "Compras" },
@@ -65,7 +63,7 @@ export default function EtiquetasPage() {
   const goArea = (a: string) => {
     if (a === "hoje") setTab("hoje");
     else if (a === "entradas") setTab("recebimento");
-    else if (a === "operacao") setTab(OP_SUBTABS.some((s) => s.value === tab) ? tab : "etiquetas");
+    else if (a === "operacao") setTab(OP_SUBTABS.some((s) => s.value === tab) ? tab : "imprimir");
     else if (a === "cadastros") setTab(CAD_SUBTABS.some((s) => s.value === tab) ? tab : "produtos");
   };
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
