@@ -3,6 +3,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
@@ -34,38 +35,43 @@ export default function EtiquetasPage() {
 
   const [tab, setTab] = useState("dashboard");
 
-  // Map legacy sub-tabs -> primary area, and preserve the sub-tab selection per area.
-  const AREA_OF: Record<string, string> = {
-    hoje: "hoje",
-    recebimento: "entradas",
-    imprimir: "operacao",
-    compras: "operacao",
-    estoque: "operacao",
-    produtos: "cadastros",
-    funcionarios: "cadastros",
-    sms: "cadastros",
-    dashboard: "cadastros",
-  };
-  const area = AREA_OF[tab] ?? "hoje";
-
-  const OP_SUBTABS = [
-    { value: "imprimir", icon: Printer, label: "Imprimir" },
-    { value: "estoque", icon: PackageX, label: "Estoque" },
-    { value: "compras", icon: ShoppingCart, label: "Compras" },
+  // Navegação lateral agrupada por seção
+  const NAV_SECTIONS: {
+    label: string;
+    items: { value: string; icon: any; label: string; badge?: number }[];
+  }[] = [
+    {
+      label: "Diário",
+      items: [
+        { value: "hoje", icon: Activity, label: "Hoje" },
+      ],
+    },
+    {
+      label: "Entradas",
+      items: [
+        { value: "recebimento", icon: PackagePlus, label: "Recebimento" },
+      ],
+    },
+    {
+      label: "Operação",
+      items: [
+        { value: "imprimir", icon: Printer, label: "Imprimir" },
+        { value: "estoque", icon: PackageX, label: "Estoque" },
+        { value: "compras", icon: ShoppingCart, label: "Compras", badge: missingProducts.length },
+      ],
+    },
+    {
+      label: "Cadastros",
+      items: [
+        { value: "produtos", icon: Package, label: "Produtos" },
+        { value: "funcionarios", icon: Users, label: "Funcionários" },
+        { value: "dashboard", icon: LayoutDashboard, label: "Relatórios" },
+        { value: "sms", icon: MessageSquare, label: "SMS" },
+      ],
+    },
   ];
-  const CAD_SUBTABS = [
-    { value: "produtos", icon: Package, label: "Produtos" },
-    { value: "funcionarios", icon: Users, label: "Funcionários" },
-    { value: "dashboard", icon: LayoutDashboard, label: "Relatórios" },
-    { value: "sms", icon: MessageSquare, label: "SMS" },
-  ];
-
-  const goArea = (a: string) => {
-    if (a === "hoje") setTab("hoje");
-    else if (a === "entradas") setTab("recebimento");
-    else if (a === "operacao") setTab(OP_SUBTABS.some((s) => s.value === tab) ? tab : "imprimir");
-    else if (a === "cadastros") setTab(CAD_SUBTABS.some((s) => s.value === tab) ? tab : "produtos");
-  };
+  const ALL_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+  const currentItem = ALL_ITEMS.find((i) => i.value === tab) ?? ALL_ITEMS[0];
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
