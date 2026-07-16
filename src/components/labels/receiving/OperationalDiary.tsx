@@ -10,6 +10,9 @@ import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
+import { QRCodeSVG } from "qrcode.react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { getSiteBaseUrl } from "@/config/site-url";
 
 const EVENT_META: Record<string, { label: string; icon: any; color: string }> = {
   receipt: { label: "Recebimento", icon: PackagePlus, color: "text-emerald-500" },
@@ -53,6 +56,14 @@ export function OperationalDiary() {
   const handlePrint = (labelId: string) => {
     const l = labelsById.get(labelId);
     if (!l) return;
+    const qrSvg = renderToStaticMarkup(
+      <QRCodeSVG
+        value={`${getSiteBaseUrl()}/etiquetas/scan/${l.unique_code}?op=1`}
+        size={144}
+        level="L"
+        marginSize={1}
+      />
+    );
     printLabels({
       productName: l.product_name,
       manufactureDate: new Date(l.manufacture_date),
@@ -72,6 +83,8 @@ export function OperationalDiary() {
       restaurantName: restaurant?.name || null,
       restaurantCnpj: restaurantLegal?.cnpj || null,
       restaurantCep: restaurantLegal?.cep || null,
+      checklistQrSvg: qrSvg,
+      checklistQrLabel: `#${l.unique_code}`,
     });
   };
 
