@@ -13,6 +13,7 @@ import { StockCheckTab } from "@/components/labels/StockCheckTab";
 import { ShoppingListTab } from "@/components/labels/ShoppingListTab";
 import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
+import { VoiceFAB } from "@/components/labels/voice/VoiceFAB";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { TodayTab } from "@/components/labels/TodayTab";
@@ -534,6 +535,7 @@ export default function EtiquetasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <VoiceFAB />
     </div>
   );
 }
