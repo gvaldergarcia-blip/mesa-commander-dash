@@ -176,8 +176,27 @@ export function useReceipts() {
           missing_fields: missing,
         })
         .eq("id", itemId);
+
+      // Se o item ficou completo, já processa (gera etiqueta + diário)
+      if (missing.length === 0) {
+        const { data: item } = await (supabase as any)
+          .from("label_receipt_items")
+          .select("receipt_id")
+          .eq("id", itemId)
+          .maybeSingle();
+        if (item?.receipt_id) {
+          await (supabase as any).rpc("label_process_ready_items", {
+            _receipt_id: item.receipt_id,
+          });
+        }
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+    },
     onError: (e: any) => toast.error(e.message || "Erro ao vincular produto"),
   });
 
