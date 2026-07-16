@@ -494,6 +494,8 @@ export default function EtiquetasPage() {
           </div>
           <SmsLogsTab />
         </TabsContent>
+          </div>
+        </div>
       </Tabs>
 
       {/* Dialogs */}
