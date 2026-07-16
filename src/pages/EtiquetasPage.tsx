@@ -256,7 +256,7 @@ export default function EtiquetasPage() {
               if (action === "new-label") setTab("imprimir");
               else if (action === "new-receipt") setTab("recebimento");
               else if (action === "shopping") setTab("compras");
-              else if (action === "labels") setTab("etiquetas");
+              else if (action === "labels") setTab("imprimir");
             }}
           />
         </TabsContent>
@@ -282,21 +282,15 @@ export default function EtiquetasPage() {
             onSelectStat={(f) => {
               setStatFilter(f);
               if (f === "products") setTab("produtos");
-              else if (f) setTab("etiquetas");
+              else if (f) setTab("dashboard");
             }}
             onQuickAction={(action) => {
               if (action === "new-label") setTab("imprimir");
               else if (action === "new-product") { setEditing(null); setFormOpen(true); setTab("produtos"); }
               else if (action === "new-employee") setTab("funcionarios");
-              else if (action === "validity") { setStatFilter("expired"); setTab("etiquetas"); }
+              else if (action === "validity") { setStatFilter("expired"); setTab("dashboard"); }
             }}
           />
-        </TabsContent>
-
-        {/* ===== ETIQUETAS (lista) ===== */}
-        <TabsContent value="etiquetas" className="space-y-5">
-          <LabelFilters value={filters} onChange={setFilters} employees={employees} onExport={handleExport} />
-          <LabelsList labels={filtered} isLoading={labelsLoading} />
         </TabsContent>
 
         {/* ===== IMPRIMIR ===== */}
