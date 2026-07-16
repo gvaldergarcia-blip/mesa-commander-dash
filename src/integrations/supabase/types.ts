@@ -1569,6 +1569,57 @@ export type Database = {
           },
         ]
       }
+      label_product_aliases: {
+        Row: {
+          alias: string
+          alias_normalized: string
+          created_at: string
+          id: string
+          product_id: string
+          restaurant_id: string
+          supplier_id: string | null
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          alias: string
+          alias_normalized: string
+          created_at?: string
+          id?: string
+          product_id: string
+          restaurant_id: string
+          supplier_id?: string | null
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          alias?: string
+          alias_normalized?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          restaurant_id?: string
+          supplier_id?: string | null
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_product_aliases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_product_aliases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "label_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       label_product_groups: {
         Row: {
           color: string | null
@@ -1606,6 +1657,7 @@ export type Database = {
           conservation_method: string
           created_at: string
           default_observation: string | null
+          default_supplier_id: string | null
           group_id: string | null
           id: string
           ingredients: string | null
@@ -1627,6 +1679,7 @@ export type Database = {
           conservation_method?: string
           created_at?: string
           default_observation?: string | null
+          default_supplier_id?: string | null
           group_id?: string | null
           id?: string
           ingredients?: string | null
@@ -1648,6 +1701,7 @@ export type Database = {
           conservation_method?: string
           created_at?: string
           default_observation?: string | null
+          default_supplier_id?: string | null
           group_id?: string | null
           id?: string
           ingredients?: string | null
@@ -1662,10 +1716,130 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "label_products_default_supplier_id_fkey"
+            columns: ["default_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "label_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "label_products_group_id_fkey"
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "label_product_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_receipt_items: {
+        Row: {
+          created_at: string
+          id: string
+          labels_prepared: number
+          missing_fields: string[]
+          needs_info: boolean
+          price_cents: number | null
+          product_id: string | null
+          quantity: number
+          raw_name: string
+          receipt_id: string
+          restaurant_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          labels_prepared?: number
+          missing_fields?: string[]
+          needs_info?: boolean
+          price_cents?: number | null
+          product_id?: string | null
+          quantity?: number
+          raw_name: string
+          receipt_id: string
+          restaurant_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          labels_prepared?: number
+          missing_fields?: string[]
+          needs_info?: boolean
+          price_cents?: number | null
+          product_id?: string | null
+          quantity?: number
+          raw_name?: string
+          receipt_id?: string
+          restaurant_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_receipt_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_receipt_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "label_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_receipts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          received_at: string
+          reference: string | null
+          restaurant_id: string
+          source: string
+          status: string
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          received_at?: string
+          reference?: string | null
+          restaurant_id: string
+          source?: string
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          received_at?: string
+          reference?: string | null
+          restaurant_id?: string
+          source?: string
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_receipts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "label_suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -1767,6 +1941,122 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      label_stock_movements: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          event_type: string
+          id: string
+          issuance_id: string | null
+          notes: string | null
+          occurred_at: string
+          product_id: string | null
+          quantity: number
+          receipt_id: string | null
+          restaurant_id: string
+          supplier_id: string | null
+          unit: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          event_type: string
+          id?: string
+          issuance_id?: string | null
+          notes?: string | null
+          occurred_at?: string
+          product_id?: string | null
+          quantity?: number
+          receipt_id?: string | null
+          restaurant_id: string
+          supplier_id?: string | null
+          unit?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          event_type?: string
+          id?: string
+          issuance_id?: string | null
+          notes?: string | null
+          occurred_at?: string
+          product_id?: string | null
+          quantity?: number
+          receipt_id?: string | null
+          restaurant_id?: string
+          supplier_id?: string | null
+          unit?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_stock_movements_issuance_id_fkey"
+            columns: ["issuance_id"]
+            isOneToOne: false
+            referencedRelation: "label_issuances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_stock_movements_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "label_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_stock_movements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "label_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      label_suppliers: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       label_verifications: {
         Row: {
@@ -4878,6 +5168,19 @@ export type Database = {
       is_restaurant_member: {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
+      }
+      label_learn_alias: {
+        Args: {
+          _product_id: string
+          _raw: string
+          _restaurant_id: string
+          _supplier_id?: string
+        }
+        Returns: undefined
+      }
+      label_match_alias: {
+        Args: { _raw: string; _restaurant_id: string }
+        Returns: string
       }
       log_whatsapp_message: {
         Args: {
