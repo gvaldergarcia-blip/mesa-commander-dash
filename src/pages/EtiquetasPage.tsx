@@ -163,100 +163,93 @@ export default function EtiquetasPage() {
         </Button>
       </header>
 
-      <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        {/* ===== NAV PRIMÁRIA: 4 áreas ===== */}
-        <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-          <div className="inline-flex md:grid md:grid-cols-4 md:w-full h-auto p-1 gap-1 rounded-lg bg-muted">
-            {[
-              { key: "hoje", icon: Activity, label: "Hoje" },
-              { key: "entradas", icon: PackagePlus, label: "Entradas" },
-              { key: "operacao", icon: List, label: "Operação" },
-              { key: "cadastros", icon: Package, label: "Cadastros" },
-            ].map((a) => {
-              const active = area === a.key;
-              const Icon = a.icon;
-              return (
-                <button
-                  key={a.key}
-                  type="button"
-                  onClick={() => goArea(a.key)}
-                  className={cn(
-                    "inline-flex items-center justify-center gap-2 whitespace-nowrap px-4 py-2.5 text-xs md:text-sm font-semibold rounded-md transition-all",
-                    active
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4" /> {a.label}
-                  {a.key === "operacao" && missingProducts.length > 0 && (
-                    <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
-                      {missingProducts.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <Tabs value={tab} onValueChange={setTab} className="mt-2">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-5">
+          {/* ===== SIDEBAR (desktop) ===== */}
+          <aside className="hidden md:block">
+            <nav className="sticky top-4 rounded-2xl border border-border/60 bg-card/40 backdrop-blur p-2 space-y-4">
+              {NAV_SECTIONS.map((section) => (
+                <div key={section.label}>
+                  <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                    {section.label}
+                  </div>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = tab === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => setTab(item.value)}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all text-left",
+                            active
+                              ? "bg-primary/15 text-primary border border-primary/30 shadow-sm"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="flex-1 truncate">{item.label}</span>
+                          {item.badge && item.badge > 0 ? (
+                            <span className={cn(
+                              "h-5 min-w-5 px-1.5 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
+                              active ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"
+                            )}>
+                              {item.badge}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </aside>
 
-        {/* ===== SUB-NAV (Operação / Cadastros) ===== */}
-        {area === "operacao" && (
-          <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-            <div className="inline-flex gap-1 p-1 rounded-lg border border-border/60 bg-card/40">
-              {OP_SUBTABS.map((s) => {
-                const Icon = s.icon;
-                const active = tab === s.value;
-                return (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setTab(s.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {s.label}
-                    {s.value === "compras" && missingProducts.length > 0 && (
-                      <span className={cn(
-                        "ml-1 h-4 min-w-4 px-1 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
-                        active ? "bg-primary-foreground text-primary" : "bg-destructive text-destructive-foreground"
-                      )}>
-                        {missingProducts.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          {/* ===== NAV MOBILE (select) ===== */}
+          <div className="md:hidden">
+            <Select value={tab} onValueChange={setTab}>
+              <SelectTrigger className="h-11">
+                <SelectValue>
+                  <span className="flex items-center gap-2">
+                    <currentItem.icon className="h-4 w-4 text-primary" />
+                    <span className="font-semibold">{currentItem.label}</span>
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {NAV_SECTIONS.map((section) => (
+                  <div key={section.label}>
+                    <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                      {section.label}
+                    </div>
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <SelectItem key={item.value} value={item.value}>
+                          <span className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                            {item.badge && item.badge > 0 ? (
+                              <span className="ml-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
+                                {item.badge}
+                              </span>
+                            ) : null}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </div>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
-        {area === "cadastros" && (
-          <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-            <div className="inline-flex gap-1 p-1 rounded-lg border border-border/60 bg-card/40">
-              {CAD_SUBTABS.map((s) => {
-                const Icon = s.icon;
-                const active = tab === s.value;
-                return (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setTab(s.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {s.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
-        {/* ===== HOJE (timeline operacional) ===== */}
-        <TabsContent value="hoje">
+          {/* ===== CONTEÚDO ===== */}
+          <div className="min-w-0 space-y-5">
+        <TabsContent value="hoje" className="mt-0">
           <TodayTab
             onQuickAction={(action) => {
               if (action === "new-label") setTab("imprimir");
