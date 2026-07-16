@@ -20,6 +20,7 @@ import { useOperationalDiary, OperationalEvent, KitchenEventType } from "@/hooks
 import { useLabels } from "@/hooks/useLabels";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { classifyExpiry } from "@/lib/labels/utils";
+import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -68,6 +69,34 @@ export function TodayTab({ onQuickAction }: Props) {
   const { events, isLoading } = useOperationalDiary({ limit: 150 });
   const { labels } = useLabels();
   const { missingProducts } = useStockStatus();
+
+  const labelsById = useMemo(() => {
+    const m = new Map<string, typeof labels[number]>();
+    labels.forEach((l) => m.set(l.id, l));
+    return m;
+  }, [labels]);
+
+  const handlePrint = (labelId: string) => {
+    const l = labelsById.get(labelId);
+    if (!l) return;
+    printLabels({
+      productName: l.product_name,
+      manufactureDate: new Date(l.manufacture_date),
+      expiryDate: new Date(l.expiry_date),
+      responsible: l.responsible || l.employee_name || "—",
+      quantity: l.quantity || 1,
+      notes: l.notes,
+      cif: l.cif,
+      allergens: l.allergens,
+      ingredients: l.ingredients,
+      conservationLabel:
+        l.conservation_method === "refrigerated" ? "Refrigerado" :
+        l.conservation_method === "frozen" ? "Congelado" :
+        l.conservation_method === "hot" ? "Quente" :
+        l.conservation_method === "ambient" ? "Ambiente" : null,
+      batch: l.batch,
+    });
+  };
 
   const now = Date.now();
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
@@ -208,9 +237,22 @@ export function TodayTab({ onQuickAction }: Props) {
                         {e.product_category && <> · {e.product_category}</>}
                       </p>
                     </div>
-                    <time className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
-                      {formatDistanceToNow(new Date(e.occurred_at), { addSuffix: true, locale: ptBR })}
-                    </time>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {e.event_type === "label_issued" && e.label_id && labelsById.has(e.label_id) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePrint(e.label_id!)}
+                          className="h-7 px-2 gap-1 text-xs"
+                        >
+                          <Printer className="h-3 w-3" />
+                          Imprimir
+                        </Button>
+                      )}
+                      <time className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        {formatDistanceToNow(new Date(e.occurred_at), { addSuffix: true, locale: ptBR })}
+                      </time>
+                    </div>
                   </div>
                 </li>
               );
