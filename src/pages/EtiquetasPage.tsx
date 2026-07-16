@@ -38,10 +38,6 @@ export default function EtiquetasPage() {
   const AREA_OF: Record<string, string> = {
     hoje: "hoje",
     recebimento: "entradas",
-    etiquetas: "operacao",
-    imprimir: "operacao",
-    compras: "operacao",
-    estoque: "operacao",
     produtos: "cadastros",
     funcionarios: "cadastros",
     sms: "cadastros",
@@ -49,12 +45,6 @@ export default function EtiquetasPage() {
   };
   const area = AREA_OF[tab] ?? "hoje";
 
-  const OP_SUBTABS = [
-    { value: "etiquetas", icon: List, label: "Etiquetas" },
-    { value: "imprimir", icon: Printer, label: "Imprimir" },
-    { value: "estoque", icon: PackageX, label: "Estoque" },
-    { value: "compras", icon: ShoppingCart, label: "Compras" },
-  ];
   const CAD_SUBTABS = [
     { value: "produtos", icon: Package, label: "Produtos" },
     { value: "funcionarios", icon: Users, label: "Funcionários" },
@@ -65,7 +55,6 @@ export default function EtiquetasPage() {
   const goArea = (a: string) => {
     if (a === "hoje") setTab("hoje");
     else if (a === "entradas") setTab("recebimento");
-    else if (a === "operacao") setTab(OP_SUBTABS.some((s) => s.value === tab) ? tab : "etiquetas");
     else if (a === "cadastros") setTab(CAD_SUBTABS.some((s) => s.value === tab) ? tab : "produtos");
   };
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
@@ -154,19 +143,15 @@ export default function EtiquetasPage() {
             Gestão de validade, rastreabilidade e baixas para sua cozinha.
           </p>
         </div>
-        <Button onClick={() => setTab("imprimir")} size="lg" className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
-          <Printer className="h-4 w-4" /> Nova etiqueta
-        </Button>
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
-        {/* ===== NAV PRIMÁRIA: 4 áreas ===== */}
+        {/* ===== NAV PRIMÁRIA ===== */}
         <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-          <div className="inline-flex md:grid md:grid-cols-4 md:w-full h-auto p-1 gap-1 rounded-lg bg-muted">
+          <div className="inline-flex md:grid md:grid-cols-3 md:w-full h-auto p-1 gap-1 rounded-lg bg-muted">
             {[
               { key: "hoje", icon: Activity, label: "Hoje" },
               { key: "entradas", icon: PackagePlus, label: "Entradas" },
-              { key: "operacao", icon: List, label: "Operação" },
               { key: "cadastros", icon: Package, label: "Cadastros" },
             ].map((a) => {
               const active = area === a.key;
@@ -184,49 +169,13 @@ export default function EtiquetasPage() {
                   )}
                 >
                   <Icon className="h-4 w-4" /> {a.label}
-                  {a.key === "operacao" && missingProducts.length > 0 && (
-                    <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
-                      {missingProducts.length}
-                    </span>
-                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* ===== SUB-NAV (Operação / Cadastros) ===== */}
-        {area === "operacao" && (
-          <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-            <div className="inline-flex gap-1 p-1 rounded-lg border border-border/60 bg-card/40">
-              {OP_SUBTABS.map((s) => {
-                const Icon = s.icon;
-                const active = tab === s.value;
-                return (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setTab(s.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {s.label}
-                    {s.value === "compras" && missingProducts.length > 0 && (
-                      <span className={cn(
-                        "ml-1 h-4 min-w-4 px-1 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
-                        active ? "bg-primary-foreground text-primary" : "bg-destructive text-destructive-foreground"
-                      )}>
-                        {missingProducts.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* ===== SUB-NAV (Cadastros) ===== */}
         {area === "cadastros" && (
           <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
             <div className="inline-flex gap-1 p-1 rounded-lg border border-border/60 bg-card/40">
@@ -255,10 +204,7 @@ export default function EtiquetasPage() {
         <TabsContent value="hoje">
           <TodayTab
             onQuickAction={(action) => {
-              if (action === "new-label") setTab("imprimir");
-              else if (action === "new-receipt") setTab("recebimento");
-              else if (action === "shopping") setTab("compras");
-              else if (action === "labels") setTab("etiquetas");
+              if (action === "new-receipt") setTab("recebimento");
             }}
           />
         </TabsContent>
@@ -270,12 +216,6 @@ export default function EtiquetasPage() {
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="space-y-5">
-          <SmartReprintCard
-            onPrintProduct={(pid) => {
-              setPrintInitialProduct(pid);
-              setTab("imprimir");
-            }}
-          />
           <LabelDashboard
             labels={labels}
             stats={stats}
@@ -284,54 +224,12 @@ export default function EtiquetasPage() {
             onSelectStat={(f) => {
               setStatFilter(f);
               if (f === "products") setTab("produtos");
-              else if (f) setTab("etiquetas");
             }}
             onQuickAction={(action) => {
-              if (action === "new-label") setTab("imprimir");
-              else if (action === "new-product") { setEditing(null); setFormOpen(true); setTab("produtos"); }
+              if (action === "new-product") { setEditing(null); setFormOpen(true); setTab("produtos"); }
               else if (action === "new-employee") setTab("funcionarios");
-              else if (action === "validity") { setStatFilter("expired"); setTab("etiquetas"); }
             }}
           />
-        </TabsContent>
-
-        {/* ===== ETIQUETAS (lista) ===== */}
-        <TabsContent value="etiquetas" className="space-y-5">
-          <LabelFilters value={filters} onChange={setFilters} employees={employees} onExport={handleExport} />
-          <LabelsList labels={filtered} isLoading={labelsLoading} />
-        </TabsContent>
-
-        {/* ===== IMPRIMIR ===== */}
-        <TabsContent value="imprimir">
-          <Card className="p-4 md:p-8 bg-card/30">
-            <CardContent className="p-0">
-              <PrintFlow
-                initialProductId={printInitialProduct}
-                onFinished={() => {
-                  setPrintInitialProduct(null);
-                  setTab("dashboard");
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ===== LISTA DE COMPRAS ===== */}
-        <TabsContent value="compras" className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold">Lista de compras</h2>
-            <p className="text-sm text-muted-foreground">Produtos em falta marcados pela equipe. Quando chegar, marque como recebido e já imprima a etiqueta.</p>
-          </div>
-          <ShoppingListTab onPrintProduct={() => setTab("imprimir")} />
-        </TabsContent>
-
-        {/* ===== ESTOQUE (marcação rápida) ===== */}
-        <TabsContent value="estoque" className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold">Estoque rápido</h2>
-            <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto como Ok ou Falta. As faltas aparecem automaticamente na Lista de compras.</p>
-          </div>
-          <StockCheckTab />
         </TabsContent>
 
         {/* ===== PRODUTOS ===== */}
