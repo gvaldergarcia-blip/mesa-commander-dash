@@ -1386,6 +1386,57 @@ export type Database = {
         }
         Relationships: []
       }
+      kitchen_events: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          event_type: Database["public"]["Enums"]["kitchen_event_type"]
+          id: string
+          label_id: string | null
+          occurred_at: string
+          payload: Json
+          product_id: string | null
+          quantity: number | null
+          receipt_id: string | null
+          restaurant_id: string
+          source: string | null
+          supplier_id: string | null
+          unit: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          event_type: Database["public"]["Enums"]["kitchen_event_type"]
+          id?: string
+          label_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          product_id?: string | null
+          quantity?: number | null
+          receipt_id?: string | null
+          restaurant_id: string
+          source?: string | null
+          supplier_id?: string | null
+          unit?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          event_type?: Database["public"]["Enums"]["kitchen_event_type"]
+          id?: string
+          label_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          product_id?: string | null
+          quantity?: number | null
+          receipt_id?: string | null
+          restaurant_id?: string
+          source?: string | null
+          supplier_id?: string | null
+          unit?: string | null
+        }
+        Relationships: []
+      }
       label_discharges: {
         Row: {
           discharged_at: string
@@ -4861,6 +4912,41 @@ export type Database = {
         }
         Relationships: []
       }
+      v_operational_diary: {
+        Row: {
+          employee_id: string | null
+          employee_name: string | null
+          event_type: Database["public"]["Enums"]["kitchen_event_type"] | null
+          id: string | null
+          label_id: string | null
+          occurred_at: string | null
+          payload: Json | null
+          product_category: string | null
+          product_id: string | null
+          product_name: string | null
+          quantity: number | null
+          receipt_id: string | null
+          restaurant_id: string | null
+          source: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          unit: string | null
+        }
+        Relationships: []
+      }
+      v_stock_balance: {
+        Row: {
+          balance: number | null
+          last_consumption_at: string | null
+          last_receipt_at: string | null
+          product_id: string | null
+          product_name: string | null
+          product_unit: string | null
+          quantitative_events: number | null
+          restaurant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cancel_dish_campaign: { Args: { p_id: string }; Returns: undefined }
@@ -5182,6 +5268,23 @@ export type Database = {
         Args: { _raw: string; _restaurant_id: string }
         Returns: string
       }
+      log_kitchen_event: {
+        Args: {
+          p_employee_id?: string
+          p_event_type: Database["public"]["Enums"]["kitchen_event_type"]
+          p_label_id?: string
+          p_occurred_at?: string
+          p_payload?: Json
+          p_product_id?: string
+          p_quantity?: number
+          p_receipt_id?: string
+          p_restaurant_id: string
+          p_source?: string
+          p_supplier_id?: string
+          p_unit?: string
+        }
+        Returns: string
+      }
       log_whatsapp_message: {
         Args: {
           p_ai_tool_trace?: Json
@@ -5400,6 +5503,16 @@ export type Database = {
         | "clicked"
         | "bounced"
         | "failed"
+      kitchen_event_type:
+        | "receipt"
+        | "label_issued"
+        | "label_discharged"
+        | "manipulation"
+        | "consumption"
+        | "loss"
+        | "transfer"
+        | "stock_check"
+        | "purchase_request"
       promotion_status:
         | "draft"
         | "scheduled"
@@ -5595,6 +5708,17 @@ export const Constants = {
         "clicked",
         "bounced",
         "failed",
+      ],
+      kitchen_event_type: [
+        "receipt",
+        "label_issued",
+        "label_discharged",
+        "manipulation",
+        "consumption",
+        "loss",
+        "transfer",
+        "stock_check",
+        "purchase_request",
       ],
       promotion_status: [
         "draft",
