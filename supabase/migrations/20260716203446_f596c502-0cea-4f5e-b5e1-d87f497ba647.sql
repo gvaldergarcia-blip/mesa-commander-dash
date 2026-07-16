@@ -1,0 +1,1 @@
+CREATE POLICY kitchen_events_insert_members ON public.kitchen_events FOR INSERT TO authenticated WITH CHECK (public.is_member_or_admin(restaurant_id));
