@@ -3,6 +3,9 @@ project_id = "akqldesakmcroydbgkbe"
 [functions.get-active-coupons]
 verify_jwt = false
 
+[functions.parse-receipt-file]
+verify_jwt = false
+
 [functions.send-sms]
 verify_jwt = false
 
