@@ -5269,6 +5269,10 @@ export type Database = {
         Args: { _raw: string; _restaurant_id: string }
         Returns: string
       }
+      label_process_ready_items: {
+        Args: { _receipt_id: string }
+        Returns: Json
+      }
       log_kitchen_event: {
         Args: {
           p_employee_id?: string
