@@ -6,6 +6,10 @@ import { PackagePlus, Printer, PackageX, RefreshCw, ArrowRightLeft, Sparkles, Lo
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { printLabels } from "../LabelPrintSheet";
+import { useRestaurant } from "@/contexts/RestaurantContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 
 const EVENT_META: Record<string, { label: string; icon: any; color: string }> = {
   receipt: { label: "Recebimento", icon: PackagePlus, color: "text-emerald-500" },
@@ -19,6 +23,26 @@ const EVENT_META: Record<string, { label: string; icon: any; color: string }> = 
 export function OperationalDiary() {
   const { data: movements, isLoading } = useLabelMovements(150);
   const { labels } = useLabels();
+  const { restaurant } = useRestaurant();
+
+  const { data: restaurantLegal } = useQuery({
+    queryKey: ["restaurant-legal", restaurant?.id],
+    enabled: !!restaurant?.id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .schema("mesaclik")
+        .from("restaurants")
+        .select("cnpj, zip_code")
+        .eq("id", restaurant!.id)
+        .maybeSingle();
+      return { cnpj: data?.cnpj || null, cep: data?.zip_code || null };
+    },
+  });
+
+  const filtered = useMemo(
+    () => (movements || []).filter((m: any) => m.event_type === "label_issued"),
+    [movements]
+  );
 
   const labelsById = useMemo(() => {
     const m = new Map<string, typeof labels[number]>();
@@ -37,14 +61,17 @@ export function OperationalDiary() {
       quantity: l.quantity || 1,
       notes: l.notes,
       cif: l.cif,
+      sif: (l as any).sif ?? null,
       allergens: l.allergens,
       ingredients: l.ingredients,
-      conservationLabel:
-        l.conservation_method === "refrigerated" ? "Refrigerado" :
-        l.conservation_method === "frozen" ? "Congelado" :
-        l.conservation_method === "hot" ? "Quente" :
-        l.conservation_method === "ambient" ? "Ambiente" : null,
+      conservationLabel: l.conservation_method
+        ? CONSERVATION_LABEL[l.conservation_method as keyof typeof CONSERVATION_LABEL] || null
+        : null,
+      storageLocation: (l as any).storage_location ?? null,
       batch: l.batch,
+      restaurantName: restaurant?.name || null,
+      restaurantCnpj: restaurantLegal?.cnpj || null,
+      restaurantCep: restaurantLegal?.cep || null,
     });
   };
 
@@ -52,12 +79,12 @@ export function OperationalDiary() {
     return <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div>;
   }
 
-  if (!movements || movements.length === 0) {
+  if (!filtered || filtered.length === 0) {
     return (
       <div className="text-center py-14 border border-dashed border-border/50 rounded-2xl text-muted-foreground">
         <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-40" />
-        <p className="font-medium">O diário operacional aparece aqui automaticamente</p>
-        <p className="text-xs mt-1">Cada recebimento, etiqueta e baixa é registrada sem esforço.</p>
+        <p className="font-medium">As etiquetas emitidas aparecem aqui automaticamente</p>
+        <p className="text-xs mt-1">Assim que um recebimento é reconhecido, a etiqueta pronta pra imprimir aparece aqui.</p>
       </div>
     );
   }
@@ -65,7 +92,7 @@ export function OperationalDiary() {
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="divide-y divide-border">
-        {movements.map((m: any) => {
+        {filtered.map((m: any) => {
           const meta = EVENT_META[m.event_type] ?? EVENT_META.adjustment;
           const Icon = meta.icon;
           return (
