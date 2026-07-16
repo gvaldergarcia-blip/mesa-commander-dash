@@ -32,7 +32,7 @@ export default function EtiquetasPage() {
   const { employees } = useLabelEmployees();
   const { missingProducts } = useStockStatus();
 
-  const [tab, setTab] = useState("hoje");
+  const [tab, setTab] = useState("dashboard");
 
   // Map legacy sub-tabs -> primary area, and preserve the sub-tab selection per area.
   const AREA_OF: Record<string, string> = {
