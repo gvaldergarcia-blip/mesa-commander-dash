@@ -1553,7 +1553,9 @@ export type Database = {
           resolved_at: string | null
           responsible: string | null
           restaurant_id: string
+          sif: string | null
           status: string
+          storage_location: string | null
           unique_code: string | null
           updated_at: string
         }
@@ -1576,7 +1578,9 @@ export type Database = {
           resolved_at?: string | null
           responsible?: string | null
           restaurant_id: string
+          sif?: string | null
           status?: string
+          storage_location?: string | null
           unique_code?: string | null
           updated_at?: string
         }
@@ -1599,7 +1603,9 @@ export type Database = {
           resolved_at?: string | null
           responsible?: string | null
           restaurant_id?: string
+          sif?: string | null
           status?: string
+          storage_location?: string | null
           unique_code?: string | null
           updated_at?: string
         }
@@ -1715,6 +1721,7 @@ export type Database = {
           name: string
           notes: string | null
           restaurant_id: string
+          sif: string | null
           status: string
           storage_location: string | null
           unit: string
@@ -1737,6 +1744,7 @@ export type Database = {
           name: string
           notes?: string | null
           restaurant_id: string
+          sif?: string | null
           status?: string
           storage_location?: string | null
           unit?: string
@@ -1759,6 +1767,7 @@ export type Database = {
           name?: string
           notes?: string | null
           restaurant_id?: string
+          sif?: string | null
           status?: string
           storage_location?: string | null
           unit?: string
