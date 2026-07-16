@@ -181,13 +181,22 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
           rawName: item.raw_name,
           supplierId: supplierId ?? null,
         });
-        // Se a foto trouxe lote, gravar no label_issuance recém-criado deste item
-        if (scanBatch.trim()) {
+        // Se a foto trouxe lote, gravar no label_issuance recém-criado deste produto
+        if (scanBatch.trim() && productId) {
           try {
-            await (supabase as any)
+            const { data: last } = await (supabase as any)
               .from("label_issuances")
-              .update({ batch: scanBatch.trim() })
-              .eq("receipt_item_id", item.id);
+              .select("id")
+              .eq("label_product_id", productId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (last?.id) {
+              await (supabase as any)
+                .from("label_issuances")
+                .update({ batch: scanBatch.trim() })
+                .eq("id", last.id);
+            }
           } catch (e) { console.warn("Falha ao gravar lote", e); }
         }
         toast.success("Item resolvido — sistema aprendeu esse nome");
