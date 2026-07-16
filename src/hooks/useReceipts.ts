@@ -225,6 +225,54 @@ export function useReceipts() {
         }
       }
 
+      // auto-generate label issuances (etiquetas prontas para impressão)
+      const matched = (items || []).filter((i: any) => i.product_id);
+      if (matched.length) {
+        const productIds = matched.map((i: any) => i.product_id);
+        const { data: prods } = await (supabase as any)
+          .from("label_products")
+          .select("id, name, validity_days, conservation_method")
+          .in("id", productIds);
+        const byId: Record<string, any> = {};
+        (prods || []).forEach((p: any) => (byId[p.id] = p));
+
+        const now = new Date();
+        const labelRows = matched.map((i: any) => {
+          const p = byId[i.product_id];
+          const days = p?.validity_days ?? 3;
+          const exp = new Date(now.getTime() + days * 86400000);
+          return {
+            restaurant_id: restaurantId,
+            label_product_id: i.product_id,
+            product_name: p?.name ?? i.raw_name,
+            manufacture_date: now.toISOString(),
+            expiry_date: exp.toISOString(),
+            quantity: i.quantity ?? 1,
+            conservation_method: p?.conservation_method ?? null,
+            notes: `Gerada pelo recebimento ${receipt?.supplier_id ? "" : ""}`.trim() || null,
+          };
+        });
+        const { data: issuances } = await (supabase as any)
+          .from("label_issuances")
+          .insert(labelRows)
+          .select("id");
+
+        // record label_issued movements
+        if (issuances?.length) {
+          const issueMovs = issuances.map((iss: any, idx: number) => ({
+            restaurant_id: restaurantId,
+            event_type: "label_issued",
+            product_id: matched[idx].product_id,
+            issuance_id: iss.id,
+            receipt_id: receiptId,
+            quantity: matched[idx].quantity ?? 1,
+            unit: matched[idx].unit,
+            notes: `Etiqueta gerada — ${matched[idx].raw_name}`,
+          }));
+          await (supabase as any).from("label_stock_movements").insert(issueMovs);
+        }
+      }
+
       const { error: uErr } = await (supabase as any)
         .from("label_receipts")
         .update({ status: "confirmed" })
@@ -235,6 +283,7 @@ export function useReceipts() {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_products", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       toast.success("Recebimento confirmado. Etiquetas prontas para impressão.");
     },
     onError: (e: any) => toast.error(e.message || "Erro ao confirmar recebimento"),
