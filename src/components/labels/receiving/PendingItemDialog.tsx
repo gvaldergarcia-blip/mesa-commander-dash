@@ -63,12 +63,14 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
   const [conservation, setConservation] = useState<string>("refrigerated");
   const [category, setCategory] = useState<string>("");
   const [location, setLocation] = useState<string>("");
+  const [sif, setSif] = useState<string>("");
 
   // existing product patch fields (only missing)
   const [patchValidityDate, setPatchValidityDate] = useState<string>(todayPlus(3));
   const [patchConservation, setPatchConservation] = useState<string>("refrigerated");
   const [patchCategory, setPatchCategory] = useState<string>("");
   const [patchLocation, setPatchLocation] = useState<string>("");
+  const [patchSif, setPatchSif] = useState<string>("");
 
   const [saving, setSaving] = useState(false);
 
@@ -96,6 +98,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
           conservation_method: (conservation as any) || "refrigerated",
           category: category || null,
           storage_location: location || null,
+          sif: sif.trim() || null,
           unit: "un",
           status: "active",
         });
@@ -108,6 +111,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
         if (needs.includes("conservação")) patch.conservation_method = patchConservation;
         if (needs.includes("setor")) patch.category = patchCategory;
         if (needs.includes("local")) patch.storage_location = patchLocation;
+        if (patchSif.trim()) patch.sif = patchSif.trim();
         if (Object.keys(patch).length) {
           const { error } = await (supabase as any).from("label_products").update(patch).eq("id", productId);
           if (error) throw error;
