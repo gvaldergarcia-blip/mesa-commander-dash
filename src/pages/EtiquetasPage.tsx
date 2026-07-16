@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity } from "lucide-react";
 import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
@@ -15,6 +15,7 @@ import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
+import { TodayTab } from "@/components/labels/TodayTab";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
@@ -31,7 +32,7 @@ export default function EtiquetasPage() {
   const { employees } = useLabelEmployees();
   const { missingProducts } = useStockStatus();
 
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState("hoje");
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
@@ -125,7 +126,8 @@ export default function EtiquetasPage() {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-5">
         <div className="-mx-3 md:mx-0 px-3 md:px-0 overflow-x-auto scrollbar-thin">
-          <TabsList className="inline-flex md:grid md:grid-cols-9 md:w-auto h-auto p-1 gap-1">
+          <TabsList className="inline-flex md:grid md:grid-cols-10 md:w-auto h-auto p-1 gap-1">
+            <TabsTrigger value="hoje" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><Activity className="h-4 w-4" /> Hoje</TabsTrigger>
             <TabsTrigger value="dashboard" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><LayoutDashboard className="h-4 w-4" /> Dashboard</TabsTrigger>
             <TabsTrigger value="recebimento" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><PackagePlus className="h-4 w-4" /> Recebimento</TabsTrigger>
             <TabsTrigger value="etiquetas" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><List className="h-4 w-4" /> Etiquetas</TabsTrigger>
@@ -144,6 +146,18 @@ export default function EtiquetasPage() {
             <TabsTrigger value="sms" className="gap-1.5 whitespace-nowrap px-3 py-2 text-xs md:text-sm"><MessageSquare className="h-4 w-4" /> SMS</TabsTrigger>
           </TabsList>
         </div>
+
+        {/* ===== HOJE (timeline operacional) ===== */}
+        <TabsContent value="hoje">
+          <TodayTab
+            onQuickAction={(action) => {
+              if (action === "new-label") setTab("imprimir");
+              else if (action === "new-receipt") setTab("recebimento");
+              else if (action === "shopping") setTab("compras");
+              else if (action === "labels") setTab("etiquetas");
+            }}
+          />
+        </TabsContent>
 
         {/* ===== RECEBIMENTO INTELIGENTE ===== */}
         <TabsContent value="recebimento">
