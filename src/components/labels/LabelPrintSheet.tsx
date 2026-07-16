@@ -8,6 +8,7 @@ export interface PrintLabelData {
   responsible: string;
   notes?: string | null;
   cif?: string | null;
+  sif?: string | null;
   allergens?: string | null;
   ingredients?: string | null;
   conservationLabel?: string | null;
@@ -57,6 +58,8 @@ export function printLabels(data: PrintLabelData) {
     footerLines.push(`<div class="f-line"><span class="k">CNPJ:</span> ${escapeHtml(data.restaurantCnpj)}</div>`);
   if (data.cif)
     footerLines.push(`<div class="f-line"><span class="k">CIF:</span> ${escapeHtml(data.cif)}</div>`);
+  if (data.sif)
+    footerLines.push(`<div class="f-line"><span class="k">SIF:</span> ${escapeHtml(data.sif)}</div>`);
   if (data.restaurantCep)
     footerLines.push(`<div class="f-line"><span class="k">CEP:</span> ${escapeHtml(data.restaurantCep)}</div>`);
 
