@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles } from "lucide-react";
+import { Camera, Loader2, Sparkles } from "lucide-react";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,17 +73,73 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
   const [patchSif, setPatchSif] = useState<string>("");
 
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanBrand, setScanBrand] = useState<string>("");
+  const [scanBatch, setScanBatch] = useState<string>("");
+  const [scanWeight, setScanWeight] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (item) {
       setMode(item.product_id ? "link" : "new");
       setLinkProductId(item.product_id ?? "");
       setName(item.raw_name);
+      setScanBrand("");
+      setScanBatch("");
+      setScanWeight("");
     }
   }, [item]);
 
   if (!item) return null;
   const needs = item.missing_fields;
+
+  const handleScanPhoto = async (file: File) => {
+    try {
+      setScanning(true);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const result = String(r.result || "");
+          resolve(result.split(",")[1] || "");
+        };
+        r.onerror = () => reject(new Error("Falha ao ler arquivo"));
+        r.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("parse-package-photo", {
+        body: { file_base64: base64, mime_type: file.type },
+      });
+      if (error) throw error;
+
+      const d: any = data || {};
+      let filled = 0;
+      if (d.name && mode === "new") { setName(String(d.name)); filled++; }
+      if (d.expires_at) {
+        if (mode === "new") setValidityDate(d.expires_at);
+        else setPatchValidityDate(d.expires_at);
+        filled++;
+      }
+      if (d.sif) {
+        if (mode === "new") setSif(String(d.sif));
+        else setPatchSif(String(d.sif));
+        filled++;
+      }
+      if (d.brand) { setScanBrand(String(d.brand)); filled++; }
+      if (d.batch) { setScanBatch(String(d.batch)); filled++; }
+      if (d.weight) { setScanWeight(String(d.weight)); filled++; }
+
+      if (filled === 0) {
+        toast.warning("Não consegui ler a etiqueta. Tente uma foto mais nítida.");
+      } else {
+        toast.success(`Etiqueta lida — ${filled} campo(s) preenchido(s)`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao ler foto");
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async () => {
     try {
@@ -125,6 +181,15 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
           rawName: item.raw_name,
           supplierId: supplierId ?? null,
         });
+        // Se a foto trouxe lote, gravar no label_issuance recém-criado deste item
+        if (scanBatch.trim()) {
+          try {
+            await (supabase as any)
+              .from("label_issuances")
+              .update({ batch: scanBatch.trim() })
+              .eq("receipt_item_id", item.id);
+          } catch (e) { console.warn("Falha ao gravar lote", e); }
+        }
         toast.success("Item resolvido — sistema aprendeu esse nome");
       }
       onOpenChange(false);
@@ -150,6 +215,49 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Ler foto da etiqueta do fornecedor */}
+          <div className="rounded-md border border-dashed p-3 bg-muted/30">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Camera className="h-4 w-4 text-primary" />
+                  Ler etiqueta do fornecedor
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Tire uma foto do rótulo — nome, validade, lote, marca e SIF vão preencher sozinhos.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={scanning}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {scanning ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Camera className="h-4 w-4 mr-1.5" />}
+                {scanning ? "Lendo..." : "Tirar foto"}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleScanPhoto(f);
+                }}
+              />
+            </div>
+            {(scanBrand || scanBatch || scanWeight) && (
+              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                {scanBrand && <span className="rounded bg-background border px-1.5 py-0.5">Marca: {scanBrand}</span>}
+                {scanBatch && <span className="rounded bg-background border px-1.5 py-0.5">Lote: {scanBatch}</span>}
+                {scanWeight && <span className="rounded bg-background border px-1.5 py-0.5">Peso: {scanWeight}</span>}
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <Button
               variant={mode === "new" ? "default" : "outline"}
