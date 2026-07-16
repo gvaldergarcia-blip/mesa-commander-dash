@@ -27,6 +27,8 @@ export interface Label {
   cif: string | null;
   allergens: string | null;
   ingredients: string | null;
+  sif: string | null;
+  storage_location: string | null;
   status: LabelStatus;
   discharge_reason: DischargeReason | null;
   resolved_at: string | null;
