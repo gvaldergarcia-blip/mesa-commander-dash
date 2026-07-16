@@ -229,6 +229,10 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
                   <Input value={patchLocation} onChange={(e) => setPatchLocation(e.target.value)} placeholder="Ex.: Câmara fria 1" />
                 </div>
               )}
+              <div className="space-y-1.5">
+                <Label>SIF (opcional)</Label>
+                <Input value={patchSif} onChange={(e) => setPatchSif(e.target.value)} placeholder="Ex.: 358" />
+              </div>
             </>
           ) : (
             <>
@@ -276,6 +280,10 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
                   <Label>Local</Label>
                   <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Opcional" />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>SIF (opcional)</Label>
+                <Input value={sif} onChange={(e) => setSif(e.target.value)} placeholder="Ex.: 358 — se produto de origem animal" />
               </div>
             </>
           )}
