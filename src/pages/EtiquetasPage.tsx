@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity } from "lucide-react";
+import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -10,6 +10,7 @@ import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
 import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
+import { StockReportsTab } from "@/components/labels/StockReportsTab";
 import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
@@ -53,6 +54,7 @@ export default function EtiquetasPage() {
       label: "Operação",
       items: [
         { value: "estoque", icon: PackageX, label: "Estoque" },
+        { value: "faltas-perdas", icon: TrendingDown, label: "Faltas & Perdas" },
       ],
     },
     {
@@ -289,6 +291,11 @@ export default function EtiquetasPage() {
             <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto: Suficiente, Atenção ou Precisa repor.</p>
           </div>
           <StockCheckTab />
+        </TabsContent>
+
+        {/* ===== FALTAS & PERDAS ===== */}
+        <TabsContent value="faltas-perdas">
+          <StockReportsTab />
         </TabsContent>
 
         {/* ===== PRODUTOS ETIQUETADOS ===== */}
