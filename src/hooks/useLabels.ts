@@ -6,7 +6,14 @@ import { toast } from "sonner";
 
 export type LabelStatus = "active" | "expired" | "discharged";
 export type ConservationMethod = "refrigerated" | "frozen" | "ambient" | "hot";
-export type DischargeReason = "use" | "loss" | "error";
+export type DischargeReason =
+  | "use"
+  | "loss"
+  | "error"
+  | "vencimento"
+  | "descarte"
+  | "consumo"
+  | "outro";
 
 export interface Label {
   id: string;

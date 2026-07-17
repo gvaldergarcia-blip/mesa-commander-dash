@@ -2495,8 +2495,10 @@ export type Database = {
           notes: string | null
           product_id: string
           restaurant_id: string
+          sector: string | null
           status: string
           updated_at: string
+          weight_grams: number | null
         }
         Insert: {
           created_at?: string
@@ -2507,8 +2509,10 @@ export type Database = {
           notes?: string | null
           product_id: string
           restaurant_id: string
+          sector?: string | null
           status?: string
           updated_at?: string
+          weight_grams?: number | null
         }
         Update: {
           created_at?: string
@@ -2519,8 +2523,10 @@ export type Database = {
           notes?: string | null
           product_id?: string
           restaurant_id?: string
+          sector?: string | null
           status?: string
           updated_at?: string
+          weight_grams?: number | null
         }
         Relationships: [
           {
@@ -4388,7 +4394,9 @@ export type Database = {
           product_id: string
           product_name: string
           restaurant_id: string
+          sector: string | null
           status: string
+          weight_grams: number | null
         }
         Insert: {
           created_at?: string
@@ -4398,7 +4406,9 @@ export type Database = {
           product_id: string
           product_name: string
           restaurant_id: string
+          sector?: string | null
           status: string
+          weight_grams?: number | null
         }
         Update: {
           created_at?: string
@@ -4408,7 +4418,9 @@ export type Database = {
           product_id?: string
           product_name?: string
           restaurant_id?: string
+          sector?: string | null
           status?: string
+          weight_grams?: number | null
         }
         Relationships: []
       }

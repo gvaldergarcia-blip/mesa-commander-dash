@@ -12,6 +12,8 @@ export interface StockStatus {
   marked_by_name: string | null;
   marked_at: string;
   notes: string | null;
+  weight_grams: number | null;
+  sector: string | null;
 }
 
 export function useStockStatus() {
@@ -38,6 +40,8 @@ export function useStockStatus() {
       status: 'ok' | 'falta';
       employee_id?: string | null;
       employee_name?: string | null;
+      weight_grams?: number | null;
+      sector?: string | null;
     }) => {
       if (!restaurantId) throw new Error('Restaurante não identificado');
       const payload = {
@@ -47,6 +51,8 @@ export function useStockStatus() {
         marked_by_employee_id: input.employee_id ?? null,
         marked_by_name: input.employee_name ?? null,
         marked_at: new Date().toISOString(),
+        weight_grams: input.weight_grams ?? null,
+        sector: input.sector ?? null,
       };
       const { error } = await (supabase as any)
         .from('product_stock_status')
@@ -61,6 +67,8 @@ export function useStockStatus() {
         status: input.status,
         marked_by_employee_id: input.employee_id ?? null,
         marked_by_name: input.employee_name ?? null,
+        weight_grams: input.weight_grams ?? null,
+        sector: input.sector ?? null,
       });
     },
     onSuccess: () => {

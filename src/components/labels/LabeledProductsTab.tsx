@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as PackageIcon } from "lucide-react";
+import { Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as PackageIcon, PackageMinus, Trash2, Clock, Utensils, HelpCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLabeledProducts, type LabeledProduct } from "@/hooks/useLabeledProducts";
+import { useLabels, type DischargeReason } from "@/hooks/useLabels";
 import { getSectorHex, mergeSectors, NO_SECTOR_HEX } from "@/lib/labels/sectors";
 import { withAlpha } from "@/lib/labels/categories";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const STATUS_STYLES: Record<LabeledProduct["status"], { label: string; bg: string; fg: string }> = {
   ok:       { label: "OK",       bg: "#1C4532", fg: "#68D391" },
@@ -26,9 +32,36 @@ interface Props {
 
 export function LabeledProductsTab({ onPrintProduct }: Props) {
   const { items, isLoading } = useLabeledProducts();
+  const { dischargeBulk } = useLabels();
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [dischargeTarget, setDischargeTarget] = useState<LabeledProduct | null>(null);
+  const [isDischarging, setIsDischarging] = useState(false);
+
+  const REASONS: { value: DischargeReason; label: string; icon: any; hint: string }[] = [
+    { value: "vencimento", label: "Vencimento", icon: Clock, hint: "Produto passou da validade" },
+    { value: "descarte", label: "Descarte", icon: Trash2, hint: "Produto perdido ou danificado" },
+    { value: "consumo", label: "Consumo", icon: Utensils, hint: "Produto foi todo consumido" },
+    { value: "outro", label: "Outro", icon: HelpCircle, hint: "Outro motivo" },
+  ];
+
+  const runDischarge = async (reason: DischargeReason) => {
+    if (!dischargeTarget) return;
+    const ids = dischargeTarget.active_label_ids;
+    if (!ids.length) {
+      toast.info("Nenhuma etiqueta ativa para baixar.");
+      setDischargeTarget(null);
+      return;
+    }
+    try {
+      setIsDischarging(true);
+      await dischargeBulk({ ids, reason });
+      setDischargeTarget(null);
+    } finally {
+      setIsDischarging(false);
+    }
+  };
 
   const sectors = useMemo(
     () => mergeSectors(items.map((i) => i.sector)),
@@ -194,8 +227,17 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-muted/40 text-xs font-medium text-foreground/80 transition-all hover:bg-muted"
                   >
                     <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")} />
-                    Recebimentos
+                    Histórico
                   </button>
+                  {it.active_labels_count > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDischargeTarget(it)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-destructive border border-border bg-muted/40 hover:bg-destructive/10 hover:border-destructive/40 transition-all text-xs font-medium"
+                    >
+                      <PackageMinus className="h-3.5 w-3.5" /> Baixa
+                    </button>
+                  )}
                   {it.product_id && onPrintProduct && (
                     <button
                       type="button"
@@ -209,6 +251,13 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
 
                 {isOpen && (
                   <div className="mt-3 pt-3 border-t border-border space-y-2 max-h-56 overflow-y-auto">
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground pb-1">
+                      <span>{it.active_labels_count} ativa{it.active_labels_count === 1 ? "" : "s"}</span>
+                      <span>{it.discharged_labels_count} baixada{it.discharged_labels_count === 1 ? "" : "s"}</span>
+                      {it.last_discharge_at && (
+                        <span className="italic">Última baixa: {formatDate(it.last_discharge_at)} · {it.last_discharge_reason || "—"}</span>
+                      )}
+                    </div>
                     {it.receipts.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground italic">
                         Nenhum recebimento registrado — este produto foi etiquetado manualmente.
@@ -234,6 +283,57 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
           })}
         </div>
       )}
+
+      <Dialog open={!!dischargeTarget} onOpenChange={(o) => !o && setDischargeTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageMinus className="h-5 w-5 text-destructive" />
+              Dar baixa em produto
+            </DialogTitle>
+            <DialogDescription>
+              {dischargeTarget && (
+                <>
+                  Todas as <b>{dischargeTarget.active_labels_count}</b> etiqueta
+                  {dischargeTarget.active_labels_count === 1 ? "" : "s"} ativa
+                  {dischargeTarget.active_labels_count === 1 ? "" : "s"} de <b>{dischargeTarget.product_name}</b> serão
+                  baixadas. O histórico é preservado.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-2 py-2">
+            {REASONS.map((r) => {
+              const Icon = r.icon;
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  disabled={isDischarging}
+                  onClick={() => runDischarge(r.value)}
+                  className="flex flex-col items-start gap-1 p-3 rounded-xl border border-border bg-card hover:border-destructive/50 hover:bg-destructive/5 transition-all text-left disabled:opacity-50"
+                >
+                  <Icon className="h-4 w-4 text-destructive" />
+                  <span className="font-semibold text-sm">{r.label}</span>
+                  <span className="text-[11px] text-muted-foreground">{r.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-start gap-2 text-[11px] text-muted-foreground p-2 rounded-lg bg-muted/40 border border-border">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>Esta ação não remove o produto do histórico — ele passa a integrar a lista de baixas.</span>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDischargeTarget(null)} disabled={isDischarging}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
