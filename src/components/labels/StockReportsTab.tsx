@@ -362,12 +362,29 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
       for (const { status, product, product_name } of list) {
         const raw = (product?.raw || {}) as any;
-        const unit = raw?.unit || status.weight_grams ? "g" : "un";
+        const lastReceipt = product?.receipts?.[0];
+        // Quantidade exata: prioriza o último recebimento (dado real da nota/entrada),
+        // depois a marcação em gramas da conferência, e por fim a soma das etiquetas.
+        const labelsQtySum = Array.isArray((product as any)?.raw?.__labels)
+          ? 0
+          : 0;
+        let qtyValue: number | null = null;
+        let unitValue = "un";
+        if (lastReceipt && Number(lastReceipt.quantity) > 0) {
+          qtyValue = Number(lastReceipt.quantity);
+          unitValue = (lastReceipt.unit || raw?.unit || "un").toString();
+        } else if (status.weight_grams) {
+          qtyValue = Number(status.weight_grams);
+          unitValue = "g";
+        } else if (raw?.unit) {
+          unitValue = String(raw.unit);
+        }
+        const qty = qtyValue !== null ? qtyValue.toLocaleString("pt-BR") : "—";
+        const unit = unitValue;
         const lastRecvAt = product?.last_receipt_at
           ? format(new Date(product.last_receipt_at), "dd/MM/yyyy", { locale: ptBR })
           : "—";
         const lastSupplier = product?.last_supplier || "—";
-        const qty = status.weight_grams ? String(status.weight_grams) : "—";
 
         // Product name + optional observations underneath
         const productParas: Paragraph[] = [
@@ -377,8 +394,20 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         ];
         const bullets: string[] = [];
         if (raw?.brand) bullets.push(`marca: ${raw.brand}`);
+        if (raw?.sif) bullets.push(`SIF: ${raw.sif}`);
+        if (raw?.storage_location) bullets.push(`local: ${raw.storage_location}`);
         if (raw?.conservation_method) bullets.push(String(raw.conservation_method).toLowerCase());
+        if (raw?.validity_days) bullets.push(`validade pós-abertura: ${raw.validity_days} dia(s)`);
         if (raw?.allergens) bullets.push(`alérgenos: ${raw.allergens}`);
+        if (raw?.ingredients) bullets.push(`ingredientes: ${raw.ingredients}`);
+        if (product?.last_expiry) {
+          bullets.push(
+            `última validade emitida: ${format(new Date(product.last_expiry), "dd/MM/yyyy", { locale: ptBR })}`,
+          );
+        }
+        if ((product?.labels_count ?? 0) > 0) {
+          bullets.push(`histórico: ${product?.labels_count} etiqueta(s) emitida(s)`);
+        }
         for (const b of bullets) {
           productParas.push(
             new Paragraph({
