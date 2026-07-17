@@ -4,6 +4,7 @@ import { Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as Package
 import { cn } from "@/lib/utils";
 import { useLabeledProducts, type LabeledProduct } from "@/hooks/useLabeledProducts";
 import { useLabels, type DischargeReason } from "@/hooks/useLabels";
+import { useStockStatus } from "@/hooks/useStockStatus";
 import { getSectorHex, mergeSectors, NO_SECTOR_HEX } from "@/lib/labels/sectors";
 import { withAlpha } from "@/lib/labels/categories";
 import {
@@ -33,6 +34,7 @@ interface Props {
 export function LabeledProductsTab({ onPrintProduct }: Props) {
   const { items, isLoading } = useLabeledProducts();
   const { dischargeBulk } = useLabels();
+  const { statusMap } = useStockStatus();
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -63,20 +65,37 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
     }
   };
 
+  // Regra: a tela Produtos representa apenas produtos ATIVOS na operação.
+  // Exclui automaticamente quem:
+  //   - não possui nenhuma etiqueta ativa (todas baixadas/vencidas), ou
+  //   - foi marcado como "Precisa repor" (falta) na Conferência Operacional.
+  const activeItems = useMemo(
+    () =>
+      items.filter((it) => {
+        if (it.active_labels_count <= 0) return false;
+        if (it.product_id) {
+          const st = statusMap.get(it.product_id);
+          if (st?.status === "falta") return false;
+        }
+        return true;
+      }),
+    [items, statusMap],
+  );
+
   const sectors = useMemo(
-    () => mergeSectors(items.map((i) => i.sector)),
-    [items]
+    () => mergeSectors(activeItems.map((i) => i.sector)),
+    [activeItems]
   );
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return items.filter((it) => {
+    return activeItems.filter((it) => {
       if (sectorFilter === "__none__" && it.sector) return false;
       if (sectorFilter !== "all" && sectorFilter !== "__none__" && it.sector !== sectorFilter) return false;
       if (term && !it.product_name.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [items, sectorFilter, search]);
+  }, [activeItems, sectorFilter, search]);
 
   return (
     <div className="space-y-5">
@@ -88,7 +107,7 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
             Sem cadastro manual.
           </p>
           <p className="text-[11px] text-primary uppercase tracking-widest font-bold mt-1">
-            {filtered.length} de {items.length} {items.length === 1 ? "produto" : "produtos"}
+            {filtered.length} de {activeItems.length} {activeItems.length === 1 ? "produto ativo" : "produtos ativos"}
           </p>
         </div>
       </div>
