@@ -22,6 +22,11 @@ export interface LabeledProduct {
   category: string | null;        // categoria (compat)
   status: "ok" | "warning" | "critical" | "expired";
   labels_count: number;
+  active_labels_count: number;
+  discharged_labels_count: number;
+  active_label_ids: string[];
+  last_discharge_at: string | null;
+  last_discharge_reason: string | null;
   receipts_count: number;
   last_receipt_at: string | null;
   last_supplier: string | null;
@@ -92,6 +97,11 @@ export function useLabeledProducts() {
       const receiptsForProd = (receiptsByProduct.get(key) || []).sort(
         (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
       );
+      const active = list.filter((l) => l.status !== "discharged");
+      const discharged = list.filter((l) => l.status === "discharged");
+      const lastDischarged = discharged.sort(
+        (a, b) => new Date(b.resolved_at || b.created_at).getTime() - new Date(a.resolved_at || a.created_at).getTime()
+      )[0];
       out.push({
         product_id: productId,
         product_name: prod?.name ?? first.product_name,
@@ -99,6 +109,11 @@ export function useLabeledProducts() {
         category: prod?.category ?? first.product_category ?? null,
         status: computeStatus(list),
         labels_count: list.length,
+        active_labels_count: active.length,
+        discharged_labels_count: discharged.length,
+        active_label_ids: active.map((l) => l.id),
+        last_discharge_at: lastDischarged?.resolved_at ?? null,
+        last_discharge_reason: lastDischarged?.discharge_reason ?? null,
         receipts_count: receiptsForProd.length,
         last_receipt_at: receiptsForProd[0]?.received_at ?? first.created_at,
         last_supplier: receiptsForProd[0]?.supplier_name ?? null,
