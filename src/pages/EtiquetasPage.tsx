@@ -54,7 +54,6 @@ export default function EtiquetasPage() {
       label: "Operação",
       items: [
         { value: "estoque", icon: PackageX, label: "Estoque" },
-        { value: "faltas-perdas", icon: TrendingDown, label: "Faltas & Perdas" },
       ],
     },
     {
@@ -239,31 +238,9 @@ export default function EtiquetasPage() {
           <ReceivingTab />
         </TabsContent>
 
-        {/* ===== DASHBOARD ===== */}
+        {/* ===== RELATÓRIOS (Centro de Inteligência Operacional) ===== */}
         <TabsContent value="dashboard" className="space-y-5">
-          <SmartReprintCard
-            onPrintProduct={(pid) => {
-              setPrintInitialProduct(pid);
-              setTab("imprimir");
-            }}
-          />
-          <LabelDashboard
-            labels={labels}
-            stats={stats}
-            productCount={products.length}
-            activeFilter={statFilter}
-            onSelectStat={(f) => {
-              setStatFilter(f);
-              if (f === "products") setTab("produtos");
-              else if (f) setTab("dashboard");
-            }}
-            onQuickAction={(action) => {
-              if (action === "new-label") setTab("imprimir");
-              else if (action === "new-product") setTab("produtos");
-              else if (action === "new-employee") setTab("funcionarios");
-              else if (action === "validity") { setStatFilter("expired"); setTab("dashboard"); }
-            }}
-          />
+          <StockReportsTab />
         </TabsContent>
 
         {/* ===== IMPRIMIR ===== */}
@@ -288,11 +265,6 @@ export default function EtiquetasPage() {
             <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto: Suficiente, Atenção ou Precisa repor.</p>
           </div>
           <StockCheckTab />
-        </TabsContent>
-
-        {/* ===== FALTAS & PERDAS ===== */}
-        <TabsContent value="faltas-perdas">
-          <StockReportsTab />
         </TabsContent>
 
         {/* ===== PRODUTOS ETIQUETADOS ===== */}
