@@ -363,11 +363,8 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       for (const { status, product, product_name } of list) {
         const raw = (product?.raw || {}) as any;
         const lastReceipt = product?.receipts?.[0];
-        // Quantidade exata: prioriza o último recebimento (dado real da nota/entrada),
-        // depois a marcação em gramas da conferência, e por fim a soma das etiquetas.
-        const labelsQtySum = Array.isArray((product as any)?.raw?.__labels)
-          ? 0
-          : 0;
+        // Quantidade exata: prioriza o último recebimento (dado real da entrada),
+        // depois a marcação em gramas da conferência, e por fim cai para a unidade cadastrada.
         let qtyValue: number | null = null;
         let unitValue = "un";
         if (lastReceipt && Number(lastReceipt.quantity) > 0) {
