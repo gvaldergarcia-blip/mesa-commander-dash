@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   AlertTriangle, Trash2, ClipboardCheck, Boxes, Timer, ArrowRight,
   MapPin, Search, CheckCircle2, AlertCircle, Circle, User, Package,
+  FileDown,
 } from "lucide-react";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { useLabels } from "@/hooks/useLabels";
@@ -16,6 +17,12 @@ import { mergeSectors } from "@/lib/labels/sectors";
 import { format, isToday, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import {
+  Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+  Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, PageBreak,
+} from "docx";
+import { saveAs } from "file-saver";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 
 type Range = "7" | "30" | "90";
 
@@ -29,6 +36,9 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const { products } = useLabelProducts();
   const { activeEmployees } = useLabelEmployees();
   const { items: labeledProducts } = useLabeledProducts();
+  const restaurantCtx = (() => {
+    try { return useRestaurant(); } catch { return null as any; }
+  })();
   const [range, setRange] = useState<Range>("30");
   const [search, setSearch] = useState("");
 
@@ -145,14 +155,256 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     ? formatDistanceToNow(new Date(lastConference.marked_at), { addSuffix: true, locale: ptBR })
     : "—";
 
+  // ============ Word: Lista de Reposição ============
+  const restockList = useMemo(() => {
+    return needsRestock
+      .map((s) => {
+        const prod = labeledProducts.find((p) => p.product_id === s.product_id);
+        return {
+          status: s,
+          product: prod,
+          product_name: prod?.product_name || "Produto",
+        };
+      })
+      .sort((a, b) => {
+        const sa = (a.status.sector || "").localeCompare(b.status.sector || "");
+        if (sa !== 0) return sa;
+        return a.product_name.localeCompare(b.product_name);
+      });
+  }, [needsRestock, labeledProducts]);
+
+  async function handleDownloadRestockDocx() {
+    if (restockList.length === 0) {
+      return;
+    }
+    const now = new Date();
+    const restaurantName =
+      restaurantCtx?.restaurant?.name ||
+      (restaurantCtx as any)?.currentRestaurant?.name ||
+      "MesaClik";
+
+    // Group by sector
+    const bySector = new Map<string, typeof restockList>();
+    for (const item of restockList) {
+      const key = item.status.sector || "Sem setor";
+      if (!bySector.has(key)) bySector.set(key, [] as any);
+      (bySector.get(key) as any).push(item);
+    }
+
+    const border = { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" };
+    const cellBorders = { top: border, bottom: border, left: border, right: border };
+    const headerFill = "1F2937";
+
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: ["Produto", "Unidade", "Último fornecedor", "Último recebimento", "Marcado por", "Marcado em"].map(
+        (h) =>
+          new TableCell({
+            borders: cellBorders,
+            shading: { fill: headerFill, type: ShadingType.CLEAR, color: "auto" },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: h, bold: true, color: "FFFFFF", size: 20 })],
+              }),
+            ],
+          }),
+      ),
+    });
+
+    const sectorSections: Paragraph[] = [];
+    const children: any[] = [];
+
+    // Cover
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: restaurantName, bold: true, size: 36 })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 120 },
+        children: [new TextRun({ text: "Lista de reposição", size: 28, color: "6B7280" })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 },
+        children: [
+          new TextRun({
+            text: format(now, "'Gerado em' dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }),
+            size: 20,
+            color: "6B7280",
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 300 },
+        children: [
+          new TextRun({ text: `Total de itens a repor: `, size: 22 }),
+          new TextRun({ text: `${restockList.length}`, bold: true, size: 22 }),
+          new TextRun({ text: `   ·   Setores impactados: `, size: 22 }),
+          new TextRun({ text: `${bySector.size}`, bold: true, size: 22 }),
+        ],
+      }),
+    );
+
+    let first = true;
+    for (const [sector, list] of bySector) {
+      if (!first) children.push(new Paragraph({ children: [new PageBreak()] }));
+      first = false;
+
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 200, after: 120 },
+          children: [new TextRun({ text: sector, bold: true, size: 28 })],
+        }),
+        new Paragraph({
+          spacing: { after: 200 },
+          children: [
+            new TextRun({
+              text: `${list.length} produto${list.length === 1 ? "" : "s"} pendente${list.length === 1 ? "" : "s"} de reposição`,
+              color: "6B7280",
+              size: 20,
+            }),
+          ],
+        }),
+      );
+
+      const rows: TableRow[] = [headerRow];
+      for (const { status, product, product_name } of list) {
+        const raw = product?.raw as any;
+        const unit = raw?.unit || "—";
+        const lastRecvAt = product?.last_receipt_at
+          ? format(new Date(product.last_receipt_at), "dd/MM/yyyy", { locale: ptBR })
+          : "—";
+        const lastSupplier = product?.last_supplier || "—";
+        const markedBy = status.marked_by_name || "Equipe";
+        const markedAt = status.marked_at
+          ? format(new Date(status.marked_at), "dd/MM HH:mm", { locale: ptBR })
+          : "—";
+
+        const cells = [
+          product_name,
+          unit,
+          lastSupplier,
+          lastRecvAt,
+          markedBy,
+          markedAt,
+        ].map(
+          (text, i) =>
+            new TableCell({
+              borders: cellBorders,
+              margins: { top: 80, bottom: 80, left: 120, right: 120 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: String(text ?? "—"),
+                      bold: i === 0,
+                      size: 20,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+        );
+        rows.push(new TableRow({ children: cells }));
+
+        // Optional detail row: ingredients / allergens / notes / weight
+        const details: string[] = [];
+        if (status.weight_grams) details.push(`Peso registrado: ${status.weight_grams} g`);
+        if (raw?.brand) details.push(`Marca: ${raw.brand}`);
+        if (raw?.allergens) details.push(`Alérgenos: ${raw.allergens}`);
+        if (raw?.ingredients) details.push(`Ingredientes: ${raw.ingredients}`);
+        if (raw?.notes) details.push(`Obs.: ${raw.notes}`);
+        if (details.length) {
+          rows.push(
+            new TableRow({
+              children: [
+                new TableCell({
+                  columnSpan: 6,
+                  borders: cellBorders,
+                  shading: { fill: "F9FAFB", type: ShadingType.CLEAR, color: "auto" },
+                  margins: { top: 60, bottom: 60, left: 120, right: 120 },
+                  children: details.map(
+                    (d) => new Paragraph({ children: [new TextRun({ text: d, size: 18, color: "374151" })] }),
+                  ),
+                }),
+              ],
+            }),
+          );
+        }
+      }
+
+      children.push(
+        new Table({
+          width: { size: 9360, type: WidthType.DXA },
+          columnWidths: [2400, 1000, 1960, 1500, 1300, 1200],
+          rows,
+        }),
+      );
+    }
+
+    const doc = new Document({
+      creator: "MesaClik",
+      title: `Lista de reposição - ${restaurantName}`,
+      styles: {
+        default: { document: { run: { font: "Arial", size: 22 } } },
+        paragraphStyles: [
+          {
+            id: "Heading1",
+            name: "Heading 1",
+            basedOn: "Normal",
+            next: "Normal",
+            quickFormat: true,
+            run: { size: 28, bold: true, font: "Arial", color: "111827" },
+            paragraph: { spacing: { before: 240, after: 120 }, outlineLevel: 0 },
+          },
+        ],
+      },
+      sections: [
+        {
+          properties: {
+            page: {
+              size: { width: 12240, height: 15840 },
+              margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
+            },
+          },
+          children,
+        },
+      ],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const filename = `lista-reposicao-${format(now, "yyyy-MM-dd-HHmm")}.docx`;
+    saveAs(blob, filename);
+  }
+
   return (
     <div className="space-y-12 max-w-6xl mx-auto">
       {/* ============ HEADER ============ */}
-      <header className="space-y-1.5">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Relatórios</h1>
-        <p className="text-sm text-muted-foreground">
-          Visão executiva da sua cozinha em tempo real.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="space-y-1.5">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Relatórios</h1>
+          <p className="text-sm text-muted-foreground">
+            Visão executiva da sua cozinha em tempo real.
+          </p>
+        </div>
+        <Button
+          onClick={handleDownloadRestockDocx}
+          disabled={restockList.length === 0}
+          className="shrink-0 gap-2"
+          variant="default"
+        >
+          <FileDown className="h-4 w-4" />
+          Lista de reposição (Word)
+          {restockList.length > 0 && (
+            <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[11px] font-semibold">
+              {restockList.length}
+            </span>
+          )}
+        </Button>
       </header>
 
       {/* ============ REQUER ATENÇÃO ============ */}

@@ -72,6 +72,7 @@ export default function EtiquetasPage() {
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
+  const [stockInitialSector, setStockInitialSector] = useState<string | null>(null);
 
   const stats = useMemo(() => computeStats(labels), [labels]);
 
@@ -240,7 +241,12 @@ export default function EtiquetasPage() {
 
         {/* ===== RELATÓRIOS (Centro de Inteligência Operacional) ===== */}
         <TabsContent value="dashboard" className="space-y-5">
-          <StockReportsTab onOpenSector={() => setTab("estoque")} />
+          <StockReportsTab
+            onOpenSector={(sector) => {
+              setStockInitialSector(sector ?? null);
+              setTab("estoque");
+            }}
+          />
         </TabsContent>
 
         {/* ===== IMPRIMIR ===== */}
@@ -264,7 +270,7 @@ export default function EtiquetasPage() {
             <h2 className="text-xl font-semibold">Estoque rápido</h2>
             <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto: Suficiente, Atenção ou Precisa repor.</p>
           </div>
-          <StockCheckTab />
+          <StockCheckTab initialSector={stockInitialSector} />
         </TabsContent>
 
         {/* ===== PRODUTOS ETIQUETADOS ===== */}
