@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Search, PackageCheck, PackageX, ArrowLeft, Scale } from 'lucide-react';
+import { CheckCircle2, XCircle, Search, PackageCheck, PackageX, ArrowLeft, Scale, AlertTriangle } from 'lucide-react';
 import { useStockStatus } from '@/hooks/useStockStatus';
 import { useLabelEmployees } from '@/hooks/useLabelEmployees';
 import { useLabeledProducts, type LabeledProduct } from '@/hooks/useLabeledProducts';
@@ -50,7 +50,7 @@ export function StockCheckTab() {
 
   const employee = activeEmployees.find((e) => e.id === employeeId);
 
-  const mark = async (p: LabeledProduct, status: 'ok' | 'falta') => {
+  const mark = async (p: LabeledProduct, status: 'ok' | 'atencao' | 'falta') => {
     if (!p.product_id) return;
     const raw = weightDraft[p.product_id];
     const parsed = raw ? Number(raw.replace(',', '.')) : NaN;
@@ -199,6 +199,7 @@ export function StockCheckTab() {
             const st = p.product_id ? statusMap.get(p.product_id) : undefined;
             const isMissing = st?.status === 'falta';
             const isOk = st?.status === 'ok';
+            const isWarn = st?.status === 'atencao';
             const weight = isWeightProduct(p);
             const draftKey = p.product_id!;
             return (
@@ -210,7 +211,9 @@ export function StockCheckTab() {
                     ? 'bg-destructive/5 border-destructive/40'
                     : isOk
                       ? 'bg-emerald-500/5 border-emerald-500/30'
-                      : 'bg-card border-border',
+                      : isWarn
+                        ? 'bg-amber-500/5 border-amber-500/40'
+                        : 'bg-card border-border',
                 )}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -244,7 +247,7 @@ export function StockCheckTab() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant={isOk ? 'default' : 'outline'}
@@ -253,6 +256,18 @@ export function StockCheckTab() {
                     onClick={() => mark(p, 'ok')}
                   >
                     <CheckCircle2 className="h-4 w-4" /> Suficiente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={isWarn ? 'default' : 'outline'}
+                    className={cn(
+                      'flex-1 gap-1.5 h-12',
+                      isWarn && 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500',
+                    )}
+                    disabled={isMutating}
+                    onClick={() => mark(p, 'atencao')}
+                  >
+                    <AlertTriangle className="h-4 w-4" /> Atenção
                   </Button>
                   <Button
                     type="button"
