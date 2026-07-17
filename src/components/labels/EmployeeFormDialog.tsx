@@ -10,7 +10,8 @@ import { Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
+import { mergeSectors } from "@/lib/labels/sectors";
+import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { Switch } from "@/components/ui/switch";
 import { Bell, MessageSquare } from "lucide-react";
 
@@ -23,6 +24,8 @@ interface Props {
 }
 
 export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isSubmitting }: Props) {
+  const { products } = useLabelProducts();
+  const availableSectors = mergeSectors(products.map((p) => p.storage_location));
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [pin, setPin] = useState("");
@@ -166,26 +169,29 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
           </div>
           <div className="space-y-2">
             <Label>Setores responsáveis *</Label>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              Áreas físicas do restaurante (onde os produtos ficam armazenados).
+            </p>
             <div className="grid grid-cols-2 gap-1.5 p-3 rounded-md border border-border/60 bg-muted/20 max-h-48 overflow-y-auto">
-              {PRODUCT_CATEGORIES.map((cat) => {
-                const checked = sectors.includes(cat);
+              {availableSectors.map((sec) => {
+                const checked = sectors.includes(sec);
                 return (
-                  <label key={cat} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
+                  <label key={sec} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
                     <Checkbox
                       checked={checked}
                       onCheckedChange={(v) => {
                         setSectors((prev) =>
-                          v ? [...prev, cat] : prev.filter((s) => s !== cat)
+                          v ? [...prev, sec] : prev.filter((s) => s !== sec)
                         );
                       }}
                     />
-                    <span className="truncate">{cat}</span>
+                    <span className="truncate">{sec}</span>
                   </label>
                 );
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Este funcionário ficará vinculado às etiquetas das categorias selecionadas.
+              O responsável de cada setor aparece automaticamente nas etiquetas dos produtos armazenados ali.
             </p>
           </div>
           <div className="space-y-2">
