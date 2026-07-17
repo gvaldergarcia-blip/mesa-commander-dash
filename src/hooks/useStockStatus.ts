@@ -7,7 +7,7 @@ export interface StockStatus {
   id: string;
   restaurant_id: string;
   product_id: string;
-  status: 'ok' | 'falta';
+  status: 'ok' | 'atencao' | 'falta';
   marked_by_employee_id: string | null;
   marked_by_name: string | null;
   marked_at: string;
@@ -37,7 +37,7 @@ export function useStockStatus() {
     mutationFn: async (input: {
       product_id: string;
       product_name: string;
-      status: 'ok' | 'falta';
+      status: 'ok' | 'atencao' | 'falta';
       employee_id?: string | null;
       employee_name?: string | null;
       weight_grams?: number | null;
