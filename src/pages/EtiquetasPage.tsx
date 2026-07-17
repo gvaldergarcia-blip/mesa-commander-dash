@@ -10,7 +10,6 @@ import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
 import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
-import { ShoppingListTab } from "@/components/labels/ShoppingListTab";
 import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
@@ -283,20 +282,11 @@ export default function EtiquetasPage() {
           </Card>
         </TabsContent>
 
-        {/* ===== LISTA DE COMPRAS ===== */}
-        <TabsContent value="compras" className="space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold">Lista de compras</h2>
-            <p className="text-sm text-muted-foreground">Produtos em falta marcados pela equipe. Quando chegar, marque como recebido e já imprima a etiqueta.</p>
-          </div>
-          <ShoppingListTab onPrintProduct={() => setTab("imprimir")} />
-        </TabsContent>
-
         {/* ===== ESTOQUE (marcação rápida) ===== */}
         <TabsContent value="estoque" className="space-y-4">
           <div>
             <h2 className="text-xl font-semibold">Estoque rápido</h2>
-            <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto como Ok ou Falta. As faltas aparecem automaticamente na Lista de compras.</p>
+            <p className="text-sm text-muted-foreground">Marque com 1 toque cada produto: Suficiente, Atenção ou Precisa repor.</p>
           </div>
           <StockCheckTab />
         </TabsContent>
