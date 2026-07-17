@@ -22,7 +22,7 @@ import {
   Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, PageBreak,
 } from "docx";
 import { saveAs } from "file-saver";
-import { useRestaurantContext } from "@/contexts/RestaurantContext";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 
 type Range = "7" | "30" | "90";
 
@@ -37,7 +37,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const { activeEmployees } = useLabelEmployees();
   const { items: labeledProducts } = useLabeledProducts();
   const restaurantCtx = (() => {
-    try { return useRestaurantContext(); } catch { return null as any; }
+    try { return useRestaurant(); } catch { return null as any; }
   })();
   const [range, setRange] = useState<Range>("30");
   const [search, setSearch] = useState("");
@@ -160,12 +160,16 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     return needsRestock
       .map((s) => {
         const prod = labeledProducts.find((p) => p.product_id === s.product_id);
-        return { status: s, product: prod };
+        return {
+          status: s,
+          product: prod,
+          product_name: prod?.product_name || "Produto",
+        };
       })
       .sort((a, b) => {
         const sa = (a.status.sector || "").localeCompare(b.status.sector || "");
         if (sa !== 0) return sa;
-        return (a.status.product_name || "").localeCompare(b.status.product_name || "");
+        return a.product_name.localeCompare(b.product_name);
       });
   }, [needsRestock, labeledProducts]);
 
@@ -175,7 +179,9 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     }
     const now = new Date();
     const restaurantName =
-      restaurantCtx?.restaurant?.name || restaurantCtx?.currentRestaurant?.name || "MesaClik";
+      restaurantCtx?.restaurant?.name ||
+      (restaurantCtx as any)?.currentRestaurant?.name ||
+      "MesaClik";
 
     // Group by sector
     const bySector = new Map<string, typeof restockList>();
@@ -266,7 +272,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       );
 
       const rows: TableRow[] = [headerRow];
-      for (const { status, product } of list) {
+      for (const { status, product, product_name } of list) {
         const raw = product?.raw as any;
         const unit = raw?.unit || "—";
         const lastRecvAt = product?.last_receipt_at
@@ -279,7 +285,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
           : "—";
 
         const cells = [
-          status.product_name,
+          product_name,
           unit,
           lastSupplier,
           lastRecvAt,
