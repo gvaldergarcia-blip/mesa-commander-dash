@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Camera, Loader2, Sparkles } from "lucide-react";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
+import { DEFAULT_SECTORS } from "@/lib/labels/sectors";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { toast } from "sonner";
