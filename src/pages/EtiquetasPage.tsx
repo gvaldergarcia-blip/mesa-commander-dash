@@ -135,9 +135,6 @@ export default function EtiquetasPage() {
             Gestão de validade, rastreabilidade e baixas para sua cozinha.
           </p>
         </div>
-        <Button onClick={() => setTab("imprimir")} size="lg" className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
-          <Printer className="h-4 w-4" /> Nova etiqueta
-        </Button>
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-2">
