@@ -240,7 +240,7 @@ export default function EtiquetasPage() {
 
         {/* ===== RELATÓRIOS (Centro de Inteligência Operacional) ===== */}
         <TabsContent value="dashboard" className="space-y-5">
-          <StockReportsTab />
+          <StockReportsTab onOpenSector={() => setTab("estoque")} />
         </TabsContent>
 
         {/* ===== IMPRIMIR ===== */}
