@@ -147,20 +147,6 @@ export function TodayTab({ onQuickAction }: Props) {
         <Button
           size="lg"
           variant="secondary"
-          onClick={() => onQuickAction("shopping")}
-          className="h-auto py-4 flex-col gap-1.5"
-        >
-          <ShoppingCart className="h-5 w-5" />
-          <span className="text-xs font-semibold">Lista de compras</span>
-          {missingProducts.length > 0 && (
-            <span className="text-[10px] font-bold text-destructive">
-              {missingProducts.length} em falta
-            </span>
-          )}
-        </Button>
-        <Button
-          size="lg"
-          variant="secondary"
           onClick={() => onQuickAction("labels")}
           className="h-auto py-4 flex-col gap-1.5"
         >
