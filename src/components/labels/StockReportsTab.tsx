@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, PageBreak,
+  Header, Footer, PageNumber, TabStopType, TabStopPosition,
 } from "docx";
 import { saveAs } from "file-saver";
 import { useRestaurant } from "@/contexts/RestaurantContext";
@@ -183,7 +184,14 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       (restaurantCtx as any)?.currentRestaurant?.name ||
       "MesaClik";
 
-    // Group by sector
+    // ===== Design tokens =====
+    const ORANGE = "F97316"; // laranja institucional
+    const INK = "111827";
+    const MUTED = "6B7280";
+    const LINE = "E5E7EB";
+    const SOFT = "F9FAFB";
+
+    // ===== Group by sector =====
     const bySector = new Map<string, typeof restockList>();
     for (const item of restockList) {
       const key = item.status.sector || "Sem setor";
@@ -191,186 +199,282 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       (bySector.get(key) as any).push(item);
     }
 
-    const border = { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" };
-    const cellBorders = { top: border, bottom: border, left: border, right: border };
-    const headerFill = "1F2937";
+    // ===== Summary numbers =====
+    const totalConferences = statuses.length;
+    const lastConfDate = lastConference?.marked_at
+      ? format(new Date(lastConference.marked_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+      : "—";
 
-    const headerRow = new TableRow({
-      tableHeader: true,
-      children: ["Produto", "Unidade", "Último fornecedor", "Último recebimento", "Marcado por", "Marcado em"].map(
-        (h) =>
-          new TableCell({
-            borders: cellBorders,
-            shading: { fill: headerFill, type: ShadingType.CLEAR, color: "auto" },
-            margins: { top: 80, bottom: 80, left: 120, right: 120 },
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: h, bold: true, color: "FFFFFF", size: 20 })],
-              }),
-            ],
-          }),
-      ),
-    });
+    const noBorder = {
+      top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    };
+    const rowBorder = {
+      top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: LINE },
+      left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    };
+    const headerRowBorder = {
+      top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      bottom: { style: BorderStyle.SINGLE, size: 8, color: INK },
+      left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+    };
 
-    const sectorSections: Paragraph[] = [];
     const children: any[] = [];
 
-    // Cover
+    // ===== HEADER =====
     children.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: restaurantName, bold: true, size: 36 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 120 },
-        children: [new TextRun({ text: "Lista de reposição", size: 28, color: "6B7280" })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 400 },
+        spacing: { after: 60 },
         children: [
+          new TextRun({ text: "MESACLIK", bold: true, size: 18, color: ORANGE, characterSpacing: 40 }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [new TextRun({ text: "Lista de Reposição", bold: true, size: 44, color: INK })],
+      }),
+      new Paragraph({
+        spacing: { after: 240 },
+        children: [
+          new TextRun({ text: restaurantName, size: 22, color: INK }),
+          new TextRun({ text: "   ·   ", size: 22, color: MUTED }),
           new TextRun({
-            text: format(now, "'Gerado em' dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }),
-            size: 20,
-            color: "6B7280",
+            text: format(now, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }),
+            size: 22,
+            color: MUTED,
+          }),
+        ],
+        border: {
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: ORANGE, space: 4 },
+        },
+      }),
+      new Paragraph({ spacing: { after: 240 }, children: [new TextRun({ text: "" })] }),
+    );
+
+    // ===== SUMMARY CARDS (4 horizontal) =====
+    const summaryCard = (label: string, value: string) =>
+      new TableCell({
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 4, color: LINE },
+          bottom: { style: BorderStyle.SINGLE, size: 4, color: LINE },
+          left: { style: BorderStyle.SINGLE, size: 4, color: LINE },
+          right: { style: BorderStyle.SINGLE, size: 4, color: LINE },
+        },
+        margins: { top: 200, bottom: 200, left: 200, right: 200 },
+        shading: { fill: "FFFFFF", type: ShadingType.CLEAR, color: "auto" },
+        width: { size: 2340, type: WidthType.DXA },
+        children: [
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [new TextRun({ text: label.toUpperCase(), size: 14, color: MUTED, characterSpacing: 20 })],
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: value, bold: true, size: 32, color: INK })],
+          }),
+        ],
+      });
+
+    children.push(
+      new Table({
+        width: { size: 9360, type: WidthType.DXA },
+        columnWidths: [2340, 2340, 2340, 2340],
+        rows: [
+          new TableRow({
+            children: [
+              summaryCard("Produtos para repor", String(restockList.length)),
+              summaryCard("Setores afetados", String(bySector.size)),
+              summaryCard("Última conferência", lastConfDate),
+              summaryCard("Conferências realizadas", String(totalConferences)),
+            ],
           }),
         ],
       }),
-      new Paragraph({
-        spacing: { after: 300 },
-        children: [
-          new TextRun({ text: `Total de itens a repor: `, size: 22 }),
-          new TextRun({ text: `${restockList.length}`, bold: true, size: 22 }),
-          new TextRun({ text: `   ·   Setores impactados: `, size: 22 }),
-          new TextRun({ text: `${bySector.size}`, bold: true, size: 22 }),
-        ],
-      }),
+      new Paragraph({ spacing: { before: 360, after: 0 }, children: [new TextRun({ text: "" })] }),
     );
 
-    let first = true;
-    for (const [sector, list] of bySector) {
-      if (!first) children.push(new Paragraph({ children: [new PageBreak()] }));
-      first = false;
+    // ===== SECTOR SECTIONS =====
+    const tableHeaderCell = (text: string, width: number, align: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT) =>
+      new TableCell({
+        borders: headerRowBorder,
+        margins: { top: 100, bottom: 120, left: 120, right: 120 },
+        width: { size: width, type: WidthType.DXA },
+        children: [
+          new Paragraph({
+            alignment: align,
+            children: [new TextRun({ text: text.toUpperCase(), bold: true, size: 14, color: MUTED, characterSpacing: 20 })],
+          }),
+        ],
+      });
 
+    const bodyCell = (paras: Paragraph[], width: number) =>
+      new TableCell({
+        borders: rowBorder,
+        margins: { top: 160, bottom: 160, left: 120, right: 120 },
+        width: { size: width, type: WidthType.DXA },
+        children: paras,
+      });
+
+    let sectorIndex = 0;
+    for (const [sector, list] of bySector) {
+      sectorIndex++;
+
+      // Section title with small orange accent + count
       children.push(
         new Paragraph({
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 200, after: 120 },
-          children: [new TextRun({ text: sector, bold: true, size: 28 })],
+          spacing: { before: sectorIndex === 1 ? 0 : 480, after: 20 },
+          children: [
+            new TextRun({ text: "■  ", size: 18, color: ORANGE }),
+            new TextRun({ text: sector, bold: true, size: 28, color: INK }),
+          ],
         }),
         new Paragraph({
           spacing: { after: 200 },
           children: [
             new TextRun({
-              text: `${list.length} produto${list.length === 1 ? "" : "s"} pendente${list.length === 1 ? "" : "s"} de reposição`,
-              color: "6B7280",
-              size: 20,
+              text: `${list.length} produto${list.length === 1 ? "" : "s"}`,
+              size: 18,
+              color: MUTED,
             }),
           ],
         }),
       );
 
-      const rows: TableRow[] = [headerRow];
+      // Columns: Produto | Qtd necessária | Unidade | Último recebimento | Fornecedor | Observações
+      const COL = [2600, 1100, 900, 1500, 1600, 1660];
+      const rows: TableRow[] = [
+        new TableRow({
+          tableHeader: true,
+          children: [
+            tableHeaderCell("Produto", COL[0]),
+            tableHeaderCell("Qtd", COL[1], AlignmentType.RIGHT),
+            tableHeaderCell("Un", COL[2]),
+            tableHeaderCell("Último recebimento", COL[3]),
+            tableHeaderCell("Fornecedor", COL[4]),
+            tableHeaderCell("Observações", COL[5]),
+          ],
+        }),
+      ];
+
       for (const { status, product, product_name } of list) {
-        const raw = product?.raw as any;
-        const unit = raw?.unit || "—";
+        const raw = (product?.raw || {}) as any;
+        const unit = raw?.unit || status.weight_grams ? "g" : "un";
         const lastRecvAt = product?.last_receipt_at
           ? format(new Date(product.last_receipt_at), "dd/MM/yyyy", { locale: ptBR })
           : "—";
         const lastSupplier = product?.last_supplier || "—";
-        const markedBy = status.marked_by_name || "Equipe";
-        const markedAt = status.marked_at
-          ? format(new Date(status.marked_at), "dd/MM HH:mm", { locale: ptBR })
-          : "—";
+        const qty = status.weight_grams ? String(status.weight_grams) : "—";
 
-        const cells = [
-          product_name,
-          unit,
-          lastSupplier,
-          lastRecvAt,
-          markedBy,
-          markedAt,
-        ].map(
-          (text, i) =>
-            new TableCell({
-              borders: cellBorders,
-              margins: { top: 80, bottom: 80, left: 120, right: 120 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: String(text ?? "—"),
-                      bold: i === 0,
-                      size: 20,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-        );
-        rows.push(new TableRow({ children: cells }));
-
-        // Optional detail row: ingredients / allergens / notes / weight
-        const details: string[] = [];
-        if (status.weight_grams) details.push(`Peso registrado: ${status.weight_grams} g`);
-        if (raw?.brand) details.push(`Marca: ${raw.brand}`);
-        if (raw?.allergens) details.push(`Alérgenos: ${raw.allergens}`);
-        if (raw?.ingredients) details.push(`Ingredientes: ${raw.ingredients}`);
-        if (raw?.notes) details.push(`Obs.: ${raw.notes}`);
-        if (details.length) {
-          rows.push(
-            new TableRow({
-              children: [
-                new TableCell({
-                  columnSpan: 6,
-                  borders: cellBorders,
-                  shading: { fill: "F9FAFB", type: ShadingType.CLEAR, color: "auto" },
-                  margins: { top: 60, bottom: 60, left: 120, right: 120 },
-                  children: details.map(
-                    (d) => new Paragraph({ children: [new TextRun({ text: d, size: 18, color: "374151" })] }),
-                  ),
-                }),
-              ],
+        // Product name + optional observations underneath
+        const productParas: Paragraph[] = [
+          new Paragraph({
+            children: [new TextRun({ text: product_name, bold: true, size: 22, color: INK })],
+          }),
+        ];
+        const bullets: string[] = [];
+        if (raw?.brand) bullets.push(`marca: ${raw.brand}`);
+        if (raw?.conservation_method) bullets.push(String(raw.conservation_method).toLowerCase());
+        if (raw?.allergens) bullets.push(`alérgenos: ${raw.allergens}`);
+        for (const b of bullets) {
+          productParas.push(
+            new Paragraph({
+              spacing: { before: 40 },
+              children: [new TextRun({ text: `• ${b}`, size: 16, color: MUTED })],
             }),
           );
         }
+
+        const notesText = raw?.notes || raw?.ingredients || "—";
+
+        rows.push(
+          new TableRow({
+            children: [
+              bodyCell(productParas, COL[0]),
+              bodyCell(
+                [
+                  new Paragraph({
+                    alignment: AlignmentType.RIGHT,
+                    children: [new TextRun({ text: qty, size: 22, color: INK })],
+                  }),
+                ],
+                COL[1],
+              ),
+              bodyCell(
+                [new Paragraph({ children: [new TextRun({ text: String(unit), size: 22, color: INK })] })],
+                COL[2],
+              ),
+              bodyCell(
+                [new Paragraph({ children: [new TextRun({ text: lastRecvAt, size: 22, color: INK })] })],
+                COL[3],
+              ),
+              bodyCell(
+                [new Paragraph({ children: [new TextRun({ text: lastSupplier, size: 22, color: INK })] })],
+                COL[4],
+              ),
+              bodyCell(
+                [new Paragraph({ children: [new TextRun({ text: notesText, size: 20, color: MUTED })] })],
+                COL[5],
+              ),
+            ],
+          }),
+        );
       }
 
       children.push(
         new Table({
           width: { size: 9360, type: WidthType.DXA },
-          columnWidths: [2400, 1000, 1960, 1500, 1300, 1200],
+          columnWidths: COL,
+          borders: {
+            top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+            insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          },
           rows,
         }),
       );
     }
 
+    // ===== FOOTER =====
+    const footer = new Footer({
+      children: [
+        new Paragraph({
+          border: { top: { style: BorderStyle.SINGLE, size: 4, color: LINE, space: 6 } },
+          tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+          children: [
+            new TextRun({ text: "Gerado automaticamente pelo MesaClik", size: 16, color: MUTED }),
+            new TextRun({ text: `   ·   ${format(now, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, size: 16, color: MUTED }),
+            new TextRun({ text: "\t", size: 16 }),
+            new TextRun({ text: "Página ", size: 16, color: MUTED }),
+            new TextRun({ children: [PageNumber.CURRENT], size: 16, color: MUTED }),
+            new TextRun({ text: " de ", size: 16, color: MUTED }),
+            new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: MUTED }),
+          ],
+        }),
+      ],
+    });
+
     const doc = new Document({
       creator: "MesaClik",
       title: `Lista de reposição - ${restaurantName}`,
       styles: {
-        default: { document: { run: { font: "Arial", size: 22 } } },
-        paragraphStyles: [
-          {
-            id: "Heading1",
-            name: "Heading 1",
-            basedOn: "Normal",
-            next: "Normal",
-            quickFormat: true,
-            run: { size: 28, bold: true, font: "Arial", color: "111827" },
-            paragraph: { spacing: { before: 240, after: 120 }, outlineLevel: 0 },
-          },
-        ],
+        default: { document: { run: { font: "Arial", size: 22, color: INK } } },
       },
       sections: [
         {
           properties: {
             page: {
               size: { width: 12240, height: 15840 },
-              margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
             },
           },
+          footers: { default: footer },
           children,
         },
       ],

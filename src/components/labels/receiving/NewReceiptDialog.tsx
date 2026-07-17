@@ -105,7 +105,7 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
         const s = await createSupplier({ name: newSupplierName.trim() });
         finalSupplierId = s.id;
       }
-      const id = await createReceipt({
+      const res = await createReceipt({
         supplier_id: finalSupplierId,
         reference: reference || undefined,
         source: "manual",
@@ -113,7 +113,7 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
       });
       reset();
       onOpenChange(false);
-      onCreated?.(id);
+      onCreated?.(res.receiptId);
     } catch (e) {
       /* toast handled */
     }
