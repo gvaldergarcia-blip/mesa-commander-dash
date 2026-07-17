@@ -298,7 +298,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     );
 
     // ===== SECTOR SECTIONS =====
-    const tableHeaderCell = (text: string, width: number, align: AlignmentType = AlignmentType.LEFT) =>
+    const tableHeaderCell = (text: string, width: number, align: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT) =>
       new TableCell({
         borders: headerRowBorder,
         margins: { top: 100, bottom: 120, left: 120, right: 120 },
@@ -311,11 +311,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         ],
       });
 
-    const bodyCell = (
-      paras: Paragraph[],
-      width: number,
-      opts?: { align?: AlignmentType; muted?: boolean },
-    ) =>
+    const bodyCell = (paras: Paragraph[], width: number) =>
       new TableCell({
         borders: rowBorder,
         margins: { top: 160, bottom: 160, left: 120, right: 120 },
