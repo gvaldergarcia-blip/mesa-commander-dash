@@ -53,9 +53,7 @@ export default function EtiquetasPage() {
     {
       label: "Operação",
       items: [
-        { value: "imprimir", icon: Printer, label: "Imprimir" },
         { value: "estoque", icon: PackageX, label: "Estoque" },
-        { value: "compras", icon: ShoppingCart, label: "Compras", badge: missingProducts.length },
       ],
     },
     {
