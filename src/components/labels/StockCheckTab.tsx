@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, Search, PackageCheck, PackageX, ArrowLeft, Scale, AlertTriangle } from 'lucide-react';
@@ -18,18 +18,29 @@ function sectorOf(p: LabeledProduct): string {
   return (p.sector || '').trim() || 'Sem setor';
 }
 
-export function StockCheckTab() {
+interface StockCheckTabProps {
+  initialSector?: string | null;
+}
+
+export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {}) {
   const { items, isLoading } = useLabeledProducts();
   const { statusMap, setStatus, isMutating } = useStockStatus();
   const { activeEmployees } = useLabelEmployees();
 
-  const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const [selectedSector, setSelectedSector] = useState<string | null>(initialSector);
   const [search, setSearch] = useState('');
   const [employeeId, setEmployeeId] = useState<string>('');
   const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
 
-  // Só produtos com id (necessário pra registrar status).
-  const products = useMemo(() => items.filter((p) => p.product_id), [items]);
+  useEffect(() => {
+    if (initialSector) setSelectedSector(initialSector);
+  }, [initialSector]);
+
+  // Só produtos com id e com etiquetas ativas (baixa por vencimento remove do estoque).
+  const products = useMemo(
+    () => items.filter((p) => p.product_id && p.active_labels_count > 0),
+    [items],
+  );
 
   const sectors = useMemo(() => {
     const all = mergeSectors(products.map((p) => p.sector));
