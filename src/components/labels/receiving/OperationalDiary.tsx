@@ -13,6 +13,7 @@ import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { QRCodeSVG } from "qrcode.react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { getSiteBaseUrl } from "@/config/site-url";
+import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 
 const EVENT_META: Record<string, { label: string; icon: any; color: string }> = {
   receipt: { label: "Recebimento", icon: PackagePlus, color: "text-emerald-500" },
@@ -27,6 +28,17 @@ export function OperationalDiary() {
   const { data: movements, isLoading } = useLabelMovements(150);
   const { labels } = useLabels();
   const { restaurant } = useRestaurant();
+  const { activeEmployees } = useLabelEmployees();
+
+  const responsibleBySector = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of activeEmployees) {
+      for (const s of e.sectors || []) {
+        if (!map.has(s)) map.set(s, e.name);
+      }
+    }
+    return map;
+  }, [activeEmployees]);
 
   const { data: restaurantLegal } = useQuery({
     queryKey: ["restaurant-legal", restaurant?.id],
@@ -56,6 +68,8 @@ export function OperationalDiary() {
   const handlePrint = (labelId: string) => {
     const l = labelsById.get(labelId);
     if (!l) return;
+    const sector = (l as any).storage_location ?? null;
+    const autoResp = sector ? responsibleBySector.get(sector) : null;
     const qrSvg = renderToStaticMarkup(
       <QRCodeSVG
         value={`${getSiteBaseUrl()}/etiquetas/scan/${l.unique_code}?op=1`}
@@ -68,7 +82,7 @@ export function OperationalDiary() {
       productName: l.product_name,
       manufactureDate: new Date(l.manufacture_date),
       expiryDate: new Date(l.expiry_date),
-      responsible: l.responsible || l.employee_name || "—",
+      responsible: l.responsible || l.employee_name || autoResp || "—",
       quantity: l.quantity || 1,
       notes: l.notes,
       cif: l.cif,
