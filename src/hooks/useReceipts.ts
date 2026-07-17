@@ -77,7 +77,28 @@ export function useReceipts() {
 
       // 2) match each line
       const itemsRows: any[] = [];
+      // Pré-agregação: quando o mesmo produto (raw_name normalizado + unidade)
+      // aparece mais de uma vez no recebimento, somamos a quantidade para
+      // gerar UM único item (e, consequentemente, uma única etiqueta com o
+      // total). Ex.: 8 tomates viram um só registro, não 8 separados.
+      const norm = (s: string) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+      const aggregated = new Map<string, { raw_name: string; quantity: number; unit: string }>();
       for (const it of input.items) {
+        const unit = (it.unit ?? "un").trim().toLowerCase();
+        const key = `${norm(it.raw_name)}|${unit}`;
+        const prev = aggregated.get(key);
+        if (prev) {
+          prev.quantity += Number(it.quantity || 0);
+        } else {
+          aggregated.set(key, {
+            raw_name: it.raw_name.trim(),
+            quantity: Number(it.quantity || 0),
+            unit: it.unit ?? "un",
+          });
+        }
+      }
+
+      for (const it of aggregated.values()) {
         const { data: matchedId } = await (supabase as any).rpc("label_match_alias", {
           _restaurant_id: restaurantId,
           _raw: it.raw_name,
@@ -123,19 +144,28 @@ export function useReceipts() {
       // 3) Auto-processar itens já reconhecidos:
       //    gera etiquetas + movimentos + eventos no diário operacional.
       //    Itens sem produto/incompletos continuam como "Pendências".
-      const { error: pErr } = await (supabase as any).rpc("label_process_ready_items", {
+      const { data: pResult, error: pErr } = await (supabase as any).rpc("label_process_ready_items", {
         _receipt_id: receipt.id,
       });
       if (pErr) throw pErr;
 
-      return receipt.id as string;
+      return { receiptId: receipt.id as string, result: pResult as any };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
       toast.success("Recebimento registrado");
+      const resolved = Number(res?.result?.restock_resolved || 0);
+      if (resolved > 0) {
+        toast.success(
+          resolved === 1
+            ? "1 pendência de reposição foi encerrada."
+            : `${resolved} pendências de reposição foram encerradas.`,
+        );
+      }
     },
     onError: (e: any) => toast.error(e.message || "Erro ao registrar recebimento"),
   });
@@ -185,17 +215,28 @@ export function useReceipts() {
           .eq("id", itemId)
           .maybeSingle();
         if (item?.receipt_id) {
-          await (supabase as any).rpc("label_process_ready_items", {
+          const { data: r } = await (supabase as any).rpc("label_process_ready_items", {
             _receipt_id: item.receipt_id,
           });
+          return r;
         }
       }
+      return null;
     },
-    onSuccess: () => {
+    onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
+      const resolved = Number(r?.restock_resolved || 0);
+      if (resolved > 0) {
+        toast.success(
+          resolved === 1
+            ? "1 pendência de reposição foi encerrada."
+            : `${resolved} pendências de reposição foram encerradas.`,
+        );
+      }
     },
     onError: (e: any) => toast.error(e.message || "Erro ao vincular produto"),
   });
