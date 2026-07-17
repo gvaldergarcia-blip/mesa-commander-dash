@@ -395,7 +395,15 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
                 </div>
                 <div className="space-y-1.5">
                   <Label>Local</Label>
-                  <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Opcional" />
+                  <Input
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Ex.: Câmara Fria, Estoque Seco…"
+                    list="mesaclik-sectors"
+                  />
+                  <datalist id="mesaclik-sectors">
+                    {DEFAULT_SECTORS.map((s) => (<option key={s} value={s} />))}
+                  </datalist>
                 </div>
               </div>
               <div className="space-y-1.5">
