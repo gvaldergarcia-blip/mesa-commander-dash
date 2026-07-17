@@ -48,7 +48,6 @@ export function LabelDashboard({ labels, stats, productCount, activeFilter, onSe
   const totalConservation = conservationData.reduce((s, d) => s + d.value, 0);
 
   const quickActions = [
-    { key: "new-label", label: "Nova Etiqueta", desc: "Criar etiqueta de produto", icon: Tag, color: "from-primary/20 to-primary/5", iconBox: "bg-primary/20 text-primary" },
     { key: "new-employee", label: "Novo Funcionário", desc: "Cadastrar funcionário", icon: Users, color: "from-violet-500/20 to-violet-500/5", iconBox: "bg-violet-500/20 text-violet-400" },
     { key: "validity", label: "Verificar Validades", desc: "Controle de vencimentos", icon: ShieldCheck, color: "from-amber-500/20 to-amber-500/5", iconBox: "bg-amber-500/20 text-amber-400" },
   ] as const;
