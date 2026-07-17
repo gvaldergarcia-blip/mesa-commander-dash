@@ -8,7 +8,7 @@ import { AlertTriangle, PackageX, Download, TrendingDown, Trash2, Calendar } fro
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
-import { toCsv, downloadCsv } from "@/lib/labels/utils";
+import { downloadCsv } from "@/lib/labels/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -91,6 +91,16 @@ export function StockReportsTab() {
 
   const totalQty = perdas.reduce((s, l) => s + Number(l.quantity || 0), 0);
 
+  const rowsToCsv = (rows: Record<string, any>[]) => {
+    if (!rows.length) return "";
+    const headers = Object.keys(rows[0]);
+    const esc = (v: any) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    return [headers.join(","), ...rows.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
+  };
+
   const exportFaltas = () => {
     const rows = faltas.map((f) => ({
       produto: f.name,
@@ -100,7 +110,7 @@ export function StockReportsTab() {
       data: format(new Date(f.marked_at), "dd/MM/yyyy HH:mm"),
       observacao: f.notes || "",
     }));
-    downloadCsv(`faltas-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+    downloadCsv(`faltas-${new Date().toISOString().slice(0, 10)}.csv`, rowsToCsv(rows));
   };
 
   const exportPerdas = () => {
@@ -114,7 +124,7 @@ export function StockReportsTab() {
       baixado_em: l.resolved_at ? format(new Date(l.resolved_at), "dd/MM/yyyy HH:mm") : "",
       codigo: l.unique_code,
     }));
-    downloadCsv(`perdas-vencimento-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+    downloadCsv(`perdas-vencimento-${new Date().toISOString().slice(0, 10)}.csv`, rowsToCsv(rows));
   };
 
   return (
