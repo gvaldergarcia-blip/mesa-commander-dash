@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LabelProduct, useLabelProducts } from "@/hooks/useLabelProducts";
+import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
@@ -73,29 +73,9 @@ export default function EtiquetasPage() {
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
-  // Product dialog
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<LabelProduct | null>(null);
-  const [delTarget, setDelTarget] = useState<LabelProduct | null>(null);
-  const [productCategoryFilter, setProductCategoryFilter] = useState<string>("all");
-  const [productSearchFilter, setProductSearchFilter] = useState<string>("");
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
 
   const stats = useMemo(() => computeStats(labels), [labels]);
-
-  const filteredProducts = useMemo(() => {
-    const term = productSearchFilter.trim().toLowerCase();
-    return products.filter((p) => {
-      if (productCategoryFilter !== "all") {
-        const cat = p.category || "Outros";
-        if (productCategoryFilter === "__none__") {
-          if (p.category) return false;
-        } else if (cat !== productCategoryFilter) return false;
-      }
-      if (term && !p.name.toLowerCase().includes(term)) return false;
-      return true;
-    });
-  }, [products, productCategoryFilter, productSearchFilter]);
 
   // Toast alert: vencem hoje
   useEffect(() => {
