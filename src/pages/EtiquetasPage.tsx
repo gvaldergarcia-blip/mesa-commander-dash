@@ -10,7 +10,6 @@ import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
 import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
-import { ShoppingListTab } from "@/components/labels/ShoppingListTab";
 import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
