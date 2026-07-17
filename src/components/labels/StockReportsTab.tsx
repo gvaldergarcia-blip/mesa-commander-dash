@@ -1,17 +1,16 @@
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  AlertTriangle, PackageX, TrendingDown, Trash2, PackagePlus, Printer,
-  ClipboardCheck, Users, Sparkles, Boxes, Timer, ArrowRight, MapPin,
+  AlertTriangle, Trash2, ClipboardCheck, Boxes, Timer, ArrowRight,
+  MapPin, Search, CheckCircle2, AlertCircle, Circle, User, Package,
 } from "lucide-react";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
-import { useLabelMovements } from "@/hooks/useReceipts";
 import { useLabeledProducts } from "@/hooks/useLabeledProducts";
 import { mergeSectors } from "@/lib/labels/sectors";
 import { format, isToday, formatDistanceToNow } from "date-fns";
@@ -20,21 +19,16 @@ import { cn } from "@/lib/utils";
 
 type Range = "7" | "30" | "90";
 
-const EVENT_META: Record<string, { label: string; icon: any; tone: string }> = {
-  receipt:      { label: "Recebimento",     icon: PackagePlus,    tone: "text-emerald-500 bg-emerald-500/10" },
-  label_issued: { label: "Etiqueta emitida",icon: Printer,        tone: "text-blue-500 bg-blue-500/10" },
-  discharge:    { label: "Baixa",           icon: PackageX,       tone: "text-slate-500 bg-slate-500/10" },
-  waste:        { label: "Perda",           icon: Trash2,         tone: "text-rose-500 bg-rose-500/10" },
-  adjustment:   { label: "Ajuste",          icon: ClipboardCheck, tone: "text-muted-foreground bg-muted" },
-};
+interface Props {
+  onOpenSector?: (sector?: string) => void;
+}
 
-export function StockReportsTab() {
+export function StockReportsTab({ onOpenSector }: Props = {}) {
   const { statuses } = useStockStatus();
   const { labels } = useLabels();
   const { products } = useLabelProducts();
   const { activeEmployees } = useLabelEmployees();
   const { items: labeledProducts } = useLabeledProducts();
-  const { data: movements = [] } = useLabelMovements(150);
   const [range, setRange] = useState<Range>("30");
   const [search, setSearch] = useState("");
 
@@ -141,247 +135,134 @@ export function StockReportsTab() {
 
   const totalLostUnits = losses.reduce((s, l) => s + Number(l.quantity || 0), 0);
 
-  // ============ Timeline ============
-  const timeline = useMemo(() => {
-    return (movements || []).slice(0, 25).map((m: any) => ({
-      id: m.id,
-      type: m.event_type,
-      when: m.occurred_at,
-      actor: m.actor_name || m.employee_name || null,
-      product: m.product?.name || m.product_name || null,
-      supplier: m.supplier?.name || null,
-      qty: m.quantity,
-    }));
-  }, [movements]);
-
   // ============ Indicadores ============
   const totalSectorsWithProducts = sectorCards.length;
   const percentConferred = totalSectorsWithProducts
     ? Math.round((sectorsConferredToday.size / totalSectorsWithProducts) * 100)
     : 0;
-  const bestSector = [...sectorCards].sort((a, b) => (b.ok - b.falta) - (a.ok - a.falta))[0];
   const worstLossSector = lossRankSectors[0];
+  const lastConfRelative = lastConference?.marked_at
+    ? formatDistanceToNow(new Date(lastConference.marked_at), { addSuffix: true, locale: ptBR })
+    : "—";
 
   return (
-    <div className="space-y-6">
-      <header>
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-bold tracking-tight">Centro de Inteligência Operacional</h2>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Tudo o que precisa da sua atenção agora — em um só lugar.
+    <div className="space-y-12 max-w-6xl mx-auto">
+      {/* ============ HEADER ============ */}
+      <header className="space-y-1.5">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Relatórios</h1>
+        <p className="text-sm text-muted-foreground">
+          Visão executiva da sua cozinha em tempo real.
         </p>
       </header>
 
-      {/* ============ RESUMO OPERACIONAL ============ */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPI icon={Boxes}          label="Etiquetados ativos" value={labeledProducts.length} />
-        <KPI icon={Printer}        label="Emitidas hoje"      value={labelsToday.length} tone="blue" />
-        <KPI icon={ClipboardCheck} label="Conferências hoje"  value={conferencesToday.length} tone="emerald" />
-        <KPI icon={PackageX}       label="Precisam repor"     value={needsRestock.length} tone="rose" />
-        <KPI icon={AlertTriangle}  label="Vencidos"           value={expiredLabels.length} tone="rose" />
-        <KPI icon={Trash2}         label="Baixas hoje"        value={dischargesToday.length} tone="violet" />
-        <KPI icon={MapPin}         label="Setores pendentes"  value={pendingSectors.length} tone="amber" />
-        <KPI
-          icon={Timer}
-          label="Última conferência"
-          text={lastConference?.marked_at
-            ? formatDistanceToNow(new Date(lastConference.marked_at), { addSuffix: true, locale: ptBR })
-            : "—"}
-        />
-      </section>
-
       {/* ============ REQUER ATENÇÃO ============ */}
-      <section>
-        <SectionTitle icon={AlertTriangle} title="Requer atenção" subtitle="Ação imediata sugerida" />
+      <section className="space-y-4">
+        <SectionHeader
+          title="Requer atenção"
+          hint={priorities.length ? `${priorities.length} pendência${priorities.length === 1 ? "" : "s"}` : "Nada pendente"}
+        />
         {priorities.length === 0 ? (
-          <Card className="p-6 text-sm text-center text-muted-foreground">
-            Tudo em ordem. Nenhuma pendência crítica agora. ✅
-          </Card>
+          <EmptyPanel icon={CheckCircle2} title="Tudo em ordem" description="Nenhum alerta ativo neste momento." tone="ok" />
         ) : (
-          <div className="grid gap-2">
-            {priorities.slice(0, 8).map((p, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-xl border",
-                  p.severity === "high"
-                    ? "border-rose-500/30 bg-rose-500/5"
-                    : "border-amber-500/30 bg-amber-500/5"
-                )}
-              >
-                <span className={cn(
-                  "h-2.5 w-2.5 rounded-full",
-                  p.severity === "high" ? "bg-rose-500" : "bg-amber-500"
-                )} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{p.sector}</div>
-                  <div className="text-xs text-muted-foreground truncate">{p.message}</div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-            ))}
+          <div className="space-y-2.5">
+            {priorities.slice(0, 6).map((p, i) => {
+              const info = sectorCards.find((s) => s.sector === p.sector);
+              return (
+                <AlertRow
+                  key={i}
+                  severity={p.severity}
+                  sector={p.sector}
+                  message={p.message}
+                  responsible={info?.resp[0]}
+                  lastConf={info?.lastConf?.marked_at}
+                  onOpen={() => onOpenSector?.(p.sector)}
+                />
+              );
+            })}
           </div>
         )}
+      </section>
+
+      {/* ============ SAÚDE GERAL ============ */}
+      <section className="space-y-4">
+        <SectionHeader title="Saúde da operação" hint="Últimas 24h" />
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <MetricCard label="Produtos ativos"      value={labeledProducts.length} />
+          <MetricCard label="Produtos críticos"    value={needsRestock.length} tone={needsRestock.length ? "danger" : "neutral"} />
+          <MetricCard label="Vencidos"             value={expiredLabels.length} tone={expiredLabels.length ? "danger" : "neutral"} />
+          <MetricCard label="Setores conferidos"   value={`${percentConferred}%`} hint={`${sectorsConferredToday.size} de ${totalSectorsWithProducts}`} />
+          <MetricCard label="Conferências hoje"    value={conferencesToday.length} />
+          <MetricCard label="Última conferência"   valueText={lastConfRelative} />
+        </div>
       </section>
 
       {/* ============ SITUAÇÃO POR SETOR ============ */}
-      <section>
-        <SectionTitle icon={MapPin} title="Situação por setor" subtitle="Visão consolidada de cada área" />
+      <section className="space-y-4">
+        <SectionHeader title="Situação por setor" hint={`${sectorCards.length} setor${sectorCards.length === 1 ? "" : "es"}`} />
         {sectorCards.length === 0 ? (
-          <Card className="p-6 text-sm text-center text-muted-foreground">
-            Ainda não há setores com produtos etiquetados.
-          </Card>
+          <EmptyPanel icon={Package} title="Nenhum setor ativo" description="Setores aparecem aqui após o primeiro produto etiquetado." />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {sectorCards.map((s) => (
-              <Card key={s.sector} className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold truncate">{s.sector}</div>
-                    <div className="text-xs text-muted-foreground">{s.total} produto(s)</div>
-                  </div>
-                  {s.falta > 0 ? (
-                    <Badge variant="outline" className="border-rose-500/40 text-rose-500 bg-rose-500/10">crítico</Badge>
-                  ) : s.at > 0 ? (
-                    <Badge variant="outline" className="border-amber-500/40 text-amber-500 bg-amber-500/10">atenção</Badge>
-                  ) : (
-                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-500 bg-emerald-500/10">ok</Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="flex items-center gap-1 text-emerald-500 font-semibold">✓ {s.ok}</span>
-                  <span className="flex items-center gap-1 text-amber-500 font-semibold">⚠ {s.at}</span>
-                  <span className="flex items-center gap-1 text-rose-500 font-semibold">✕ {s.falta}</span>
-                </div>
-                <div className="pt-2 border-t border-border/60 grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <div className="text-muted-foreground flex items-center gap-1"><Users className="h-3 w-3" /> Responsável</div>
-                    <div className="font-medium truncate">{s.resp[0] || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground flex items-center gap-1"><Timer className="h-3 w-3" /> Última conf.</div>
-                    <div className="font-medium">
-                      {s.lastConf?.marked_at
-                        ? format(new Date(s.lastConf.marked_at), "HH:mm", { locale: ptBR })
-                        : "—"}
-                    </div>
-                  </div>
-                </div>
-              </Card>
+              <SectorCard
+                key={s.sector}
+                data={s}
+                onOpen={() => onOpenSector?.(s.sector)}
+              />
             ))}
           </div>
         )}
       </section>
 
-      {/* ============ PERDAS + TIMELINE ============ */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <section className="xl:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <SectionTitle icon={Trash2} title="Perdas" subtitle={`Últimos ${range} dias`} inline />
-            <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 text-xs">
-              {(["7", "30", "90"] as Range[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md font-medium transition-colors",
-                    range === r ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >{r}d</button>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <MiniStat label="Descartadas" value={losses.length} />
-            <MiniStat label="Unidades" value={totalLostUnits} />
-            <MiniStat label="Produtos afetados" value={lossRankProducts.length} />
-          </div>
-          <Input
-            placeholder="Buscar produto perdido..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
-          />
-          <Tabs defaultValue="produtos">
-            <TabsList>
-              <TabsTrigger value="produtos">Por produto</TabsTrigger>
-              <TabsTrigger value="setores">Por setor</TabsTrigger>
-            </TabsList>
-            <TabsContent value="produtos" className="mt-3">
-              <Card className="divide-y">
-                {lossRankProducts.length === 0 ? (
-                  <div className="p-6 text-sm text-center text-muted-foreground">Nenhuma perda no período. ✅</div>
-                ) : lossRankProducts.slice(0, 10).map((p, i) => (
-                  <div key={p.name} className="p-3 flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-rose-500/15 text-rose-500 flex items-center justify-center text-xs font-bold">{i + 1}</div>
-                    <div className="flex-1 truncate font-medium">{p.name}</div>
-                    <Badge variant="outline" className="border-rose-500/40 text-rose-500 bg-rose-500/10">{p.count}x</Badge>
-                  </div>
-                ))}
-              </Card>
-            </TabsContent>
-            <TabsContent value="setores" className="mt-3">
-              <Card className="divide-y">
-                {lossRankSectors.length === 0 ? (
-                  <div className="p-6 text-sm text-center text-muted-foreground">Nenhuma perda no período. ✅</div>
-                ) : lossRankSectors.map((s, i) => (
-                  <div key={s.sector} className="p-3 flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-rose-500/15 text-rose-500 flex items-center justify-center text-xs font-bold">{i + 1}</div>
-                    <div className="flex-1 truncate font-medium">{s.sector}</div>
-                    <Badge variant="outline" className="border-rose-500/40 text-rose-500 bg-rose-500/10">{s.count}x</Badge>
-                  </div>
-                ))}
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </section>
-
-        <section className="space-y-3">
-          <SectionTitle icon={Timer} title="Histórico operacional" subtitle="Últimos eventos" inline />
-          <Card className="divide-y max-h-[520px] overflow-y-auto">
-            {timeline.length === 0 ? (
-              <div className="p-6 text-sm text-center text-muted-foreground">Sem eventos ainda.</div>
-            ) : timeline.map((e) => {
-              const meta = EVENT_META[e.type] ?? EVENT_META.adjustment;
-              const Icon = meta.icon;
-              return (
-                <div key={e.id} className="p-3 flex items-start gap-3">
-                  <div className={cn("p-2 rounded-lg shrink-0", meta.tone)}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xs font-semibold">{format(new Date(e.when), "HH:mm", { locale: ptBR })}</span>
-                      <span className="text-xs text-muted-foreground">{format(new Date(e.when), "dd/MM", { locale: ptBR })}</span>
-                    </div>
-                    <div className="text-sm font-medium truncate">
-                      {meta.label}{e.product ? ` — ${e.product}` : ""}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {e.actor || "Sistema"}{e.supplier ? ` • ${e.supplier}` : ""}{e.qty ? ` • ${e.qty}` : ""}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </Card>
-        </section>
-      </div>
-
-      {/* ============ INDICADORES ============ */}
-      <section>
-        <SectionTitle icon={Sparkles} title="Indicadores de operação" subtitle="Base para insights de IA" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <IndicatorCard label="Setores conferidos hoje" value={`${percentConferred}%`} hint={`${sectorsConferredToday.size} de ${totalSectorsWithProducts}`} />
-          <IndicatorCard label="Setor mais organizado" value={bestSector?.sector || "—"} hint={bestSector ? `${bestSector.ok} ok / ${bestSector.falta} faltas` : ""} />
-          <IndicatorCard label="Setor com mais perdas" value={worstLossSector?.sector || "—"} hint={worstLossSector ? `${worstLossSector.count} baixas` : ""} tone="rose" />
-          <IndicatorCard label="Produto mais desperdiçado" value={lossRankProducts[0]?.name || "—"} hint={lossRankProducts[0] ? `${lossRankProducts[0].count} vezes` : ""} tone="rose" />
+      {/* ============ PERDAS ============ */}
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
+          <SectionHeader title="Perdas" hint={`Últimos ${range} dias`} className="mb-0" />
+          <RangeSwitch value={range} onChange={setRange} />
         </div>
-        <p className="text-[11px] text-muted-foreground mt-3">
-          Em breve: alertas automáticos sobre produtos que sempre entram em falta, categorias que mais vencem antes do uso e sugestões de compra.
-        </p>
+
+        <div className="grid grid-cols-3 gap-4">
+          <MetricCard label="Descartadas"        value={losses.length} tone={losses.length ? "danger" : "neutral"} compact />
+          <MetricCard label="Unidades perdidas"  value={totalLostUnits} compact />
+          <MetricCard label="Produtos afetados"  value={lossRankProducts.length} compact />
+        </div>
+
+        {(losses.length > 0 || search) && (
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9 bg-transparent"
+            />
+          </div>
+        )}
+
+        <Tabs defaultValue="produtos">
+          <TabsList className="bg-muted/40">
+            <TabsTrigger value="produtos">Por produto</TabsTrigger>
+            <TabsTrigger value="setores">Por setor</TabsTrigger>
+          </TabsList>
+          <TabsContent value="produtos" className="mt-4">
+            <RankList
+              items={lossRankProducts.slice(0, 10).map((p) => ({ label: p.name, count: p.count }))}
+              empty="Nenhuma perda no período."
+            />
+          </TabsContent>
+          <TabsContent value="setores" className="mt-4">
+            <RankList
+              items={lossRankSectors.map((s) => ({ label: s.sector, count: s.count, onClick: () => onOpenSector?.(s.sector) }))}
+              empty="Nenhuma perda no período."
+            />
+          </TabsContent>
+        </Tabs>
+
+        {worstLossSector && (
+          <p className="text-xs text-muted-foreground pt-1">
+            Setor com mais perdas no período: <span className="font-medium text-foreground">{worstLossSector.sector}</span> ({worstLossSector.count} baixa{worstLossSector.count === 1 ? "" : "s"}).
+          </p>
+        )}
       </section>
     </div>
   );
@@ -389,68 +270,226 @@ export function StockReportsTab() {
 
 // ================= UI ATOMS =================
 
-function KPI({ icon: Icon, label, value, text, tone = "slate" }: { icon: any; label: string; value?: number; text?: string; tone?: "slate" | "rose" | "amber" | "violet" | "emerald" | "blue" }) {
-  const tones: Record<string, string> = {
-    slate:   "bg-card border-border/60",
-    rose:    "bg-rose-500/5 border-rose-500/20",
-    amber:   "bg-amber-500/5 border-amber-500/20",
-    violet:  "bg-violet-500/5 border-violet-500/20",
-    emerald: "bg-emerald-500/5 border-emerald-500/20",
-    blue:    "bg-blue-500/5 border-blue-500/20",
-  };
-  const iconTone: Record<string, string> = {
-    slate:   "text-muted-foreground",
-    rose:    "text-rose-500",
-    amber:   "text-amber-500",
-    violet:  "text-violet-500",
-    emerald: "text-emerald-500",
-    blue:    "text-blue-500",
-  };
+function SectionHeader({ title, hint, className }: { title: string; hint?: string; className?: string }) {
   return (
-    <div className={cn("rounded-2xl border p-4", tones[tone])}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={cn("h-4 w-4", iconTone[tone])} />
-        <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">{label}</span>
-      </div>
-      {value !== undefined ? (
-        <div className="text-3xl font-extrabold tabular-nums text-foreground">{value}</div>
-      ) : (
-        <div className="text-base font-semibold text-foreground truncate">{text}</div>
-      )}
+    <div className={cn("flex items-baseline justify-between", className)}>
+      <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   );
 }
 
-function SectionTitle({ icon: Icon, title, subtitle, inline }: { icon: any; title: string; subtitle?: string; inline?: boolean }) {
-  return (
-    <div className={cn("mb-3", inline && "mb-0")}>
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-bold uppercase tracking-widest">{title}</h3>
-      </div>
-      {subtitle && <p className="text-xs text-muted-foreground mt-0.5 ml-6">{subtitle}</p>}
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card/40 p-3">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{label}</div>
-      <div className="text-xl font-bold tabular-nums mt-1">{value}</div>
-    </div>
-  );
-}
-
-function IndicatorCard({ label, value, hint, tone = "slate" }: { label: string; value: string; hint?: string; tone?: "slate" | "rose" }) {
+function MetricCard({
+  label, value, valueText, hint, tone = "neutral", compact,
+}: {
+  label: string; value?: number | string; valueText?: string; hint?: string;
+  tone?: "neutral" | "danger" | "warning" | "ok"; compact?: boolean;
+}) {
+  const toneColor = {
+    neutral: "text-foreground",
+    danger: "text-rose-600 dark:text-rose-400",
+    warning: "text-amber-600 dark:text-amber-500",
+    ok: "text-emerald-600 dark:text-emerald-400",
+  }[tone];
   return (
     <div className={cn(
-      "rounded-2xl border p-4",
-      tone === "rose" ? "border-rose-500/20 bg-rose-500/5" : "border-border/60 bg-card/40"
+      "rounded-2xl bg-card border border-border/40 shadow-[0_1px_2px_rgba(0,0,0,0.02),0_1px_3px_rgba(0,0,0,0.03)]",
+      compact ? "p-4" : "p-5"
     )}>
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{label}</div>
-      <div className="text-lg font-bold mt-1 truncate">{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground truncate">{hint}</div>}
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      {value !== undefined ? (
+        <div className={cn("mt-3 text-3xl font-semibold tabular-nums tracking-tight", toneColor)}>{value}</div>
+      ) : (
+        <div className={cn("mt-3 text-base font-semibold truncate", toneColor)}>{valueText}</div>
+      )}
+      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+    </div>
+  );
+}
+
+function AlertRow({
+  severity, sector, message, responsible, lastConf, onOpen,
+}: {
+  severity: "high" | "medium";
+  sector: string;
+  message: string;
+  responsible?: string;
+  lastConf?: string;
+  onOpen?: () => void;
+}) {
+  const dot = severity === "high" ? "bg-rose-500" : "bg-amber-500";
+  const label = severity === "high" ? "Crítico" : "Atenção";
+  const labelColor = severity === "high" ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-500";
+  return (
+    <div className="group rounded-2xl bg-card border border-border/40 hover:border-border transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)] p-5 flex items-center gap-4">
+      <span className={cn("h-2 w-2 rounded-full shrink-0", dot)} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={cn("text-[10px] font-semibold uppercase tracking-wider", labelColor)}>{label}</span>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-sm font-semibold text-foreground truncate">{sector}</span>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1 truncate">{message}</p>
+        {(responsible || lastConf) && (
+          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+            {responsible && (
+              <span className="flex items-center gap-1"><User className="h-3 w-3" /> {responsible}</span>
+            )}
+            {lastConf && (
+              <span className="flex items-center gap-1"><Timer className="h-3 w-3" /> conferido {formatDistanceToNow(new Date(lastConf), { addSuffix: true, locale: ptBR })}</span>
+            )}
+          </div>
+        )}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onOpen}
+        className="opacity-70 group-hover:opacity-100 transition-opacity"
+      >
+        Abrir setor
+        <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+      </Button>
+    </div>
+  );
+}
+
+function SectorCard({
+  data, onOpen,
+}: {
+  data: { sector: string; total: number; ok: number; at: number; falta: number; lastConf?: any; resp: string[] };
+  onOpen?: () => void;
+}) {
+  const status: "ok" | "warning" | "danger" =
+    data.falta > 0 ? "danger" : data.at > 0 ? "warning" : "ok";
+
+  const statusMeta = {
+    ok:      { label: "Saudável", color: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500" },
+    warning: { label: "Atenção",  color: "text-amber-600 dark:text-amber-500",     dot: "bg-amber-500" },
+    danger:  { label: "Crítico",  color: "text-rose-600 dark:text-rose-400",       dot: "bg-rose-500" },
+  }[status];
+
+  return (
+    <div className="rounded-2xl bg-card border border-border/40 shadow-[0_1px_2px_rgba(0,0,0,0.02),0_1px_3px_rgba(0,0,0,0.03)] p-6 space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold tracking-tight truncate">{data.sector}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{data.total} produto{data.total === 1 ? "" : "s"}</p>
+        </div>
+        <div className={cn("flex items-center gap-1.5 text-xs font-medium", statusMeta.color)}>
+          <span className={cn("h-1.5 w-1.5 rounded-full", statusMeta.dot)} />
+          {statusMeta.label}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <StatCell icon={CheckCircle2} value={data.ok}    label="OK"      color="text-emerald-600 dark:text-emerald-400" />
+        <StatCell icon={AlertCircle}  value={data.at}    label="Atenção" color="text-amber-600 dark:text-amber-500" />
+        <StatCell icon={Circle}       value={data.falta} label="Falta"   color="text-rose-600 dark:text-rose-400" />
+      </div>
+
+      <div className="pt-4 border-t border-border/40 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-4 text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5" />
+            <span className="text-foreground">{data.resp[0] || "—"}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Timer className="h-3.5 w-3.5" />
+            <span className="text-foreground">
+              {data.lastConf?.marked_at
+                ? format(new Date(data.lastConf.marked_at), "HH:mm", { locale: ptBR })
+                : "—"}
+            </span>
+          </span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onOpen} className="h-7 px-2 -mr-2 text-xs">
+          Abrir <ArrowRight className="h-3 w-3 ml-1" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function StatCell({ icon: Icon, value, label, color }: { icon: any; value: number; label: string; color: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        <Icon className={cn("h-3.5 w-3.5", color)} strokeWidth={2} />
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+      <span className="text-xl font-semibold tabular-nums text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function RangeSwitch({ value, onChange }: { value: Range; onChange: (v: Range) => void }) {
+  return (
+    <div className="inline-flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5 text-xs">
+      {(["7", "30", "90"] as Range[]).map((r) => (
+        <button
+          key={r}
+          onClick={() => onChange(r)}
+          className={cn(
+            "px-3 py-1.5 rounded-md font-medium transition-all",
+            value === r ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {r} dias
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RankList({ items, empty }: { items: { label: string; count: number; onClick?: () => void }[]; empty: string }) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground">
+        {empty}
+      </div>
+    );
+  }
+  const max = Math.max(...items.map((i) => i.count));
+  return (
+    <div className="rounded-2xl border border-border/40 bg-card divide-y divide-border/40">
+      {items.map((it, i) => (
+        <div
+          key={it.label}
+          onClick={it.onClick}
+          className={cn(
+            "px-5 py-4 flex items-center gap-4",
+            it.onClick && "cursor-pointer hover:bg-muted/30 transition-colors"
+          )}
+        >
+          <span className="text-xs font-mono tabular-nums text-muted-foreground w-4">{i + 1}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate text-foreground">{it.label}</div>
+            <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-rose-500/70 rounded-full"
+                style={{ width: `${(it.count / max) * 100}%` }}
+              />
+            </div>
+          </div>
+          <span className="text-sm font-semibold tabular-nums text-foreground w-10 text-right">{it.count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyPanel({ icon: Icon, title, description, tone = "neutral" }: { icon: any; title: string; description: string; tone?: "neutral" | "ok" }) {
+  return (
+    <div className="rounded-2xl border border-border/40 bg-card p-10 text-center">
+      <div className={cn(
+        "mx-auto h-10 w-10 rounded-full flex items-center justify-center mb-3",
+        tone === "ok" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"
+      )}>
+        <Icon className="h-5 w-5" strokeWidth={1.75} />
+      </div>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <p className="text-xs text-muted-foreground mt-1">{description}</p>
     </div>
   );
 }
