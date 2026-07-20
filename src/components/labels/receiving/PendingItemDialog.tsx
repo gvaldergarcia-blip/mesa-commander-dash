@@ -56,7 +56,6 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
   const restaurantId = useRestaurantId();
 
   const [mode, setMode] = useState<"link" | "new">("new");
-  const [linkProductId, setLinkProductId] = useState<string>("");
 
   // new product minimal fields
   const [name, setName] = useState("");
@@ -82,8 +81,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
 
   useEffect(() => {
     if (item) {
-      setMode(item.product_id ? "link" : "new");
-      setLinkProductId(item.product_id ?? "");
+      setMode("new");
       setName(item.raw_name);
       setScanBrand("");
       setScanBatch("");
@@ -268,92 +266,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
             )}
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant={mode === "new" ? "default" : "outline"}
-              onClick={() => setMode("new")}
-              size="sm"
-              className="flex-1"
-            >
-              Criar produto
-            </Button>
-            <Button
-              variant={mode === "link" ? "default" : "outline"}
-              onClick={() => setMode("link")}
-              size="sm"
-              className="flex-1"
-              disabled={products.length === 0}
-            >
-              Vincular existente
-            </Button>
-          </div>
-
-          {mode === "link" ? (
-            <>
-              <div className="space-y-1.5">
-                <Label>Produto do catálogo</Label>
-                <Select value={linkProductId} onValueChange={setLinkProductId}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {needs.includes("validade pós-abertura") && (
-                <div className="space-y-1.5">
-                  <Label>Validade (data)</Label>
-                  <Input
-                    type="date"
-                    min={todayPlus(0)}
-                    value={patchValidityDate}
-                    onChange={(e) => setPatchValidityDate(e.target.value)}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    {daysUntil(patchValidityDate)} dia(s) a partir de hoje
-                  </p>
-                </div>
-              )}
-              {needs.includes("conservação") && (
-                <div className="space-y-1.5">
-                  <Label>Conservação</Label>
-                  <Select value={patchConservation} onValueChange={setPatchConservation}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="refrigerated">Refrigerado</SelectItem>
-                      <SelectItem value="frozen">Congelado</SelectItem>
-                      <SelectItem value="ambient">Ambiente</SelectItem>
-                      <SelectItem value="hot">Quente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {needs.includes("setor") && (
-                <div className="space-y-1.5">
-                  <Label>Setor / categoria</Label>
-                  <Select value={patchCategory} onValueChange={setPatchCategory}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                    <SelectContent>
-                      {PRODUCT_CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {needs.includes("local") && (
-                <div className="space-y-1.5">
-                  <Label>Local de armazenamento</Label>
-                  <Input value={patchLocation} onChange={(e) => setPatchLocation(e.target.value)} placeholder="Ex.: Câmara fria 1" />
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label>SIF (opcional)</Label>
-                <Input value={patchSif} onChange={(e) => setPatchSif(e.target.value)} placeholder="Ex.: 358" />
-              </div>
-            </>
-          ) : (
-            <>
+          <>
               <div className="space-y-1.5">
                 <Label>Nome oficial do produto</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -411,8 +324,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
                 <Label>SIF (opcional)</Label>
                 <Input value={sif} onChange={(e) => setSif(e.target.value)} placeholder="Ex.: 358 — se produto de origem animal" />
               </div>
-            </>
-          )}
+          </>
         </div>
 
         <DialogFooter>
