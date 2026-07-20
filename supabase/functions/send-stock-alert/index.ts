@@ -40,16 +40,22 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 3. Nomes dos produtos
+      // 3. Nomes/setores dos produtos
       const productIds = missing.map((m: any) => m.product_id);
       const { data: products } = await supabase
         .from('label_products')
-        .select('id, name, category')
+        .select('id, name, category, storage_location')
         .in('id', productIds);
 
-      const names = (products || [])
-        .sort((a: any, b: any) => a.name.localeCompare(b.name))
-        .map((p: any) => p.name);
+      // Agrupa por setor
+      const bySector = new Map<string, string[]>();
+      for (const p of products || []) {
+        const sec = (p as any).category || (p as any).storage_location || 'Sem setor';
+        if (!bySector.has(sec)) bySector.set(sec, []);
+        bySector.get(sec)!.push((p as any).name);
+      }
+      for (const arr of bySector.values()) arr.sort();
+      const names = (products || []).map((p: any) => p.name);
 
       // 4. Buscar chefs / admins do restaurante com WhatsApp
       const { data: chefs } = await supabase
@@ -72,9 +78,24 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 5. Montar mensagem
-      const listStr = names.slice(0, 15).join(', ') + (names.length > 15 ? `... (+${names.length - 15})` : '');
-      const message = `[MESACLIK] Lista de compras hoje (${names.length} item${names.length > 1 ? 's' : ''}): ${listStr}. Ver: https://app.mesaclik.com.br/etiquetas`;
+      // 5. Montar mensagem no novo padrão "Reposição necessária"
+      const linhas: string[] = [];
+      linhas.push('[MESACLIK]');
+      linhas.push('');
+      linhas.push('📦 Reposição necessária');
+      for (const [sec, list] of bySector) {
+        linhas.push('');
+        linhas.push(`Setor:`);
+        linhas.push(sec);
+        linhas.push('');
+        linhas.push('Produtos:');
+        for (const n of list.slice(0, 10)) linhas.push(`• ${n}`);
+        if (list.length > 10) linhas.push(`+ ${list.length - 10} outros`);
+      }
+      linhas.push('');
+      linhas.push('Painel:');
+      linhas.push('https://app.mesaclik.com.br/etiquetas');
+      const message = linhas.join('\n').slice(0, 1200);
 
       // 6. Enviar via send-sms interno
       for (const target of targets) {
