@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.parse-package-photo]
 verify_jwt = false
 
+[functions.parse-labels-batch]
+verify_jwt = false
+
 [functions.send-sms]
 verify_jwt = false
 

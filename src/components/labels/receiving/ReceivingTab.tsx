@@ -6,6 +6,7 @@ import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronRight, Loader2
 import { useReceipts } from "@/hooks/useReceipts";
 import { NewReceiptDialog } from "./NewReceiptDialog";
 import { PendingItemDialog } from "./PendingItemDialog";
+import { PendingItemsPanel } from "./PendingItemsPanel";
 import { OperationalDiary } from "./OperationalDiary";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -101,45 +102,53 @@ export function ReceivingTab() {
             <Button variant="ghost" size="icon" onClick={() => setActiveReceiptId(null)}><X className="h-4 w-4" /></Button>
           </div>
 
-          <div className="space-y-2 mb-4">
-            {(activeReceipt.items || []).map((it) => (
-              <div key={it.id} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 bg-card/50">
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{it.raw_name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {Number(it.quantity)} {it.unit || ""}{" "}
-                    {it.needs_info ? (
-                      <span className="text-destructive">· falta: {it.missing_fields.join(", ")}</span>
-                    ) : (
-                      <span className="text-emerald-600">· reconhecido automaticamente</span>
-                    )}
+          {(() => {
+            const items = activeReceipt.items || [];
+            const ready = items.filter((i) => !i.needs_info);
+            const pending = items.filter((i) => i.needs_info);
+            return (
+              <div className="space-y-4">
+                {ready.length > 0 && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1.5">
+                      <CheckCircle2 className="inline h-3.5 w-3.5 mr-1" />
+                      {ready.length} item(ns) reconhecido(s) automaticamente
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ready.map((it) => (
+                        <span key={it.id} className="text-[11px] px-2 py-0.5 rounded bg-background border">
+                          {it.raw_name} · {Number(it.quantity)} {it.unit || ""}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                {it.needs_info ? (
-                  <Button size="sm" variant="outline" onClick={() => setPendingItem(it)}>Resolver</Button>
+                )}
+
+                {pending.length > 0 ? (
+                  <PendingItemsPanel
+                    receiptId={activeReceipt.id}
+                    supplierId={activeReceipt.supplier_id}
+                    pendingItems={pending.map((p) => ({ id: p.id, raw_name: p.raw_name }))}
+                    onDone={() => setActiveReceiptId(null)}
+                  />
                 ) : (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      onClick={() => confirmReceipt(activeReceipt.id).then(() => setActiveReceiptId(null))}
+                      disabled={isConfirming}
+                      className="gap-2"
+                    >
+                      {isConfirming && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Confirmar recebimento e gerar etiquetas
+                    </Button>
+                    <Button variant="outline" onClick={() => cancelReceipt(activeReceipt.id).then(() => setActiveReceiptId(null))}>
+                      Descartar
+                    </Button>
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              onClick={() => confirmReceipt(activeReceipt.id).then(() => setActiveReceiptId(null))}
-              disabled={isConfirming || activeReceipt.status === "pending_info"}
-              className="gap-2"
-            >
-              {isConfirming && <Loader2 className="h-4 w-4 animate-spin" />}
-              Confirmar recebimento e gerar etiquetas
-            </Button>
-            <Button variant="outline" onClick={() => cancelReceipt(activeReceipt.id).then(() => setActiveReceiptId(null))}>
-              Descartar
-            </Button>
-            {activeReceipt.status === "pending_info" && (
-              <span className="text-xs text-muted-foreground self-center">Resolva as pendências acima para confirmar.</span>
-            )}
-          </div>
+            );
+          })()}
         </Card>
       )}
 
