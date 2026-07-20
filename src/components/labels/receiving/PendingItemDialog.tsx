@@ -145,7 +145,7 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
       setSaving(true);
       let productId = item.product_id;
 
-      if (mode === "new" || !productId) {
+      {
         // create minimal product
         const created = await createProduct({
           name: name.trim() || item.raw_name.trim(),
@@ -158,19 +158,6 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
           status: "active",
         });
         productId = created.id;
-      } else if (mode === "link" && linkProductId) {
-        productId = linkProductId;
-        // patch missing fields on that product
-        const patch: any = {};
-        if (needs.includes("validade pós-abertura")) patch.validity_days = daysUntil(patchValidityDate);
-        if (needs.includes("conservação")) patch.conservation_method = patchConservation;
-        if (needs.includes("setor")) patch.category = patchCategory;
-        if (needs.includes("local")) patch.storage_location = patchLocation;
-        if (patchSif.trim()) patch.sif = patchSif.trim();
-        if (Object.keys(patch).length) {
-          const { error } = await (supabase as any).from("label_products").update(patch).eq("id", productId);
-          if (error) throw error;
-        }
       }
 
       if (productId) {
