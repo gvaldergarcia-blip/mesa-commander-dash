@@ -127,7 +127,7 @@ export function TodayTab({ onQuickAction }: Props) {
   return (
     <div className="space-y-5">
       {/* Ações rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <Button
           size="lg"
           onClick={() => onQuickAction("new-receipt")}
@@ -135,14 +135,6 @@ export function TodayTab({ onQuickAction }: Props) {
         >
           <PackagePlus className="h-5 w-5" />
           <span className="text-xs font-semibold">Novo recebimento</span>
-        </Button>
-        <Button
-          size="lg"
-          onClick={() => onQuickAction("new-label")}
-          className="h-auto py-4 flex-col gap-1.5 shadow-lg shadow-primary/20"
-        >
-          <Printer className="h-5 w-5" />
-          <span className="text-xs font-semibold">Nova etiqueta</span>
         </Button>
       </div>
 

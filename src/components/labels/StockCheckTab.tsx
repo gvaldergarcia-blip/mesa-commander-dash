@@ -253,8 +253,15 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                       placeholder="Peso atual (g) — opcional"
                       value={weightDraft[draftKey] ?? (st?.weight_grams ? String(st.weight_grams) : '')}
                       onChange={(e) => setWeightDraft((d) => ({ ...d, [draftKey]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          mark(p, 'ok');
+                        }
+                      }}
                       className="h-10"
                     />
+                    <p className="text-[10px] text-muted-foreground mt-1">Enter salva como Suficiente</p>
                   </div>
                 )}
 

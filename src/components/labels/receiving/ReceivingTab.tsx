@@ -52,7 +52,6 @@ export function ReceivingTab() {
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : openReceipts.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Em andamento</h3>
           <div className="grid gap-3">
             {openReceipts.map((r) => {
               const items = r.items || [];
