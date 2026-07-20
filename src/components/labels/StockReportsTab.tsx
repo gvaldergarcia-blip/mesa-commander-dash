@@ -64,11 +64,19 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   }, [activeEmployees]);
 
   // ============ KPIs ============
+  // Fonte única de verdade: só consideramos produtos que ainda existem na operação
+  // (mesma regra usada em Estoque e Produtos: product_id + etiquetas ativas > 0).
+  const visibleProductIds = useMemo(
+    () => new Set(labeledProducts.filter((p) => p.product_id && p.active_labels_count > 0).map((p) => p.product_id!)),
+    [labeledProducts],
+  );
+
   const activeLabels = labels.filter((l) => l.status !== "discharged");
   const labelsToday = labels.filter((l) => isToday(new Date(l.created_at)));
   const conferencesToday = statuses.filter((s) => s.marked_at && isToday(new Date(s.marked_at)));
-  const needsRestock = statuses.filter((s) => s.status === "falta");
-  const attention = statuses.filter((s) => s.status === "atencao");
+  // Só contamos "precisa repor" / "atenção" quando o produto ainda é visível.
+  const needsRestock = statuses.filter((s) => s.status === "falta" && visibleProductIds.has(s.product_id));
+  const attention = statuses.filter((s) => s.status === "atencao" && visibleProductIds.has(s.product_id));
   const expiredLabels = activeLabels.filter((l) => l.expiry_date && new Date(l.expiry_date) < new Date());
   const dischargesToday = labels.filter((l) => l.status === "discharged" && l.resolved_at && isToday(new Date(l.resolved_at)));
   const lastConference = [...statuses].sort((a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime())[0];
@@ -156,23 +164,85 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     ? formatDistanceToNow(new Date(lastConference.marked_at), { addSuffix: true, locale: ptBR })
     : "—";
 
-  // ============ Word: Lista de Reposição ============
-  const restockList = useMemo(() => {
-    return needsRestock
-      .map((s) => {
-        const prod = labeledProducts.find((p) => p.product_id === s.product_id);
-        return {
-          status: s,
-          product: prod,
-          product_name: prod?.product_name || "Produto",
-        };
-      })
-      .sort((a, b) => {
-        const sa = (a.status.sector || "").localeCompare(b.status.sector || "");
-        if (sa !== 0) return sa;
-        return a.product_name.localeCompare(b.product_name);
+  // ============ Lista unificada de reposição / ação ============
+  // Inclui TUDO que exige ação operacional:
+  //  - produtos marcados como "Precisa repor" (falta)
+  //  - etiquetas ativas VENCIDAS (baixa iminente por vencimento)
+  //  - etiquetas ativas vencendo em ≤ 24h (descarte próximo)
+  type Reason = "falta" | "vencido" | "vence_24h";
+  interface RestockItem {
+    key: string;
+    reason: Reason;
+    product_name: string;
+    sector: string | null;
+    product?: (typeof labeledProducts)[number];
+    status?: (typeof statuses)[number];
+    expiry_date?: string | null;
+  }
+
+  const restockList: RestockItem[] = useMemo(() => {
+    const items: RestockItem[] = [];
+    const seen = new Set<string>();
+
+    // 1) faltas (apenas produtos ainda visíveis)
+    for (const s of needsRestock) {
+      const prod = labeledProducts.find((p) => p.product_id === s.product_id);
+      const name = prod?.product_name || "Produto";
+      const k = `falta:${s.product_id}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      items.push({
+        key: k,
+        reason: "falta",
+        product_name: name,
+        sector: s.sector || prod?.sector || null,
+        product: prod,
+        status: s,
       });
-  }, [needsRestock, labeledProducts]);
+    }
+
+    // 2) vencidos + 3) vencendo em 24h
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    for (const l of activeLabels) {
+      if (!l.expiry_date) continue;
+      const exp = new Date(l.expiry_date);
+      let reason: Reason | null = null;
+      if (exp < now) reason = "vencido";
+      else if (exp <= in24h) reason = "vence_24h";
+      if (!reason) continue;
+
+      const prodId = (l as any).label_product_id || null;
+      const nameKey = prodId || `name:${l.product_name.toLowerCase().trim()}`;
+      const k = `${reason}:${nameKey}`;
+      // agrupamos por produto + motivo (uma linha por produto/motivo)
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const prod = prodId
+        ? labeledProducts.find((p) => p.product_id === prodId)
+        : labeledProducts.find((p) => p.product_name.toLowerCase() === l.product_name.toLowerCase());
+      items.push({
+        key: k,
+        reason,
+        product_name: prod?.product_name || l.product_name,
+        sector: (l as any).storage_location || prod?.sector || null,
+        product: prod,
+        expiry_date: l.expiry_date,
+      });
+    }
+
+    return items.sort((a, b) => {
+      const rank = { vencido: 0, falta: 1, vence_24h: 2 } as const;
+      const r = rank[a.reason] - rank[b.reason];
+      if (r !== 0) return r;
+      const sa = (a.sector || "").localeCompare(b.sector || "");
+      if (sa !== 0) return sa;
+      return a.product_name.localeCompare(b.product_name);
+    });
+  }, [needsRestock, labeledProducts, activeLabels]);
+
+  const reasonLabel = (r: Reason) =>
+    r === "vencido" ? "Vencido" : r === "vence_24h" ? "Vence em 24h" : "Estoque baixo";
 
   async function handleDownloadRestockDocx() {
     if (restockList.length === 0) {
@@ -194,7 +264,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     // ===== Group by sector =====
     const bySector = new Map<string, typeof restockList>();
     for (const item of restockList) {
-      const key = item.status.sector || "Sem setor";
+      const key = item.sector || "Sem setor";
       if (!bySector.has(key)) bySector.set(key, [] as any);
       (bySector.get(key) as any).push(item);
     }
@@ -344,23 +414,24 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         }),
       );
 
-      // Columns: Produto | Qtd necessária | Unidade | Último recebimento | Fornecedor | Observações
-      const COL = [2600, 1100, 900, 1500, 1600, 1660];
+      // Columns: Produto | Motivo | Qtd | Un | Validade | Fornecedor
+      const COL = [2600, 1400, 900, 700, 1560, 2200];
       const rows: TableRow[] = [
         new TableRow({
           tableHeader: true,
           children: [
             tableHeaderCell("Produto", COL[0]),
-            tableHeaderCell("Qtd", COL[1], AlignmentType.RIGHT),
-            tableHeaderCell("Un", COL[2]),
-            tableHeaderCell("Último recebimento", COL[3]),
-            tableHeaderCell("Fornecedor", COL[4]),
-            tableHeaderCell("Observações", COL[5]),
+            tableHeaderCell("Motivo", COL[1]),
+            tableHeaderCell("Qtd", COL[2], AlignmentType.RIGHT),
+            tableHeaderCell("Un", COL[3]),
+            tableHeaderCell("Validade", COL[4]),
+            tableHeaderCell("Fornecedor", COL[5]),
           ],
         }),
       ];
 
-      for (const { status, product, product_name } of list) {
+      for (const item of list) {
+        const { product, product_name, status, reason, expiry_date } = item;
         const raw = (product?.raw || {}) as any;
         const lastReceipt = product?.receipts?.[0];
         // Quantidade exata: prioriza o último recebimento (dado real da entrada),
@@ -370,7 +441,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         if (lastReceipt && Number(lastReceipt.quantity) > 0) {
           qtyValue = Number(lastReceipt.quantity);
           unitValue = (lastReceipt.unit || raw?.unit || "un").toString();
-        } else if (status.weight_grams) {
+        } else if (status?.weight_grams) {
           qtyValue = Number(status.weight_grams);
           unitValue = "g";
         } else if (raw?.unit) {
@@ -378,9 +449,11 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         }
         const qty = qtyValue !== null ? qtyValue.toLocaleString("pt-BR") : "—";
         const unit = unitValue;
-        const lastRecvAt = product?.last_receipt_at
-          ? format(new Date(product.last_receipt_at), "dd/MM/yyyy", { locale: ptBR })
-          : "—";
+        const validadeStr = expiry_date
+          ? format(new Date(expiry_date), "dd/MM/yyyy", { locale: ptBR })
+          : product?.last_expiry
+            ? format(new Date(product.last_expiry), "dd/MM/yyyy", { locale: ptBR })
+            : "—";
         const lastSupplier = product?.last_supplier || "—";
 
         // Product name + optional observations underneath
@@ -414,12 +487,14 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
           );
         }
 
-        const notesText = raw?.notes || raw?.ingredients || "—";
-
         rows.push(
           new TableRow({
             children: [
               bodyCell(productParas, COL[0]),
+              bodyCell(
+                [new Paragraph({ children: [new TextRun({ text: reasonLabel(reason), size: 22, color: INK })] })],
+                COL[1],
+              ),
               bodyCell(
                 [
                   new Paragraph({
@@ -427,22 +502,18 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
                     children: [new TextRun({ text: qty, size: 22, color: INK })],
                   }),
                 ],
-                COL[1],
-              ),
-              bodyCell(
-                [new Paragraph({ children: [new TextRun({ text: String(unit), size: 22, color: INK })] })],
                 COL[2],
               ),
               bodyCell(
-                [new Paragraph({ children: [new TextRun({ text: lastRecvAt, size: 22, color: INK })] })],
+                [new Paragraph({ children: [new TextRun({ text: String(unit), size: 22, color: INK })] })],
                 COL[3],
               ),
               bodyCell(
-                [new Paragraph({ children: [new TextRun({ text: lastSupplier, size: 22, color: INK })] })],
+                [new Paragraph({ children: [new TextRun({ text: validadeStr, size: 22, color: INK })] })],
                 COL[4],
               ),
               bodyCell(
-                [new Paragraph({ children: [new TextRun({ text: notesText, size: 20, color: MUTED })] })],
+                [new Paragraph({ children: [new TextRun({ text: lastSupplier, size: 22, color: INK })] })],
                 COL[5],
               ),
             ],
