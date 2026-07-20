@@ -57,7 +57,7 @@ serve(async (req) => {
 
     const { data: labels } = await sb
       .from("label_issuances")
-      .select("id, product_name, expiry_date, status, label_product_id, product:label_product_id ( category )")
+      .select("id, product_name, expiry_date, status, label_product_id, product:label_product_id ( category, storage_location )")
       .eq("restaurant_id", emp.restaurant_id)
       .neq("status", "discharged")
       .limit(1000);
@@ -69,71 +69,119 @@ serve(async (req) => {
     };
 
     const relevant = (labels || []).filter(inSector);
+
+    // Products marked as "falta" for reposição (mesmos setores do funcionário)
+    const { data: missing } = await sb
+      .from("product_stock_status")
+      .select("product_id, sector, product:product_id ( name, category, storage_location )")
+      .eq("restaurant_id", emp.restaurant_id)
+      .eq("status", "falta");
+    const missingList = (missing || [])
+      .filter((m: any) => {
+        if (!sectors.length) return true;
+        const cat = m.product?.category || m.sector;
+        return cat && sectors.includes(cat);
+      })
+      .map((m: any) => ({
+        name: m.product?.name || "Produto",
+        sector: m.product?.category || m.sector || "Sem setor",
+      }));
     const fmtHora = (d: Date) =>
       d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
     const fmtDia = (d: Date) =>
       d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 
-    const expiredList: { name: string; exp: Date }[] = [];
-    const todayList: { name: string; exp: Date }[] = [];
-    const next24hList: { name: string; exp: Date }[] = [];
+    const expiredList: { name: string; exp: Date; sector: string }[] = [];
+    const todayList: { name: string; exp: Date; sector: string }[] = [];
+    const next24hList: { name: string; exp: Date; sector: string }[] = [];
     for (const l of relevant) {
       const exp = new Date(l.expiry_date);
-      if (exp <= now) expiredList.push({ name: l.product_name, exp });
-      else if (exp <= endOfToday) todayList.push({ name: l.product_name, exp });
-      else if (exp <= in24h) next24hList.push({ name: l.product_name, exp });
+      const sector = l.product?.category || "Sem setor";
+      if (exp <= now) expiredList.push({ name: l.product_name, exp, sector });
+      else if (exp <= endOfToday) todayList.push({ name: l.product_name, exp, sector });
+      else if (exp <= in24h) next24hList.push({ name: l.product_name, exp, sector });
     }
     expiredList.sort((a, b) => a.exp.getTime() - b.exp.getTime());
     todayList.sort((a, b) => a.exp.getTime() - b.exp.getTime());
     next24hList.sort((a, b) => a.exp.getTime() - b.exp.getTime());
 
-    const totalActive = relevant.length;
     const firstName = emp.name.split(" ")[0];
-    const saudacao =
-      mode === "test"
-        ? `[MESACLIK] Teste de relatório - ${firstName}`
-        : mode === "expiry_alert"
-        ? `[MESACLIK] Alerta de vencimento - ${firstName}`
-        : `[MESACLIK] Bom dia, ${firstName}!`;
 
-    const dataHoje = fmtDia(now);
-    const setoresLabel = sectors.length ? sectors.slice(0, 4).join(", ") : "Todos os setores";
+    // Agrupa por produto+setor (evita listar cada etiqueta individualmente)
+    const groupCount = (arr: { name: string; sector: string }[]) => {
+      const m = new Map<string, { name: string; sector: string; qty: number }>();
+      for (const it of arr) {
+        const k = `${it.name}::${it.sector}`;
+        const prev = m.get(k);
+        if (prev) prev.qty++;
+        else m.set(k, { name: it.name, sector: it.sector, qty: 1 });
+      }
+      return Array.from(m.values());
+    };
+
+    const descartar = [...groupCount(expiredList), ...groupCount(todayList)];
+    const reposicao = missingList;
 
     const linhas: string[] = [];
-    linhas.push(saudacao);
-    linhas.push(`Relatório de ${dataHoje} | ${setoresLabel}`);
-    linhas.push(`Total ativas: ${totalActive}`);
+    if (mode === "test") linhas.push("[MESACLIK] Teste");
+    else if (mode === "expiry_alert") linhas.push("🚨 MESACLIK");
+    else linhas.push("[MESACLIK]");
     linhas.push("");
-
-    if (expiredList.length === 0 && todayList.length === 0 && next24hList.length === 0) {
-      linhas.push("Tudo dentro do prazo ✅");
-      linhas.push("Nenhuma etiqueta exige atenção agora.");
+    if (mode === "expiry_alert") {
+      const t = expiredList[0];
+      linhas.push(`1 etiqueta venceu agora.`);
+      linhas.push("");
+      if (t) {
+        linhas.push(`Produto:`);
+        linhas.push(t.name);
+        linhas.push("");
+        linhas.push(`📍 ${t.sector}`);
+        linhas.push("");
+      }
+      linhas.push("Realize a baixa imediatamente.");
     } else {
-      if (expiredList.length) {
-        linhas.push(`🚨 VENCIDAS (${expiredList.length}) - remover agora:`);
-        for (const item of expiredList.slice(0, 6)) {
-          linhas.push(`• ${item.name} (venceu ${fmtDia(item.exp)} ${fmtHora(item.exp)})`);
-        }
-        if (expiredList.length > 6) linhas.push(`+ ${expiredList.length - 6} outras vencidas`);
+      linhas.push(`Bom dia, ${firstName}!`);
+      linhas.push("");
+      if (sectors.length) {
+        linhas.push(`📍 Seus setores:`);
+        for (const s of sectors) linhas.push(`• ${s}`);
+      } else {
+        linhas.push(`📍 Todos os setores`);
       }
-      if (todayList.length) {
-        linhas.push(`⚠ VENCEM HOJE (${todayList.length}):`);
-        for (const item of todayList.slice(0, 5)) {
-          linhas.push(`• ${item.name} às ${fmtHora(item.exp)}`);
+      linhas.push("");
+      linhas.push(`Resumo de hoje`);
+      linhas.push("");
+      linhas.push(`🚨 Vencidas: ${expiredList.length}`);
+      linhas.push(`⏰ Vencem hoje: ${todayList.length}`);
+      linhas.push(`📦 Precisam repor: ${reposicao.length}`);
+      if (descartar.length) {
+        linhas.push("");
+        linhas.push(`Descartar agora`);
+        for (const it of descartar.slice(0, 8)) {
+          linhas.push("");
+          linhas.push(`• ${it.name}${it.qty > 1 ? ` (${it.qty})` : ""}`);
+          linhas.push(`📍 ${it.sector}`);
         }
-        if (todayList.length > 5) linhas.push(`+ ${todayList.length - 5} outras hoje`);
+        if (descartar.length > 8) linhas.push(`\n+ ${descartar.length - 8} outros`);
       }
-      if (next24hList.length) {
-        linhas.push(`🕒 Próximas 24h (${next24hList.length}):`);
-        for (const item of next24hList.slice(0, 4)) {
-          linhas.push(`• ${item.name} - ${fmtDia(item.exp)} ${fmtHora(item.exp)}`);
+      if (reposicao.length) {
+        linhas.push("");
+        linhas.push(`Reposição`);
+        for (const it of reposicao.slice(0, 8)) {
+          linhas.push("");
+          linhas.push(`• ${it.name}`);
+          linhas.push(`📍 ${it.sector}`);
         }
-        if (next24hList.length > 4) linhas.push(`+ ${next24hList.length - 4} outras em 24h`);
+        if (reposicao.length > 8) linhas.push(`\n+ ${reposicao.length - 8} outros`);
+      }
+      if (!descartar.length && !reposicao.length) {
+        linhas.push("");
+        linhas.push("Tudo em ordem ✅");
       }
     }
-
     linhas.push("");
-    linhas.push(`Painel: ${PANEL_URL}`);
+    linhas.push(`Painel:`);
+    linhas.push(PANEL_URL);
 
     const message = trim(linhas.join("\n"));
 
