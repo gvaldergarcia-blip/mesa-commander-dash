@@ -241,6 +241,105 @@ export function useReceipts() {
     onError: (e: any) => toast.error(e.message || "Erro ao vincular produto"),
   });
 
+  // Resolve várias pendências de uma vez (Painel de Pendências).
+  // Cada resolução vira um product + link do item; ao final, dispara o
+  // processamento do recebimento (uma única vez) para gerar etiquetas.
+  const bulkResolvePending = useMutation({
+    mutationFn: async (input: {
+      receiptId: string;
+      supplierId?: string | null;
+      items: Array<{
+        itemId: string;
+        rawName: string;
+        name: string;
+        validity_days: number;
+        conservation_method: "refrigerated" | "frozen" | "ambient" | "hot";
+        category?: string | null;
+        storage_location?: string | null;
+        sif?: string | null;
+        batch?: string | null;
+      }>;
+    }) => {
+      if (!restaurantId) throw new Error("Restaurante não identificado");
+      for (const it of input.items) {
+        // 1) cria produto mínimo
+        const { data: prod, error: pErr } = await (supabase as any)
+          .from("label_products")
+          .insert({
+            restaurant_id: restaurantId,
+            name: (it.name || it.rawName).trim(),
+            validity_days: Math.max(1, it.validity_days || 1),
+            conservation_method: it.conservation_method || "refrigerated",
+            category: it.category || null,
+            storage_location: it.storage_location || null,
+            sif: it.sif || null,
+            unit: "un",
+            status: "active",
+          })
+          .select("id")
+          .single();
+        if (pErr) throw pErr;
+
+        // 2) aprende o alias e liga o item
+        await (supabase as any).rpc("label_learn_alias", {
+          _restaurant_id: restaurantId,
+          _raw: it.rawName,
+          _product_id: prod.id,
+          _supplier_id: input.supplierId ?? null,
+        });
+        await (supabase as any)
+          .from("label_receipt_items")
+          .update({ product_id: prod.id, needs_info: false, missing_fields: [] })
+          .eq("id", it.itemId);
+
+        // 3) lote (se veio da foto) — armazenado no issuance após o processamento
+        // será tratado depois de label_process_ready_items abaixo.
+      }
+
+      // 4) processa TODOS os itens prontos do recebimento (gera etiquetas + diário)
+      const { data: r } = await (supabase as any).rpc("label_process_ready_items", {
+        _receipt_id: input.receiptId,
+      });
+
+      // 5) grava lote nas issuances recém-criadas
+      for (const it of input.items) {
+        if (!it.batch) continue;
+        try {
+          const { data: prod } = await (supabase as any)
+            .from("label_receipt_items")
+            .select("product_id")
+            .eq("id", it.itemId)
+            .maybeSingle();
+          if (!prod?.product_id) continue;
+          const { data: last } = await (supabase as any)
+            .from("label_issuances")
+            .select("id")
+            .eq("label_product_id", prod.product_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (last?.id) {
+            await (supabase as any)
+              .from("label_issuances")
+              .update({ batch: it.batch })
+              .eq("id", last.id);
+          }
+        } catch (e) { console.warn("Falha ao gravar lote", e); }
+      }
+      return r;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_products", restaurantId] });
+      toast.success("Pendências resolvidas e etiquetas prontas.");
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao resolver pendências"),
+  });
+
   const confirmReceipt = useMutation({
     mutationFn: async (receiptId: string) => {
       if (!restaurantId) return;
@@ -277,6 +376,8 @@ export function useReceipts() {
     createReceipt: createReceipt.mutateAsync,
     isCreating: createReceipt.isPending,
     linkItemToProduct: linkItemToProduct.mutateAsync,
+    bulkResolvePending: bulkResolvePending.mutateAsync,
+    isBulkResolving: bulkResolvePending.isPending,
     confirmReceipt: confirmReceipt.mutateAsync,
     isConfirming: confirmReceipt.isPending,
     cancelReceipt: cancelReceipt.mutateAsync,
