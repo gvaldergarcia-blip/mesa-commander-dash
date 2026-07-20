@@ -122,3 +122,24 @@ verify_jwt = true
 
 [functions.verify-whatsapp-config]
 verify_jwt = true
+
+[functions.send-label-daily-report]
+verify_jwt = false
+
+[functions.send-label-weekly-report]
+verify_jwt = false
+
+[functions.send-label-monthly-report]
+verify_jwt = false
+
+[functions.send-label-conference-alert]
+verify_jwt = false
+
+[functions.send-stock-alert]
+verify_jwt = false
+
+[functions.check-label-expiry-alerts]
+verify_jwt = false
+
+[functions.schedule-label-sms-reports]
+verify_jwt = false
