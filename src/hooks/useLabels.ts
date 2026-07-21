@@ -143,11 +143,24 @@ export function useLabels() {
   const dischargeBulk = useMutation({
     mutationFn: async ({ ids, reason, notes }: { ids: string[]; reason: DischargeReason; notes?: string | null }) => {
       if (!restaurantId) return;
+      // A tabela label_discharges tem CHECK constraint (use/loss/error).
+      // Mapeamos os motivos da UI para esse conjunto antes de inserir,
+      // mas gravamos o motivo original em label_issuances.discharge_reason.
+      const CANON: Record<DischargeReason, "use" | "loss" | "error"> = {
+        use: "use",
+        loss: "loss",
+        error: "error",
+        consumo: "use",
+        vencimento: "loss",
+        descarte: "loss",
+        outro: "error",
+      };
+      const canonReason = CANON[reason] ?? "error";
       // Insert discharge rows
       const rows = ids.map((id) => ({
         restaurant_id: restaurantId,
         label_id: id,
-        reason,
+        reason: canonReason,
         notes: notes ?? null,
       }));
       const { error: dErr } = await (supabase as any).from("label_discharges").insert(rows);
