@@ -1558,6 +1558,8 @@ export type Database = {
           storage_location: string | null
           unique_code: string | null
           updated_at: string
+          weight: number | null
+          weight_unit: string | null
         }
         Insert: {
           allergens?: string | null
@@ -1583,6 +1585,8 @@ export type Database = {
           storage_location?: string | null
           unique_code?: string | null
           updated_at?: string
+          weight?: number | null
+          weight_unit?: string | null
         }
         Update: {
           allergens?: string | null
@@ -1608,6 +1612,8 @@ export type Database = {
           storage_location?: string | null
           unique_code?: string | null
           updated_at?: string
+          weight?: number | null
+          weight_unit?: string | null
         }
         Relationships: [
           {
@@ -1806,6 +1812,8 @@ export type Database = {
           restaurant_id: string
           unit: string | null
           updated_at: string
+          weight: number | null
+          weight_unit: string | null
         }
         Insert: {
           created_at?: string
@@ -1821,6 +1829,8 @@ export type Database = {
           restaurant_id: string
           unit?: string | null
           updated_at?: string
+          weight?: number | null
+          weight_unit?: string | null
         }
         Update: {
           created_at?: string
@@ -1836,6 +1846,8 @@ export type Database = {
           restaurant_id?: string
           unit?: string | null
           updated_at?: string
+          weight?: number | null
+          weight_unit?: string | null
         }
         Relationships: [
           {
