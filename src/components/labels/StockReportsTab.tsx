@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   AlertTriangle, Trash2, ClipboardCheck, Boxes, Timer, ArrowRight,
   MapPin, Search, CheckCircle2, AlertCircle, Circle, User, Package,
-  FileDown,
+  FileDown, Sparkles, Flame, ShoppingCart, PackageX,
 } from "lucide-react";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { useLabels } from "@/hooks/useLabels";
@@ -607,6 +607,98 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
           )}
         </Button>
       </header>
+
+      {/* ============ AÇÕES RECOMENDADAS HOJE ============ */}
+      {(() => {
+        const actions: { icon: any; tone: string; title: string; hint?: string; sector?: string }[] = [];
+        if (expiredLabels.length > 0) {
+          actions.push({
+            icon: PackageX,
+            tone: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+            title: `Dar baixa em ${expiredLabels.length} etiqueta${expiredLabels.length === 1 ? "" : "s"} vencida${expiredLabels.length === 1 ? "" : "s"}`,
+            hint: "Vá até Estoque para descartar",
+          });
+        }
+        if (needsRestock.length > 0) {
+          actions.push({
+            icon: ShoppingCart,
+            tone: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+            title: `Repor ${needsRestock.length} produto${needsRestock.length === 1 ? "" : "s"} em falta`,
+            hint: "Baixe a Lista de reposição (Word)",
+          });
+        }
+        const pendingWithProducts = pendingSectors.filter((sec) => labeledProducts.some((p) => p.sector === sec));
+        if (pendingWithProducts.length > 0) {
+          actions.push({
+            icon: ClipboardCheck,
+            tone: "text-primary bg-primary/10 border-primary/20",
+            title: `Conferir ${pendingWithProducts.length} setor${pendingWithProducts.length === 1 ? "" : "es"} ainda sem checagem hoje`,
+            hint: pendingWithProducts.slice(0, 3).join(" · "),
+            sector: pendingWithProducts[0],
+          });
+        }
+        const topLoss = lossRankProducts[0];
+        if (topLoss && topLoss.count >= 2) {
+          actions.push({
+            icon: Flame,
+            tone: "text-orange-500 bg-orange-500/10 border-orange-500/20",
+            title: `${topLoss.name} foi descartado ${topLoss.count}× nos últimos ${range} dias`,
+            hint: "Reveja a quantidade recebida ou a validade impressa",
+          });
+        }
+        if (conferencesToday.length === 0 && sectorCards.length > 0) {
+          actions.push({
+            icon: AlertCircle,
+            tone: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+            title: "Nenhuma conferência de estoque realizada hoje",
+            hint: "Peça para o responsável percorrer os setores",
+          });
+        }
+        if (actions.length === 0) {
+          actions.push({
+            icon: CheckCircle2,
+            tone: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+            title: "Tudo em ordem — nada exige ação agora",
+            hint: "Continue monitorando durante o dia",
+          });
+        }
+        return (
+          <section className="space-y-4">
+            <SectionHeader
+              title="Ações recomendadas hoje"
+              hint={actions.length && actions[0].icon !== CheckCircle2 ? `${actions.length} sugest${actions.length === 1 ? "ão" : "ões"}` : "Nada urgente"}
+              icon={<Sparkles className="h-4 w-4 text-primary" />}
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {actions.map((a, i) => {
+                const Icon = a.icon;
+                const clickable = !!a.sector && !!onOpenSector;
+                return (
+                  <div
+                    key={i}
+                    onClick={clickable ? () => onOpenSector!(a.sector) : undefined}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border bg-card/50 transition-all",
+                      clickable && "cursor-pointer hover:bg-card hover:shadow-sm",
+                    )}
+                  >
+                    <div className={cn("shrink-0 p-2 rounded-lg border", a.tone)}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground leading-tight">{a.title}</p>
+                      {a.hint && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{a.hint}</p>
+                      )}
+                    </div>
+                    {clickable && <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ============ REQUER ATENÇÃO ============ */}
       <section className="space-y-4">
