@@ -14,6 +14,8 @@ interface Line {
   raw_name: string;
   quantity: number;
   unit: string;
+  weight: number | null;
+  weight_unit: string;
 }
 
 interface Props {
@@ -28,12 +30,15 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
   const [supplierId, setSupplierId] = useState<string>("");
   const [newSupplierName, setNewSupplierName] = useState("");
   const [reference, setReference] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ raw_name: "", quantity: 1, unit: "un" }]);
+  const [lines, setLines] = useState<Line[]>([
+    { raw_name: "", quantity: 1, unit: "un", weight: null, weight_unit: "kg" },
+  ]);
   const [parsing, setParsing] = useState(false);
   const [attachedName, setAttachedName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const addLine = () => setLines((l) => [...l, { raw_name: "", quantity: 1, unit: "un" }]);
+  const addLine = () =>
+    setLines((l) => [...l, { raw_name: "", quantity: 1, unit: "un", weight: null, weight_unit: "kg" }]);
   const removeLine = (i: number) => setLines((l) => l.filter((_, idx) => idx !== i));
   const updateLine = (i: number, patch: Partial<Line>) =>
     setLines((l) => l.map((ln, idx) => (idx === i ? { ...ln, ...patch } : ln)));
@@ -42,7 +47,7 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
     setSupplierId("");
     setNewSupplierName("");
     setReference("");
-    setLines([{ raw_name: "", quantity: 1, unit: "un" }]);
+    setLines([{ raw_name: "", quantity: 1, unit: "un", weight: null, weight_unit: "kg" }]);
     setAttachedName(null);
   };
 
@@ -73,9 +78,27 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
         body: { file_base64: base64, mime_type: file.type, filename: file.name },
       });
       if (error) throw error;
-      const items: Line[] = (data?.items ?? []).map((it: any) => ({
-        raw_name: it.raw_name, quantity: it.quantity, unit: it.unit,
-      }));
+      const items: Line[] = (data?.items ?? []).map((it: any) => {
+        const unit = String(it.unit || "un").toLowerCase();
+        const isWeight = ["kg", "g", "l", "ml"].includes(unit);
+        if (isWeight) {
+          // Item veio como "9,84 kg" — 1 peça com peso 9,84 kg.
+          return {
+            raw_name: it.raw_name,
+            quantity: 1,
+            unit: "un",
+            weight: Number(it.quantity) || null,
+            weight_unit: unit,
+          };
+        }
+        return {
+          raw_name: it.raw_name,
+          quantity: Math.max(1, Math.floor(Number(it.quantity) || 1)),
+          unit,
+          weight: null,
+          weight_unit: "kg",
+        };
+      });
       if (!items.length) {
         toast.warning("Nenhum item reconhecido no arquivo");
         return;
@@ -109,7 +132,13 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
         supplier_id: finalSupplierId,
         reference: reference || undefined,
         source: "manual",
-        items: valid,
+        items: valid.map((l) => ({
+          raw_name: l.raw_name,
+          quantity: l.quantity,
+          unit: l.unit,
+          weight: l.weight,
+          weight_unit: l.weight ? l.weight_unit : null,
+        })),
       });
       reset();
       onOpenChange(false);
@@ -200,30 +229,49 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
             )}
             <div className="space-y-2">
               {lines.map((line, i) => (
-                <div key={i} className="flex gap-2 items-start">
+                <div key={i} className="flex flex-wrap gap-2 items-start">
                   <Input
                     placeholder="Nome do produto (como está na nota)"
                     value={line.raw_name}
                     onChange={(e) => updateLine(i, { raw_name: e.target.value })}
-                    className="flex-1"
+                    className="flex-1 min-w-[180px]"
                   />
                   <Input
                     type="number"
-                    min="0"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     value={line.quantity}
-                    onChange={(e) => updateLine(i, { quantity: parseFloat(e.target.value) || 0 })}
-                    className="w-20"
+                    onChange={(e) => updateLine(i, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="w-16"
+                    title="Quantidade física (peças)"
                   />
                   <Select value={line.unit} onValueChange={(v) => updateLine(i, { unit: v })}>
                     <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="un">un</SelectItem>
+                      <SelectItem value="peça">peça</SelectItem>
+                      <SelectItem value="cx">cx</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={line.weight ?? ""}
+                    onChange={(e) =>
+                      updateLine(i, { weight: e.target.value === "" ? null : parseFloat(e.target.value) })
+                    }
+                    placeholder="Peso"
+                    className="w-20"
+                    title="Peso (opcional)"
+                  />
+                  <Select value={line.weight_unit} onValueChange={(v) => updateLine(i, { weight_unit: v })}>
+                    <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="kg">kg</SelectItem>
                       <SelectItem value="g">g</SelectItem>
                       <SelectItem value="l">l</SelectItem>
                       <SelectItem value="ml">ml</SelectItem>
-                      <SelectItem value="cx">cx</SelectItem>
                     </SelectContent>
                   </Select>
                   {lines.length > 1 && (
@@ -237,8 +285,8 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
 
           <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-xs text-muted-foreground">
-            <strong className="text-primary">Como funciona:</strong> a lista cria apenas as pendências do recebimento.
-            O reconhecimento acontece na próxima etapa, quando você envia as fotos das etiquetas do fabricante.
+            <strong className="text-primary">Quantidade × Peso:</strong> use <em>Quantidade</em> apenas para o número de peças físicas.
+            O <em>Peso</em> (kg, g, l, ml) é atributo da peça e é impresso na etiqueta — nunca gera etiquetas extras. Ex.: 1 peça de 9,84 kg = 1 etiqueta.
           </div>
         </div>
 

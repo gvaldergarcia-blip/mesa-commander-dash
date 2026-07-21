@@ -36,6 +36,8 @@ export interface Label {
   ingredients: string | null;
   sif: string | null;
   storage_location: string | null;
+  weight: number | null;
+  weight_unit: string | null;
   status: LabelStatus;
   discharge_reason: DischargeReason | null;
   resolved_at: string | null;
