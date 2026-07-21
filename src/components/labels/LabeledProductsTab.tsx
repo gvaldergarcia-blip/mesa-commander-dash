@@ -295,15 +295,6 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
                       <PackageMinus className="h-3.5 w-3.5" /> Baixa
                     </button>
                   )}
-                  {it.product_id && onPrintProduct && (
-                    <button
-                      type="button"
-                      onClick={() => onPrintProduct(it.product_id!)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-primary border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/30 transition-all text-xs font-medium"
-                    >
-                      <Printer className="h-3.5 w-3.5" /> Imprimir
-                    </button>
-                  )}
                 </div>
 
                 {isOpen && (
