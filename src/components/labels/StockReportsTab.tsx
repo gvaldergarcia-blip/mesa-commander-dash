@@ -96,6 +96,11 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const needsRestock = statuses.filter((s) => s.status === "falta" && visibleProductIds.has(s.product_id));
   const attention = statuses.filter((s) => s.status === "atencao" && visibleProductIds.has(s.product_id));
   const expiredLabels = activeLabels.filter((l) => l.expiry_date && new Date(l.expiry_date) < new Date());
+  // Fonte de verdade EXIBIDA: contamos PRODUTOS vencidos (não etiquetas),
+  // porque é isso que o usuário vê em "Produtos" e no Estoque. Se um produto
+  // tem 7 etiquetas vencidas, ainda é 1 produto vencido.
+  const expiredProducts = labeledProducts.filter((p) => p.status === "expired");
+  const expiredProductsCount = expiredProducts.length;
   const dischargesToday = labels.filter((l) => l.status === "discharged" && l.resolved_at && isToday(new Date(l.resolved_at)));
   const lastConference = [...statuses].sort((a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime())[0];
 
@@ -651,12 +656,12 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       {/* ============ AÇÕES RECOMENDADAS HOJE ============ */}
       {(() => {
         const actions: { icon: any; tone: string; title: string; hint?: string; sector?: string }[] = [];
-        if (expiredLabels.length > 0) {
+        if (expiredProductsCount > 0) {
           actions.push({
             icon: PackageX,
             tone: "text-rose-500 bg-rose-500/10 border-rose-500/20",
-            title: `Dar baixa em ${expiredLabels.length} etiqueta${expiredLabels.length === 1 ? "" : "s"} vencida${expiredLabels.length === 1 ? "" : "s"}`,
-            hint: "Vá até Estoque para descartar",
+            title: `${expiredProductsCount} produto${expiredProductsCount === 1 ? "" : "s"} com etiquetas vencidas`,
+            hint: `${expiredLabels.length} etiqueta${expiredLabels.length === 1 ? "" : "s"} para dar baixa em Produtos`,
           });
         }
         if (needsRestock.length > 0) {
@@ -773,7 +778,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <MetricCard label="Produtos ativos"      value={labeledProducts.length} />
           <MetricCard label="Produtos críticos"    value={needsRestock.length} tone={needsRestock.length ? "danger" : "neutral"} />
-          <MetricCard label="Vencidos"             value={expiredLabels.length} tone={expiredLabels.length ? "danger" : "neutral"} />
+          <MetricCard label="Produtos vencidos"    value={expiredProductsCount} hint={expiredLabels.length ? `${expiredLabels.length} etiqueta${expiredLabels.length === 1 ? "" : "s"}` : undefined} tone={expiredProductsCount ? "danger" : "neutral"} />
           <MetricCard label="Setores conferidos"   value={`${percentConferred}%`} hint={`${sectorsConferredToday.size} de ${totalSectorsWithProducts}`} />
           <MetricCard label="Conferências hoje"    value={conferencesToday.length} />
           <MetricCard label="Última conferência"   valueText={lastConfRelative} />
