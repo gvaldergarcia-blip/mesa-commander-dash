@@ -78,6 +78,9 @@ export function OperationalDiary() {
         marginSize={1}
       />
     );
+    const w = (l as any).weight;
+    const wu = (l as any).weight_unit;
+    const weightLabel = w != null && wu ? `${String(w).replace(".", ",")} ${wu}` : null;
     printLabels({
       productName: l.product_name,
       manufactureDate: new Date(l.manufacture_date),
@@ -94,6 +97,7 @@ export function OperationalDiary() {
         : null,
       storageLocation: (l as any).storage_location ?? null,
       batch: l.batch,
+      quantityWeight: weightLabel,
       restaurantName: restaurant?.name || null,
       restaurantCnpj: restaurantLegal?.cnpj || null,
       restaurantCep: restaurantLegal?.cep || null,
@@ -113,6 +117,9 @@ export function OperationalDiary() {
         marginSize={1}
       />
     );
+    const weightLabel = l.weight != null && l.weight_unit
+      ? `${String(l.weight).replace(".", ",")} ${l.weight_unit}`
+      : null;
     return {
       productName: l.product_name,
       manufactureDate: new Date(l.manufacture_date),
@@ -129,6 +136,7 @@ export function OperationalDiary() {
         : null,
       storageLocation: l.storage_location ?? null,
       batch: l.batch,
+      quantityWeight: weightLabel,
       restaurantName: restaurant?.name || null,
       restaurantCnpj: restaurantLegal?.cnpj || null,
       restaurantCep: restaurantLegal?.cep || null,
