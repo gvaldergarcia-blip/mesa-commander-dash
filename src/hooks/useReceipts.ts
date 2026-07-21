@@ -11,6 +11,8 @@ export interface ReceiptItem {
   product_id: string | null;
   quantity: number;
   unit: string | null;
+  weight: number | null;
+  weight_unit: string | null;
   needs_info: boolean;
   missing_fields: string[];
   labels_prepared: number;
