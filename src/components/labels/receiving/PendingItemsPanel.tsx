@@ -86,8 +86,6 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
   );
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const readyCount = rows.filter((r) => r.storage_location.trim()).length;
-
   const patch = (itemId: string, upd: Partial<PendingRow>) =>
     setRows((rs) => rs.map((r) => (r.itemId === itemId ? { ...r, ...upd } : r)));
 
