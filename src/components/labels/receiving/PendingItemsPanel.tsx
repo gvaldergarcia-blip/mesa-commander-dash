@@ -77,6 +77,16 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// "9,84 kg" | "1kg" | "500 g" | "1L" -> { value, unit }
+function parseWeightString(s: string | null | undefined): { value: number; unit: string } | null {
+  if (!s) return null;
+  const m = String(s).replace(",", ".").toLowerCase().match(/([\d.]+)\s*(kg|g|l|ml)/);
+  if (!m) return null;
+  const v = Number(m[1]);
+  if (!isFinite(v) || v <= 0) return null;
+  return { value: v, unit: m[2] };
+}
+
 interface Props {
   receiptId: string;
   supplierId?: string | null;
@@ -219,17 +229,22 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
     await bulkResolvePending({
       receiptId,
       supplierId: supplierId ?? null,
-      items: readyRows.map((r) => ({
-        itemId: r.itemId,
-        rawName: r.rawName,
-        name: r.name,
-        validity_days: daysUntil(r.validity_date),
-        conservation_method: r.conservation,
-        category: r.category || null,
-        storage_location: r.storage_location || null,
-        sif: r.sif || null,
-        batch: r.batch || null,
-      })),
+      items: readyRows.map((r) => {
+        const w = parseWeightString(r.weight);
+        return {
+          itemId: r.itemId,
+          rawName: r.rawName,
+          name: r.name,
+          validity_days: daysUntil(r.validity_date),
+          conservation_method: r.conservation,
+          category: r.category || null,
+          storage_location: r.storage_location || null,
+          sif: r.sif || null,
+          batch: r.batch || null,
+          weight: w?.value ?? null,
+          weight_unit: w?.unit ?? null,
+        };
+      }),
     });
     // Remove os que acabaram de ser processados; deixa os pendentes no painel.
     const processed = new Set(readyRows.map((r) => r.itemId));
