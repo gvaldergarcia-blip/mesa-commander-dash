@@ -173,12 +173,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
           </div>
           <div className="space-y-2">
             <Label htmlFor="prod-storage">Local de armazenamento (opcional)</Label>
-            <Input
-              id="prod-storage"
+            <SectorCombobox
               value={storageLocation}
-              onChange={(e) => setStorageLocation(e.target.value)}
-              placeholder="Ex: Geladeira 1, Freezer 2"
-              maxLength={50}
+              onChange={setStorageLocation}
+              placeholder="Ex.: Câmara Fria, Geladeira 1, Freezer 2…"
             />
           </div>
           <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
