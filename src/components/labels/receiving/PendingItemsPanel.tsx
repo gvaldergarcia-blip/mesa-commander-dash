@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle, PenLine } from "lucide-react";
+import { SectorCombobox } from "@/components/labels/SectorCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
-import { DEFAULT_SECTORS } from "@/lib/labels/sectors";
+// Setores agora vêm do SectorCombobox (unifica defaults + custom).
 import { useReceipts } from "@/hooks/useReceipts";
 import { cn } from "@/lib/utils";
 
@@ -287,12 +288,11 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
                 </Select>
               </div>
               <div className="col-span-2">
-                <Input
+                <SectorCombobox
                   value={r.storage_location}
-                  onChange={(e) => patch(r.itemId, { storage_location: e.target.value })}
-                  placeholder="Câmara Fria…"
-                  list="mesaclik-sectors-panel"
-                  className="h-8 text-xs"
+                  onChange={(v) => patch(r.itemId, { storage_location: v })}
+                  placeholder="Local…"
+                  size="sm"
                 />
               </div>
               <div className="col-span-1 flex justify-end">
@@ -314,9 +314,6 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
               </div>
             </div>
           ))}
-          <datalist id="mesaclik-sectors-panel">
-            {DEFAULT_SECTORS.map((s) => (<option key={s} value={s} />))}
-          </datalist>
         </div>
       </div>
 
