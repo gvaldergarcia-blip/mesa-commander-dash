@@ -73,13 +73,15 @@ export function ReceivingTab() {
                         <span className="font-semibold">{r.supplier?.name || "Sem fornecedor"}</span>
                         {r.reference && <span className="text-xs text-muted-foreground">· {r.reference}</span>}
                         {r.status === "pending_info" ? (
-                          <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> Pendências</Badge>
+                          <Badge className="gap-1 bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/20">
+                            <AlertCircle className="h-3 w-3" /> A completar
+                          </Badge>
                         ) : r.status === "ready_to_print" ? (
                           <Badge className="gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
                         ) : null}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {items.length} item(ns) · {ready} pronto(s) · {pending} pendência(s) · {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
+                        {items.length} item(ns) · {ready} pronto(s) · {pending} a completar · {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
                       </p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />

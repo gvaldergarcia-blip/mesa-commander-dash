@@ -185,12 +185,12 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
             }
           } catch (e) { console.warn("Falha ao gravar lote", e); }
         }
-        toast.success("Item resolvido — sistema aprendeu esse nome");
+        toast.success("Cadastro concluído — sistema aprendeu esse nome");
       }
       onOpenChange(false);
       onDone?.();
     } catch (e: any) {
-      toast.error(e.message || "Erro ao resolver item");
+      toast.error(e.message || "Não foi possível concluir o cadastro");
     } finally {
       setSaving(false);
     }
@@ -202,10 +202,10 @@ export function PendingItemDialog({ open, onOpenChange, item, supplierId, onDone
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Resolver "{item.raw_name}"
+            Completar cadastro de "{item.raw_name}"
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Preencha apenas o que falta. O sistema memoriza e nunca mais pergunta.
+            Confirme as informações que faltaram. O sistema memoriza e nunca mais pergunta.
           </p>
         </DialogHeader>
 

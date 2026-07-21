@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as PackageIcon, PackageMinus, Trash2, Clock, Utensils, HelpCircle, AlertTriangle } from "lucide-react";
+import {
+  Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as PackageIcon,
+  PackageMinus, Trash2, Clock, Utensils, HelpCircle, AlertTriangle, ClipboardCheck,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useLabeledProducts, type LabeledProduct } from "@/hooks/useLabeledProducts";
 import { useLabels, type DischargeReason } from "@/hooks/useLabels";
@@ -25,6 +30,13 @@ function formatDate(iso: string | null): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");
+}
+
+function fromNow(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return formatDistanceToNow(d, { addSuffix: true, locale: ptBR });
 }
 
 interface Props {
@@ -230,13 +242,39 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
                     <span>Val.: <span className="font-semibold text-foreground">{formatDate(it.last_expiry)}</span></span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <PackageIcon className="h-3.5 w-3.5" />
-                    <span>{it.receipts_count} receb.</span>
+                    <Printer className="h-3.5 w-3.5" />
+                    <span title={it.last_label_at ? new Date(it.last_label_at).toLocaleString("pt-BR") : ""}>
+                      Impr.: <span className="font-semibold text-foreground">{fromNow(it.last_label_at)}</span>
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Tag className="h-3.5 w-3.5" />
-                    <span>{it.labels_count} etiq.</span>
+                    <span>
+                      <span className="font-semibold text-foreground">{it.active_labels_count}</span> ativa{it.active_labels_count === 1 ? "" : "s"}
+                      {it.discharged_labels_count > 0 && (
+                        <span className="text-muted-foreground/70"> · {it.discharged_labels_count} baixadas</span>
+                      )}
+                    </span>
                   </div>
+                  {(() => {
+                    const st = it.product_id ? statusMap.get(it.product_id) : undefined;
+                    if (!st) return null;
+                    const tone =
+                      st.status === "falta" ? "text-rose-500" :
+                      st.status === "atencao" ? "text-amber-500" : "text-emerald-500";
+                    const label =
+                      st.status === "falta" ? "Precisa repor" :
+                      st.status === "atencao" ? "Atenção" : "Suficiente";
+                    return (
+                      <div className="flex items-center gap-1.5 col-span-2">
+                        <ClipboardCheck className={cn("h-3.5 w-3.5", tone)} />
+                        <span>
+                          Conf.: <span className={cn("font-semibold", tone)}>{label}</span>
+                          <span className="text-muted-foreground/70"> · {fromNow(st.marked_at)}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex gap-2 pt-3 mt-3 border-t border-border">
