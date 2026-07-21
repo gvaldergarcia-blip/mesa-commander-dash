@@ -202,7 +202,7 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
   };
 
   const confBadge = (r: PendingRow) => {
-    if (!r.matched) return <Badge variant="outline" className="text-[10px]">Aguardando foto</Badge>;
+    if (!r.matched) return <Badge variant="outline" className="text-[10px]">A completar</Badge>;
     if (r.confidence >= 0.85) return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] gap-1"><CheckCircle2 className="h-3 w-3" /> {Math.round(r.confidence * 100)}%</Badge>;
     if (r.confidence >= 0.6) return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px] gap-1"><AlertTriangle className="h-3 w-3" /> Revisar {Math.round(r.confidence * 100)}%</Badge>;
     return <Badge variant="destructive" className="text-[10px]">Baixa {Math.round(r.confidence * 100)}%</Badge>;
