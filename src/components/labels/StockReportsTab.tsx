@@ -666,8 +666,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
           <section className="space-y-4">
             <SectionHeader
               title="Ações recomendadas hoje"
-              hint={actions.length && actions[0].icon !== CheckCircle2 ? `${actions.length} sugest${actions.length === 1 ? "ão" : "ões"}` : "Nada urgente"}
-              icon={<Sparkles className="h-4 w-4 text-primary" />}
+              hint={actions[0].icon !== CheckCircle2 ? `${actions.length} sugest${actions.length === 1 ? "ão" : "ões"}` : "Nada urgente"}
             />
             <div className="grid gap-2 sm:grid-cols-2">
               {actions.map((a, i) => {
