@@ -44,12 +44,16 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     [items],
   );
 
+  // Setores mostrados NA TELA de conferência: preserva setores que já
+  // existiram no restaurante (mesmo que agora estejam vazios por baixa /
+  // vencimento), pois o setor físico continua na cozinha.
   const sectors = useMemo(() => {
-    const all = mergeSectors(products.map((p) => p.sector));
-    // garantimos "Sem setor" no fim se houver
+    const fromActive = products.map((p) => p.sector);
+    const fromAll = items.map((p) => p.sector);
+    const all = mergeSectors([...fromActive, ...fromAll]);
     const hasNone = products.some((p) => !p.sector);
     return hasNone ? [...all, 'Sem setor'] : all;
-  }, [products]);
+  }, [products, items]);
 
   const bySector = useMemo(() => {
     const map = new Map<string, LabeledProduct[]>();
@@ -103,7 +107,7 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {sectors.map((s) => {
               const list = bySector.get(s) || [];
-              if (list.length === 0) return null;
+              // Mantém o card do setor mesmo vazio (histórico do restaurante).
               const missing = list.filter((p) => p.product_id && statusMap.get(p.product_id)!?.status === 'falta').length;
               const okCount = list.filter((p) => p.product_id && statusMap.get(p.product_id)!?.status === 'ok').length;
               const pending = list.length - missing - okCount;
@@ -125,9 +129,16 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                       className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border"
                       style={{ backgroundColor: withAlpha(hex, 0.18), borderColor: withAlpha(hex, 0.5), color: hex }}
                     >
-                      {list.length} {list.length === 1 ? 'produto' : 'produtos'}
+                      {list.length === 0
+                        ? 'sem produtos'
+                        : `${list.length} ${list.length === 1 ? 'produto' : 'produtos'}`}
                     </span>
                   </div>
+                  {list.length === 0 ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Setor sem itens no momento. Continua ativo para novos recebimentos.
+                    </p>
+                  ) : (
                   <div className="mt-3 flex items-center gap-3 text-xs">
                     <span className="inline-flex items-center gap-1 text-emerald-500">
                       <PackageCheck className="h-3.5 w-3.5" /> {okCount} ok
@@ -141,6 +152,7 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                       </span>
                     )}
                   </div>
+                  )}
                 </button>
               );
             })}

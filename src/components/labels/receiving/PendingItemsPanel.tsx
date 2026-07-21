@@ -134,7 +134,11 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       const bestByRaw = new Map<string, any>();
       for (const lb of allLabels) {
         if (!lb?.match || typeof lb.match !== "string") continue;
-        if ((lb.confidence ?? 0) < 0.5) continue;
+        if ((lb.confidence ?? 0) < 0.6) continue;
+        // Rejeita quando o "match" da IA não bate minimamente com o rawName
+        // (evita que uma foto seja aplicada a itens que ela não representa).
+        const sim = nameSimilarity(lb.match, lb.name || "");
+        if (sim < 0.34 && (lb.confidence ?? 0) < 0.85) continue;
         const prev = bestByRaw.get(lb.match);
         if (!prev || (lb.confidence ?? 0) > (prev.confidence ?? 0)) {
           bestByRaw.set(lb.match, lb);
@@ -149,6 +153,10 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
           const lb = bestByRaw.get(r.rawName);
           if (!lb) return r;
           if (used.has(r.rawName)) return r;
+          // Cinturão-e-suspensórios: confere similaridade contra o próprio
+          // nome bruto do item (evita alocar dados de uma foto ao item errado).
+          const sim = nameSimilarity(r.rawName, lb.name || lb.match || "");
+          if (sim < 0.25) return r;
           used.add(r.rawName);
           filled++;
           return {
@@ -165,8 +173,16 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
           };
         });
       });
-      if (filled === 0) toast.warning("Nenhuma etiqueta reconhecida nas fotos.");
-      else toast.success(`${filled} etiqueta(s) casada(s) automaticamente.`);
+      const missing = rows.filter((r) => !r.matched).length - filled;
+      if (filled === 0) {
+        toast.warning("Nenhuma etiqueta reconhecida nas fotos.");
+      } else if (missing > 0) {
+        toast.success(
+          `${filled} etiqueta(s) casada(s). Faltam ${missing} — envie mais fotos ou preencha manualmente.`,
+        );
+      } else {
+        toast.success(`${filled} etiqueta(s) casada(s) automaticamente.`);
+      }
     } catch (e: any) {
       toast.error(e.message || "Erro ao ler fotos");
     } finally {
@@ -235,7 +251,7 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
         <div className="flex-1 text-sm">
           <p className="font-semibold">Envie fotos das etiquetas dos fabricantes</p>
           <p className="text-xs text-muted-foreground">
-            Pode ser várias fotos, ou uma foto com vários produtos. A IA casa cada etiqueta com o item recebido e preenche tudo automaticamente. Você só confirma <strong>Setor</strong> e <strong>Local</strong>.
+            Pode ser várias fotos, ou uma foto com vários produtos. A IA casa cada etiqueta com o item recebido e preenche tudo automaticamente. Você só confirma o <strong>Local</strong>.
           </p>
         </div>
         <Button size="sm" onClick={() => fileRef.current?.click()} disabled={scanning} className="gap-1.5">
@@ -254,11 +270,10 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
 
       <div className="rounded-lg border overflow-hidden">
         <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <div className="col-span-3">Produto</div>
+          <div className="col-span-4">Produto</div>
           <div className="col-span-2">Validade</div>
           <div className="col-span-2">Conservação</div>
-          <div className="col-span-2">Setor</div>
-          <div className="col-span-2">Local *</div>
+          <div className="col-span-3">Local *</div>
           <div className="col-span-1 text-right">Status</div>
         </div>
         <div className="divide-y">
@@ -268,7 +283,7 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
               !r.matched && "bg-muted/30",
               r.matched && !r.storage_location.trim() && "bg-amber-500/5",
             )}>
-              <div className="col-span-3 min-w-0">
+              <div className="col-span-4 min-w-0">
                 <div className="font-medium text-sm truncate">{r.name}</div>
                 <div className="text-[11px] text-muted-foreground truncate">
                   {r.rawName !== r.name && <span>({r.rawName})</span>}
@@ -298,15 +313,7 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
-                <Select value={r.category || undefined} onValueChange={(v) => patch(r.itemId, { category: v })}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    {PRODUCT_CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-2">
+              <div className="col-span-3">
                 <SectorCombobox
                   value={r.storage_location}
                   onChange={(v) => patch(r.itemId, { storage_location: v })}
