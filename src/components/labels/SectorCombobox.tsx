@@ -14,7 +14,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
-import { DEFAULT_SECTORS, mergeSectors, getSectorHex } from "@/lib/labels/sectors";
+import { getSectorHex } from "@/lib/labels/sectors";
 
 interface Props {
   value: string;
@@ -42,22 +42,19 @@ export function SectorCombobox({
   const [query, setQuery] = useState("");
 
   const known = useMemo(() => {
-    const merged = mergeSectors([
-      ...products.map((p) => p.storage_location),
-      ...labels.map((l: any) => l.storage_location),
-    ]);
-    // Contagem por setor (para mostrar "3 produtos aqui")
+    // Só mostra locais que REALMENTE existem no restaurante
+    // (produtos + etiquetas). Nada de defaults fictícios.
     const count = new Map<string, number>();
     for (const p of products) {
       const k = (p.storage_location || "").trim();
       if (k) count.set(k, (count.get(k) || 0) + 1);
     }
-    return merged
-      .map((name) => ({
-        name,
-        count: count.get(name) || 0,
-        isDefault: (DEFAULT_SECTORS as readonly string[]).includes(name),
-      }))
+    for (const l of labels as any[]) {
+      const k = ((l.storage_location as string) || "").trim();
+      if (k && !count.has(k)) count.set(k, 0);
+    }
+    return Array.from(count.entries())
+      .map(([name, c]) => ({ name, count: c }))
       .sort((a, b) => {
         if (a.count !== b.count) return b.count - a.count;
         return a.name.localeCompare(b.name);
@@ -65,6 +62,11 @@ export function SectorCombobox({
   }, [products, labels]);
 
   const trimmed = query.trim();
+  const filtered = useMemo(() => {
+    const q = trimmed.toLowerCase();
+    if (!q) return known;
+    return known.filter((k) => k.name.toLowerCase().includes(q));
+  }, [known, trimmed]);
   const showCreate =
     trimmed.length > 0 &&
     !known.some((k) => k.name.toLowerCase() === trimmed.toLowerCase());
@@ -110,18 +112,21 @@ export function SectorCombobox({
         className="w-[--radix-popover-trigger-width] p-0"
         align="start"
       >
-        <Command shouldFilter={true}>
+        <Command shouldFilter={false}>
           <CommandInput
             placeholder="Buscar ou criar local…"
             value={query}
             onValueChange={setQuery}
           />
           <CommandList>
-            <CommandEmpty className="py-4 text-xs text-muted-foreground text-center">
-              Nenhum local encontrado. Digite para criar.
-            </CommandEmpty>
+            {filtered.length === 0 && !showCreate && (
+              <CommandEmpty className="py-4 text-xs text-muted-foreground text-center">
+                Digite o nome do local para criar.
+              </CommandEmpty>
+            )}
+            {filtered.length > 0 && (
             <CommandGroup heading="Locais existentes">
-              {known.map((k) => (
+              {filtered.map((k) => (
                 <CommandItem
                   key={k.name}
                   value={k.name}
@@ -144,9 +149,10 @@ export function SectorCombobox({
                 </CommandItem>
               ))}
             </CommandGroup>
+            )}
             {showCreate && (
               <>
-                <CommandSeparator />
+                {filtered.length > 0 && <CommandSeparator />}
                 <CommandGroup>
                   <CommandItem
                     value={`__create__${trimmed}`}
