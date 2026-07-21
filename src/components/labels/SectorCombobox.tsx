@@ -62,6 +62,11 @@ export function SectorCombobox({
   }, [products, labels]);
 
   const trimmed = query.trim();
+  const filtered = useMemo(() => {
+    const q = trimmed.toLowerCase();
+    if (!q) return known;
+    return known.filter((k) => k.name.toLowerCase().includes(q));
+  }, [known, trimmed]);
   const showCreate =
     trimmed.length > 0 &&
     !known.some((k) => k.name.toLowerCase() === trimmed.toLowerCase());
@@ -107,18 +112,21 @@ export function SectorCombobox({
         className="w-[--radix-popover-trigger-width] p-0"
         align="start"
       >
-        <Command shouldFilter={true}>
+        <Command shouldFilter={false}>
           <CommandInput
             placeholder="Buscar ou criar local…"
             value={query}
             onValueChange={setQuery}
           />
           <CommandList>
-            <CommandEmpty className="py-4 text-xs text-muted-foreground text-center">
-              Nenhum local encontrado. Digite para criar.
-            </CommandEmpty>
+            {filtered.length === 0 && !showCreate && (
+              <CommandEmpty className="py-4 text-xs text-muted-foreground text-center">
+                Digite o nome do local para criar.
+              </CommandEmpty>
+            )}
+            {filtered.length > 0 && (
             <CommandGroup heading="Locais existentes">
-              {known.map((k) => (
+              {filtered.map((k) => (
                 <CommandItem
                   key={k.name}
                   value={k.name}
@@ -141,9 +149,10 @@ export function SectorCombobox({
                 </CommandItem>
               ))}
             </CommandGroup>
+            )}
             {showCreate && (
               <>
-                <CommandSeparator />
+                {filtered.length > 0 && <CommandSeparator />}
                 <CommandGroup>
                   <CommandItem
                     value={`__create__${trimmed}`}
