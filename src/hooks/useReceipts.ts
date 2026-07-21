@@ -58,8 +58,13 @@ export function useReceipts() {
       source?: "manual" | "csv" | "xml" | "excel";
       reference?: string;
       notes?: string;
-      items: { raw_name: string; quantity: number; unit?: string }[];
-      // items ampliados abaixo via cast — mantido para retrocompat.
+      items: {
+        raw_name: string;
+        quantity: number;
+        unit?: string;
+        weight?: number | null;
+        weight_unit?: string | null;
+      }[];
     }) => {
       if (!restaurantId) throw new Error("Restaurante não identificado");
 
@@ -82,40 +87,62 @@ export function useReceipts() {
       // A lista/NF do fornecedor serve somente para montar a fila de itens.
       // Nenhum produto é reconhecido ou processado aqui: o casamento inteligente
       // acontece depois, obrigatoriamente, pelas fotos das etiquetas do fabricante.
-      const itemsRows: any[] = [];
-      // Pré-agregação: quando o mesmo produto (raw_name normalizado + unidade)
-      // aparece mais de uma vez no recebimento, somamos a quantidade para
-      // gerar UM único item (e, consequentemente, uma única etiqueta com o
-      // total). Ex.: 8 tomates viram um só registro, não 8 separados.
+      // Pré-agregação por produto — SEMPRE em peças (quantidade física).
+      // Peso é atributo, nunca vira quantidade. Ex.: 1 peça de 9,84 kg
+      // continua sendo 1 registro (= 1 etiqueta) com o peso preservado.
       const norm = (s: string) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
-      const aggregated = new Map<string, { raw_name: string; quantity: number; unit: string }>();
+      const WEIGHT_UNITS = new Set(["kg", "g", "l", "ml"]);
+      type Agg = {
+        raw_name: string;
+        pieces: number;
+        unit: string;
+        weight: number | null;
+        weight_unit: string | null;
+      };
+      const aggregated = new Map<string, Agg>();
       for (const it of input.items) {
-        const unit = (it.unit ?? "un").trim().toLowerCase();
-        const key = `${norm(it.raw_name)}|${unit}`;
+        const rawUnit = (it.unit ?? "un").trim().toLowerCase();
+        let pieces = Math.max(1, Math.floor(Number(it.quantity || 0)));
+        let unit = "un";
+        let weight: number | null = it.weight ?? null;
+        let weightUnit: string | null = it.weight_unit ?? null;
+        // Se o usuário escolheu unidade de peso/volume, o valor é PESO,
+        // não quantidade de peças. Forçamos 1 peça e guardamos o peso.
+        if (WEIGHT_UNITS.has(rawUnit)) {
+          weight = Number(it.quantity || 0) || weight;
+          weightUnit = rawUnit;
+          pieces = 1;
+          unit = "un";
+        } else if (rawUnit) {
+          unit = rawUnit;
+        }
+        const key = `${norm(it.raw_name)}|${unit}|${weightUnit ?? ""}`;
         const prev = aggregated.get(key);
         if (prev) {
-          prev.quantity += Number(it.quantity || 0);
+          prev.pieces += pieces;
+          if (weight != null) prev.weight = (prev.weight ?? 0) + weight;
         } else {
           aggregated.set(key, {
             raw_name: it.raw_name.trim(),
-            quantity: Number(it.quantity || 0),
-            unit: it.unit ?? "un",
+            pieces,
+            unit,
+            weight,
+            weight_unit: weightUnit,
           });
         }
       }
-
-      for (const it of aggregated.values()) {
-        itemsRows.push({
-          receipt_id: receipt.id,
-          restaurant_id: restaurantId,
-          raw_name: it.raw_name,
-          product_id: null,
-          quantity: it.quantity,
-          unit: it.unit ?? "un",
-          needs_info: true,
-          missing_fields: ["foto da etiqueta do fornecedor"],
-        });
-      }
+      const itemsRows = Array.from(aggregated.values()).map((it) => ({
+        receipt_id: receipt.id,
+        restaurant_id: restaurantId,
+        raw_name: it.raw_name,
+        product_id: null,
+        quantity: it.pieces,
+        unit: it.unit,
+        weight: it.weight,
+        weight_unit: it.weight_unit,
+        needs_info: true,
+        missing_fields: ["foto da etiqueta do fornecedor"],
+      }));
 
       const { error: iErr } = await (supabase as any).from("label_receipt_items").insert(itemsRows);
       if (iErr) throw iErr;
