@@ -65,11 +65,29 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
   // ============ KPIs ============
   // Fonte única de verdade: só consideramos produtos que ainda existem na operação
-  // (mesma regra usada em Estoque e Produtos: product_id + etiquetas ativas > 0).
+  // (mesma regra usada em Estoque e Produtos: product_id + etiquetas ativas
+  // NÃO vencidas > 0). Assim os números batem com o que o funcionário vê na
+  // tela de Conferência de Estoque.
   const visibleProductIds = useMemo(
-    () => new Set(labeledProducts.filter((p) => p.product_id && p.active_labels_count > 0).map((p) => p.product_id!)),
+    () =>
+      new Set(
+        labeledProducts
+          .filter((p) => p.product_id && p.active_non_expired_labels_count > 0)
+          .map((p) => p.product_id!),
+      ),
     [labeledProducts],
   );
+
+  // Setores que realmente têm produtos operacionais hoje (usado como
+  // denominador para "setores conferidos" e para não gerar alertas de
+  // conferência para setores vazios).
+  const activeSectors = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of labeledProducts) {
+      if (p.active_non_expired_labels_count > 0 && p.sector) s.add(p.sector);
+    }
+    return Array.from(s);
+  }, [labeledProducts]);
 
   const activeLabels = labels.filter((l) => l.status !== "discharged");
   const labelsToday = labels.filter((l) => isToday(new Date(l.created_at)));
@@ -81,8 +99,12 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const dischargesToday = labels.filter((l) => l.status === "discharged" && l.resolved_at && isToday(new Date(l.resolved_at)));
   const lastConference = [...statuses].sort((a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime())[0];
 
-  const sectorsConferredToday = new Set(conferencesToday.map((s) => s.sector).filter(Boolean));
-  const pendingSectors = sectors.filter((s) => !sectorsConferredToday.has(s));
+  const sectorsConferredToday = new Set(
+    conferencesToday.map((s) => s.sector).filter(Boolean) as string[],
+  );
+  // Só listamos como "pendente de conferência" setores que efetivamente têm
+  // produtos ativos hoje — evita cobrar conferência de setores vazios.
+  const pendingSectors = activeSectors.filter((s) => !sectorsConferredToday.has(s));
 
   // ============ Prioridades ============
   const priorities = useMemo(() => {
@@ -155,9 +177,15 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const totalLostUnits = losses.reduce((s, l) => s + Number(l.quantity || 0), 0);
 
   // ============ Indicadores ============
-  const totalSectorsWithProducts = sectorCards.length;
+  // Denominador dos "% conferidos" = setores com produtos operacionais hoje
+  // (mesma base do painel de Estoque). Setores só de histórico não entram.
+  const totalSectorsWithProducts = activeSectors.length;
   const percentConferred = totalSectorsWithProducts
-    ? Math.round((sectorsConferredToday.size / totalSectorsWithProducts) * 100)
+    ? Math.round(
+        (activeSectors.filter((s) => sectorsConferredToday.has(s)).length /
+          totalSectorsWithProducts) *
+          100,
+      )
     : 0;
   const worstLossSector = lossRankSectors[0];
   const lastConfRelative = lastConference?.marked_at
