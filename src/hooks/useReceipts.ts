@@ -59,6 +59,7 @@ export function useReceipts() {
       reference?: string;
       notes?: string;
       items: { raw_name: string; quantity: number; unit?: string }[];
+      // items ampliados abaixo via cast — mantido para retrocompat.
     }) => {
       if (!restaurantId) throw new Error("Restaurante não identificado");
 
