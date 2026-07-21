@@ -261,6 +261,8 @@ export function useReceipts() {
         storage_location?: string | null;
         sif?: string | null;
         batch?: string | null;
+        weight?: number | null;
+        weight_unit?: string | null;
       }>;
     }) => {
       if (!restaurantId) throw new Error("Restaurante não identificado");
@@ -290,9 +292,12 @@ export function useReceipts() {
           _product_id: prod.id,
           _supplier_id: input.supplierId ?? null,
         });
+        const upd: any = { product_id: prod.id, needs_info: false, missing_fields: [] };
+        if (it.weight != null) upd.weight = it.weight;
+        if (it.weight_unit) upd.weight_unit = it.weight_unit;
         await (supabase as any)
           .from("label_receipt_items")
-          .update({ product_id: prod.id, needs_info: false, missing_fields: [] })
+          .update(upd)
           .eq("id", it.itemId);
 
         // 3) lote (se veio da foto) — armazenado no issuance após o processamento
