@@ -7,7 +7,6 @@ import { Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle, PenLine } from 
 import { SectorCombobox } from "@/components/labels/SectorCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
 // Setores agora vêm do SectorCombobox (unifica defaults + custom).
 import { useReceipts } from "@/hooks/useReceipts";
 import { cn } from "@/lib/utils";
@@ -37,6 +36,26 @@ function todayPlus(days: number): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function normalizeName(s: string): string[] {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 3);
+}
+
+/** Similaridade simples por sobreposição de tokens significativos (>=3 chars). */
+function nameSimilarity(a: string, b: string): number {
+  const ta = new Set(normalizeName(a));
+  const tb = new Set(normalizeName(b));
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let hit = 0;
+  for (const t of ta) if (tb.has(t)) hit++;
+  return hit / Math.min(ta.size, tb.size);
 }
 
 function daysUntil(dateStr: string): number {
