@@ -275,7 +275,6 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
                       </div>
                     );
                   })()}
-                  </div>
                 </div>
 
                 <div className="flex gap-2 pt-3 mt-3 border-t border-border">
