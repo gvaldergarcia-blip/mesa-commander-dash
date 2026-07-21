@@ -96,6 +96,11 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const needsRestock = statuses.filter((s) => s.status === "falta" && visibleProductIds.has(s.product_id));
   const attention = statuses.filter((s) => s.status === "atencao" && visibleProductIds.has(s.product_id));
   const expiredLabels = activeLabels.filter((l) => l.expiry_date && new Date(l.expiry_date) < new Date());
+  // Fonte de verdade EXIBIDA: contamos PRODUTOS vencidos (não etiquetas),
+  // porque é isso que o usuário vê em "Produtos" e no Estoque. Se um produto
+  // tem 7 etiquetas vencidas, ainda é 1 produto vencido.
+  const expiredProducts = labeledProducts.filter((p) => p.status === "expired");
+  const expiredProductsCount = expiredProducts.length;
   const dischargesToday = labels.filter((l) => l.status === "discharged" && l.resolved_at && isToday(new Date(l.resolved_at)));
   const lastConference = [...statuses].sort((a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime())[0];
 
