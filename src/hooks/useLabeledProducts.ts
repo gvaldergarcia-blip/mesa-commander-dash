@@ -30,6 +30,7 @@ export interface LabeledProduct {
   last_discharge_reason: string | null;
   receipts_count: number;
   last_receipt_at: string | null;
+  last_label_at: string | null;
   last_supplier: string | null;
   last_expiry: string | null;
   raw: LabelProduct | null;
@@ -102,6 +103,9 @@ export function useLabeledProducts() {
       const activeNonExpired = active.filter(
         (l) => classifyExpiry(l.expiry_date) !== "expired",
       );
+      const activeSorted = [...active].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
       const discharged = list.filter((l) => l.status === "discharged");
       const lastDischarged = discharged.sort(
         (a, b) => new Date(b.resolved_at || b.created_at).getTime() - new Date(a.resolved_at || a.created_at).getTime()
@@ -121,6 +125,7 @@ export function useLabeledProducts() {
         last_discharge_reason: lastDischarged?.discharge_reason ?? null,
         receipts_count: receiptsForProd.length,
         last_receipt_at: receiptsForProd[0]?.received_at ?? first.created_at,
+        last_label_at: activeSorted[0]?.created_at ?? null,
         last_supplier: receiptsForProd[0]?.supplier_name ?? null,
         last_expiry: first.expiry_date ?? null,
         raw: prod,
