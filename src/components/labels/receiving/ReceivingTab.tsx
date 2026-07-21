@@ -38,7 +38,7 @@ export function ReceivingTab() {
             <div>
               <h2 className="text-lg md:text-xl font-bold">Recebimento inteligente</h2>
               <p className="text-sm text-muted-foreground max-w-xl">
-                Registre o que chegou. O sistema reconhece produtos, aprende sozinho e gera as etiquetas.
+                Registre a lista do fornecedor. Depois envie fotos das etiquetas para o sistema casar item por item.
               </p>
             </div>
           </div>
@@ -56,8 +56,8 @@ export function ReceivingTab() {
           <div className="grid gap-3">
             {openReceipts.map((r) => {
               const items = r.items || [];
-              const pending = items.filter((i) => i.needs_info).length;
-              const ready = items.length - pending;
+              const prepared = items.filter((i) => Number(i.labels_prepared || 0) > 0).length;
+              const pending = Math.max(0, items.length - prepared);
               return (
                 <Card
                   key={r.id}
@@ -81,7 +81,7 @@ export function ReceivingTab() {
                         ) : null}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {items.length} item(ns) · {ready} pronto(s) · {pending} a completar · {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
+                        {items.length} item(ns) · {prepared} etiqueta(s) gerada(s) · {pending} aguardando foto · {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
                       </p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -106,26 +106,9 @@ export function ReceivingTab() {
 
           {(() => {
             const items = activeReceipt.items || [];
-            const ready = items.filter((i) => !i.needs_info);
-            const pending = items.filter((i) => i.needs_info);
+            const pending = items.filter((i) => Number(i.labels_prepared || 0) === 0);
             return (
               <div className="space-y-4">
-                {ready.length > 0 && (
-                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1.5">
-                      <CheckCircle2 className="inline h-3.5 w-3.5 mr-1" />
-                      {ready.length} item(ns) reconhecido(s) automaticamente
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ready.map((it) => (
-                        <span key={it.id} className="text-[11px] px-2 py-0.5 rounded bg-background border">
-                          {it.raw_name} · {Number(it.quantity)} {it.unit || ""}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {pending.length > 0 ? (
                   <PendingItemsPanel
                     receiptId={activeReceipt.id}
