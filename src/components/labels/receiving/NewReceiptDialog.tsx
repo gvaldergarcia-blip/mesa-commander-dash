@@ -128,7 +128,7 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
             Novo recebimento
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Digite o que chegou. O sistema reconhece produtos automaticamente e prepara as etiquetas.
+            Digite ou anexe a lista do fornecedor. As etiquetas só são preparadas depois das fotos dos rótulos do fabricante.
           </p>
         </DialogHeader>
 
@@ -237,9 +237,8 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
           </div>
 
           <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-xs text-muted-foreground">
-            <strong className="text-primary">Como funciona:</strong> O sistema tenta reconhecer cada item automaticamente.
-            Produtos conhecidos reutilizam categoria, validade e local. Itens novos ou incompletos aparecem em
-            "Pendências" para você preencher apenas o que falta.
+            <strong className="text-primary">Como funciona:</strong> a lista cria apenas as pendências do recebimento.
+            O reconhecimento acontece na próxima etapa, quando você envia as fotos das etiquetas do fabricante.
           </div>
         </div>
 
@@ -247,7 +246,7 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={isCreating}>
             {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Analisar recebimento
+            Criar pendências
           </Button>
         </DialogFooter>
       </DialogContent>

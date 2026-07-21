@@ -251,7 +251,7 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
         <div className="flex-1 text-sm">
           <p className="font-semibold">Envie fotos das etiquetas dos fabricantes</p>
           <p className="text-xs text-muted-foreground">
-            Pode ser várias fotos, ou uma foto com vários produtos. A IA casa cada etiqueta com o item recebido e preenche tudo automaticamente. Você só confirma o <strong>Local</strong>.
+            Pode ser várias fotos, ou uma foto com vários produtos. Só depois dessas fotos a IA casa cada etiqueta com o item recebido e preenche os dados. Você confirma o <strong>Local</strong>.
           </p>
         </div>
         <Button size="sm" onClick={() => fileRef.current?.click()} disabled={scanning} className="gap-1.5">

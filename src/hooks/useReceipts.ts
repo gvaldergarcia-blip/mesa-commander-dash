@@ -75,7 +75,10 @@ export function useReceipts() {
         .single();
       if (rErr) throw rErr;
 
-      // 2) match each line
+      // 2) create receipt lines as pending.
+      // A lista/NF do fornecedor serve somente para montar a fila de itens.
+      // Nenhum produto é reconhecido ou processado aqui: o casamento inteligente
+      // acontece depois, obrigatoriamente, pelas fotos das etiquetas do fabricante.
       const itemsRows: any[] = [];
       // Pré-agregação: quando o mesmo produto (raw_name normalizado + unidade)
       // aparece mais de uma vez no recebimento, somamos a quantidade para
@@ -99,57 +102,27 @@ export function useReceipts() {
       }
 
       for (const it of aggregated.values()) {
-        const { data: matchedId } = await (supabase as any).rpc("label_match_alias", {
-          _restaurant_id: restaurantId,
-          _raw: it.raw_name,
-        });
-
-        let needs_info = false;
-        let missing_fields: string[] = [];
-
-        if (matchedId) {
-          // check product completeness
-          const { data: prod } = await (supabase as any)
-            .from("label_products")
-            .select("validity_days, conservation_method, unit, category, storage_location")
-            .eq("id", matchedId)
-            .maybeSingle();
-          if (prod) {
-            if (!prod.validity_days) missing_fields.push("validade pós-abertura");
-            if (!prod.conservation_method) missing_fields.push("conservação");
-            if (!prod.storage_location) missing_fields.push("local");
-            if (!prod.category) missing_fields.push("setor");
-            needs_info = missing_fields.length > 0;
-          }
-        } else {
-          needs_info = true;
-          missing_fields = ["produto novo"];
-        }
-
         itemsRows.push({
           receipt_id: receipt.id,
           restaurant_id: restaurantId,
           raw_name: it.raw_name,
-          product_id: matchedId ?? null,
+          product_id: null,
           quantity: it.quantity,
           unit: it.unit ?? "un",
-          needs_info,
-          missing_fields,
+          needs_info: true,
+          missing_fields: ["foto da etiqueta do fornecedor"],
         });
       }
 
       const { error: iErr } = await (supabase as any).from("label_receipt_items").insert(itemsRows);
       if (iErr) throw iErr;
 
-      // 3) Auto-processar itens já reconhecidos:
-      //    gera etiquetas + movimentos + eventos no diário operacional.
-      //    Itens sem produto/incompletos continuam como "Pendências".
-      const { data: pResult, error: pErr } = await (supabase as any).rpc("label_process_ready_items", {
-        _receipt_id: receipt.id,
-      });
-      if (pErr) throw pErr;
+      await (supabase as any)
+        .from("label_receipts")
+        .update({ status: "pending_info" })
+        .eq("id", receipt.id);
 
-      return { receiptId: receipt.id as string, result: pResult as any };
+      return { receiptId: receipt.id as string, result: { pending: itemsRows.length } };
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
@@ -157,7 +130,7 @@ export function useReceipts() {
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
-      toast.success("Recebimento registrado");
+      toast.success("Recebimento registrado. Envie as fotos das etiquetas para completar.");
       const resolved = Number(res?.result?.restock_resolved || 0);
       if (resolved > 0) {
         toast.success(
