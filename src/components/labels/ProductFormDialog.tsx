@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LabelProduct, LabelProductInput } from "@/hooks/useLabelProducts";
 import { PRODUCT_CATEGORIES, ALLERGEN_OPTIONS } from "@/lib/labels/categories";
+import { SectorCombobox } from "@/components/labels/SectorCombobox";
 import { cn } from "@/lib/utils";
 
 interface Props {
