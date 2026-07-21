@@ -14,7 +14,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
-import { DEFAULT_SECTORS, mergeSectors, getSectorHex } from "@/lib/labels/sectors";
+import { getSectorHex } from "@/lib/labels/sectors";
 
 interface Props {
   value: string;
@@ -42,22 +42,19 @@ export function SectorCombobox({
   const [query, setQuery] = useState("");
 
   const known = useMemo(() => {
-    const merged = mergeSectors([
-      ...products.map((p) => p.storage_location),
-      ...labels.map((l: any) => l.storage_location),
-    ]);
-    // Contagem por setor (para mostrar "3 produtos aqui")
+    // Só mostra locais que REALMENTE existem no restaurante
+    // (produtos + etiquetas). Nada de defaults fictícios.
     const count = new Map<string, number>();
     for (const p of products) {
       const k = (p.storage_location || "").trim();
       if (k) count.set(k, (count.get(k) || 0) + 1);
     }
-    return merged
-      .map((name) => ({
-        name,
-        count: count.get(name) || 0,
-        isDefault: (DEFAULT_SECTORS as readonly string[]).includes(name),
-      }))
+    for (const l of labels as any[]) {
+      const k = ((l.storage_location as string) || "").trim();
+      if (k && !count.has(k)) count.set(k, 0);
+    }
+    return Array.from(count.entries())
+      .map(([name, c]) => ({ name, count: c }))
       .sort((a, b) => {
         if (a.count !== b.count) return b.count - a.count;
         return a.name.localeCompare(b.name);
