@@ -36,9 +36,11 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     if (initialSector) setSelectedSector(initialSector);
   }, [initialSector]);
 
-  // Só produtos com id e com etiquetas ativas (baixa por vencimento remove do estoque).
+  // Só produtos com id e com etiquetas ativas AINDA NÃO VENCIDAS.
+  // Regra: se vence — mesmo sem baixa manual — sai do Estoque automaticamente.
+  // Continua visível em "Produtos" com o aviso "VENCIDO".
   const products = useMemo(
-    () => items.filter((p) => p.product_id && p.active_labels_count > 0),
+    () => items.filter((p) => p.product_id && p.active_non_expired_labels_count > 0),
     [items],
   );
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PackagePlus, Printer, PackageX, RefreshCw, ArrowRightLeft, Sparkles, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { printLabels } from "../LabelPrintSheet";
+import { printLabels, printLabelsMany, type PrintLabelData } from "../LabelPrintSheet";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +102,52 @@ export function OperationalDiary() {
     });
   };
 
+  const buildPrintData = (l: any): PrintLabelData => {
+    const sector = l.storage_location ?? null;
+    const autoResp = sector ? responsibleBySector.get(sector) : null;
+    const qrSvg = renderToStaticMarkup(
+      <QRCodeSVG
+        value={`${getSiteBaseUrl()}/etiquetas/scan/${l.unique_code}?op=1`}
+        size={144}
+        level="L"
+        marginSize={1}
+      />
+    );
+    return {
+      productName: l.product_name,
+      manufactureDate: new Date(l.manufacture_date),
+      expiryDate: new Date(l.expiry_date),
+      responsible: l.responsible || l.employee_name || autoResp || "—",
+      quantity: l.quantity || 1,
+      notes: l.notes,
+      cif: l.cif,
+      sif: l.sif ?? null,
+      allergens: l.allergens,
+      ingredients: l.ingredients,
+      conservationLabel: l.conservation_method
+        ? CONSERVATION_LABEL[l.conservation_method as keyof typeof CONSERVATION_LABEL] || null
+        : null,
+      storageLocation: l.storage_location ?? null,
+      batch: l.batch,
+      restaurantName: restaurant?.name || null,
+      restaurantCnpj: restaurantLegal?.cnpj || null,
+      restaurantCep: restaurantLegal?.cep || null,
+      checklistQrSvg: qrSvg,
+      checklistQrLabel: `#${l.unique_code}`,
+    };
+  };
+
+  const handlePrintAll = () => {
+    const uniq = new Map<string, any>();
+    for (const m of filtered) {
+      const l = labelsById.get(m.issuance_id);
+      if (l && !uniq.has(l.id)) uniq.set(l.id, l);
+    }
+    const items = Array.from(uniq.values()).map(buildPrintData);
+    if (!items.length) return;
+    printLabelsMany(items);
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div>;
   }
@@ -118,6 +164,15 @@ export function OperationalDiary() {
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/30">
+        <span className="text-xs text-muted-foreground">
+          {filtered.length} etiqueta{filtered.length === 1 ? "" : "s"} emitida{filtered.length === 1 ? "" : "s"}
+        </span>
+        <Button size="sm" onClick={handlePrintAll} className="gap-1.5 h-7">
+          <Printer className="h-3.5 w-3.5" />
+          Imprimir todos de uma vez
+        </Button>
+      </div>
       <div className="divide-y divide-border">
         {filtered.map((m: any) => {
           const meta = EVENT_META[m.event_type] ?? EVENT_META.adjustment;

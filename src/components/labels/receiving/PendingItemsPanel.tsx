@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PRODUCT_CATEGORIES } from "@/lib/labels/categories";
@@ -86,8 +86,6 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
   );
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const readyCount = rows.filter((r) => r.storage_location.trim()).length;
-
   const patch = (itemId: string, upd: Partial<PendingRow>) =>
     setRows((rs) => rs.map((r) => (r.itemId === itemId ? { ...r, ...upd } : r)));
 
@@ -107,34 +105,46 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       });
       if (error) throw error;
 
-      let filled = 0;
       const results = (data?.results ?? []) as Array<{ labels: any[] }>;
       const allLabels = results.flatMap((r) => r.labels || []);
-      // aplica cada label na melhor row correspondente
+
+      // 1) Só aceita labels com match válido e confiança mínima.
+      // 2) Para cada rawName candidato, escolhe UM único melhor label (maior confiança).
+      //    Isso impede que a IA aloque os MESMOS dados de uma foto para vários itens.
+      const bestByRaw = new Map<string, any>();
       for (const lb of allLabels) {
-        if (!lb.match) continue;
-        const target = rows.find((r) => r.rawName === lb.match);
-        if (!target) continue;
-        setRows((rs) =>
-          rs.map((r) =>
-            r.itemId === target.itemId
-              ? {
-                  ...r,
-                  matched: true,
-                  confidence: lb.confidence || r.confidence,
-                  name: lb.name || r.name,
-                  validity_date: lb.expires_at || r.validity_date,
-                  conservation: lb.conservation || r.conservation,
-                  sif: lb.sif || r.sif,
-                  batch: lb.batch || r.batch,
-                  brand: lb.brand || r.brand,
-                  weight: lb.weight || r.weight,
-                }
-              : r,
-          ),
-        );
-        filled++;
+        if (!lb?.match || typeof lb.match !== "string") continue;
+        if ((lb.confidence ?? 0) < 0.5) continue;
+        const prev = bestByRaw.get(lb.match);
+        if (!prev || (lb.confidence ?? 0) > (prev.confidence ?? 0)) {
+          bestByRaw.set(lb.match, lb);
+        }
       }
+
+      let filled = 0;
+      setRows((rs) => {
+        const used = new Set<string>();
+        return rs.map((r) => {
+          if (r.matched) return r; // já preenchido antes, não sobrescreve
+          const lb = bestByRaw.get(r.rawName);
+          if (!lb) return r;
+          if (used.has(r.rawName)) return r;
+          used.add(r.rawName);
+          filled++;
+          return {
+            ...r,
+            matched: true,
+            confidence: lb.confidence || 0,
+            name: lb.name || r.name,
+            validity_date: lb.expires_at || r.validity_date,
+            conservation: lb.conservation || r.conservation,
+            sif: lb.sif || r.sif,
+            batch: lb.batch || r.batch,
+            brand: lb.brand || r.brand,
+            weight: lb.weight || r.weight,
+          };
+        });
+      });
       if (filled === 0) toast.warning("Nenhuma etiqueta reconhecida nas fotos.");
       else toast.success(`${filled} etiqueta(s) casada(s) automaticamente.`);
     } catch (e: any) {
@@ -145,20 +155,35 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
     }
   };
 
-  const missingLocationRows = useMemo(
-    () => rows.filter((r) => !r.storage_location.trim()),
+  const markManual = (itemId: string) =>
+    patch(itemId, { matched: true, confidence: 1 });
+
+  const readyRows = useMemo(
+    () => rows.filter((r) => r.matched && r.storage_location.trim()),
+    [rows],
+  );
+  const matchedButNoLocal = useMemo(
+    () => rows.filter((r) => r.matched && !r.storage_location.trim()),
+    [rows],
+  );
+  const unmatchedRows = useMemo(
+    () => rows.filter((r) => !r.matched),
     [rows],
   );
 
   const handleFinalize = async () => {
-    if (missingLocationRows.length > 0) {
-      toast.error(`Preencha o Local em ${missingLocationRows.length} item(ns) pendente(s).`);
+    if (matchedButNoLocal.length > 0) {
+      toast.error(`Preencha o Local em ${matchedButNoLocal.length} item(ns).`);
+      return;
+    }
+    if (readyRows.length === 0) {
+      toast.warning("Nenhum item pronto. Envie fotos ou preencha manualmente pelo menos um item.");
       return;
     }
     await bulkResolvePending({
       receiptId,
       supplierId: supplierId ?? null,
-      items: rows.map((r) => ({
+      items: readyRows.map((r) => ({
         itemId: r.itemId,
         rawName: r.rawName,
         name: r.name,
@@ -170,7 +195,10 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
         batch: r.batch || null,
       })),
     });
-    onDone?.();
+    // Remove os que acabaram de ser processados; deixa os pendentes no painel.
+    const processed = new Set(readyRows.map((r) => r.itemId));
+    setRows((rs) => rs.filter((r) => !processed.has(r.itemId)));
+    if (unmatchedRows.length === 0) onDone?.();
   };
 
   const confBadge = (r: PendingRow) => {
@@ -217,7 +245,8 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
           {rows.map((r) => (
             <div key={r.itemId} className={cn(
               "grid grid-cols-12 gap-2 px-3 py-2 items-center",
-              !r.storage_location.trim() && "bg-amber-500/5",
+              !r.matched && "bg-muted/30",
+              r.matched && !r.storage_location.trim() && "bg-amber-500/5",
             )}>
               <div className="col-span-3 min-w-0">
                 <div className="font-medium text-sm truncate">{r.name}</div>
@@ -267,7 +296,21 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
                 />
               </div>
               <div className="col-span-1 flex justify-end">
-                {confBadge(r)}
+                <div className="flex items-center gap-1">
+                  {!r.matched && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-1.5 text-[10px] gap-1"
+                      onClick={() => markManual(r.itemId)}
+                      title="Preencher manualmente (sem foto)"
+                    >
+                      <PenLine className="h-3 w-3" /> Manual
+                    </Button>
+                  )}
+                  {confBadge(r)}
+                </div>
               </div>
             </div>
           ))}
@@ -279,16 +322,20 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs text-muted-foreground">
-          {readyCount}/{rows.length} pronto(s) · {missingLocationRows.length > 0 ? `${missingLocationRows.length} sem Local` : "todos com Local preenchido"}
+          {readyRows.length} pronto(s) para gerar etiqueta ·{" "}
+          {unmatchedRows.length > 0
+            ? `${unmatchedRows.length} aguardando foto/manual (ficarão pendentes)`
+            : "nenhum item aguardando"}
+          {matchedButNoLocal.length > 0 && ` · ${matchedButNoLocal.length} sem Local`}
         </p>
         <Button
           size="lg"
           onClick={handleFinalize}
-          disabled={isBulkResolving || missingLocationRows.length > 0}
+          disabled={isBulkResolving || readyRows.length === 0 || matchedButNoLocal.length > 0}
           className="gap-2"
         >
           {isBulkResolving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Finalizar recebimento
+          Finalizar {readyRows.length > 0 ? `(${readyRows.length})` : ""}
         </Button>
       </div>
     </div>

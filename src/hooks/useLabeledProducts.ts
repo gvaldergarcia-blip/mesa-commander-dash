@@ -23,6 +23,7 @@ export interface LabeledProduct {
   status: "ok" | "warning" | "critical" | "expired";
   labels_count: number;
   active_labels_count: number;
+  active_non_expired_labels_count: number;
   discharged_labels_count: number;
   active_label_ids: string[];
   last_discharge_at: string | null;
@@ -98,6 +99,9 @@ export function useLabeledProducts() {
         (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
       );
       const active = list.filter((l) => l.status !== "discharged");
+      const activeNonExpired = active.filter(
+        (l) => classifyExpiry(l.expiry_date) !== "expired",
+      );
       const discharged = list.filter((l) => l.status === "discharged");
       const lastDischarged = discharged.sort(
         (a, b) => new Date(b.resolved_at || b.created_at).getTime() - new Date(a.resolved_at || a.created_at).getTime()
@@ -110,6 +114,7 @@ export function useLabeledProducts() {
         status: computeStatus(list),
         labels_count: list.length,
         active_labels_count: active.length,
+        active_non_expired_labels_count: activeNonExpired.length,
         discharged_labels_count: discharged.length,
         active_label_ids: active.map((l) => l.id),
         last_discharge_at: lastDischarged?.resolved_at ?? null,

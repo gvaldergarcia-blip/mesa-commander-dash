@@ -40,6 +40,10 @@ const escapeHtml = (s: string) =>
  * Imprime as etiquetas no padrão ANVISA (estilo YesChef), 80×40mm.
  */
 export function printLabels(data: PrintLabelData) {
+  return printLabelsMany([data]);
+}
+
+function buildLabelHtml(data: PrintLabelData): string {
   const qrBlock = data.checklistQrSvg
     ? `<div class="qr-wrap">${data.checklistQrSvg}${
         data.checklistQrLabel ? `<div class="qr-label">${escapeHtml(data.checklistQrLabel)}</div>` : ""
@@ -75,7 +79,7 @@ export function printLabels(data: PrintLabelData) {
     ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
     : "";
 
-  const labelHtml = `
+  return `
         <div class="label">
           <div class="top">
             <div class="top-left">
@@ -102,8 +106,21 @@ export function printLabels(data: PrintLabelData) {
           ${ingredientsBlock}
           ${notesBlock}
         </div>`;
+}
 
-  const labelsHtml = Array.from({ length: data.quantity }).map(() => labelHtml).join("");
+/**
+ * Imprime várias etiquetas de produtos diferentes em UM único job de impressão.
+ * Cada item respeita o próprio `quantity`.
+ */
+export function printLabelsMany(items: PrintLabelData[]) {
+  if (!items.length) return;
+  const labelsHtml = items
+    .map((d) => {
+      const one = buildLabelHtml(d);
+      const qty = Math.max(1, d.quantity || 1);
+      return Array.from({ length: qty }).map(() => one).join("");
+    })
+    .join("");
   const html = `<main class="label-print-sheet">${labelsHtml}</main>`;
 
   const styleText = `
