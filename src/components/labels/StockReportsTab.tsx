@@ -138,18 +138,30 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
   // ============ Situação por setor ============
   const sectorCards = useMemo(() => {
-    return sectors.map((sec) => {
-      const prods = labeledProducts.filter((p) => p.sector === sec);
-      const sts = statuses.filter((s) => s.sector === sec);
-      const ok = sts.filter((s) => s.status === "ok").length;
-      const at = sts.filter((s) => s.status === "atencao").length;
-      const falta = sts.filter((s) => s.status === "falta").length;
-      const lastConf = [...sts].sort((a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime())[0];
-      const resp = respBySector.get(sec) || [];
-      return { sector: sec, total: prods.length, ok, at, falta, lastConf, resp };
-    }).filter((c) => c.total > 0 || c.falta > 0 || c.at > 0 || c.ok > 0)
-      .sort((a, b) => (b.falta + b.at) - (a.falta + a.at));
-  }, [sectors, labeledProducts, statuses, respBySector]);
+    // Só mostramos setores que têm produtos operacionais hoje — assim os
+    // números "OK / Atenção / Falta" batem com a tela de Estoque.
+    return activeSectors
+      .map((sec) => {
+        const prods = labeledProducts.filter(
+          (p) => p.sector === sec && p.active_non_expired_labels_count > 0,
+        );
+        const productIds = new Set(prods.map((p) => p.product_id).filter(Boolean) as string[]);
+        // Considera apenas statuses de produtos ainda visíveis nesse setor.
+        const sts = statuses.filter(
+          (s) => s.sector === sec && productIds.has(s.product_id),
+        );
+        const ok = sts.filter((s) => s.status === "ok").length;
+        const at = sts.filter((s) => s.status === "atencao").length;
+        const falta = sts.filter((s) => s.status === "falta").length;
+        const lastConf = [...sts].sort(
+          (a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime(),
+        )[0];
+        const resp = respBySector.get(sec) || [];
+        return { sector: sec, total: prods.length, ok, at, falta, lastConf, resp };
+      })
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.falta + b.at - (a.falta + a.at));
+  }, [activeSectors, labeledProducts, statuses, respBySector]);
 
   // ============ Perdas ============
   const losses = useMemo(() => {
