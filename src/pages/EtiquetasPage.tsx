@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown } from "lucide-react";
+import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -20,6 +20,7 @@ import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labe
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
 import { LabeledProductsTab } from "@/components/labels/LabeledProductsTab";
+import { ProducaoInternaTab } from "@/components/labels/ProducaoInternaTab";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ export default function EtiquetasPage() {
       label: "Entradas",
       items: [
         { value: "recebimento", icon: PackagePlus, label: "Recebimento" },
+        { value: "producao", icon: ChefHat, label: "Produção Interna" },
       ],
     },
     {
@@ -237,6 +239,11 @@ export default function EtiquetasPage() {
         {/* ===== RECEBIMENTO INTELIGENTE ===== */}
         <TabsContent value="recebimento">
           <ReceivingTab />
+        </TabsContent>
+
+        {/* ===== PRODUÇÃO INTERNA ===== */}
+        <TabsContent value="producao">
+          <ProducaoInternaTab />
         </TabsContent>
 
         {/* ===== RELATÓRIOS (Centro de Inteligência Operacional) ===== */}
