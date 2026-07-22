@@ -50,7 +50,15 @@ REGRAS CRÍTICAS (leia com atenção — erros aqui quebram o sistema):
 
 8. NÃO INVENTE itens. Se estiver em dúvida sobre um valor, prefira null a chutar.
 
-9. Responda SOMENTE o JSON, sem markdown, sem comentários, sem texto extra.`;
+9. PESO/VOLUME NO NOME DO PRODUTO — REGRA CRÍTICA:
+   Quando a unidade é UN/CX/PC/PÇ/PEÇA/FD/PCT e o nome do produto contém peso/volume por peça (ex.: "Óleo de Soja 900ml", "Molho de Tomate 340g", "Água Mineral 1,5L", "Leite Condensado 395g", "Refrigerante 2L"), EXTRAIA esse valor e preencha:
+     - weight = número exato (ex.: 900, 340, 1.5, 395, 2)
+     - weight_unit = unidade correspondente ("ml", "g", "l", "kg")
+   Exemplo: "Óleo de Soja 900ml", UN 6 → { quantity: 6, unit: "un", weight: 900, weight_unit: "ml" }.
+   Exemplo: "Molho de Tomate 340g", UN 12 → { quantity: 12, unit: "un", weight: 340, weight_unit: "g" }.
+   Se o nome NÃO contém peso/volume (ex.: "Sal Refinado", "Alface Crespa"), deixe weight = null e weight_unit = null.
+
+10. Responda SOMENTE o JSON, sem markdown, sem comentários, sem texto extra.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -141,6 +149,17 @@ serve(async (req) => {
     };
 
     const items = Array.isArray(parsed?.items) ? parsed.items : [];
+    // Fallback: extrai peso/volume do nome quando IA não preencheu (ex.: "Óleo de Soja 900ml")
+    const extractWeightFromName = (name: string): { weight: number; weight_unit: string } | null => {
+      const s = String(name || "");
+      // captura: número (com , ou .) + unidade (kg/g/l/ml), possivelmente colado
+      const re = /(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml)\b/i;
+      const m = s.match(re);
+      if (!m) return null;
+      const n = Number(m[1].replace(",", "."));
+      if (!Number.isFinite(n)) return null;
+      return { weight: n, weight_unit: m[2].toLowerCase() };
+    };
     const clean = items
       .map((it: any) => {
         const unit = normUnit(it.unit);
@@ -157,6 +176,14 @@ serve(async (req) => {
         } else {
           // Peças: quantity precisa ser inteiro >= 1.
           quantity = Math.max(1, Math.round(quantity ?? 1));
+          // Se IA não trouxe peso/volume, tenta extrair do nome (ex.: "Óleo 900ml").
+          if (weight === null) {
+            const fromName = extractWeightFromName(it.raw_name);
+            if (fromName) {
+              weight = fromName.weight;
+              weight_unit = fromName.weight_unit;
+            }
+          }
         }
 
         return {
