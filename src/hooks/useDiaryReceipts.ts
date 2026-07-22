@@ -120,7 +120,32 @@ export function useRegisterPrints() {
       const { error } = await (supabase as any).rpc("label_register_prints", { _prints: prints });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async (prints) => {
+      await qc.cancelQueries({ queryKey: ["diary_pending", restaurantId] });
+      const prev = qc.getQueryData<any>(["diary_pending", restaurantId]);
+      if (prev?.issuances) {
+        const inc = new Map(prints.map((p) => [p.id, p.count]));
+        const nextIssuances = prev.issuances
+          .map((i: DiaryIssuance) => {
+            const add = inc.get(i.id) || 0;
+            if (!add) return i;
+            return { ...i, printed_labels: (i.printed_labels || 0) + add };
+          })
+          .filter(
+            (i: DiaryIssuance) =>
+              Math.max(0, (i.quantity || 0) - (i.printed_labels || 0)) > 0,
+          );
+        qc.setQueryData(["diary_pending", restaurantId], {
+          ...prev,
+          issuances: nextIssuances,
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["diary_pending", restaurantId], ctx.prev);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["diary_pending", restaurantId] });
       qc.invalidateQueries({ queryKey: ["diary_history", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
