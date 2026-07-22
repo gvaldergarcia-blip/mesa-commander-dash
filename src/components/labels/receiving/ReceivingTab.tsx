@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronRight, Loader2, X, BookOpen } from "lucide-react";
+import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronRight, Loader2, X, BookOpen, History, Clock, Printer } from "lucide-react";
 import { useReceipts } from "@/hooks/useReceipts";
 import { NewReceiptDialog } from "./NewReceiptDialog";
 import { PendingItemDialog } from "./PendingItemDialog";
 import { PendingItemsPanel } from "./PendingItemsPanel";
 import { OperationalDiary } from "./OperationalDiary";
+import { useDiaryHistory } from "@/hooks/useDiaryReceipts";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,8 @@ export function ReceivingTab() {
   );
 
   const openReceipts = receipts.filter((r) => r.status !== "confirmed" && r.status !== "canceled");
-  const recentConfirmed = receipts.filter((r) => r.status === "confirmed").slice(0, 5);
+  const { data: history = [] } = useDiaryHistory(30);
+  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -137,33 +139,78 @@ export function ReceivingTab() {
         </Card>
       )}
 
-      {/* Recent confirmed */}
-      {recentConfirmed.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Últimos confirmados</h3>
-          <div className="grid gap-2">
-            {recentConfirmed.map((r) => (
-              <div key={r.id} className="p-3 rounded-lg border border-border/50 bg-muted/20 text-sm flex items-center justify-between">
-                <div>
-                  <span className="font-medium">{r.supplier?.name || "Sem fornecedor"}</span>
-                  <span className="text-muted-foreground ml-2">· {r.items?.length ?? 0} itens</span>
-                </div>
-                <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Diário operacional */}
+      {/* Diário operacional — recebimentos em andamento */}
       <div className="space-y-3 pt-4 border-t border-border/50">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Diário operacional</h3>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Em andamento</h3>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 h-8 text-xs"
+            onClick={() => setShowHistory((s) => !s)}
+          >
+            <History className="h-3.5 w-3.5" />
+            {showHistory ? "Ocultar histórico" : `Histórico (${history.length})`}
+          </Button>
         </div>
-        <p className="text-xs text-muted-foreground -mt-1">Extrato automático dos acontecimentos da cozinha. Não precisa preencher — o sistema alimenta sozinho.</p>
+        <p className="text-xs text-muted-foreground -mt-1">
+          Cada recebimento fica aqui até todas as etiquetas serem impressas. Ao concluir, ele vai automaticamente para o histórico.
+        </p>
         <OperationalDiary />
       </div>
+
+      {/* Histórico */}
+      {showHistory && (
+        <div className="space-y-3 pt-4 border-t border-border/50 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Histórico</h3>
+          </div>
+          {history.length === 0 ? (
+            <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border/50 rounded-xl">
+              Nenhum recebimento concluído ainda.
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {history.map((r: any) => {
+                const done = r.stats.total > 0 && r.stats.printed >= r.stats.total;
+                return (
+                  <div
+                    key={r.id}
+                    className="p-3 rounded-lg border border-border/60 bg-muted/10 text-sm flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold">{r.supplier?.name || "Sem fornecedor"}</span>
+                        {r.reference && <span className="text-[11px] text-muted-foreground font-mono">NF {r.reference}</span>}
+                        {done ? (
+                          <Badge className="gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20 text-[10px]">
+                            <CheckCircle2 className="h-3 w-3" /> Concluído
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <Printer className="h-3 w-3" /> {r.stats.printed}/{r.stats.total}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {r.stats.products} produto(s) · {r.stats.total} etiqueta(s)
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground shrink-0 inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <NewReceiptDialog
         open={newOpen}

@@ -1548,8 +1548,10 @@ export type Database = {
           label_product_id: string | null
           manufacture_date: string
           notes: string | null
+          printed_labels: number
           product_name: string
           quantity: number
+          receipt_id: string | null
           resolved_at: string | null
           responsible: string | null
           restaurant_id: string
@@ -1575,8 +1577,10 @@ export type Database = {
           label_product_id?: string | null
           manufacture_date?: string
           notes?: string | null
+          printed_labels?: number
           product_name: string
           quantity?: number
+          receipt_id?: string | null
           resolved_at?: string | null
           responsible?: string | null
           restaurant_id: string
@@ -1602,8 +1606,10 @@ export type Database = {
           label_product_id?: string | null
           manufacture_date?: string
           notes?: string | null
+          printed_labels?: number
           product_name?: string
           quantity?: number
+          receipt_id?: string | null
           resolved_at?: string | null
           responsible?: string | null
           restaurant_id?: string
@@ -1628,6 +1634,13 @@ export type Database = {
             columns: ["label_product_id"]
             isOneToOne: false
             referencedRelation: "label_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_issuances_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "label_receipts"
             referencedColumns: ["id"]
           },
         ]
@@ -5306,6 +5319,7 @@ export type Database = {
         Args: { _receipt_id: string }
         Returns: Json
       }
+      label_register_prints: { Args: { _prints: Json }; Returns: Json }
       log_kitchen_event: {
         Args: {
           p_employee_id?: string
