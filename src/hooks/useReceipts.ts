@@ -378,6 +378,28 @@ export function useReceipts() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] }),
   });
 
+  // Finaliza um recebimento: fecha TODAS as pendências (impressão, foto,
+  // completar cadastro) e move o card para o histórico. Após isso, nada
+  // daquele fornecedor permanece na área operacional.
+  const finalizeReceipt = useMutation({
+    mutationFn: async (receiptId: string) => {
+      const { data, error } = await (supabase as any).rpc("label_finalize_receipt", {
+        _receipt_id: receiptId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["diary_pending", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["diary_history", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
+      toast.success("Recebimento finalizado e enviado ao histórico.");
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao finalizar recebimento"),
+  });
+
   return {
     receipts: query.data || [],
     isLoading: query.isLoading,
@@ -389,6 +411,8 @@ export function useReceipts() {
     confirmReceipt: confirmReceipt.mutateAsync,
     isConfirming: confirmReceipt.isPending,
     cancelReceipt: cancelReceipt.mutateAsync,
+    finalizeReceipt: finalizeReceipt.mutateAsync,
+    isFinalizing: finalizeReceipt.isPending,
   };
 }
 
