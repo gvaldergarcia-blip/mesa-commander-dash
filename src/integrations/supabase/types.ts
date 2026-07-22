@@ -5302,6 +5302,7 @@ export type Database = {
         Returns: boolean
       }
       label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
+      label_finalize_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_learn_alias: {
         Args: {
           _product_id: string

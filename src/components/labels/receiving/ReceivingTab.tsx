@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronRight, Loader2, X, BookOpen, History, Clock, Printer } from "lucide-react";
+import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronDown, Loader2, BookOpen, History, Clock, Printer, Truck, Flag } from "lucide-react";
 import { useReceipts } from "@/hooks/useReceipts";
 import { NewReceiptDialog } from "./NewReceiptDialog";
-import { PendingItemDialog } from "./PendingItemDialog";
 import { PendingItemsPanel } from "./PendingItemsPanel";
 import { OperationalDiary } from "./OperationalDiary";
 import { useDiaryHistory } from "@/hooks/useDiaryReceipts";
@@ -14,15 +13,10 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 export function ReceivingTab() {
-  const { receipts, isLoading, confirmReceipt, isConfirming, cancelReceipt } = useReceipts();
+  const { receipts, isLoading, cancelReceipt, finalizeReceipt, isFinalizing } = useReceipts();
   const [newOpen, setNewOpen] = useState(false);
-  const [activeReceiptId, setActiveReceiptId] = useState<string | null>(null);
-  const [pendingItem, setPendingItem] = useState<any>(null);
-
-  const activeReceipt = useMemo(
-    () => receipts.find((r) => r.id === activeReceiptId) ?? null,
-    [receipts, activeReceiptId]
-  );
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [finalizingId, setFinalizingId] = useState<string | null>(null);
 
   const openReceipts = receipts.filter((r) => r.status !== "confirmed" && r.status !== "canceled");
   const { data: history = [] } = useDiaryHistory(30);
@@ -50,93 +44,106 @@ export function ReceivingTab() {
         </div>
       </Card>
 
-      {/* Active receipts */}
+      {/* Active receipts — cada fornecedor é um accordion (todo o conteúdo dele fica dentro do próprio card) */}
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : openReceipts.length > 0 && (
-        <div className="space-y-3">
-          <div className="grid gap-3">
-            {openReceipts.map((r) => {
-              const items = r.items || [];
-              const prepared = items.filter((i) => Number(i.labels_prepared || 0) > 0).length;
-              const pending = Math.max(0, items.length - prepared);
-              return (
-                <Card
-                  key={r.id}
-                  className={cn(
-                    "p-4 cursor-pointer hover:border-primary/40 transition-colors",
-                    activeReceiptId === r.id && "border-primary/60"
-                  )}
-                  onClick={() => setActiveReceiptId(r.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold">{r.supplier?.name || "Sem fornecedor"}</span>
-                        {r.reference && <span className="text-xs text-muted-foreground">· {r.reference}</span>}
-                        {r.status === "pending_info" ? (
-                          <Badge className="gap-1 bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/20">
-                            <AlertCircle className="h-3 w-3" /> A completar
-                          </Badge>
-                        ) : r.status === "ready_to_print" ? (
-                          <Badge className="gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
-                        ) : null}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {items.length} item(ns) · {prepared} etiqueta(s) gerada(s) · {pending} aguardando foto · {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
-                      </p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Active receipt detail */}
-      {activeReceipt && (
-        <Card className="p-4 md:p-5 border-primary/30">
-          <div className="flex items-center justify-between mb-4 gap-2">
-            <div>
-              <h3 className="font-bold">Detalhe do recebimento</h3>
-              <p className="text-xs text-muted-foreground">{activeReceipt.supplier?.name || "Sem fornecedor"} · {activeReceipt.items?.length ?? 0} itens</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setActiveReceiptId(null)}><X className="h-4 w-4" /></Button>
-          </div>
-
-          {(() => {
-            const items = activeReceipt.items || [];
-            const pending = items.filter((i) => Number(i.labels_prepared || 0) === 0);
+        <div className="grid gap-3">
+          {openReceipts.map((r) => {
+            const items = r.items || [];
+            const prepared = items.filter((i) => Number(i.labels_prepared || 0) > 0).length;
+            const pending = Math.max(0, items.length - prepared);
+            const pendingItems = items.filter((i) => Number(i.labels_prepared || 0) === 0);
+            const isOpen = expandedId === r.id;
             return (
-              <div className="space-y-4">
-                {pending.length > 0 ? (
-                  <PendingItemsPanel
-                    receiptId={activeReceipt.id}
-                    supplierId={activeReceipt.supplier_id}
-                    pendingItems={pending.map((p) => ({ id: p.id, raw_name: p.raw_name }))}
-                    onDone={() => setActiveReceiptId(null)}
-                  />
-                ) : (
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      onClick={() => confirmReceipt(activeReceipt.id).then(() => setActiveReceiptId(null))}
-                      disabled={isConfirming}
-                      className="gap-2"
-                    >
-                      {isConfirming && <Loader2 className="h-4 w-4 animate-spin" />}
-                      Confirmar recebimento e gerar etiquetas
-                    </Button>
-                    <Button variant="outline" onClick={() => cancelReceipt(activeReceipt.id).then(() => setActiveReceiptId(null))}>
-                      Descartar
-                    </Button>
+              <Card
+                key={r.id}
+                className={cn(
+                  "overflow-hidden transition-all",
+                  isOpen ? "border-primary/50 shadow-lg" : "hover:border-primary/30"
+                )}
+              >
+                {/* Header — clique alterna o accordion */}
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isOpen ? null : r.id)}
+                  className="w-full text-left p-4 flex items-center gap-3"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Truck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold truncate">{r.supplier?.name || "Sem fornecedor"}</span>
+                      {r.reference && <Badge variant="outline" className="text-[10px] font-mono">NF {r.reference}</Badge>}
+                      {r.status === "pending_info" ? (
+                        <Badge className="gap-1 bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/20 text-[10px]">
+                          <AlertCircle className="h-3 w-3" /> A completar
+                        </Badge>
+                      ) : r.status === "ready_to_print" ? (
+                        <Badge className="gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {items.length} produto(s) · {prepared} com etiquetas · {pending} aguardando foto · {formatDistanceToNow(new Date(r.received_at), { addSuffix: true, locale: ptBR })}
+                    </p>
+                  </div>
+                  <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform shrink-0", isOpen && "rotate-180")} />
+                </button>
+
+                {/* Conteúdo do fornecedor — SEMPRE inline dentro do próprio card */}
+                {isOpen && (
+                  <div className="p-4 md:p-5 border-t border-border/60 bg-muted/10 space-y-4 animate-fade-in">
+                    {pendingItems.length > 0 ? (
+                      <PendingItemsPanel
+                        receiptId={r.id}
+                        supplierId={r.supplier_id}
+                        pendingItems={pendingItems.map((p) => ({ id: p.id, raw_name: p.raw_name }))}
+                      />
+                    ) : (
+                      <div className="flex items-start gap-2 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 text-sm">
+                        <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>Todos os itens já têm etiquetas geradas. Vá até <strong>Diário</strong> para imprimir, ou finalize o recebimento.</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border/60">
+                      <Button
+                        variant="default"
+                        className="gap-2"
+                        disabled={isFinalizing && finalizingId === r.id}
+                        onClick={async () => {
+                          if (!confirm("Finalizar este recebimento? Todos os produtos, pendências e etiquetas pendentes deste fornecedor sairão da área operacional e irão para o Histórico.")) return;
+                          setFinalizingId(r.id);
+                          try {
+                            await finalizeReceipt(r.id);
+                            setExpandedId(null);
+                          } finally {
+                            setFinalizingId(null);
+                          }
+                        }}
+                      >
+                        {isFinalizing && finalizingId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flag className="h-4 w-4" />}
+                        Finalizar recebimento
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={async () => {
+                          if (!confirm("Descartar este recebimento?")) return;
+                          await cancelReceipt(r.id);
+                          setExpandedId(null);
+                        }}
+                      >
+                        Descartar
+                      </Button>
+                    </div>
                   </div>
                 )}
-              </div>
+              </Card>
             );
-          })()}
-        </Card>
+          })}
+        </div>
       )}
 
       {/* Diário operacional — recebimentos em andamento */}
@@ -215,14 +222,7 @@ export function ReceivingTab() {
       <NewReceiptDialog
         open={newOpen}
         onOpenChange={setNewOpen}
-        onCreated={(id) => setActiveReceiptId(id)}
-      />
-      <PendingItemDialog
-        open={!!pendingItem}
-        onOpenChange={(v) => !v && setPendingItem(null)}
-        item={pendingItem}
-        supplierId={activeReceipt?.supplier_id}
-        onDone={() => setPendingItem(null)}
+        onCreated={(id) => setExpandedId(id)}
       />
     </div>
   );

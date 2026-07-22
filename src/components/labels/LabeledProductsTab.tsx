@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as PackageIcon,
-  PackageMinus, Trash2, Clock, Utensils, HelpCircle, AlertTriangle, ClipboardCheck,
+  PackageMinus, Trash2, Clock, Utensils, HelpCircle, AlertTriangle, ClipboardCheck, MapPin,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -218,18 +218,20 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
                       {st.label}
                     </span>
                   </div>
-                  <span
-                    className="inline-block mt-2 text-[11px] font-semibold border"
+                  <div
+                    className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border w-fit max-w-full"
                     style={{
                       backgroundColor: withAlpha(hex, 0.14),
-                      borderColor: withAlpha(hex, 0.35),
+                      borderColor: withAlpha(hex, 0.4),
                       color: hex,
-                      borderRadius: 999,
-                      padding: "2px 10px",
                     }}
+                    title="Local atual do produto"
                   >
-                    {it.sector || "Sem setor"}
-                  </span>
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-xs font-bold uppercase tracking-wide truncate">
+                      {it.sector || "Sem local"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
