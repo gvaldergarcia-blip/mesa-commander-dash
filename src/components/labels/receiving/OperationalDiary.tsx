@@ -25,6 +25,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { getSiteBaseUrl } from "@/config/site-url";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
+import { toast } from "@/hooks/use-toast";
 import {
   useDiaryPending,
   useRegisterPrints,
@@ -160,8 +161,18 @@ export function OperationalDiary() {
       prints.push({ id: it.id, count: rem });
     }
     if (!jobs.length) return;
-    printLabelsMany(jobs);
-    await registerPrints.mutateAsync(prints);
+    try {
+      await registerPrints.mutateAsync(prints);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      printLabelsMany(jobs);
+    } catch (error) {
+      console.error("[OperationalDiary] Falha ao registrar impressão", error);
+      toast({
+        title: "Impressão não registrada",
+        description: "Tente novamente para o item sair do diário operacional.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
