@@ -117,8 +117,12 @@ export function useRegisterPrints() {
   return useMutation({
     mutationFn: async (prints: { id: string; count: number }[]) => {
       if (!prints.length) return;
-      const { error } = await (supabase as any).rpc("label_register_prints", { _prints: prints });
+      const { data, error } = await (supabase as any).rpc("label_register_prints", { _prints: prints });
       if (error) throw error;
+      const updated = Number(data?.updated ?? 0);
+      if (updated < prints.length) {
+        throw new Error("Não foi possível registrar a impressão de todas as etiquetas.");
+      }
     },
     onMutate: async (prints) => {
       await qc.cancelQueries({ queryKey: ["diary_pending", restaurantId] });
