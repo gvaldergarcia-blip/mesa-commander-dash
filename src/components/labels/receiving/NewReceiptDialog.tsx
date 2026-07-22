@@ -80,23 +80,30 @@ export function NewReceiptDialog({ open, onOpenChange, onCreated }: Props) {
       if (error) throw error;
       const items: Line[] = (data?.items ?? []).map((it: any) => {
         const unit = String(it.unit || "un").toLowerCase();
-        const isWeight = ["kg", "g", "l", "ml"].includes(unit);
-        if (isWeight) {
-          // Item veio como "9,84 kg" — 1 peça com peso 9,84 kg.
+        const isBulk = ["kg", "g", "l", "ml"].includes(unit);
+        const rawWeight = it.weight != null ? Number(it.weight) : null;
+        const rawWUnit = ["kg","g","l","ml"].includes(String(it.weight_unit || "").toLowerCase())
+          ? String(it.weight_unit).toLowerCase()
+          : null;
+
+        if (isBulk) {
+          // Venda a granel: 1 peça com o peso total informado na nota.
+          const w = rawWeight ?? (Number(it.quantity) || null);
           return {
             raw_name: it.raw_name,
             quantity: 1,
             unit: "un",
-            weight: Number(it.quantity) || null,
-            weight_unit: unit,
+            weight: w,
+            weight_unit: rawWUnit || unit,
           };
         }
+        // Peças: preserva quantidade exata; peso vem separado quando a nota informa.
         return {
           raw_name: it.raw_name,
-          quantity: Math.max(1, Math.floor(Number(it.quantity) || 1)),
+          quantity: Math.max(1, Math.round(Number(it.quantity) || 1)),
           unit,
-          weight: null,
-          weight_unit: "kg",
+          weight: rawWeight,
+          weight_unit: rawWUnit || "kg",
         };
       });
       if (!items.length) {
