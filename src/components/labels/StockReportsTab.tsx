@@ -776,7 +776,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       <section className="space-y-4">
         <SectionHeader title="Saúde da operação" hint="Últimas 24h" />
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <MetricCard label="Produtos ativos"      value={labeledProducts.length} />
+          <MetricCard label="Produtos ativos"      value={visibleProductIds.size} />
           <MetricCard label="Produtos críticos"    value={needsRestock.length} tone={needsRestock.length ? "danger" : "neutral"} />
           <MetricCard label="Produtos vencidos"    value={expiredProductsCount} hint={expiredLabels.length ? `${expiredLabels.length} etiqueta${expiredLabels.length === 1 ? "" : "s"}` : undefined} tone={expiredProductsCount ? "danger" : "neutral"} />
           <MetricCard label="Setores conferidos"   value={`${percentConferred}%`} hint={`${sectorsConferredToday.size} de ${totalSectorsWithProducts}`} />
