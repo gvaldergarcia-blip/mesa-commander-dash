@@ -12,6 +12,7 @@ import {
   Loader2,
   Sparkles,
   MapPin,
+  Star,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,6 +48,8 @@ export function OperationalDiary() {
   const { activeEmployees } = useLabelEmployees();
   const registerPrints = useRegisterPrints();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Setor selecionado por recebimento (null = "Todos").
+  const [sectorFilter, setSectorFilter] = useState<Record<string, string | null>>({});
 
   const responsibleBySector = useMemo(() => {
     const map = new Map<string, string>();
@@ -189,6 +192,28 @@ export function OperationalDiary() {
         const p = pct(totalPrinted, totalQty);
         const isCollapsed = collapsed[receipt.id];
         const supplierName = receipt.supplier?.name || "Sem fornecedor";
+        // Ordena setores: pendentes primeiro (por mais restante), concluídos ao final.
+        const orderedSectors = [...sectors].sort((a, b) => {
+          const aDone = a.remaining === 0;
+          const bDone = b.remaining === 0;
+          if (aDone !== bDone) return aDone ? 1 : -1;
+          if (a.remaining !== b.remaining) return b.remaining - a.remaining;
+          return a.sector.localeCompare(b.sector);
+        });
+        const selected = sectorFilter[receipt.id] ?? null;
+        const visibleSectors = selected
+          ? orderedSectors.filter((s) => s.sector === selected)
+          : orderedSectors;
+        const selectedSectorData = selected
+          ? orderedSectors.find((s) => s.sector === selected) || null
+          : null;
+        const headerRemaining = selectedSectorData ? selectedSectorData.remaining : totalRemaining;
+        const headerItems = selectedSectorData
+          ? selectedSectorData.items
+          : sectors.flatMap((s) => s.items);
+        const headerLabel = selectedSectorData
+          ? `Imprimir ${selectedSectorData.sector} (${headerRemaining})`
+          : `Imprimir ${headerRemaining} etiqueta${headerRemaining === 1 ? "" : "s"} pendente${headerRemaining === 1 ? "" : "s"}`;
         return (
           <Card
             key={receipt.id}
@@ -219,12 +244,12 @@ export function OperationalDiary() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => printBatch(sectors.flatMap((s) => s.items))}
-                    disabled={registerPrints.isPending || totalRemaining === 0}
+                    onClick={() => printBatch(headerItems)}
+                    disabled={registerPrints.isPending || headerRemaining === 0}
                     className="gap-2 shadow-sm"
                   >
                     <Printer className="h-4 w-4" />
-                    Imprimir {totalRemaining} etiqueta{totalRemaining === 1 ? "" : "s"} pendente{totalRemaining === 1 ? "" : "s"}
+                    {headerLabel}
                   </Button>
                   <Button
                     variant="ghost"
@@ -255,12 +280,45 @@ export function OperationalDiary() {
                   />
                 </div>
               </div>
+
+              {/* Carrossel de setores */}
+              {!isCollapsed && orderedSectors.length > 0 && (
+                <div className="mt-5 -mx-1 overflow-x-auto pb-1 [scrollbar-width:thin]">
+                  <div className="flex gap-2 px-1 snap-x">
+                    <SectorChip
+                      active={selected === null}
+                      onClick={() => setSectorFilter((s) => ({ ...s, [receipt.id]: null }))}
+                      icon={<Star className="h-3.5 w-3.5" />}
+                      title="Todos"
+                      printed={totalPrinted}
+                      total={totalQty}
+                    />
+                    {orderedSectors.map((s) => (
+                      <SectorChip
+                        key={s.sector}
+                        active={selected === s.sector}
+                        onClick={() =>
+                          setSectorFilter((prev) => ({
+                            ...prev,
+                            [receipt.id]: prev[receipt.id] === s.sector ? null : s.sector,
+                          }))
+                        }
+                        icon={<MapPin className="h-3.5 w-3.5" />}
+                        title={s.sector}
+                        printed={s.printed}
+                        total={s.total}
+                        done={s.remaining === 0}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sectors */}
             {!isCollapsed && (
-              <div className="divide-y divide-border/50">
-                {sectors.map(({ sector, items, total, printed, remaining: sectorRem }) => (
+              <div className="divide-y divide-border/50 animate-fade-in" key={selected || "all"}>
+                {visibleSectors.map(({ sector, items, total, printed, remaining: sectorRem }) => (
                   <div key={sector} className="p-4 md:p-5">
                     <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                       <div className="flex items-center gap-2">
@@ -341,5 +399,61 @@ export function OperationalDiary() {
         );
       })}
     </div>
+  );
+}
+
+// ---------- Sector chip ----------
+interface ChipProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  printed: number;
+  total: number;
+  done?: boolean;
+}
+function SectorChip({ active, onClick, icon, title, printed, total, done }: ChipProps) {
+  const p = pct(printed, total);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "snap-start group shrink-0 min-w-[168px] text-left rounded-xl border p-3 transition-all",
+        "hover:shadow-sm hover:-translate-y-[1px]",
+        active
+          ? "border-primary/60 bg-primary/[0.06] shadow-sm ring-1 ring-primary/20"
+          : done
+            ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+            : "border-border/60 bg-background",
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <span
+          className={cn(
+            "h-6 w-6 rounded-md flex items-center justify-center",
+            active ? "bg-primary/15 text-primary" : done ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : icon}
+        </span>
+        <span className="text-xs font-semibold truncate flex-1">{title}</span>
+      </div>
+      <div className="mt-2 flex items-baseline justify-between">
+        <span className={cn("text-[11px] font-mono tabular-nums", done ? "text-emerald-600" : "text-muted-foreground")}>
+          {done ? "Concluído" : `${total - printed} / ${total}`}
+        </span>
+        <span className="text-[10px] text-muted-foreground font-mono">{p}%</span>
+      </div>
+      <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500",
+            done ? "bg-emerald-500" : active ? "bg-primary" : "bg-primary/60",
+          )}
+          style={{ width: `${Math.max(p, 4)}%` }}
+        />
+      </div>
+    </button>
   );
 }
