@@ -23,14 +23,24 @@ Para cada etiqueta/produto que você conseguir identificar na foto, retorne um o
   "manufactured_at": "YYYY-MM-DD"|null,
   "weight": string|null,          // com unidade original ("500 g", "1 kg", "1L")
   "sif": string|null,             // só número
-  "conservation": "refrigerated"|"frozen"|"ambient"|"hot"|null
+  "conservation": "refrigerated"|"frozen"|"ambient"|"hot"|null,
+  "barcode": string|null,         // EAN/UPC lido do código de barras (só dígitos)
+  "category": string|null,        // categoria do produto (ex: "Carnes", "Laticínios", "Hortifrúti", "Mercearia")
+  "field_confidence": {           // 0..1 por campo lido; 0 se não encontrou
+    "name": number, "brand": number, "batch": number,
+    "expires_at": number, "manufactured_at": number,
+    "weight": number, "sif": number, "conservation": number,
+    "barcode": number, "category": number
+  }
 }
 
 Regras:
 - Datas SEMPRE ISO YYYY-MM-DD; converta DD/MM/AAAA. Ano de 2 dígitos = 20AA.
 - Nunca invente. Campo ilegível => null.
 - "conservation" só se estiver claramente indicado (ex.: "Conservar refrigerado" => refrigerated, "Congelado" => frozen, "Ambiente/Seco" => ambient).
-- "match" deve ser um dos strings da lista de candidatos, exato. Se nenhum bater com pelo menos 0.5 de confiança, use null.
+- "match" deve ser um dos strings da lista de candidatos, EXATO. Use SIMILARIDADE semântica, não igualdade textual. Ignore diferenças de acento, maiúsculas, ordem das palavras, sinônimos e abreviações. Ex.: "FILÉ MIGNON BOVINO RESFRIADO" (NF-e) casa com "Filé Mignon Resfriado" (rótulo). Se nenhum bater com pelo menos 0.5 de confiança, use null.
+- "sif" aceita registros SIF, SISP ou SIM. Retorne somente os dígitos.
+- "barcode": leia códigos de barras EAN-8/13 ou UPC visíveis; retorne só dígitos, nunca invente.
 - Retorne SOMENTE JSON válido, sem markdown: {"labels":[...]}`;
 
 async function readOne(fileBase64: string, mimeType: string, candidates: string[], apiKey: string) {
@@ -64,6 +74,8 @@ async function readOne(fileBase64: string, mimeType: string, candidates: string[
 }
 
 function clean(l: any) {
+  const fc = l?.field_confidence || {};
+  const num = (n: any) => (typeof n === "number" ? Math.max(0, Math.min(1, n)) : 0);
   return {
     match: typeof l?.match === "string" ? l.match : null,
     confidence: typeof l?.confidence === "number" ? Math.max(0, Math.min(1, l.confidence)) : 0,
@@ -75,6 +87,14 @@ function clean(l: any) {
     weight: l?.weight || null,
     sif: l?.sif ? String(l.sif).replace(/\D/g, "") || null : null,
     conservation: ["refrigerated", "frozen", "ambient", "hot"].includes(l?.conservation) ? l.conservation : null,
+    barcode: l?.barcode ? String(l.barcode).replace(/\D/g, "") || null : null,
+    category: l?.category || null,
+    field_confidence: {
+      name: num(fc.name), brand: num(fc.brand), batch: num(fc.batch),
+      expires_at: num(fc.expires_at), manufactured_at: num(fc.manufactured_at),
+      weight: num(fc.weight), sif: num(fc.sif), conservation: num(fc.conservation),
+      barcode: num(fc.barcode), category: num(fc.category),
+    },
   };
 }
 
