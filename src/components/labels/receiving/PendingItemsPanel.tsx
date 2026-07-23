@@ -123,7 +123,12 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
     setRows((rs) => rs.map((r) => {
       if (r.itemId !== itemId) return r;
       const p = typeof upd === "function" ? upd(r) : upd;
-      return { ...r, ...p };
+      const merged = { ...r, ...p } as PendingRow;
+      if (merged.processed && merged.status !== "scanning") {
+        merged.missing = computeMissing(merged);
+        merged.status = merged.missing.length === 0 ? "ready" : "needs_info";
+      }
+      return merged;
     })),
   []);
 
