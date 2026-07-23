@@ -291,7 +291,8 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
                   <div className="flex items-center gap-1.5">
                     <Tag className="h-3.5 w-3.5" />
                     <span>
-                      <span className="font-semibold text-foreground">{it.active_labels_count}</span> ativa{it.active_labels_count === 1 ? "" : "s"}
+                      <span className="font-semibold text-foreground">{it.active_units}</span> unidade{it.active_units === 1 ? "" : "s"}
+                      <span className="text-muted-foreground/70"> · {it.active_labels_count} etiqueta{it.active_labels_count === 1 ? "" : "s"}</span>
                       {it.discharged_labels_count > 0 && (
                         <span className="text-muted-foreground/70"> · {it.discharged_labels_count} baixadas</span>
                       )}
