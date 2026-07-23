@@ -560,6 +560,84 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
         )}
 
         {step === "form" && product && (
+          <></>
+        )}
+        {step === "lots" && product && (
+          <div className="space-y-3">
+            <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
+              <ArrowLeft className="h-4 w-4" /> Voltar
+            </Button>
+            <Card className="p-3 bg-primary/5 border-primary/20">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-primary" />
+                <div className="font-semibold">{product.name}</div>
+              </div>
+            </Card>
+
+            {loadingLots ? (
+              <div className="py-10 flex items-center justify-center text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Buscando lotes ativos...
+              </div>
+            ) : activeLots.length === 0 ? (
+              <div className="space-y-3">
+                <Card className="p-4 border-dashed border-destructive/40 bg-destructive/5 text-sm">
+                  <div className="flex items-center gap-2 font-semibold text-destructive">
+                    <AlertTriangle className="h-4 w-4" /> Nenhum lote ativo deste produto
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ideal: registre primeiro o Recebimento do insumo. Você pode prosseguir sem rastreabilidade, mas a auditoria ficará incompleta.
+                  </p>
+                </Card>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setStep("select")}>Voltar</Button>
+                  <Button onClick={() => { setOriginLot(null); setStep("form"); }} variant="outline">
+                    Prosseguir sem lote de origem
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="text-xs text-muted-foreground">
+                  {activeLots.length} lote(s) ativo(s). Escolha qual foi utilizado nesta produção.
+                </div>
+                <div className="max-h-[45vh] overflow-y-auto space-y-2">
+                  {activeLots.map((lot) => {
+                    const isGenerated = !lot.supplier_lot && !!lot.traceability_lot;
+                    return (
+                      <button
+                        key={lot.issuance_id}
+                        onClick={() => { setOriginLot(lot); setStep("form"); }}
+                        className="w-full text-left p-3 rounded-lg border border-border/60 hover:border-primary hover:bg-primary/5 transition"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">
+                              {lot.supplier_name || "Fornecedor não informado"}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Lote:{" "}
+                              <strong className="text-foreground">
+                                {lot.supplier_lot || lot.traceability_lot || "—"}
+                              </strong>
+                              {isGenerated && <span className="ml-1 opacity-70">(MesaClik)</span>}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              Recebido: {lot.received_at ? format(new Date(lot.received_at), "dd/MM", { locale: ptBR }) : "—"}
+                              {" · "}
+                              Validade: {format(new Date(lot.expiry_date), "dd/MM", { locale: ptBR })}
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0">{lot.units_remaining} un</Badge>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {step === "form" && product && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
