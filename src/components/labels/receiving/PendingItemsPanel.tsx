@@ -156,12 +156,14 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       setRows((rs) => rs.map((r) => {
         if (r.itemId !== row.itemId) return r;
         const fc = (best?.field_confidence || {}) as Record<string, number>;
-        // Só preenche automaticamente quando a IA tem confiança >= 0.5;
-        // valores abaixo disso viram sugestão que o operador confirma.
+        // Regra: se a IA leu o campo (valor presente), preenche.
+        // Só rejeita quando ela explicitamente marcou confiança < 0.5.
+        // Se field_confidence não veio, aceita o valor lido.
         const use = (val: any, key: string, existing: any) => {
-          if (!val) return existing;
-          const conf = fc[key] ?? best?.confidence ?? 0;
-          return conf >= 0.5 ? val : existing;
+          if (val === null || val === undefined || val === "") return existing;
+          const conf = fc[key];
+          if (typeof conf === "number" && conf > 0 && conf < 0.5) return existing;
+          return val;
         };
         const merged: PendingRow = {
           ...r,
