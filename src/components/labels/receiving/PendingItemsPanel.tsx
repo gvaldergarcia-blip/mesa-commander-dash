@@ -175,26 +175,32 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
 
   const addPhotos = useCallback(async (itemId: string, files: FileList | null) => {
     if (!files || !files.length) return;
+    // Compute fora do updater: evita duplicidade em StrictMode (updater roda 2x)
+    // e side effects impuros (URL.createObjectURL/toast) sendo executados duas vezes.
+    const current = rows.find((r) => r.itemId === itemId);
+    if (!current) return;
+    const remaining = Math.max(0, MAX_PHOTOS_PER_PRODUCT - current.photos.length);
+    if (remaining === 0) {
+      toast.warning(`Limite de ${MAX_PHOTOS_PER_PRODUCT} fotos por produto atingido.`);
+      return;
+    }
+    const incoming = Array.from(files).slice(0, remaining).map((f) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file: f,
+      previewUrl: URL.createObjectURL(f),
+    }));
+    if (files.length > remaining) {
+      toast.info(`Adicionadas ${incoming.length} foto(s). Limite de ${MAX_PHOTOS_PER_PRODUCT} por produto.`);
+    }
     let rowSnapshot: PendingRow | null = null;
     setRows((rs) => rs.map((r) => {
       if (r.itemId !== itemId) return r;
-      const remaining = Math.max(0, MAX_PHOTOS_PER_PRODUCT - r.photos.length);
-      const incoming = Array.from(files).slice(0, remaining).map((f) => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        file: f,
-        previewUrl: URL.createObjectURL(f),
-      }));
-      if (incoming.length === 0) {
-        toast.warning(`Limite de ${MAX_PHOTOS_PER_PRODUCT} fotos por produto atingido.`);
-        return r;
-      }
       const next = { ...r, photos: [...r.photos, ...incoming] };
       rowSnapshot = next;
       return next;
     }));
-    // Dispara IA automaticamente para o produto assim que fotos são anexadas.
     if (rowSnapshot) await runAiForRow(rowSnapshot);
-  }, [runAiForRow]);
+  }, [rows, runAiForRow]);
 
   const removePhoto = (itemId: string, photoId: string) => {
     setRows((rs) => rs.map((r) => {
