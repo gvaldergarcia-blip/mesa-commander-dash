@@ -540,9 +540,29 @@ function ProductRowCard({
                 />
                 <Button
                   type="button" size="sm" variant="outline" className="h-8 text-[10px] px-2"
-                  onClick={() => onPatch({ batch: `MSC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(Math.random()*900+100)}` })}
+                  title="Gerar lote MesaClik"
+                  onClick={() => onPatch({ batch: `MESA-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${String(Math.floor(Math.random()*9000+1000))}` })}
                 >
-                  Gerar
+                  Gerar MesaClik
+                </Button>
+              </div>
+            </FieldBlock>
+          )}
+          {row.missing.includes("SIF") && (
+            <FieldBlock label="⚠ SIF/SISP/SIM não encontrado" warn>
+              <div className="flex gap-1">
+                <Input
+                  value={row.sif}
+                  onChange={(e) => onPatch({ sif: e.target.value.replace(/\D/g, "") })}
+                  placeholder="Digitar registro…"
+                  className="h-8 text-xs"
+                  inputMode="numeric"
+                />
+                <Button
+                  type="button" size="sm" variant="outline" className="h-8 text-[10px] px-2"
+                  onClick={() => onPatch({ sif_not_applicable: true, sif: "" })}
+                >
+                  Não se aplica
                 </Button>
               </div>
             </FieldBlock>
