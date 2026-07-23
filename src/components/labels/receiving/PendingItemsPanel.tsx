@@ -192,7 +192,11 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       }
     } catch (e: any) {
       toast.error(e.message || "Erro ao ler fotos");
-      patch(row.itemId, (r) => ({ status: r.processed ? recomputeStatus(r) : "idle" }));
+      patch(row.itemId, (r) => {
+        if (!r.processed) return { status: "idle" };
+        const miss = computeMissing(r);
+        return { status: miss.length === 0 ? "ready" : "needs_info", missing: miss };
+      });
     }
   }, [patch]);
 
