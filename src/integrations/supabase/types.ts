@@ -1446,6 +1446,7 @@ export type Database = {
           notes: string | null
           reason: string
           restaurant_id: string
+          units: number
         }
         Insert: {
           discharged_at?: string
@@ -1455,6 +1456,7 @@ export type Database = {
           notes?: string | null
           reason: string
           restaurant_id: string
+          units?: number
         }
         Update: {
           discharged_at?: string
@@ -1464,6 +1466,7 @@ export type Database = {
           notes?: string | null
           reason?: string
           restaurant_id?: string
+          units?: number
         }
         Relationships: [
           {
@@ -1559,6 +1562,7 @@ export type Database = {
           status: string
           storage_location: string | null
           unique_code: string | null
+          units_used: number
           updated_at: string
           weight: number | null
           weight_unit: string | null
@@ -1588,6 +1592,7 @@ export type Database = {
           status?: string
           storage_location?: string | null
           unique_code?: string | null
+          units_used?: number
           updated_at?: string
           weight?: number | null
           weight_unit?: string | null
@@ -1617,6 +1622,7 @@ export type Database = {
           status?: string
           storage_location?: string | null
           unique_code?: string | null
+          units_used?: number
           updated_at?: string
           weight?: number | null
           weight_unit?: string | null
@@ -5078,15 +5084,26 @@ export type Database = {
         Args: { p_restaurant_id: string }
         Returns: undefined
       }
-      discharge_label_by_code: {
-        Args: {
-          _code: string
-          _employee_id?: string
-          _notes?: string
-          _reason: string
-        }
-        Returns: Json
-      }
+      discharge_label_by_code:
+        | {
+            Args: {
+              _code: string
+              _employee_id?: string
+              _notes?: string
+              _reason: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _code: string
+              _employee_id?: string
+              _notes?: string
+              _reason: string
+              _units?: number
+            }
+            Returns: Json
+          }
       ensure_dev_test_restaurant: { Args: never; Returns: undefined }
       enter_queue: {
         Args: { p_party_size: number; p_restaurant_id: string }

@@ -144,5 +144,8 @@ verify_jwt = false
 [functions.check-label-expiry-alerts]
 verify_jwt = false
 
+[functions.send-label-discharge-alert]
+verify_jwt = false
+
 [functions.schedule-label-sms-reports]
 verify_jwt = false
