@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   onQuickAction: (action: "new-label" | "new-receipt" | "shopping" | "labels") => void;
+  onOpenProducts?: (filter: "expired" | "critical" | "warning") => void;
+  onOpenStockFalta?: () => void;
 }
 
 const EVENT_META: Record<
@@ -66,7 +68,7 @@ function describe(e: OperationalEvent): string {
   }
 }
 
-export function TodayTab({ onQuickAction }: Props) {
+export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Props) {
   const { events, isLoading } = useOperationalDiary({ limit: 150 });
   const { labels } = useLabels();
   const { missingProducts, statusMap } = useStockStatus();
@@ -118,14 +120,18 @@ export function TodayTab({ onQuickAction }: Props) {
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
 
   const alerts = useMemo(() => {
-    const active = labels.filter(
-      (l) => l.status !== "discharged" && visibleLabelIds.has(l.id),
-    );
-    const expired  = active.filter((l) => classifyExpiry(l.expiry_date) === "expired");
-    const today    = active.filter((l) => classifyExpiry(l.expiry_date) === "today");
-    const tomorrow = active.filter((l) => classifyExpiry(l.expiry_date) === "tomorrow");
-    return { expired, today, tomorrow };
-  }, [labels, visibleLabelIds]);
+    // Contamos PRODUTOS (não etiquetas) usando a mesma regra da aba Produtos.
+    const visible = labeledProducts.filter((p) => {
+      if (p.active_labels_count <= 0) return false;
+      if (p.product_id && statusMap.get(p.product_id)?.status === "falta") return false;
+      return true;
+    });
+    return {
+      expired:  visible.filter((p) => p.status === "expired"),
+      today:    visible.filter((p) => p.status === "critical"),
+      tomorrow: visible.filter((p) => p.status === "warning"),
+    };
+  }, [labeledProducts, statusMap]);
 
   const todayEvents = useMemo(
     () => events.filter((e) => new Date(e.occurred_at) >= startOfToday),
@@ -172,10 +178,18 @@ export function TodayTab({ onQuickAction }: Props) {
             <h3 className="text-sm font-bold uppercase tracking-wider text-destructive">Requer atenção</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            {alerts.expired.length > 0 && <AlertPill n={alerts.expired.length} label="vencidas" tone="destructive" />}
-            {alerts.today.length > 0    && <AlertPill n={alerts.today.length}    label="vencem hoje" tone="orange" />}
-            {alerts.tomorrow.length > 0 && <AlertPill n={alerts.tomorrow.length} label="vencem amanhã" tone="amber" />}
-            {missingProducts.length > 0 && <AlertPill n={missingProducts.length} label="em falta" tone="destructive" />}
+            {alerts.expired.length > 0 && (
+              <AlertPill n={alerts.expired.length} label="vencidas" tone="destructive" onClick={() => onOpenProducts?.("expired")} />
+            )}
+            {alerts.today.length > 0 && (
+              <AlertPill n={alerts.today.length} label="vencem hoje" tone="orange" onClick={() => onOpenProducts?.("critical")} />
+            )}
+            {alerts.tomorrow.length > 0 && (
+              <AlertPill n={alerts.tomorrow.length} label="vencem amanhã" tone="amber" onClick={() => onOpenProducts?.("warning")} />
+            )}
+            {missingProducts.length > 0 && (
+              <AlertPill n={missingProducts.length} label="em falta" tone="destructive" onClick={() => onOpenStockFalta?.()} />
+            )}
           </div>
         </Card>
       )}
@@ -206,16 +220,25 @@ function SummaryCard({ icon: Icon, label, value, tone }: { icon: any; label: str
   );
 }
 
-function AlertPill({ n, label, tone }: { n: number; label: string; tone: "destructive" | "orange" | "amber" }) {
+function AlertPill({ n, label, tone, onClick }: { n: number; label: string; tone: "destructive" | "orange" | "amber"; onClick?: () => void }) {
   const map: Record<string, string> = {
     destructive: "text-destructive",
     orange: "text-orange-500",
     amber: "text-amber-500",
   };
+  const clickable = !!onClick;
   return (
-    <div className="flex items-baseline gap-1.5">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={cn(
+        "flex items-baseline gap-1.5 text-left rounded-md px-1 -mx-1 transition-colors",
+        clickable && "cursor-pointer hover:bg-background/60",
+      )}
+    >
       <span className={cn("text-2xl font-bold", map[tone])}>{n}</span>
       <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
+    </button>
   );
 }
