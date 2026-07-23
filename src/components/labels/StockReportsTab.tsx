@@ -637,20 +637,6 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
             Visão executiva da sua cozinha em tempo real.
           </p>
         </div>
-        <Button
-          onClick={handleDownloadRestockDocx}
-          disabled={restockList.length === 0}
-          className="shrink-0 gap-2"
-          variant="default"
-        >
-          <FileDown className="h-4 w-4" />
-          Lista de reposição (Word)
-          {restockList.length > 0 && (
-            <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[11px] font-semibold">
-              {restockList.length}
-            </span>
-          )}
-        </Button>
       </header>
 
       {/* ============ AÇÕES RECOMENDADAS HOJE ============ */}
@@ -669,7 +655,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
             icon: ShoppingCart,
             tone: "text-amber-500 bg-amber-500/10 border-amber-500/20",
             title: `Repor ${needsRestock.length} produto${needsRestock.length === 1 ? "" : "s"} em falta`,
-            hint: "Baixe a Lista de reposição (Word)",
+            hint: "Abra a aba Compras para ver a lista",
           });
         }
         const pendingWithProducts = pendingSectors.filter((sec) => labeledProducts.some((p) => p.sector === sec));
