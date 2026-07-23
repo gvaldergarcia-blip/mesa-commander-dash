@@ -74,7 +74,8 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     return m;
   }, [statuses]);
 
-  // Produtos "vivos" na operação — mesma regra da aba Produtos.
+  // Produtos "vivos" na operação — mesma regra da aba Produtos
+  // (usado para o KPI "Produtos ativos", que exclui os marcados como "Precisa repor").
   const visibleProducts = useMemo(
     () =>
       labeledProducts.filter((p) => {
@@ -84,6 +85,22 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
         return true;
       }),
     [labeledProducts, statusByProduct],
+  );
+
+  // Produtos operacionais para contagens de estoque/setor — inclui os "Precisa repor"
+  // porque eles precisam ser contados justamente como falta nos relatórios.
+  const operationalProducts = useMemo(
+    () => labeledProducts.filter((p) => p.active_labels_count > 0),
+    [labeledProducts],
+  );
+  const operationalProductIds = useMemo(
+    () =>
+      new Set(
+        operationalProducts
+          .filter((p) => p.product_id)
+          .map((p) => p.product_id!),
+      ),
+    [operationalProducts],
   );
 
   const visibleProductIds = useMemo(
@@ -103,21 +120,22 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
   // Setores que realmente têm produtos operacionais hoje (usado como
   // denominador para "setores conferidos" e para não gerar alertas de
-  // conferência para setores vazios).
+  // conferência para setores vazios). Inclui setores de produtos em falta.
   const activeSectors = useMemo(() => {
     const s = new Set<string>();
-    for (const p of visibleProducts) if (p.sector) s.add(p.sector);
+    for (const p of operationalProducts) if (p.sector) s.add(p.sector);
     return Array.from(s);
-  }, [visibleProducts]);
+  }, [operationalProducts]);
 
   const activeLabels = labels.filter((l) => l.status !== "discharged");
   // Etiquetas realmente exibidas ao usuário (produtos visíveis apenas).
   const visibleActiveLabels = activeLabels.filter((l) => visibleLabelIds.has(l.id));
   const labelsToday = labels.filter((l) => isToday(new Date(l.created_at)));
   const conferencesToday = statuses.filter((s) => s.marked_at && isToday(new Date(s.marked_at)));
-  // Só contamos "precisa repor" / "atenção" quando o produto ainda é visível.
-  const needsRestock = statuses.filter((s) => s.status === "falta" && visibleProductIds.has(s.product_id));
-  const attention = statuses.filter((s) => s.status === "atencao" && visibleProductIds.has(s.product_id));
+  // Só contamos "precisa repor" / "atenção" quando o produto ainda tem etiquetas ativas
+  // (evita mostrar produtos que já sumiram da operação por baixa total).
+  const needsRestock = statuses.filter((s) => s.status === "falta" && operationalProductIds.has(s.product_id));
+  const attention = statuses.filter((s) => s.status === "atencao" && operationalProductIds.has(s.product_id));
   // Vencidos: só o que o usuário vê em Produtos (mesma base).
   const expiredLabels = visibleActiveLabels.filter(
     (l) => l.expiry_date && new Date(l.expiry_date) < new Date(),
@@ -171,7 +189,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
     // números "OK / Atenção / Falta" batem com a tela de Estoque.
     return activeSectors
       .map((sec) => {
-        const prods = visibleProducts.filter((p) => p.sector === sec);
+        const prods = operationalProducts.filter((p) => p.sector === sec);
         const productIds = new Set(prods.map((p) => p.product_id).filter(Boolean) as string[]);
         // Considera apenas statuses de produtos ainda visíveis nesse setor.
         const sts = statuses.filter(
@@ -188,7 +206,23 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
       })
       .filter((c) => c.total > 0)
       .sort((a, b) => b.falta + b.at - (a.falta + a.at));
-  }, [activeSectors, visibleProducts, statuses, respBySector]);
+  }, [activeSectors, operationalProducts, statuses, respBySector]);
+
+  // ============ Baixas por uso ============
+  const usageDischarges = useMemo(() => {
+    return labels
+      .filter((l) => l.status === "discharged" && (l.discharge_reason === "use" || l.discharge_reason === "consumo"))
+      .filter((l) => l.resolved_at && new Date(l.resolved_at) >= cutoff)
+      .filter((l) => !search || l.product_name.toLowerCase().includes(search.toLowerCase()));
+  }, [labels, cutoff, search]);
+
+  const usageRankProducts = useMemo(() => {
+    const m = new Map<string, number>();
+    usageDischarges.forEach((l) => m.set(l.product_name, (m.get(l.product_name) || 0) + 1));
+    return Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  }, [usageDischarges]);
+
+  const totalUsedUnits = usageDischarges.reduce((s, l) => s + Number(l.quantity || 0), 0);
 
   // ============ Perdas ============
   const losses = useMemo(() => {

@@ -75,6 +75,7 @@ export default function EtiquetasPage() {
 
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
   const [stockInitialSector, setStockInitialSector] = useState<string | null>(null);
+  const [productsStatusFilter, setProductsStatusFilter] = useState<"all" | "ok" | "critical" | "expired" | "warning">("all");
 
   const stats = useMemo(() => computeStats(labels), [labels]);
 
@@ -233,6 +234,14 @@ export default function EtiquetasPage() {
               else if (action === "shopping") setTab("compras");
               else if (action === "labels") setTab("imprimir");
             }}
+            onOpenProducts={(f) => {
+              setProductsStatusFilter(f);
+              setTab("produtos");
+            }}
+            onOpenStockFalta={() => {
+              setStockInitialSector(null);
+              setTab("estoque");
+            }}
           />
         </TabsContent>
 
@@ -283,6 +292,7 @@ export default function EtiquetasPage() {
         {/* ===== PRODUTOS ETIQUETADOS ===== */}
         <TabsContent value="produtos" className="space-y-5">
           <LabeledProductsTab
+            initialStatusFilter={productsStatusFilter}
             onPrintProduct={(pid) => {
               setPrintInitialProduct(pid);
               setTab("imprimir");
