@@ -442,11 +442,13 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
             <ChefHat className="h-5 w-5 text-primary" />
             {step === "select" && "Escolha o produto"}
             {step === "new-product" && "Novo produto"}
+            {step === "lots" && "Selecione o lote de origem"}
             {step === "form" && "Registrar produção"}
           </DialogTitle>
           <DialogDescription>
             {step === "select" && "Selecione um produto já cadastrado ou cadastre um novo."}
             {step === "new-product" && "Estes dados ficam salvos para reutilização."}
+            {step === "lots" && "Rastreabilidade obrigatória: informe de qual lote recebido veio o insumo."}
             {step === "form" && "Cada produção tem sua própria validade."}
           </DialogDescription>
         </DialogHeader>
