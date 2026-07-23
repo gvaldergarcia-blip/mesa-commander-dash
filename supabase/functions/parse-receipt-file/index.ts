@@ -15,8 +15,10 @@ Retorne APENAS JSON válido no formato EXATO:
     {
       "raw_name": string,
       "quantity": number,          // QUANTIDADE FÍSICA (número de peças/unidades/caixas). Sempre inteiro >= 1 quando a unidade for un/cx/peça. Pode ser decimal APENAS quando a venda é a granel (kg/g/l/ml) e não há contagem de peças.
+      "quantity_raw": string,      // Texto EXATO da célula lida (ex.: "60,80", "1,202", "0,522"). Preserve vírgulas, pontos e casas decimais.
       "unit": "un"|"kg"|"g"|"l"|"ml"|"cx"|"peça",
-      "weight": number|null,       // Peso/volume TOTAL recebido, quando existir na nota (ex.: "9,840 KG"). Preserve o valor exatamente como está.
+      "weight": number|null,       // Peso/volume TOTAL recebido, quando existir na nota. Preserve TODAS as casas decimais (ex.: "9,840 KG" → 9.840).
+      "weight_raw": string|null,   // Texto EXATO do campo peso (ex.: "9,840", "60,80"). Preserve vírgulas e casas decimais.
       "weight_unit": "kg"|"g"|"l"|"ml"|null
     }
   ]
@@ -30,7 +32,16 @@ REGRAS CRÍTICAS (leia com atenção — erros aqui quebram o sistema):
    - Se a coluna "Un" for UN/CX/PC/PÇ/PEÇA/FD (fardo) → quantity é o NÚMERO DE PEÇAS (inteiro). Se a linha também informa um peso total separado (ex.: "10 UN — 9,840 KG" ou coluna "Peso"), preencha weight e weight_unit com esse peso; NÃO jogue o peso em quantity.
    - Nunca use o valor monetário (R$) como quantidade.
 
-2. DECIMAIS BR: interprete vírgula como separador decimal ("9,840" = 9.84). Ponto pode ser separador de milhar ("1.200" = 1200) — use o contexto da coluna para decidir.
+2. DECIMAIS BR — REGRA CRÍTICA (nunca perca casas decimais):
+   - Vírgula é SEMPRE separador decimal em NF-e brasileira. NUNCA remova a vírgula.
+   - "60,80" = 60.80 (NÃO 6080, NÃO 608).
+   - "1,202" = 1.202 (NÃO 1202). Em NF-e, quantidades podem ter até 4 casas decimais.
+   - "0,522" = 0.522 (NÃO 522).
+   - "15,000" = 15.000 (preserve os 3 zeros como precisão — NÃO vire 15000).
+   - Ponto pode ser separador de milhar APENAS quando o número tem exatamente 3 dígitos depois do ponto E o campo é claramente um valor grande (ex.: "10.500 UN" para caixas grandes). Quando em dúvida, trate ponto como decimal.
+   - Preserve EXATAMENTE a quantidade de casas decimais do documento em "quantity_raw" e "weight_raw" (texto literal da célula, com vírgula).
+   - Em "quantity" e "weight", retorne o número JSON com ponto decimal e a mesma precisão (ex.: 60.80, 1.202, 0.522).
+   - Nunca use replace(",", "") ou lógica que descarte separadores.
 
 3. NOME: use raw_name EXATAMENTE como aparece (mantenha acentos, códigos e siglas). Não normalize, não abrevie, não traduza.
 
@@ -131,11 +142,39 @@ serve(async (req) => {
       else throw new Error("Resposta da IA não é JSON válido: " + raw.slice(0, 200));
     }
 
-    const toNum = (v: any): number | null => {
-      if (v === null || v === undefined || v === "") return null;
-      const s = String(v).trim().replace(/\./g, "").replace(",", ".");
-      const n = Number(s);
-      return Number.isFinite(n) ? n : null;
+    // Converte um valor (número JSON OU string bruta preservada) em number sem
+    // perder casas decimais. Nunca faz replace destrutivo às cegas.
+    const toNum = (v: any, raw?: any): { value: number | null; lowConfidence: boolean } => {
+      // Preferência: usar a string bruta preservada quando disponível — a IA
+      // pode ter arredondado o número JSON.
+      const source = raw !== undefined && raw !== null && String(raw).trim() !== "" ? raw : v;
+      if (source === null || source === undefined || source === "") return { value: null, lowConfidence: false };
+      if (typeof source === "number") return { value: Number.isFinite(source) ? source : null, lowConfidence: false };
+      const s = String(source).trim().replace(/\s+/g, "");
+      const hasComma = s.includes(",");
+      const hasDot = s.includes(".");
+      let normalized = s;
+      if (hasComma && hasDot) {
+        // BR: ponto=milhar, vírgula=decimal. Remove pontos, troca vírgula por ponto.
+        normalized = s.replace(/\./g, "").replace(",", ".");
+      } else if (hasComma) {
+        // Só vírgula → sempre decimal. NÃO remover.
+        normalized = s.replace(",", ".");
+      } else if (hasDot) {
+        // Só ponto → decimal (não removemos, senão perdemos precisão).
+        normalized = s;
+      }
+      const n = Number(normalized);
+      if (!Number.isFinite(n)) return { value: null, lowConfidence: true };
+      // Detecta possível perda de precisão: se v (número JSON) diferir muito
+      // do valor derivado do raw, marca baixa confiança.
+      let lowConfidence = false;
+      if (raw && typeof v === "number") {
+        // Se JSON veio como inteiro e raw tem casa decimal, perdemos precisão.
+        const rawStr = String(raw);
+        if (/[.,]\d+/.test(rawStr) && Number.isInteger(v)) lowConfidence = true;
+      }
+      return { value: n, lowConfidence };
     };
     const normUnit = (u: any): string => {
       const s = String(u || "").toLowerCase().trim();
@@ -164,17 +203,22 @@ serve(async (req) => {
       .map((it: any) => {
         const unit = normUnit(it.unit);
         const isBulkUnit = ["kg","g","l","ml"].includes(unit);
-        let quantity = toNum(it.quantity);
-        let weight = toNum(it.weight);
+        const qParsed = toNum(it.quantity, it.quantity_raw);
+        const wParsed = toNum(it.weight, it.weight_raw);
+        let quantity = qParsed.value;
+        let weight = wParsed.value;
         let weight_unit = normWUnit(it.weight_unit);
+        let low_confidence = qParsed.lowConfidence || wParsed.lowConfidence;
 
         if (isBulkUnit) {
-          // Venda a granel: quantity é o peso; espelha em weight.
+          // Venda a granel: quantity é o peso; espelha em weight. NUNCA arredonda.
           if (quantity === null && weight !== null) quantity = weight;
-          if (weight === null && quantity !== null) { weight = quantity; weight_unit = unit; }
+          if (weight === null && quantity !== null) { weight = quantity; weight_unit = unit as any; }
           if (!weight_unit) weight_unit = unit as any;
         } else {
-          // Peças: quantity precisa ser inteiro >= 1.
+          // Peças: quantity precisa ser inteiro >= 1. Se veio decimal (ex.: 1.5 un),
+          // marca baixa confiança em vez de arredondar às cegas.
+          if (quantity !== null && !Number.isInteger(quantity)) low_confidence = true;
           quantity = Math.max(1, Math.round(quantity ?? 1));
           // Se IA não trouxe peso/volume, tenta extrair do nome (ex.: "Óleo 900ml").
           if (weight === null) {
@@ -189,9 +233,12 @@ serve(async (req) => {
         return {
           raw_name: String(it.raw_name || "").trim(),
           quantity: quantity ?? 1,
+          quantity_raw: it.quantity_raw ? String(it.quantity_raw) : null,
           unit,
           weight,
+          weight_raw: it.weight_raw ? String(it.weight_raw) : null,
           weight_unit,
+          low_confidence,
         };
       })
       .filter((it: any) => it.raw_name);
