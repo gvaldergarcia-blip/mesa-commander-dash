@@ -24,6 +24,8 @@ export interface LabeledProduct {
   labels_count: number;
   active_labels_count: number;
   active_non_expired_labels_count: number;
+  active_units: number;                // Σ(quantity - units_used) das etiquetas ativas
+  active_units_non_expired: number;    // idem, apenas as não-vencidas
   discharged_labels_count: number;
   active_label_ids: string[];
   last_discharge_at: string | null;
@@ -103,6 +105,14 @@ export function useLabeledProducts() {
       const activeNonExpired = active.filter(
         (l) => classifyExpiry(l.expiry_date) !== "expired",
       );
+      const sumUnits = (arr: typeof active) =>
+        arr.reduce(
+          (acc, l: any) =>
+            acc + Math.max(0, Number(l.quantity ?? 1) - Number(l.units_used ?? 0)),
+          0,
+        );
+      const activeUnits = sumUnits(active);
+      const activeUnitsNonExpired = sumUnits(activeNonExpired);
       const activeSorted = [...active].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
@@ -119,6 +129,8 @@ export function useLabeledProducts() {
         labels_count: list.length,
         active_labels_count: active.length,
         active_non_expired_labels_count: activeNonExpired.length,
+        active_units: activeUnits,
+        active_units_non_expired: activeUnitsNonExpired,
         discharged_labels_count: discharged.length,
         active_label_ids: active.map((l) => l.id),
         last_discharge_at: lastDischarged?.resolved_at ?? null,
