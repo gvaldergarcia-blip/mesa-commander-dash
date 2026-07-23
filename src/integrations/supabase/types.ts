@@ -1551,6 +1551,8 @@ export type Database = {
           label_product_id: string | null
           manufacture_date: string
           notes: string | null
+          origin_issuance_id: string | null
+          origin_traceability_lot: string | null
           printed_labels: number
           product_name: string
           quantity: number
@@ -1561,6 +1563,9 @@ export type Database = {
           sif: string | null
           status: string
           storage_location: string | null
+          supplier_id: string | null
+          supplier_lot: string | null
+          traceability_lot: string | null
           unique_code: string | null
           units_used: number
           updated_at: string
@@ -1581,6 +1586,8 @@ export type Database = {
           label_product_id?: string | null
           manufacture_date?: string
           notes?: string | null
+          origin_issuance_id?: string | null
+          origin_traceability_lot?: string | null
           printed_labels?: number
           product_name: string
           quantity?: number
@@ -1591,6 +1598,9 @@ export type Database = {
           sif?: string | null
           status?: string
           storage_location?: string | null
+          supplier_id?: string | null
+          supplier_lot?: string | null
+          traceability_lot?: string | null
           unique_code?: string | null
           units_used?: number
           updated_at?: string
@@ -1611,6 +1621,8 @@ export type Database = {
           label_product_id?: string | null
           manufacture_date?: string
           notes?: string | null
+          origin_issuance_id?: string | null
+          origin_traceability_lot?: string | null
           printed_labels?: number
           product_name?: string
           quantity?: number
@@ -1621,6 +1633,9 @@ export type Database = {
           sif?: string | null
           status?: string
           storage_location?: string | null
+          supplier_id?: string | null
+          supplier_lot?: string | null
+          traceability_lot?: string | null
           unique_code?: string | null
           units_used?: number
           updated_at?: string
@@ -1643,10 +1658,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "label_issuances_origin_issuance_id_fkey"
+            columns: ["origin_issuance_id"]
+            isOneToOne: false
+            referencedRelation: "label_issuances"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "label_issuances_receipt_id_fkey"
             columns: ["receipt_id"]
             isOneToOne: false
             referencedRelation: "label_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "label_issuances_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "label_suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -1829,6 +1858,7 @@ export type Database = {
           raw_name: string
           receipt_id: string
           restaurant_id: string
+          supplier_lot: string | null
           unit: string | null
           updated_at: string
           weight: number | null
@@ -1846,6 +1876,7 @@ export type Database = {
           raw_name: string
           receipt_id: string
           restaurant_id: string
+          supplier_lot?: string | null
           unit?: string | null
           updated_at?: string
           weight?: number | null
@@ -1863,6 +1894,7 @@ export type Database = {
           raw_name?: string
           receipt_id?: string
           restaurant_id?: string
+          supplier_lot?: string | null
           unit?: string | null
           updated_at?: string
           weight?: number | null
@@ -1890,6 +1922,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          lot_source: string | null
           notes: string | null
           received_at: string
           reference: string | null
@@ -1897,12 +1930,14 @@ export type Database = {
           source: string
           status: string
           supplier_id: string | null
+          traceability_lot: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           id?: string
+          lot_source?: string | null
           notes?: string | null
           received_at?: string
           reference?: string | null
@@ -1910,12 +1945,14 @@ export type Database = {
           source?: string
           status?: string
           supplier_id?: string | null
+          traceability_lot?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
           id?: string
+          lot_source?: string | null
           notes?: string | null
           received_at?: string
           reference?: string | null
@@ -1923,6 +1960,7 @@ export type Database = {
           source?: string
           status?: string
           supplier_id?: string | null
+          traceability_lot?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5318,8 +5356,24 @@ export type Database = {
         Args: { p_restaurant_id: string; p_user_id?: string }
         Returns: boolean
       }
+      label_active_lots_for_product: {
+        Args: { _product_id: string }
+        Returns: {
+          batch: string
+          expiry_date: string
+          issuance_id: string
+          receipt_id: string
+          received_at: string
+          supplier_id: string
+          supplier_lot: string
+          supplier_name: string
+          traceability_lot: string
+          units_remaining: number
+        }[]
+      }
       label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_finalize_receipt: { Args: { _receipt_id: string }; Returns: Json }
+      label_generate_production_lot: { Args: never; Returns: string }
       label_learn_alias: {
         Args: {
           _product_id: string
