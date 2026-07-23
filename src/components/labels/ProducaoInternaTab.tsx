@@ -565,6 +565,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
               <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
                 <ArrowLeft className="h-4 w-4" /> Trocar produto
               </Button>
+              {activeLots.length > 1 && (
+                <Button variant="ghost" size="sm" onClick={() => setStep("lots")} className="gap-2">
+                  <GitBranch className="h-3.5 w-3.5" /> Trocar lote
+                </Button>
+              )}
             </div>
             <Card className="p-3 bg-primary/5 border-primary/20">
               <div className="flex items-center gap-2">
@@ -574,6 +579,24 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                   {CONSERVATION_LABEL[product.conservation_method || ""] || "—"}
                 </Badge>
               </div>
+              {originLot ? (
+                <div className="mt-2 pt-2 border-t border-primary/10 text-[11px] text-muted-foreground space-y-0.5">
+                  <div className="flex items-center gap-1.5"><GitBranch className="h-3 w-3" /> <strong className="text-foreground">Origem rastreável</strong></div>
+                  <div>Fornecedor: <strong>{originLot.supplier_name || "—"}</strong></div>
+                  <div>
+                    Lote:{" "}
+                    <strong>{originLot.supplier_lot || originLot.traceability_lot || "—"}</strong>
+                    {!originLot.supplier_lot && originLot.traceability_lot && (
+                      <span className="ml-1 text-[10px] opacity-70">(MesaClik)</span>
+                    )}
+                  </div>
+                  <div>Disponível: <strong>{originLot.units_remaining} un</strong></div>
+                </div>
+              ) : (
+                <div className="mt-2 pt-2 border-t border-destructive/20 text-[11px] text-destructive flex items-center gap-1.5">
+                  <AlertTriangle className="h-3 w-3" /> Sem lote de origem — produção sem rastreabilidade
+                </div>
+              )}
             </Card>
 
             <div className="grid grid-cols-2 gap-3">
