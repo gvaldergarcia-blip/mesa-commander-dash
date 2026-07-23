@@ -52,26 +52,6 @@ function todayPlus(days: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function normalizeName(s: string): string[] {
-  return (s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length >= 3);
-}
-
-/** Similaridade simples por sobreposição de tokens significativos (>=3 chars). */
-function nameSimilarity(a: string, b: string): number {
-  const ta = new Set(normalizeName(a));
-  const tb = new Set(normalizeName(b));
-  if (ta.size === 0 || tb.size === 0) return 0;
-  let hit = 0;
-  for (const t of ta) if (tb.has(t)) hit++;
-  return hit / Math.min(ta.size, tb.size);
-}
-
 function daysUntil(dateStr: string): number {
   if (!dateStr) return 1;
   const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -138,13 +118,6 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       return { ...r, ...p };
     })),
   []);
-
-  const recomputeStatus = (r: PendingRow): RowStatus => {
-    if (r.status === "scanning") return "scanning";
-    if (!r.processed) return "idle";
-    const missing = computeMissing(r);
-    return missing.length === 0 ? "ready" : "needs_info";
-  };
 
   const runAiForRow = useCallback(async (row: PendingRow) => {
     if (!row.photos.length) return;
