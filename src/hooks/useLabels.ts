@@ -24,6 +24,8 @@ export interface Label {
   manufacture_date: string;
   expiry_date: string;
   quantity: number;
+  units_used: number;
+  units_remaining: number;
   batch: string | null;
   responsible: string | null;
   employee_id: string | null;
@@ -79,6 +81,8 @@ export function useLabels() {
       if (error) throw error;
       const rows = (data || []).map((r: any) => ({
         ...r,
+        units_used: Number(r.units_used ?? 0),
+        units_remaining: Math.max(0, Number(r.quantity ?? 1) - Number(r.units_used ?? 0)),
         employee_name: r.employee?.name ?? null,
         product_category: r.product?.category ?? null,
       })) as Label[];
@@ -145,37 +149,38 @@ export function useLabels() {
   const dischargeBulk = useMutation({
     mutationFn: async ({ ids, reason, notes }: { ids: string[]; reason: DischargeReason; notes?: string | null }) => {
       if (!restaurantId) return;
-      // A tabela label_discharges tem CHECK constraint (use/loss/error).
-      // Mapeamos os motivos da UI para esse conjunto antes de inserir,
-      // mas gravamos o motivo original em label_issuances.discharge_reason.
-      const CANON: Record<DischargeReason, "use" | "loss" | "error"> = {
-        use: "use",
-        loss: "loss",
-        error: "error",
-        consumo: "use",
-        vencimento: "loss",
-        descarte: "loss",
-        outro: "error",
-      };
-      const canonReason = CANON[reason] ?? "error";
-      // Insert discharge rows
-      const rows = ids.map((id) => ({
-        restaurant_id: restaurantId,
-        label_id: id,
-        reason: canonReason,
-        notes: notes ?? null,
-      }));
-      const { error: dErr } = await (supabase as any).from("label_discharges").insert(rows);
-      if (dErr) throw dErr;
-      const { error: uErr } = await (supabase as any)
+      // Busca códigos das etiquetas para usar a RPC (que trata unidades + estoque + alerta)
+      const { data: rows, error: fErr } = await (supabase as any)
         .from("label_issuances")
-        .update({
-          status: "discharged",
-          discharge_reason: reason,
-          resolved_at: new Date().toISOString(),
-        })
+        .select("id, unique_code, quantity, units_used, product_name, label_product_id, restaurant_id")
         .in("id", ids);
-      if (uErr) throw uErr;
+      if (fErr) throw fErr;
+      for (const row of rows || []) {
+        const remaining = Math.max(1, Number(row.quantity ?? 1) - Number(row.units_used ?? 0));
+        const { data, error } = await (supabase as any).rpc("discharge_label_by_code", {
+          _code: row.unique_code,
+          _reason: reason,
+          _employee_id: null,
+          _notes: notes ?? null,
+          _units: remaining,
+        });
+        if (error) throw error;
+        // Dispara notificação SMS/WhatsApp (fire-and-forget)
+        try {
+          await (supabase as any).functions.invoke("send-label-discharge-alert", {
+            body: {
+              restaurant_id: row.restaurant_id,
+              label_id: row.id,
+              product_id: row.label_product_id,
+              product_name: row.product_name,
+              reason,
+              units: data?.units_used ?? remaining,
+              units_remaining: data?.units_remaining ?? 0,
+              fully_discharged: data?.fully_discharged ?? true,
+            },
+          });
+        } catch (_) { /* ignore */ }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
