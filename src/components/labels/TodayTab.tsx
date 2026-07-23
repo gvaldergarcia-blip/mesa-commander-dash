@@ -19,6 +19,7 @@ import { ptBR } from "date-fns/locale";
 import { useOperationalDiary, OperationalEvent, KitchenEventType } from "@/hooks/useOperationalDiary";
 import { useLabels } from "@/hooks/useLabels";
 import { useStockStatus } from "@/hooks/useStockStatus";
+import { useLabeledProducts } from "@/hooks/useLabeledProducts";
 import { classifyExpiry } from "@/lib/labels/utils";
 import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
@@ -68,7 +69,22 @@ function describe(e: OperationalEvent): string {
 export function TodayTab({ onQuickAction }: Props) {
   const { events, isLoading } = useOperationalDiary({ limit: 150 });
   const { labels } = useLabels();
-  const { missingProducts } = useStockStatus();
+  const { missingProducts, statusMap } = useStockStatus();
+  const { items: labeledProducts } = useLabeledProducts();
+
+  // Mesma regra da aba Produtos: só contamos etiquetas de produtos ainda
+  // visíveis na operação (ativos e NÃO marcados como "Precisa repor"). Isso
+  // garante que os alertas de "Hoje" batam com o que aparece em Produtos e
+  // em Relatórios.
+  const visibleLabelIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of labeledProducts) {
+      if (p.active_labels_count <= 0) continue;
+      if (p.product_id && statusMap.get(p.product_id)?.status === "falta") continue;
+      for (const id of p.active_label_ids) s.add(id);
+    }
+    return s;
+  }, [labeledProducts, statusMap]);
 
   const labelsById = useMemo(() => {
     const m = new Map<string, typeof labels[number]>();
@@ -102,12 +118,14 @@ export function TodayTab({ onQuickAction }: Props) {
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
 
   const alerts = useMemo(() => {
-    const active = labels.filter((l) => l.status !== "discharged");
+    const active = labels.filter(
+      (l) => l.status !== "discharged" && visibleLabelIds.has(l.id),
+    );
     const expired  = active.filter((l) => classifyExpiry(l.expiry_date) === "expired");
     const today    = active.filter((l) => classifyExpiry(l.expiry_date) === "today");
     const tomorrow = active.filter((l) => classifyExpiry(l.expiry_date) === "tomorrow");
     return { expired, today, tomorrow };
-  }, [labels]);
+  }, [labels, visibleLabelIds]);
 
   const todayEvents = useMemo(
     () => events.filter((e) => new Date(e.occurred_at) >= startOfToday),
