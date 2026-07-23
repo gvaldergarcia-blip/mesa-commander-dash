@@ -899,6 +899,50 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
           </p>
         )}
       </section>
+
+      {/* ============ BAIXAS POR USO ============ */}
+      <section className="space-y-4">
+        <SectionHeader title="Baixas por uso" hint={`Últimos ${range} dias`} />
+        <div className="grid grid-cols-3 gap-4">
+          <MetricCard label="Etiquetas baixadas" value={usageDischarges.length} tone={usageDischarges.length ? "ok" : "neutral"} compact />
+          <MetricCard label="Unidades usadas"    value={totalUsedUnits} compact />
+          <MetricCard label="Produtos afetados"  value={usageRankProducts.length} compact />
+        </div>
+
+        {usageDischarges.length === 0 ? (
+          <div className="rounded-2xl border border-border/40 bg-card p-10 text-center text-sm text-muted-foreground">
+            Nenhuma baixa por uso registrada no período.
+          </div>
+        ) : (
+          <>
+            <RankList
+              items={usageRankProducts.slice(0, 10).map((p) => ({ label: p.name, count: p.count }))}
+              empty="Nenhuma baixa por uso no período."
+            />
+            <div className="rounded-2xl border border-border/40 bg-card divide-y divide-border/40 max-h-96 overflow-y-auto">
+              {usageDischarges
+                .slice()
+                .sort((a, b) => new Date(b.resolved_at!).getTime() - new Date(a.resolved_at!).getTime())
+                .slice(0, 50)
+                .map((l) => (
+                  <div key={l.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground truncate">{l.product_name}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                        <span>{format(new Date(l.resolved_at!), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                        {l.employee_name && <><span>·</span><span>{l.employee_name}</span></>}
+                        {(l as any).storage_location && <><span>·</span><span>{(l as any).storage_location}</span></>}
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0">
+                      {l.unique_code}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
