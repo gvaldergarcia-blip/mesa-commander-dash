@@ -65,41 +65,64 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
   // ============ KPIs ============
   // Fonte única de verdade: só consideramos produtos que ainda existem na operação
-  // (mesma regra usada em Estoque e Produtos: product_id + etiquetas ativas
-  // NÃO vencidas > 0). Assim os números batem com o que o funcionário vê na
-  // tela de Conferência de Estoque.
+  // (mesma regra usada na aba "Produtos": tem etiquetas ativas e NÃO está
+  // marcado como "Precisa repor"). Assim os números batem exatamente com o
+  // que o funcionário vê em Produtos e em Estoque.
+  const statusByProduct = useMemo(() => {
+    const m = new Map<string, (typeof statuses)[number]>();
+    for (const s of statuses) m.set(s.product_id, s);
+    return m;
+  }, [statuses]);
+
+  // Produtos "vivos" na operação — mesma regra da aba Produtos.
+  const visibleProducts = useMemo(
+    () =>
+      labeledProducts.filter((p) => {
+        if (p.active_labels_count <= 0) return false;
+        if (p.product_id && statusByProduct.get(p.product_id)?.status === "falta")
+          return false;
+        return true;
+      }),
+    [labeledProducts, statusByProduct],
+  );
+
   const visibleProductIds = useMemo(
     () =>
       new Set(
-        labeledProducts
-          .filter((p) => p.product_id && p.active_non_expired_labels_count > 0)
+        visibleProducts
+          .filter((p) => p.product_id)
           .map((p) => p.product_id!),
       ),
-    [labeledProducts],
+    [visibleProducts],
   );
+  const visibleLabelIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of visibleProducts) for (const id of p.active_label_ids) s.add(id);
+    return s;
+  }, [visibleProducts]);
 
   // Setores que realmente têm produtos operacionais hoje (usado como
   // denominador para "setores conferidos" e para não gerar alertas de
   // conferência para setores vazios).
   const activeSectors = useMemo(() => {
     const s = new Set<string>();
-    for (const p of labeledProducts) {
-      if (p.active_non_expired_labels_count > 0 && p.sector) s.add(p.sector);
-    }
+    for (const p of visibleProducts) if (p.sector) s.add(p.sector);
     return Array.from(s);
-  }, [labeledProducts]);
+  }, [visibleProducts]);
 
   const activeLabels = labels.filter((l) => l.status !== "discharged");
+  // Etiquetas realmente exibidas ao usuário (produtos visíveis apenas).
+  const visibleActiveLabels = activeLabels.filter((l) => visibleLabelIds.has(l.id));
   const labelsToday = labels.filter((l) => isToday(new Date(l.created_at)));
   const conferencesToday = statuses.filter((s) => s.marked_at && isToday(new Date(s.marked_at)));
   // Só contamos "precisa repor" / "atenção" quando o produto ainda é visível.
   const needsRestock = statuses.filter((s) => s.status === "falta" && visibleProductIds.has(s.product_id));
   const attention = statuses.filter((s) => s.status === "atencao" && visibleProductIds.has(s.product_id));
-  const expiredLabels = activeLabels.filter((l) => l.expiry_date && new Date(l.expiry_date) < new Date());
-  // Fonte de verdade EXIBIDA: contamos PRODUTOS vencidos (não etiquetas),
-  // porque é isso que o usuário vê em "Produtos" e no Estoque. Se um produto
-  // tem 7 etiquetas vencidas, ainda é 1 produto vencido.
-  const expiredProducts = labeledProducts.filter((p) => p.status === "expired");
+  // Vencidos: só o que o usuário vê em Produtos (mesma base).
+  const expiredLabels = visibleActiveLabels.filter(
+    (l) => l.expiry_date && new Date(l.expiry_date) < new Date(),
+  );
+  const expiredProducts = visibleProducts.filter((p) => p.status === "expired");
   const expiredProductsCount = expiredProducts.length;
   const dischargesToday = labels.filter((l) => l.status === "discharged" && l.resolved_at && isToday(new Date(l.resolved_at)));
   const lastConference = [...statuses].sort((a, b) => new Date(b.marked_at).getTime() - new Date(a.marked_at).getTime())[0];
