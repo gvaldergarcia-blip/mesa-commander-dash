@@ -236,9 +236,26 @@ interface DialogProps {
 }
 
 function ProductionDialog({ open, onOpenChange, products, employees, onCreateProduct, onCreateLabel, onPrint }: DialogProps) {
-  const [step, setStep] = useState<"select" | "new-product" | "form">("select");
+  const [step, setStep] = useState<"select" | "new-product" | "lots" | "form">("select");
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState<LabelProduct | null>(null);
+
+  // Rastreabilidade: lote de origem escolhido
+  interface ActiveLot {
+    issuance_id: string;
+    batch: string | null;
+    supplier_lot: string | null;
+    traceability_lot: string | null;
+    supplier_id: string | null;
+    supplier_name: string | null;
+    receipt_id: string | null;
+    received_at: string | null;
+    expiry_date: string;
+    units_remaining: number;
+  }
+  const [activeLots, setActiveLots] = useState<ActiveLot[]>([]);
+  const [loadingLots, setLoadingLots] = useState(false);
+  const [originLot, setOriginLot] = useState<ActiveLot | null>(null);
 
   // Novo produto
   const [np, setNp] = useState({
@@ -268,6 +285,8 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     setStep("select");
     setSearch("");
     setProduct(null);
+    setActiveLots([]);
+    setOriginLot(null);
     setNp({ name: "", category: "", unit: "un", conservation: "refrigerated", storage_location: "", validity_days: 3 });
     setProd({ qty: 1, unit: "un", weight: "", weight_unit: "kg", expiry: toDateInput(new Date(Date.now() + 3 * 86400000)), expiryTime: "23:59", employeeId: "", notes: "" });
   };
@@ -284,7 +303,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     return list.filter((p) => p.name.toLowerCase().includes(s)).slice(0, 30);
   }, [products, search]);
 
-  const pickProduct = (p: LabelProduct) => {
+  const pickProduct = async (p: LabelProduct) => {
     setProduct(p);
     const validity = p.validity_days || 3;
     const exp = new Date(Date.now() + validity * 86400000);
@@ -293,7 +312,28 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
       unit: p.unit || "un",
       expiry: toDateInput(exp),
     }));
-    setStep("form");
+    // Buscar lotes ativos para rastreabilidade
+    setLoadingLots(true);
+    setStep("lots");
+    try {
+      const { data, error } = await (supabase as any).rpc("label_active_lots_for_product", {
+        _product_id: p.id,
+      });
+      if (error) throw error;
+      const lots = (data || []) as ActiveLot[];
+      setActiveLots(lots);
+      if (lots.length === 1) {
+        setOriginLot(lots[0]);
+        setStep("form");
+      } else if (lots.length === 0) {
+        setOriginLot(null);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao buscar lotes");
+      setActiveLots([]);
+    } finally {
+      setLoadingLots(false);
+    }
   };
 
   const saveNewProduct = async () => {
@@ -328,11 +368,19 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     if (expiryDate <= manufactureDate) return toast.error("Validade deve ser posterior à produção");
 
     const employee = employees.find((e) => e.id === prod.employeeId);
-    const batch = `${BATCH_PREFIX}${Date.now().toString(36).toUpperCase()}`;
+    // Gera lote único de produção via RPC (PRD-YYYYMMDD-NNN)
+    let batch = `${BATCH_PREFIX}${Date.now().toString(36).toUpperCase()}`;
+    try {
+      const { data: gen } = await (supabase as any).rpc("label_generate_production_lot");
+      if (typeof gen === "string" && gen) batch = gen;
+    } catch { /* fallback local */ }
     const weightNum = prod.weight ? Number(prod.weight.replace(",", ".")) : null;
 
     setSaving(true);
     try {
+      const originNote = originLot
+        ? ` · Origem: ${originLot.supplier_name || "MesaClik"} · Lote ${originLot.supplier_lot || originLot.traceability_lot || "—"}`
+        : "";
       const inserted = await onCreateLabel({
         label_product_id: product.id,
         product_name: product.name,
@@ -343,9 +391,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
         responsible: employee?.name || null,
         employee_id: employee?.id || null,
         conservation_method: (product.conservation_method as any) || "refrigerated",
-        notes: prod.notes.trim() ? `[Produção Interna] ${prod.notes.trim()}` : "[Produção Interna]",
+        notes: (prod.notes.trim() ? `[Produção Interna] ${prod.notes.trim()}` : "[Produção Interna]") + originNote,
         allergens: (product as any).allergens || null,
         ingredients: (product as any).ingredients || null,
+        origin_issuance_id: originLot?.issuance_id ?? null,
+        // supplier_* e origin_traceability_lot são preenchidos pelo trigger
       });
 
       // Persist peso da produção (se informado)
