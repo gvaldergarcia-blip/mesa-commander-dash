@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronDown, Loader2, BookOpen, History, Clock, Printer, Truck, Flag } from "lucide-react";
 import { useReceipts } from "@/hooks/useReceipts";
 import { NewReceiptDialog } from "./NewReceiptDialog";
+import { PhotoFirstReceiving } from "./PhotoFirstReceiving";
 import { PendingItemsPanel } from "./PendingItemsPanel";
 import { OperationalDiary } from "./OperationalDiary";
 import { useDiaryHistory } from "@/hooks/useDiaryReceipts";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 export function ReceivingTab() {
   const { receipts, isLoading, cancelReceipt, finalizeReceipt, isFinalizing } = useReceipts();
   const [newOpen, setNewOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [finalizingId, setFinalizingId] = useState<string | null>(null);
 
@@ -32,15 +34,20 @@ export function ReceivingTab() {
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-bold">Recebimento inteligente</h2>
+              <h2 className="text-lg md:text-xl font-bold">Recebimento por fotos</h2>
               <p className="text-sm text-muted-foreground max-w-xl">
-                Registre a lista do fornecedor. Depois envie fotos das etiquetas para o sistema casar item por item.
+                Fotografe as embalagens. A IA agrupa por produto, extrai nome, marca, validade, lote e SIF, e só pede o que faltar.
               </p>
             </div>
           </div>
-          <Button size="lg" onClick={() => setNewOpen(true)} className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
-            <PackagePlus className="h-5 w-5" /> Novo recebimento
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <Button size="lg" onClick={() => setPhotoOpen(true)} className="gap-2 shadow-lg shadow-primary/20 w-full sm:w-auto">
+              <Sparkles className="h-5 w-5" /> Fotografar produtos
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => setNewOpen(true)} className="gap-2 w-full sm:w-auto">
+              <PackagePlus className="h-5 w-5" /> Digitar manualmente
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -224,6 +231,7 @@ export function ReceivingTab() {
         onOpenChange={setNewOpen}
         onCreated={(id) => setExpandedId(id)}
       />
+      <PhotoFirstReceiving open={photoOpen} onOpenChange={setPhotoOpen} />
     </div>
   );
 }
