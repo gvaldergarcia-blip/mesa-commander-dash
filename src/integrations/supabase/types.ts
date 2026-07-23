@@ -5373,6 +5373,7 @@ export type Database = {
       }
       label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_finalize_receipt: { Args: { _receipt_id: string }; Returns: Json }
+      label_generate_manipulation_lot: { Args: never; Returns: string }
       label_generate_production_lot: { Args: never; Returns: string }
       label_learn_alias: {
         Args: {
