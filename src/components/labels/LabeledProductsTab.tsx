@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Tag, Printer, ChevronDown, Truck, Calendar, Package as PackageIcon,
@@ -41,18 +41,24 @@ function fromNow(iso: string | null): string {
 
 interface Props {
   onPrintProduct?: (productId: string) => void;
+  initialStatusFilter?: "all" | "ok" | "critical" | "expired" | "warning";
 }
 
-export function LabeledProductsTab({ onPrintProduct }: Props) {
+export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Props) {
   const { items, isLoading } = useLabeledProducts();
   const { dischargeBulk } = useLabels();
   const { statusMap } = useStockStatus();
   const [sectorFilter, setSectorFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "ok" | "critical" | "expired">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "ok" | "critical" | "expired" | "warning">(initialStatusFilter ?? "all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dischargeTarget, setDischargeTarget] = useState<LabeledProduct | null>(null);
   const [isDischarging, setIsDischarging] = useState(false);
+
+  // Sincroniza quando o pai muda o filtro (ex.: usuário clicou em "vencem hoje" na aba Hoje)
+  useEffect(() => {
+    if (initialStatusFilter) setStatusFilter(initialStatusFilter);
+  }, [initialStatusFilter]);
 
   const REASONS: { value: DischargeReason; label: string; icon: any; hint: string }[] = [
     { value: "vencimento", label: "Vencimento", icon: Clock, hint: "Produto passou da validade" },
@@ -110,6 +116,7 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
         if (statusFilter === "ok" && it.status !== "ok" && it.status !== "warning") return false;
         if (statusFilter === "critical" && it.status !== "critical") return false;
         if (statusFilter === "expired" && it.status !== "expired") return false;
+        if (statusFilter === "warning" && it.status !== "warning") return false;
       }
       return true;
     });
