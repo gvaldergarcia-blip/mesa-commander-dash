@@ -49,193 +49,128 @@ serve(async (req) => {
       });
     }
 
-    // Fetch labels for the employee's sectors
-    const sectors: string[] = emp.sectors || [];
     const now = new Date();
-    const in24h = new Date(now.getTime() + 24 * 3600 * 1000);
-    const endOfToday = new Date(now); endOfToday.setHours(23, 59, 59, 999);
+    const in3d = new Date(now.getTime() + 3 * 24 * 3600 * 1000);
+
+    // Prepare recipient phone early (used for dedupe)
+    const phoneDigits = rawPhone.replace(/\D/g, "");
+    const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
 
     const { data: labels } = await sb
       .from("label_issuances")
-      .select("id, product_name, expiry_date, status, label_product_id, product:label_product_id ( category, storage_location )")
+      .select("id, product_name, expiry_date, status, label_product_id, product:label_product_id ( storage_location, category )")
       .eq("restaurant_id", emp.restaurant_id)
       .neq("status", "discharged")
-      .limit(1000);
+      .limit(5000);
 
-    const inSector = (l: any) => {
-      if (!sectors.length) return true;
-      const cat = l.product?.category;
-      return cat && sectors.includes(cat);
-    };
+    const relevant = labels || [];
 
-    const relevant = (labels || []).filter(inSector);
-
-    // Products marked as "falta" for reposição (mesmos setores do funcionário)
+    // Produtos marcados como "falta" (críticos)
     const { data: missing } = await sb
       .from("product_stock_status")
-      .select("product_id, sector, product:product_id ( name, category, storage_location )")
+      .select("product_id, sector, product:product_id ( name, storage_location, category )")
       .eq("restaurant_id", emp.restaurant_id)
       .eq("status", "falta");
-    const missingList = (missing || [])
-      .filter((m: any) => {
-        if (!sectors.length) return true;
-        const cat = m.product?.category || m.sector;
-        return cat && sectors.includes(cat);
-      })
-      .map((m: any) => ({
-        name: m.product?.name || "Produto",
-        sector: m.product?.category || m.sector || "Sem setor",
-      }));
-    const fmtHora = (d: Date) =>
-      d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-    const fmtDia = (d: Date) =>
-      d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 
-    const expiredList: { name: string; exp: Date; sector: string }[] = [];
-    const todayList: { name: string; exp: Date; sector: string }[] = [];
-    const next24hList: { name: string; exp: Date; sector: string }[] = [];
-    for (const l of relevant) {
-      const exp = new Date(l.expiry_date);
-      const sector = l.product?.category || "Sem setor";
-      if (exp <= now) expiredList.push({ name: l.product_name, exp, sector });
-      else if (exp <= endOfToday) todayList.push({ name: l.product_name, exp, sector });
-      else if (exp <= in24h) next24hList.push({ name: l.product_name, exp, sector });
-    }
-    expiredList.sort((a, b) => a.exp.getTime() - b.exp.getTime());
-    todayList.sort((a, b) => a.exp.getTime() - b.exp.getTime());
-    next24hList.sort((a, b) => a.exp.getTime() - b.exp.getTime());
-
-    const firstName = emp.name.split(" ")[0];
-
-    // Agrupa por produto+setor (evita listar cada etiqueta individualmente)
-    const groupCount = (arr: { name: string; sector: string }[]) => {
-      const m = new Map<string, { name: string; sector: string; qty: number }>();
-      for (const it of arr) {
-        const k = `${it.name}::${it.sector}`;
-        const prev = m.get(k);
+    // Agrupa por produto+setor (uma linha por produto, com quantidade)
+    type Group = { key: string; name: string; sector: string; qty: number };
+    const groupBy = (arr: any[]): Group[] => {
+      const m = new Map<string, Group>();
+      for (const l of arr) {
+        const sector = l.product?.storage_location || l.product?.category || "Sem setor";
+        const key = `${l.label_product_id || l.product_name}::${sector}`;
+        const prev = m.get(key);
         if (prev) prev.qty++;
-        else m.set(k, { name: it.name, sector: it.sector, qty: 1 });
+        else m.set(key, { key, name: l.product_name, sector, qty: 1 });
       }
-      return Array.from(m.values());
+      return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name));
     };
 
-    const descartar = [...groupCount(expiredList), ...groupCount(todayList)];
-    const reposicao = missingList;
+    const expired = relevant.filter((l: any) => new Date(l.expiry_date) <= now);
+    const soon = relevant.filter((l: any) => {
+      const exp = new Date(l.expiry_date);
+      return exp > now && exp <= in3d;
+    });
+    const expiredGroups = groupBy(expired);
+    const soonGroups = groupBy(soon);
+    const criticos = (missing || []).length;
 
     const linhas: string[] = [];
-    if (mode === "test") linhas.push("[MESACLIK] Teste");
-    else if (mode === "expiry_alert") linhas.push("🚨 MESACLIK");
-    else linhas.push("[MESACLIK]");
-    linhas.push("");
-    if (mode === "expiry_alert") {
-      const t = expiredList[0];
-      linhas.push(`1 etiqueta venceu agora.`);
+    if (mode === "test") {
+      linhas.push("[MESACLIK] Teste");
       linhas.push("");
+      linhas.push("Este é um envio de teste do sistema de alertas.");
+      linhas.push("Números reais de hoje:");
+      linhas.push(`🔴 ${expiredGroups.length} vencidos`);
+      linhas.push(`🟠 ${soonGroups.length} vencem em até 3 dias`);
+      linhas.push(`🟡 ${criticos} críticos`);
+    } else if (mode === "expiry_alert") {
+      // Compat: mantém envio individual caso ainda seja chamado
+      linhas.push("🚨 MESACLIK");
+      linhas.push("");
+      linhas.push("Alerta imediato de vencimento.");
+      const t = expiredGroups[0] || soonGroups[0];
       if (t) {
-        linhas.push(`Produto:`);
-        linhas.push(t.name);
         linhas.push("");
+        linhas.push(`• ${t.name}`);
         linhas.push(`📍 ${t.sector}`);
-        linhas.push("");
       }
+      linhas.push("");
       linhas.push("Realize a baixa imediatamente.");
     } else {
-      linhas.push(`Bom dia, ${firstName}!`);
+      linhas.push("📋 Resumo MesaClik");
       linhas.push("");
-      if (sectors.length) {
-        linhas.push(`📍 Seus setores:`);
-        for (const s of sectors) linhas.push(`• ${s}`);
-      } else {
-        linhas.push(`📍 Todos os setores`);
-      }
-      linhas.push("");
-      linhas.push(`Resumo de hoje`);
-      linhas.push("");
-      linhas.push(`🚨 Vencidas: ${expiredList.length}`);
-      linhas.push(`⏰ Vencem hoje: ${todayList.length}`);
-      linhas.push(`📦 Precisam repor: ${reposicao.length}`);
-      if (descartar.length) {
+      linhas.push("Hoje:");
+      linhas.push(`🔴 ${expiredGroups.length} produto${expiredGroups.length === 1 ? "" : "s"} vencido${expiredGroups.length === 1 ? "" : "s"}`);
+      linhas.push(`🟠 ${soonGroups.length} vence${soonGroups.length === 1 ? "" : "m"} em até 3 dias`);
+      linhas.push(`🟡 ${criticos} produto${criticos === 1 ? "" : "s"} crítico${criticos === 1 ? "" : "s"}`);
+      if (expiredGroups.length) {
         linhas.push("");
-        linhas.push(`Descartar agora`);
-        for (const it of descartar.slice(0, 8)) {
-          linhas.push("");
-          linhas.push(`• ${it.name}${it.qty > 1 ? ` (${it.qty})` : ""}`);
-          linhas.push(`📍 ${it.sector}`);
+        linhas.push("🔴 Vencidos:");
+        for (const g of expiredGroups.slice(0, 6)) {
+          linhas.push(`• ${g.name}${g.qty > 1 ? ` (${g.qty})` : ""} — 📍 ${g.sector}`);
         }
-        if (descartar.length > 8) linhas.push(`\n+ ${descartar.length - 8} outros`);
+        if (expiredGroups.length > 6) linhas.push(`…e mais ${expiredGroups.length - 6}.`);
       }
-      if (reposicao.length) {
+      if (soonGroups.length && expiredGroups.length + soonGroups.length <= 12) {
         linhas.push("");
-        linhas.push(`Reposição`);
-        for (const it of reposicao.slice(0, 8)) {
-          linhas.push("");
-          linhas.push(`• ${it.name}`);
-          linhas.push(`📍 ${it.sector}`);
+        linhas.push("🟠 Próximos 3 dias:");
+        for (const g of soonGroups.slice(0, 6)) {
+          linhas.push(`• ${g.name}${g.qty > 1 ? ` (${g.qty})` : ""} — 📍 ${g.sector}`);
         }
-        if (reposicao.length > 8) linhas.push(`\n+ ${reposicao.length - 8} outros`);
+        if (soonGroups.length > 6) linhas.push(`…e mais ${soonGroups.length - 6}.`);
       }
-      if (!descartar.length && !reposicao.length) {
+      if (!expiredGroups.length && !soonGroups.length && !criticos) {
         linhas.push("");
         linhas.push("Tudo em ordem ✅");
       }
     }
     linhas.push("");
-    linhas.push(`Painel:`);
+    linhas.push("Acesse o painel para agir:");
     linhas.push(PANEL_URL);
 
     const message = trim(linhas.join("\n"));
 
-    // Send WhatsApp + SMS fallback via internal bridge. SMS must continue even when WhatsApp template delivery fails.
-    const phoneDigits = rawPhone.replace(/\D/g, "");
-    const to = phoneDigits.startsWith("55") ? `+${phoneDigits}` : `+55${phoneDigits}`;
-
-    // For WhatsApp tests/expiry alerts, use approved template (mandatory outside 24h window)
-    let smsBody: Record<string, unknown> = { to, message, channel: "both" };
-
-    if (mode === "test" || (mode === "expiry_alert" && triggered_label_id)) {
-      const templateSid = Deno.env.get("TWILIO_WA_TEMPLATE_ETIQUETA_ALERTA") || DEFAULT_LABEL_ALERT_TEMPLATE_SID;
-      let triggered: any = relevant.find((l: any) => l.id === triggered_label_id)
-        || expiredList[0] || todayList[0] || next24hList[0];
-      if (mode === "expiry_alert" && triggered_label_id && !triggered) {
-        const { data: t } = await sb
-          .from("label_issuances")
-          .select("id, product_name, expiry_date")
-          .eq("id", triggered_label_id)
-          .maybeSingle();
-        if (t) triggered = { name: t.product_name, exp: new Date(t.expiry_date) };
-      }
-
-      if (templateSid) {
-        const productName = mode === "test"
-          ? "Teste MesaClik"
-          : (triggered as any)?.name || (triggered as any)?.product_name || "produto";
-        const exp = mode === "test"
-          ? now
-          : (triggered as any)?.exp instanceof Date
-          ? (triggered as any).exp
-          : new Date((triggered as any).expiry_date);
-        const diffMin = Math.round((exp.getTime() - now.getTime()) / 60000);
-        const tempo = mode === "test"
-          ? "agora (mensagem de teste)"
-          : diffMin <= 0
-          ? `agora (venceu às ${fmtHora(exp)})`
-          : diffMin < 60
-          ? `${diffMin}min`
-          : `${Math.round(diffMin / 60)}h`;
-
-        smsBody = {
-          to,
-          message,
-          channel: "both",
-          contentSid: templateSid,
-          contentVariables: {
-            "1": firstName,
-            "2": String(productName).slice(0, 60),
-            "3": tempo,
-          },
-        };
+    // Dedupe: 1 SMS de resumo por telefone por dia
+    if (mode === "scheduled") {
+      const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+      const { data: dup } = await sb
+        .from("label_sms_logs")
+        .select("id")
+        .eq("restaurant_id", emp.restaurant_id)
+        .eq("phone", to)
+        .eq("kind", "daily")
+        .eq("status", "sent")
+        .gte("sent_at", startOfDay.toISOString())
+        .limit(1);
+      if ((dup || []).length > 0) {
+        return new Response(JSON.stringify({ success: true, skipped: "already_sent_today" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
+
+    const smsBody: Record<string, unknown> = { to, message, channel: "both" };
 
     const smsRes = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
       method: "POST",
