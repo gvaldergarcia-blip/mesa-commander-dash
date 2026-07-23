@@ -45,6 +45,7 @@ export default function EtiquetaScan() {
   const [notes, setNotes] = useState("");
   const [lossReason, setLossReason] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [unitsToDischarge, setUnitsToDischarge] = useState<number>(1);
 
   const load = async () => {
     if (!code) return;
@@ -101,17 +102,38 @@ export default function EtiquetaScan() {
               .join(" — ")
           : notes.trim() || null;
 
+      const remaining = Math.max(1, Number(label?.units_remaining ?? label?.quantity ?? 1));
+      const units = Math.max(1, Math.min(unitsToDischarge || 1, remaining));
       const { data, error } = await (supabase as any).rpc("discharge_label_by_code", {
         _code: code,
         _reason: reason,
         _employee_id: null,
         _notes: composedNotes || null,
+        _units: units,
       });
       if (error || !data?.success) throw new Error(error?.message || data?.error || "Erro ao baixar");
-      toast.success(REASON_LABEL[reason] + " registrada");
+      toast.success(
+        `${REASON_LABEL[reason]} registrada (${data.units_used} unidade${data.units_used === 1 ? "" : "s"})`,
+      );
+      // Notificação SMS/WhatsApp (fire-and-forget)
+      try {
+        await (supabase as any).functions.invoke("send-label-discharge-alert", {
+          body: {
+            restaurant_id: label?.restaurant_id,
+            label_id: data?.label_id,
+            product_id: data?.label_product_id,
+            product_name: data?.product_name || label?.product_name,
+            reason,
+            units: data?.units_used,
+            units_remaining: data?.units_remaining,
+            fully_discharged: data?.fully_discharged,
+          },
+        });
+      } catch (_) { /* ignore */ }
       setReason(null);
       setNotes("");
       setLossReason("");
+      setUnitsToDischarge(1);
       await load();
     } catch (e: any) {
       toast.error(e.message || "Erro");
@@ -240,7 +262,9 @@ export default function EtiquetaScan() {
             </div>
             <div className="bg-[#1A1A2E] rounded-xl p-3 border border-[#2D2D44]">
               <div className="text-[10px] uppercase tracking-wider text-[#718096] font-semibold mb-0.5">Qtd.</div>
-              <div className="text-white font-medium">{label.quantity || "—"}</div>
+              <div className="text-white font-medium">
+                {label.units_remaining ?? label.quantity} / {label.quantity}
+              </div>
             </div>
             <div className="bg-[#1A1A2E] rounded-xl p-3 border border-[#2D2D44]">
               <div className="text-[10px] uppercase tracking-wider text-[#718096] font-semibold mb-0.5 flex items-center gap-1">
@@ -394,6 +418,49 @@ export default function EtiquetaScan() {
                   maxLength={200}
                   className="mt-3 bg-[#161626] border-[#2D2D44] text-white placeholder:text-[#4A5568]"
                 />
+              )}
+
+              {reason && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
+                <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-2">
+                    Quantas unidades? (restam {label.units_remaining ?? label.quantity})
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setUnitsToDischarge((n) => Math.max(1, n - 1))}
+                      className="h-10 w-10 rounded-xl bg-[#2D2D44] text-white text-xl font-bold"
+                    >−</button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={label.units_remaining ?? label.quantity ?? 1}
+                      value={unitsToDischarge}
+                      onChange={(e) => {
+                        const v = Number(e.target.value) || 1;
+                        const max = Number(label.units_remaining ?? label.quantity ?? 1);
+                        setUnitsToDischarge(Math.max(1, Math.min(v, max)));
+                      }}
+                      className="flex-1 h-10 bg-[#0F0F1A] border border-[#2D2D44] rounded-xl text-center text-white font-bold text-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUnitsToDischarge((n) =>
+                          Math.min(Number(label.units_remaining ?? label.quantity ?? 1), n + 1),
+                        )
+                      }
+                      className="h-10 w-10 rounded-xl bg-[#2D2D44] text-white text-xl font-bold"
+                    >+</button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUnitsToDischarge(Number(label.units_remaining ?? label.quantity ?? 1))
+                      }
+                      className="h-10 px-3 rounded-xl bg-[#FF6B00]/20 text-[#FF6B00] font-semibold text-xs"
+                    >Todas</button>
+                  </div>
+                </div>
               )}
 
               <button
