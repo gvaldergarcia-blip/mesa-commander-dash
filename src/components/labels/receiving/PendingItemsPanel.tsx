@@ -1,17 +1,28 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle, PenLine } from "lucide-react";
+import {
+  Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle, PenLine,
+  Upload, X, Image as ImageIcon, Clock,
+} from "lucide-react";
 import { SectorCombobox } from "@/components/labels/SectorCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-// Setores agora vêm do SectorCombobox (unifica defaults + custom).
 import { useReceipts } from "@/hooks/useReceipts";
 import { cn } from "@/lib/utils";
 
+const MAX_PHOTOS_PER_PRODUCT = 10;
+
 type Conservation = "refrigerated" | "frozen" | "ambient" | "hot";
+type RowStatus = "idle" | "scanning" | "needs_info" | "ready";
+
+interface RowPhoto {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
 
 interface PendingRow {
   itemId: string;
@@ -26,7 +37,10 @@ interface PendingRow {
   brand: string;
   weight: string;
   confidence: number; // 0..1 (0 = ainda não lido)
-  matched: boolean;
+  processed: boolean;   // IA já rodou (mesmo que sem match) OU marcado manual
+  photos: RowPhoto[];
+  status: RowStatus;
+  missing: string[];    // campos que a IA não conseguiu ler / precisam atenção
 }
 
 function todayPlus(days: number): string {
@@ -96,7 +110,6 @@ interface Props {
 
 export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone }: Props) {
   const { bulkResolvePending, isBulkResolving } = useReceipts();
-  const [scanning, setScanning] = useState(false);
   const [rows, setRows] = useState<PendingRow[]>(() =>
     pendingItems.map((it) => ({
       itemId: it.id,
@@ -111,119 +124,127 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       brand: "",
       weight: "",
       confidence: 0,
-      matched: false,
+      processed: false,
+      photos: [],
+      status: "idle" as RowStatus,
+      missing: [],
     })),
   );
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const patch = (itemId: string, upd: Partial<PendingRow>) =>
-    setRows((rs) => rs.map((r) => (r.itemId === itemId ? { ...r, ...upd } : r)));
+  const patch = useCallback((itemId: string, upd: Partial<PendingRow> | ((r: PendingRow) => Partial<PendingRow>)) =>
+    setRows((rs) => rs.map((r) => {
+      if (r.itemId !== itemId) return r;
+      const p = typeof upd === "function" ? upd(r) : upd;
+      return { ...r, ...p };
+    })),
+  []);
 
-  const handlePhotos = async (files: FileList | null) => {
-    if (!files || !files.length) return;
-    setScanning(true);
+  const recomputeStatus = (r: PendingRow): RowStatus => {
+    if (r.status === "scanning") return "scanning";
+    if (!r.processed) return "idle";
+    const missing = computeMissing(r);
+    return missing.length === 0 ? "ready" : "needs_info";
+  };
+
+  const runAiForRow = useCallback(async (row: PendingRow) => {
+    if (!row.photos.length) return;
+    patch(row.itemId, { status: "scanning" });
     try {
       const photos = await Promise.all(
-        Array.from(files).slice(0, 12).map(async (f) => ({
-          base64: await fileToBase64(f),
-          mime_type: f.type,
+        row.photos.slice(0, MAX_PHOTOS_PER_PRODUCT).map(async (p) => ({
+          base64: await fileToBase64(p.file),
+          mime_type: p.file.type,
         })),
       );
-      const candidates = rows.map((r) => r.rawName);
       const { data, error } = await supabase.functions.invoke("parse-labels-batch", {
-        body: { photos, candidates },
+        body: { photos, candidates: [row.rawName] },
       });
       if (error) throw error;
-
-      const results = (data?.results ?? []) as Array<{ labels: any[] }>;
-      const allLabels = results.flatMap((r) => r.labels || []);
-
-      // 1) Só aceita labels com match válido e confiança mínima.
-      // 2) Para cada rawName candidato, escolhe UM único melhor label (maior confiança).
-      //    Isso impede que a IA aloque os MESMOS dados de uma foto para vários itens.
-      const bestByRaw = new Map<string, any>();
-      for (const lb of allLabels) {
-        if (!lb?.match || typeof lb.match !== "string") continue;
-        if ((lb.confidence ?? 0) < 0.6) continue;
-        // Rejeita quando o "match" da IA não bate minimamente com o rawName
-        // (evita que uma foto seja aplicada a itens que ela não representa).
-        const sim = nameSimilarity(lb.match, lb.name || "");
-        if (sim < 0.34 && (lb.confidence ?? 0) < 0.85) continue;
-        const prev = bestByRaw.get(lb.match);
-        if (!prev || (lb.confidence ?? 0) > (prev.confidence ?? 0)) {
-          bestByRaw.set(lb.match, lb);
-        }
+      const labels = ((data?.results ?? []) as Array<{ labels: any[] }>).flatMap((r) => r.labels || []);
+      // Escolhe o melhor label — se houver match usa; senão pega o de maior confiança
+      let best: any = null;
+      for (const lb of labels) {
+        if (!lb) continue;
+        if (!best || (lb.confidence ?? 0) > (best.confidence ?? 0)) best = lb;
       }
-
-      let filled = 0;
-      setRows((rs) => {
-        const used = new Set<string>();
-        return rs.map((r) => {
-          if (r.matched) return r; // já preenchido antes, não sobrescreve
-          const lb = bestByRaw.get(r.rawName);
-          if (!lb) return r;
-          if (used.has(r.rawName)) return r;
-          // Cinturão-e-suspensórios: confere similaridade contra o próprio
-          // nome bruto do item (evita alocar dados de uma foto ao item errado).
-          const sim = nameSimilarity(r.rawName, lb.name || lb.match || "");
-          if (sim < 0.25) return r;
-          used.add(r.rawName);
-          filled++;
-          return {
-            ...r,
-            matched: true,
-            confidence: lb.confidence || 0,
-            name: lb.name || r.name,
-            validity_date: lb.expires_at || r.validity_date,
-            conservation: lb.conservation || r.conservation,
-            sif: lb.sif || r.sif,
-            batch: lb.batch || r.batch,
-            brand: lb.brand || r.brand,
-            weight: lb.weight || r.weight,
-          };
-        });
-      });
-      const missing = rows.filter((r) => !r.matched).length - filled;
-      if (filled === 0) {
-        toast.warning("Nenhuma etiqueta reconhecida nas fotos.");
-      } else if (missing > 0) {
-        toast.success(
-          `${filled} etiqueta(s) casada(s). Faltam ${missing} — envie mais fotos ou preencha manualmente.`,
-        );
-      } else {
-        toast.success(`${filled} etiqueta(s) casada(s) automaticamente.`);
+      setRows((rs) => rs.map((r) => {
+        if (r.itemId !== row.itemId) return r;
+        const merged: PendingRow = {
+          ...r,
+          processed: true,
+          confidence: best?.confidence ?? 0,
+          name: best?.name || r.name,
+          validity_date: best?.expires_at || r.validity_date,
+          conservation: best?.conservation || r.conservation,
+          sif: best?.sif || r.sif,
+          batch: best?.batch || r.batch,
+          brand: best?.brand || r.brand,
+          weight: best?.weight || r.weight,
+          status: "scanning",
+          missing: [],
+        };
+        merged.missing = computeMissing(merged);
+        merged.status = merged.missing.length === 0 ? "ready" : "needs_info";
+        return merged;
+      }));
+      if (!best) {
+        toast.warning(`Nada reconhecido em "${row.rawName}". Preencha manualmente.`);
       }
     } catch (e: any) {
       toast.error(e.message || "Erro ao ler fotos");
-    } finally {
-      setScanning(false);
-      if (fileRef.current) fileRef.current.value = "";
+      patch(row.itemId, (r) => ({ status: r.processed ? recomputeStatus(r) : "idle" }));
     }
+  }, [patch]);
+
+  const addPhotos = useCallback(async (itemId: string, files: FileList | null) => {
+    if (!files || !files.length) return;
+    let rowSnapshot: PendingRow | null = null;
+    setRows((rs) => rs.map((r) => {
+      if (r.itemId !== itemId) return r;
+      const remaining = Math.max(0, MAX_PHOTOS_PER_PRODUCT - r.photos.length);
+      const incoming = Array.from(files).slice(0, remaining).map((f) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file: f,
+        previewUrl: URL.createObjectURL(f),
+      }));
+      if (incoming.length === 0) {
+        toast.warning(`Limite de ${MAX_PHOTOS_PER_PRODUCT} fotos por produto atingido.`);
+        return r;
+      }
+      const next = { ...r, photos: [...r.photos, ...incoming] };
+      rowSnapshot = next;
+      return next;
+    }));
+    // Dispara IA automaticamente para o produto assim que fotos são anexadas.
+    if (rowSnapshot) await runAiForRow(rowSnapshot);
+  }, [runAiForRow]);
+
+  const removePhoto = (itemId: string, photoId: string) => {
+    setRows((rs) => rs.map((r) => {
+      if (r.itemId !== itemId) return r;
+      const removed = r.photos.find((p) => p.id === photoId);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return { ...r, photos: r.photos.filter((p) => p.id !== photoId) };
+    }));
   };
 
   const markManual = (itemId: string) =>
-    patch(itemId, { matched: true, confidence: 1 });
+    setRows((rs) => rs.map((r) => {
+      if (r.itemId !== itemId) return r;
+      const merged: PendingRow = { ...r, processed: true, confidence: 1 };
+      merged.missing = computeMissing(merged);
+      merged.status = merged.missing.length === 0 ? "ready" : "needs_info";
+      return merged;
+    }));
 
-  const readyRows = useMemo(
-    () => rows.filter((r) => r.matched && r.storage_location.trim()),
-    [rows],
-  );
-  const matchedButNoLocal = useMemo(
-    () => rows.filter((r) => r.matched && !r.storage_location.trim()),
-    [rows],
-  );
-  const unmatchedRows = useMemo(
-    () => rows.filter((r) => !r.matched),
-    [rows],
-  );
+  const readyRows = useMemo(() => rows.filter((r) => r.status === "ready"), [rows]);
+  const needsInfoRows = useMemo(() => rows.filter((r) => r.status === "needs_info"), [rows]);
+  const idleRows = useMemo(() => rows.filter((r) => r.status === "idle"), [rows]);
+  const scanningRows = useMemo(() => rows.filter((r) => r.status === "scanning"), [rows]);
 
   const handleFinalize = async () => {
-    if (matchedButNoLocal.length > 0) {
-      toast.error(`Preencha o Local em ${matchedButNoLocal.length} item(ns).`);
-      return;
-    }
     if (readyRows.length === 0) {
-      toast.warning("Nenhum item pronto. Envie fotos ou preencha manualmente pelo menos um item.");
+      toast.warning("Nenhum produto pronto. Anexe fotos ou preencha os campos faltantes.");
       return;
     }
     await bulkResolvePending({
@@ -247,135 +268,299 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       }),
     });
     // Remove os que acabaram de ser processados; deixa os pendentes no painel.
-    const processed = new Set(readyRows.map((r) => r.itemId));
-    setRows((rs) => rs.filter((r) => !processed.has(r.itemId)));
-    if (unmatchedRows.length === 0) onDone?.();
-  };
-
-  const confBadge = (r: PendingRow) => {
-    if (!r.matched) return <Badge variant="outline" className="text-[10px]">A completar</Badge>;
-    if (r.confidence >= 0.85) return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] gap-1"><CheckCircle2 className="h-3 w-3" /> {Math.round(r.confidence * 100)}%</Badge>;
-    if (r.confidence >= 0.6) return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px] gap-1"><AlertTriangle className="h-3 w-3" /> Revisar {Math.round(r.confidence * 100)}%</Badge>;
-    return <Badge variant="destructive" className="text-[10px]">Baixa {Math.round(r.confidence * 100)}%</Badge>;
+    const processedIds = new Set(readyRows.map((r) => r.itemId));
+    setRows((rs) => {
+      rs.forEach((r) => {
+        if (processedIds.has(r.itemId)) r.photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      });
+      return rs.filter((r) => !processedIds.has(r.itemId));
+    });
+    const pendingLeft = rows.length - readyRows.length;
+    if (pendingLeft === 0) onDone?.();
+    else {
+      toast.info(`${readyRows.length} etiqueta(s) gerada(s). ${pendingLeft} produto(s) ficaram pendentes.`);
+    }
   };
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-        <Sparkles className="h-5 w-5 text-primary shrink-0" />
-        <div className="flex-1 text-sm">
-          <p className="font-semibold">Envie fotos das etiquetas dos fabricantes</p>
-          <p className="text-xs text-muted-foreground">
-            Pode ser várias fotos, ou uma foto com vários produtos. Só depois dessas fotos a IA casa cada etiqueta com o item recebido e preenche os dados. Você confirma o <strong>Local</strong>.
-          </p>
+      {/* Resumo do recebimento */}
+      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-background to-background p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Evidências por produto</h3>
+          <p className="text-xs text-muted-foreground ml-auto">Anexe até {MAX_PHOTOS_PER_PRODUCT} fotos por item — a IA processa cada produto individualmente.</p>
         </div>
-        <Button size="sm" onClick={() => fileRef.current?.click()} disabled={scanning} className="gap-1.5">
-          {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-          {scanning ? "Lendo..." : "Enviar fotos"}
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => handlePhotos(e.target.files)}
-        />
-      </div>
-
-      <div className="rounded-lg border overflow-hidden">
-        <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <div className="col-span-4">Produto</div>
-          <div className="col-span-2">Validade</div>
-          <div className="col-span-2">Conservação</div>
-          <div className="col-span-3">Local *</div>
-          <div className="col-span-1 text-right">Status</div>
-        </div>
-        <div className="divide-y">
-          {rows.map((r) => (
-            <div key={r.itemId} className={cn(
-              "grid grid-cols-12 gap-2 px-3 py-2 items-center",
-              !r.matched && "bg-muted/30",
-              r.matched && !r.storage_location.trim() && "bg-amber-500/5",
-            )}>
-              <div className="col-span-4 min-w-0">
-                <div className="font-medium text-sm truncate">{r.name}</div>
-                <div className="text-[11px] text-muted-foreground truncate">
-                  {r.rawName !== r.name && <span>({r.rawName})</span>}
-                  {r.brand && <span> · {r.brand}</span>}
-                  {r.batch && <span> · Lote {r.batch}</span>}
-                  {r.weight && <span> · {r.weight}</span>}
-                  {r.sif && <span> · SIF {r.sif}</span>}
-                </div>
-              </div>
-              <div className="col-span-2">
-                <Input
-                  type="date"
-                  min={todayPlus(0)}
-                  value={r.validity_date}
-                  onChange={(e) => patch(r.itemId, { validity_date: e.target.value })}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="col-span-2">
-                <Select value={r.conservation} onValueChange={(v) => patch(r.itemId, { conservation: v as Conservation })}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="refrigerated">Refrigerado</SelectItem>
-                    <SelectItem value="frozen">Congelado</SelectItem>
-                    <SelectItem value="ambient">Ambiente</SelectItem>
-                    <SelectItem value="hot">Quente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="col-span-3">
-                <SectorCombobox
-                  value={r.storage_location}
-                  onChange={(v) => patch(r.itemId, { storage_location: v })}
-                  placeholder="Local…"
-                  size="sm"
-                />
-              </div>
-              <div className="col-span-1 flex justify-end">
-                <div className="flex items-center gap-1">
-                  {!r.matched && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 px-1.5 text-[10px] gap-1"
-                      onClick={() => markManual(r.itemId)}
-                      title="Preencher manualmente (sem foto)"
-                    >
-                      <PenLine className="h-3 w-3" /> Manual
-                    </Button>
-                  )}
-                  {confBadge(r)}
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <SummaryCard label="produtos" value={rows.length} tone="neutral" />
+          <SummaryCard label="prontos" value={readyRows.length} tone="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
+          <SummaryCard label="aguardando confirmação" value={needsInfoRows.length} tone="warning" icon={<AlertTriangle className="h-3.5 w-3.5" />} />
+          <SummaryCard label="aguardando fotos" value={idleRows.length + scanningRows.length} tone="muted" icon={<Clock className="h-3.5 w-3.5" />} />
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      {/* Cards por produto */}
+      <div className="space-y-3">
+        {rows.map((r) => (
+          <ProductRowCard
+            key={r.itemId}
+            row={r}
+            onAddPhotos={(files) => addPhotos(r.itemId, files)}
+            onRemovePhoto={(pid) => removePhoto(r.itemId, pid)}
+            onPatch={(upd) => patch(r.itemId, upd)}
+            onMarkManual={() => markManual(r.itemId)}
+            onReprocess={() => runAiForRow(r)}
+          />
+        ))}
+      </div>
+
+      <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs text-muted-foreground">
-          {readyRows.length} pronto(s) para gerar etiqueta ·{" "}
-          {unmatchedRows.length > 0
-            ? `${unmatchedRows.length} aguardando foto/manual (ficarão pendentes)`
-            : "nenhum item aguardando"}
-          {matchedButNoLocal.length > 0 && ` · ${matchedButNoLocal.length} sem Local`}
+          <span className="font-semibold text-foreground">{readyRows.length}</span> pronto(s) para etiqueta ·{" "}
+          {needsInfoRows.length > 0 && <><span className="text-amber-600 font-medium">{needsInfoRows.length}</span> aguardando confirmação · </>}
+          {(idleRows.length + scanningRows.length) > 0 && <span className="text-muted-foreground">{idleRows.length + scanningRows.length} aguardando fotos</span>}
         </p>
         <Button
           size="lg"
           onClick={handleFinalize}
-          disabled={isBulkResolving || readyRows.length === 0 || matchedButNoLocal.length > 0}
+          disabled={isBulkResolving || readyRows.length === 0}
           className="gap-2"
         >
           {isBulkResolving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Finalizar {readyRows.length > 0 ? `(${readyRows.length})` : ""}
+          Finalizar Recebimento {readyRows.length > 0 ? `(${readyRows.length})` : ""}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/* -------------- helpers ---------------- */
+
+function computeMissing(r: PendingRow): string[] {
+  const miss: string[] = [];
+  if (!r.storage_location.trim()) miss.push("Local");
+  if (!r.validity_date) miss.push("Validade");
+  if (!r.batch.trim()) miss.push("Lote");
+  return miss;
+}
+
+/* -------------- subcomponents ---------------- */
+
+function SummaryCard({ label, value, tone, icon }: { label: string; value: number; tone: "neutral" | "success" | "warning" | "muted"; icon?: React.ReactNode }) {
+  const toneCls = {
+    neutral: "bg-background border-border text-foreground",
+    success: "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400",
+    warning: "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400",
+    muted: "bg-muted/40 border-border text-muted-foreground",
+  }[tone];
+  return (
+    <div className={cn("rounded-lg border px-3 py-2 flex items-center gap-2", toneCls)}>
+      {icon}
+      <div className="flex-1 min-w-0">
+        <div className="text-lg font-bold leading-none">{value}</div>
+        <div className="text-[10px] uppercase tracking-wide truncate">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status, missing, confidence }: { status: RowStatus; missing: string[]; confidence: number }) {
+  if (status === "idle") return <Badge variant="outline" className="gap-1 text-[11px]"><Clock className="h-3 w-3" /> Aguardando fotos</Badge>;
+  if (status === "scanning") return <Badge className="gap-1 text-[11px] bg-sky-500/15 text-sky-600 border-sky-500/30"><Loader2 className="h-3 w-3 animate-spin" /> Processando IA…</Badge>;
+  if (status === "needs_info") return <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Faltam {missing.length} campo(s)</Badge>;
+  return <Badge className="gap-1 text-[11px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto {confidence > 0 && confidence < 1 ? `· ${Math.round(confidence * 100)}%` : ""}</Badge>;
+}
+
+function ProductRowCard({
+  row, onAddPhotos, onRemovePhoto, onPatch, onMarkManual, onReprocess,
+}: {
+  row: PendingRow;
+  onAddPhotos: (files: FileList | null) => void;
+  onRemovePhoto: (id: string) => void;
+  onPatch: (upd: Partial<PendingRow>) => void;
+  onMarkManual: () => void;
+  onReprocess: () => void;
+}) {
+  const cameraRef = useRef<HTMLInputElement | null>(null);
+  const filesRef = useRef<HTMLInputElement | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const canAddMore = row.photos.length < MAX_PHOTOS_PER_PRODUCT;
+  const showMissingFields = row.status === "needs_info" || row.status === "ready";
+
+  return (
+    <div className={cn(
+      "rounded-xl border bg-card overflow-hidden transition-all",
+      row.status === "ready" && "border-emerald-500/40 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]",
+      row.status === "needs_info" && "border-amber-500/40",
+      row.status === "scanning" && "border-sky-500/40",
+    )}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3 p-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="font-semibold text-base leading-tight">{row.name}</h4>
+            <StatusBadge status={row.status} missing={row.missing} confidence={row.confidence} />
+          </div>
+          {(row.rawName !== row.name || row.brand || row.weight || row.sif) && (
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+              {row.rawName !== row.name && <span>({row.rawName})</span>}
+              {row.brand && <span> · {row.brand}</span>}
+              {row.weight && <span> · {row.weight}</span>}
+              {row.sif && <span> · SIF {row.sif}</span>}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            type="button" size="sm" variant="outline" className="gap-1.5 h-8"
+            onClick={() => cameraRef.current?.click()}
+            disabled={!canAddMore || row.status === "scanning"}
+          >
+            <Camera className="h-3.5 w-3.5" /> Câmera
+          </Button>
+          <Button
+            type="button" size="sm" variant="outline" className="gap-1.5 h-8"
+            onClick={() => filesRef.current?.click()}
+            disabled={!canAddMore || row.status === "scanning"}
+          >
+            <Upload className="h-3.5 w-3.5" /> Arquivos
+          </Button>
+          {!row.processed && (
+            <Button
+              type="button" size="sm" variant="ghost" className="h-8 gap-1 text-[11px]"
+              onClick={onMarkManual}
+              title="Preencher manualmente"
+            >
+              <PenLine className="h-3 w-3" /> Manual
+            </Button>
+          )}
+          <input
+            ref={cameraRef} type="file" accept="image/*" capture="environment"
+            multiple className="hidden"
+            onChange={(e) => { onAddPhotos(e.target.files); if (cameraRef.current) cameraRef.current.value = ""; }}
+          />
+          <input
+            ref={filesRef} type="file" accept="image/*" multiple className="hidden"
+            onChange={(e) => { onAddPhotos(e.target.files); if (filesRef.current) filesRef.current.value = ""; }}
+          />
+        </div>
+      </div>
+
+      {/* Área de fotos */}
+      <div
+        className={cn(
+          "px-4 pb-3",
+          dragging && "bg-primary/5",
+        )}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault(); setDragging(false);
+          onAddPhotos(e.dataTransfer.files);
+        }}
+      >
+        {row.photos.length === 0 ? (
+          <div className="rounded-lg border-2 border-dashed border-border/70 py-6 text-center text-xs text-muted-foreground flex flex-col items-center gap-1.5">
+            <ImageIcon className="h-5 w-5 opacity-60" />
+            Nenhuma foto anexada — arraste aqui, use a câmera ou envie arquivos (máx. {MAX_PHOTOS_PER_PRODUCT}).
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {row.photos.map((p) => (
+              <div key={p.id} className="relative w-16 h-16 rounded-lg overflow-hidden border bg-muted group">
+                <img src={p.previewUrl} alt="" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => onRemovePhoto(p.id)}
+                  className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                  aria-label="Remover foto"
+                  disabled={row.status === "scanning"}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {row.processed && row.status !== "scanning" && (
+              <Button
+                type="button" size="sm" variant="ghost"
+                className="h-16 gap-1 text-[11px]"
+                onClick={onReprocess}
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Reprocessar
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Somente campos faltantes / obrigatórios */}
+      {showMissingFields && (
+        <div className="border-t bg-muted/20 p-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {(row.missing.includes("Local") || row.status === "ready") && (
+            <FieldBlock label="Local *" warn={!row.storage_location.trim()}>
+              <SectorCombobox
+                value={row.storage_location}
+                onChange={(v) => onPatch({ storage_location: v })}
+                placeholder="Escolha o setor…"
+                size="sm"
+              />
+            </FieldBlock>
+          )}
+          {row.missing.includes("Validade") && (
+            <FieldBlock label="⚠ Validade não encontrada" warn>
+              <Input
+                type="date"
+                min={todayPlus(0)}
+                value={row.validity_date}
+                onChange={(e) => onPatch({ validity_date: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </FieldBlock>
+          )}
+          {row.missing.includes("Lote") && (
+            <FieldBlock label="⚠ Lote não encontrado" warn>
+              <div className="flex gap-1">
+                <Input
+                  value={row.batch}
+                  onChange={(e) => onPatch({ batch: e.target.value })}
+                  placeholder="Digitar lote…"
+                  className="h-8 text-xs"
+                />
+                <Button
+                  type="button" size="sm" variant="outline" className="h-8 text-[10px] px-2"
+                  onClick={() => onPatch({ batch: `MSC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(Math.random()*900+100)}` })}
+                >
+                  Gerar
+                </Button>
+              </div>
+            </FieldBlock>
+          )}
+          {/* Conservação sempre editável quando algo faltou (opcional) */}
+          {row.status === "needs_info" && (
+            <FieldBlock label="Conservação">
+              <Select value={row.conservation} onValueChange={(v) => onPatch({ conservation: v as Conservation })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="refrigerated">Refrigerado</SelectItem>
+                  <SelectItem value="frozen">Congelado</SelectItem>
+                  <SelectItem value="ambient">Ambiente</SelectItem>
+                  <SelectItem value="hot">Quente</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldBlock>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldBlock({ label, warn, children }: { label: string; warn?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className={cn("text-[11px] font-medium", warn ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>{label}</label>
+      {children}
     </div>
   );
 }
