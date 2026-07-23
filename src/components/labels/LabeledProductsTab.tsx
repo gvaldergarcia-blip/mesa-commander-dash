@@ -48,6 +48,7 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
   const { dischargeBulk } = useLabels();
   const { statusMap } = useStockStatus();
   const [sectorFilter, setSectorFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "ok" | "critical" | "expired">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dischargeTarget, setDischargeTarget] = useState<LabeledProduct | null>(null);
@@ -105,9 +106,14 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
       if (sectorFilter === "__none__" && it.sector) return false;
       if (sectorFilter !== "all" && sectorFilter !== "__none__" && it.sector !== sectorFilter) return false;
       if (term && !it.product_name.toLowerCase().includes(term)) return false;
+      if (statusFilter !== "all") {
+        if (statusFilter === "ok" && it.status !== "ok" && it.status !== "warning") return false;
+        if (statusFilter === "critical" && it.status !== "critical") return false;
+        if (statusFilter === "expired" && it.status !== "expired") return false;
+      }
       return true;
     });
-  }, [activeItems, sectorFilter, search]);
+  }, [activeItems, sectorFilter, search, statusFilter]);
 
   return (
     <div className="space-y-5">
@@ -131,6 +137,32 @@ export function LabeledProductsTab({ onPrintProduct }: Props) {
           onChange={(e) => setSearch(e.target.value)}
           className="sm:max-w-xs bg-background border-input placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-0"
         />
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: "all", label: "Todos", tone: "hsl(var(--primary))" },
+            { value: "ok", label: "OK", tone: "#68D391" },
+            { value: "critical", label: "Crítico", tone: "#FC8181" },
+            { value: "expired", label: "Vencido", tone: "#FEB2B2" },
+          ].map((opt) => {
+            const active = statusFilter === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setStatusFilter(opt.value as any)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground border-transparent"
+                    : "bg-muted border-border text-muted-foreground hover:bg-muted/70"
+                )}
+                style={active && opt.value !== "all" ? { backgroundColor: withAlpha(opt.tone, 0.22), borderColor: opt.tone, color: opt.tone } : undefined}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
           {[
             { value: "all", label: "Todos" },
