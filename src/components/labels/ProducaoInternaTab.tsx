@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Plus, Search, Printer, Loader2, ArrowLeft, RefreshCw, User, Package } from "lucide-react";
+import { ChefHat, Plus, Search, Printer, Loader2, ArrowLeft, RefreshCw, User, Package, GitBranch, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -25,7 +25,8 @@ import { getSiteBaseUrl } from "@/config/site-url";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const BATCH_PREFIX = "PI-";
+const BATCH_PREFIX = "PRD-";
+const LEGACY_BATCH_PREFIXES = ["PI-", "PRD-"];
 const UNITS = ["un", "kg", "g", "l", "ml", "porção"];
 const CONSERVATION_OPTS = [
   { v: "refrigerated", l: "Resfriado" },
@@ -48,7 +49,7 @@ export function ProducaoInternaTab() {
   const [open, setOpen] = useState(false);
 
   const productions = useMemo(
-    () => labels.filter((l) => (l.batch || "").startsWith(BATCH_PREFIX)),
+    () => labels.filter((l) => LEGACY_BATCH_PREFIXES.some((p) => (l.batch || "").startsWith(p))),
     [labels]
   );
 
