@@ -60,6 +60,10 @@ export interface LabelCreateInput {
   cif?: string | null;
   allergens?: string | null;
   ingredients?: string | null;
+  origin_issuance_id?: string | null;
+  supplier_id?: string | null;
+  supplier_lot?: string | null;
+  traceability_lot?: string | null;
 }
 
 import { getLabelEffectiveStatus } from "@/lib/labels/utils";
@@ -136,6 +140,10 @@ export function useLabels() {
           cif: input.cif ?? null,
           allergens: input.allergens ?? null,
           ingredients: input.ingredients ?? null,
+          origin_issuance_id: input.origin_issuance_id ?? null,
+          supplier_id: input.supplier_id ?? null,
+          supplier_lot: input.supplier_lot ?? null,
+          traceability_lot: input.traceability_lot ?? null,
         })
         .select("*")
         .single();

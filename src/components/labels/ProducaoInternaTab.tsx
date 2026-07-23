@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Plus, Search, Printer, Loader2, ArrowLeft, RefreshCw, User, Package } from "lucide-react";
+import { ChefHat, Plus, Search, Printer, Loader2, ArrowLeft, RefreshCw, User, Package, GitBranch, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -25,7 +25,8 @@ import { getSiteBaseUrl } from "@/config/site-url";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const BATCH_PREFIX = "PI-";
+const BATCH_PREFIX = "PRD-";
+const LEGACY_BATCH_PREFIXES = ["PI-", "PRD-"];
 const UNITS = ["un", "kg", "g", "l", "ml", "porção"];
 const CONSERVATION_OPTS = [
   { v: "refrigerated", l: "Resfriado" },
@@ -48,7 +49,7 @@ export function ProducaoInternaTab() {
   const [open, setOpen] = useState(false);
 
   const productions = useMemo(
-    () => labels.filter((l) => (l.batch || "").startsWith(BATCH_PREFIX)),
+    () => labels.filter((l) => LEGACY_BATCH_PREFIXES.some((p) => (l.batch || "").startsWith(p))),
     [labels]
   );
 
@@ -235,9 +236,26 @@ interface DialogProps {
 }
 
 function ProductionDialog({ open, onOpenChange, products, employees, onCreateProduct, onCreateLabel, onPrint }: DialogProps) {
-  const [step, setStep] = useState<"select" | "new-product" | "form">("select");
+  const [step, setStep] = useState<"select" | "new-product" | "lots" | "form">("select");
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState<LabelProduct | null>(null);
+
+  // Rastreabilidade: lote de origem escolhido
+  interface ActiveLot {
+    issuance_id: string;
+    batch: string | null;
+    supplier_lot: string | null;
+    traceability_lot: string | null;
+    supplier_id: string | null;
+    supplier_name: string | null;
+    receipt_id: string | null;
+    received_at: string | null;
+    expiry_date: string;
+    units_remaining: number;
+  }
+  const [activeLots, setActiveLots] = useState<ActiveLot[]>([]);
+  const [loadingLots, setLoadingLots] = useState(false);
+  const [originLot, setOriginLot] = useState<ActiveLot | null>(null);
 
   // Novo produto
   const [np, setNp] = useState({
@@ -267,6 +285,8 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     setStep("select");
     setSearch("");
     setProduct(null);
+    setActiveLots([]);
+    setOriginLot(null);
     setNp({ name: "", category: "", unit: "un", conservation: "refrigerated", storage_location: "", validity_days: 3 });
     setProd({ qty: 1, unit: "un", weight: "", weight_unit: "kg", expiry: toDateInput(new Date(Date.now() + 3 * 86400000)), expiryTime: "23:59", employeeId: "", notes: "" });
   };
@@ -283,7 +303,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     return list.filter((p) => p.name.toLowerCase().includes(s)).slice(0, 30);
   }, [products, search]);
 
-  const pickProduct = (p: LabelProduct) => {
+  const pickProduct = async (p: LabelProduct) => {
     setProduct(p);
     const validity = p.validity_days || 3;
     const exp = new Date(Date.now() + validity * 86400000);
@@ -292,7 +312,28 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
       unit: p.unit || "un",
       expiry: toDateInput(exp),
     }));
-    setStep("form");
+    // Buscar lotes ativos para rastreabilidade
+    setLoadingLots(true);
+    setStep("lots");
+    try {
+      const { data, error } = await (supabase as any).rpc("label_active_lots_for_product", {
+        _product_id: p.id,
+      });
+      if (error) throw error;
+      const lots = (data || []) as ActiveLot[];
+      setActiveLots(lots);
+      if (lots.length === 1) {
+        setOriginLot(lots[0]);
+        setStep("form");
+      } else if (lots.length === 0) {
+        setOriginLot(null);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao buscar lotes");
+      setActiveLots([]);
+    } finally {
+      setLoadingLots(false);
+    }
   };
 
   const saveNewProduct = async () => {
@@ -327,11 +368,19 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     if (expiryDate <= manufactureDate) return toast.error("Validade deve ser posterior à produção");
 
     const employee = employees.find((e) => e.id === prod.employeeId);
-    const batch = `${BATCH_PREFIX}${Date.now().toString(36).toUpperCase()}`;
+    // Gera lote único de produção via RPC (PRD-YYYYMMDD-NNN)
+    let batch = `${BATCH_PREFIX}${Date.now().toString(36).toUpperCase()}`;
+    try {
+      const { data: gen } = await (supabase as any).rpc("label_generate_production_lot");
+      if (typeof gen === "string" && gen) batch = gen;
+    } catch { /* fallback local */ }
     const weightNum = prod.weight ? Number(prod.weight.replace(",", ".")) : null;
 
     setSaving(true);
     try {
+      const originNote = originLot
+        ? ` · Origem: ${originLot.supplier_name || "MesaClik"} · Lote ${originLot.supplier_lot || originLot.traceability_lot || "—"}`
+        : "";
       const inserted = await onCreateLabel({
         label_product_id: product.id,
         product_name: product.name,
@@ -342,9 +391,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
         responsible: employee?.name || null,
         employee_id: employee?.id || null,
         conservation_method: (product.conservation_method as any) || "refrigerated",
-        notes: prod.notes.trim() ? `[Produção Interna] ${prod.notes.trim()}` : "[Produção Interna]",
+        notes: (prod.notes.trim() ? `[Produção Interna] ${prod.notes.trim()}` : "[Produção Interna]") + originNote,
         allergens: (product as any).allergens || null,
         ingredients: (product as any).ingredients || null,
+        origin_issuance_id: originLot?.issuance_id ?? null,
+        // supplier_* e origin_traceability_lot são preenchidos pelo trigger
       });
 
       // Persist peso da produção (se informado)
@@ -391,11 +442,13 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
             <ChefHat className="h-5 w-5 text-primary" />
             {step === "select" && "Escolha o produto"}
             {step === "new-product" && "Novo produto"}
+            {step === "lots" && "Selecione o lote de origem"}
             {step === "form" && "Registrar produção"}
           </DialogTitle>
           <DialogDescription>
             {step === "select" && "Selecione um produto já cadastrado ou cadastre um novo."}
             {step === "new-product" && "Estes dados ficam salvos para reutilização."}
+            {step === "lots" && "Rastreabilidade obrigatória: informe de qual lote recebido veio o insumo."}
             {step === "form" && "Cada produção tem sua própria validade."}
           </DialogDescription>
         </DialogHeader>
@@ -506,12 +559,92 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
           </div>
         )}
 
+        {step === "lots" && product && (
+          <div className="space-y-3">
+            <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
+              <ArrowLeft className="h-4 w-4" /> Voltar
+            </Button>
+            <Card className="p-3 bg-primary/5 border-primary/20">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-primary" />
+                <div className="font-semibold">{product.name}</div>
+              </div>
+            </Card>
+
+            {loadingLots ? (
+              <div className="py-10 flex items-center justify-center text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Buscando lotes ativos...
+              </div>
+            ) : activeLots.length === 0 ? (
+              <div className="space-y-3">
+                <Card className="p-4 border-dashed border-destructive/40 bg-destructive/5 text-sm">
+                  <div className="flex items-center gap-2 font-semibold text-destructive">
+                    <AlertTriangle className="h-4 w-4" /> Nenhum lote ativo deste produto
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ideal: registre primeiro o Recebimento do insumo. Você pode prosseguir sem rastreabilidade, mas a auditoria ficará incompleta.
+                  </p>
+                </Card>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setStep("select")}>Voltar</Button>
+                  <Button onClick={() => { setOriginLot(null); setStep("form"); }} variant="outline">
+                    Prosseguir sem lote de origem
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="text-xs text-muted-foreground">
+                  {activeLots.length} lote(s) ativo(s). Escolha qual foi utilizado nesta produção.
+                </div>
+                <div className="max-h-[45vh] overflow-y-auto space-y-2">
+                  {activeLots.map((lot) => {
+                    const isGenerated = !lot.supplier_lot && !!lot.traceability_lot;
+                    return (
+                      <button
+                        key={lot.issuance_id}
+                        onClick={() => { setOriginLot(lot); setStep("form"); }}
+                        className="w-full text-left p-3 rounded-lg border border-border/60 hover:border-primary hover:bg-primary/5 transition"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">
+                              {lot.supplier_name || "Fornecedor não informado"}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Lote:{" "}
+                              <strong className="text-foreground">
+                                {lot.supplier_lot || lot.traceability_lot || "—"}
+                              </strong>
+                              {isGenerated && <span className="ml-1 opacity-70">(MesaClik)</span>}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              Recebido: {lot.received_at ? format(new Date(lot.received_at), "dd/MM", { locale: ptBR }) : "—"}
+                              {" · "}
+                              Validade: {format(new Date(lot.expiry_date), "dd/MM", { locale: ptBR })}
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0">{lot.units_remaining} un</Badge>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {step === "form" && product && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
                 <ArrowLeft className="h-4 w-4" /> Trocar produto
               </Button>
+              {activeLots.length > 1 && (
+                <Button variant="ghost" size="sm" onClick={() => setStep("lots")} className="gap-2">
+                  <GitBranch className="h-3.5 w-3.5" /> Trocar lote
+                </Button>
+              )}
             </div>
             <Card className="p-3 bg-primary/5 border-primary/20">
               <div className="flex items-center gap-2">
@@ -521,6 +654,24 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                   {CONSERVATION_LABEL[product.conservation_method || ""] || "—"}
                 </Badge>
               </div>
+              {originLot ? (
+                <div className="mt-2 pt-2 border-t border-primary/10 text-[11px] text-muted-foreground space-y-0.5">
+                  <div className="flex items-center gap-1.5"><GitBranch className="h-3 w-3" /> <strong className="text-foreground">Origem rastreável</strong></div>
+                  <div>Fornecedor: <strong>{originLot.supplier_name || "—"}</strong></div>
+                  <div>
+                    Lote:{" "}
+                    <strong>{originLot.supplier_lot || originLot.traceability_lot || "—"}</strong>
+                    {!originLot.supplier_lot && originLot.traceability_lot && (
+                      <span className="ml-1 text-[10px] opacity-70">(MesaClik)</span>
+                    )}
+                  </div>
+                  <div>Disponível: <strong>{originLot.units_remaining} un</strong></div>
+                </div>
+              ) : (
+                <div className="mt-2 pt-2 border-t border-destructive/20 text-[11px] text-destructive flex items-center gap-1.5">
+                  <AlertTriangle className="h-3 w-3" /> Sem lote de origem — produção sem rastreabilidade
+                </div>
+              )}
             </Card>
 
             <div className="grid grid-cols-2 gap-3">
