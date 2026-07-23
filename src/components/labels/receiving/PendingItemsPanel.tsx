@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Camera, Loader2, Sparkles, CheckCircle2, AlertTriangle, PenLine,
-  Upload, X, Image as ImageIcon, Clock,
+  Upload, X, Image as ImageIcon, Clock, Barcode as BarcodeIcon,
 } from "lucide-react";
 import { SectorCombobox } from "@/components/labels/SectorCombobox";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,14 +29,18 @@ interface PendingRow {
   rawName: string;
   name: string;
   validity_date: string; // YYYY-MM-DD
+  manufactured_at: string; // YYYY-MM-DD (opcional)
   conservation: Conservation;
   category: string;
   storage_location: string;
   sif: string;
+  sif_not_applicable: boolean;
   batch: string;
   brand: string;
   weight: string;
+  barcode: string;
   confidence: number; // 0..1 (0 = ainda não lido)
+  field_confidence: Record<string, number>;
   processed: boolean;   // IA já rodou (mesmo que sem match) OU marcado manual
   photos: RowPhoto[];
   status: RowStatus;
@@ -96,14 +100,18 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       rawName: it.raw_name,
       name: it.raw_name,
       validity_date: todayPlus(3),
+      manufactured_at: "",
       conservation: "refrigerated" as Conservation,
       category: "",
       storage_location: "",
       sif: "",
+      sif_not_applicable: false,
       batch: "",
       brand: "",
       weight: "",
+      barcode: "",
       confidence: 0,
+      field_confidence: {},
       processed: false,
       photos: [],
       status: "idle" as RowStatus,
@@ -142,17 +150,29 @@ export function PendingItemsPanel({ receiptId, supplierId, pendingItems, onDone 
       }
       setRows((rs) => rs.map((r) => {
         if (r.itemId !== row.itemId) return r;
+        const fc = (best?.field_confidence || {}) as Record<string, number>;
+        // Só preenche automaticamente quando a IA tem confiança >= 0.5;
+        // valores abaixo disso viram sugestão que o operador confirma.
+        const use = (val: any, key: string, existing: any) => {
+          if (!val) return existing;
+          const conf = fc[key] ?? best?.confidence ?? 0;
+          return conf >= 0.5 ? val : existing;
+        };
         const merged: PendingRow = {
           ...r,
           processed: true,
           confidence: best?.confidence ?? 0,
-          name: best?.name || r.name,
-          validity_date: best?.expires_at || r.validity_date,
-          conservation: best?.conservation || r.conservation,
-          sif: best?.sif || r.sif,
-          batch: best?.batch || r.batch,
-          brand: best?.brand || r.brand,
-          weight: best?.weight || r.weight,
+          field_confidence: fc,
+          name: use(best?.name, "name", r.name),
+          validity_date: use(best?.expires_at, "expires_at", r.validity_date),
+          manufactured_at: use(best?.manufactured_at, "manufactured_at", r.manufactured_at),
+          conservation: use(best?.conservation, "conservation", r.conservation),
+          sif: use(best?.sif, "sif", r.sif),
+          batch: use(best?.batch, "batch", r.batch),
+          brand: use(best?.brand, "brand", r.brand),
+          weight: use(best?.weight, "weight", r.weight),
+          barcode: use(best?.barcode, "barcode", r.barcode),
+          category: use(best?.category, "category", r.category),
           status: "scanning",
           missing: [],
         };
@@ -324,6 +344,7 @@ function computeMissing(r: PendingRow): string[] {
   if (!r.storage_location.trim()) miss.push("Local");
   if (!r.validity_date) miss.push("Validade");
   if (!r.batch.trim()) miss.push("Lote");
+  if (!r.sif.trim() && !r.sif_not_applicable) miss.push("SIF");
   return miss;
 }
 
@@ -350,7 +371,7 @@ function SummaryCard({ label, value, tone, icon }: { label: string; value: numbe
 function StatusBadge({ status, missing, confidence }: { status: RowStatus; missing: string[]; confidence: number }) {
   if (status === "idle") return <Badge variant="outline" className="gap-1 text-[11px]"><Clock className="h-3 w-3" /> Aguardando fotos</Badge>;
   if (status === "scanning") return <Badge className="gap-1 text-[11px] bg-sky-500/15 text-sky-600 border-sky-500/30"><Loader2 className="h-3 w-3 animate-spin" /> Processando IA…</Badge>;
-  if (status === "needs_info") return <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Faltam {missing.length} campo(s)</Badge>;
+  if (status === "needs_info") return <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> ⚠ Falta: {missing.join(", ")}</Badge>;
   return <Badge className="gap-1 text-[11px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto {confidence > 0 && confidence < 1 ? `· ${Math.round(confidence * 100)}%` : ""}</Badge>;
 }
 
@@ -391,6 +412,13 @@ function ProductRowCard({
               {row.brand && <span> · {row.brand}</span>}
               {row.weight && <span> · {row.weight}</span>}
               {row.sif && <span> · SIF {row.sif}</span>}
+              {row.category && <span> · {row.category}</span>}
+              {row.manufactured_at && <span> · fab. {row.manufactured_at.split("-").reverse().join("/")}</span>}
+            </p>
+          )}
+          {row.barcode && (
+            <p className="text-[11px] text-muted-foreground mt-0.5 inline-flex items-center gap-1">
+              <BarcodeIcon className="h-3 w-3" /> {row.barcode}
             </p>
           )}
         </div>
