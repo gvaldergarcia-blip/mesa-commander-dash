@@ -559,9 +559,6 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
           </div>
         )}
 
-        {step === "form" && product && (
-          <></>
-        )}
         {step === "lots" && product && (
           <div className="space-y-3">
             <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
