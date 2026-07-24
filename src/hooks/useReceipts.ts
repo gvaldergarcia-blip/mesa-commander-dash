@@ -272,33 +272,67 @@ export function useReceipts() {
         lot_source?: "manufacturer" | "internal" | "none" | null;
         weight?: number | null;
         weight_unit?: string | null;
+        manipulation_enabled?: boolean;
+        manipulation_validity_value?: number | null;
+        manipulation_validity_unit?: "hours" | "days" | null;
+        manipulation_notes?: string | null;
       }>;
     }) => {
       if (!restaurantId) throw new Error("Restaurante não identificado");
       for (const it of input.items) {
-        // 1) cria produto mínimo
-        const { data: prod, error: pErr } = await (supabase as any)
+        // 1) cria/atualiza produto mínimo. Se já existir um cadastro com o mesmo
+        //    nome no restaurante, atualizamos apenas o POP de Manipulação
+        //    (quando o operador o configurou nesta sessão) para evitar duplicatas.
+        const nameTrim = (it.name || it.rawName).trim();
+        const { data: existing } = await (supabase as any)
           .from("label_products")
-          .insert({
-            restaurant_id: restaurantId,
-            name: (it.name || it.rawName).trim(),
-            validity_days: Math.max(1, it.validity_days || 1),
-            conservation_method: it.conservation_method || "refrigerated",
-            category: it.category || null,
-            storage_location: it.storage_location || null,
-            sif: it.sif || null,
-            unit: "un",
-            status: "active",
-          })
-          .select("id")
-          .single();
-        if (pErr) throw pErr;
+          .select("id, manipulation_enabled")
+          .eq("restaurant_id", restaurantId)
+          .ilike("name", nameTrim)
+          .maybeSingle();
+        let prodId: string;
+        if (existing?.id) {
+          prodId = existing.id;
+          if (it.manipulation_enabled) {
+            await (supabase as any)
+              .from("label_products")
+              .update({
+                manipulation_enabled: true,
+                manipulation_validity_value: it.manipulation_validity_value ?? null,
+                manipulation_validity_unit: it.manipulation_validity_unit ?? null,
+                manipulation_notes: it.manipulation_notes ?? null,
+              })
+              .eq("id", prodId);
+          }
+        } else {
+          const { data: prod, error: pErr } = await (supabase as any)
+            .from("label_products")
+            .insert({
+              restaurant_id: restaurantId,
+              name: nameTrim,
+              validity_days: Math.max(1, it.validity_days || 1),
+              conservation_method: it.conservation_method || "refrigerated",
+              category: it.category || null,
+              storage_location: it.storage_location || null,
+              sif: it.sif || null,
+              unit: "un",
+              status: "active",
+              manipulation_enabled: it.manipulation_enabled ?? false,
+              manipulation_validity_value: it.manipulation_enabled ? (it.manipulation_validity_value ?? null) : null,
+              manipulation_validity_unit: it.manipulation_enabled ? (it.manipulation_validity_unit ?? null) : null,
+              manipulation_notes: it.manipulation_enabled ? (it.manipulation_notes ?? null) : null,
+            })
+            .select("id")
+            .single();
+          if (pErr) throw pErr;
+          prodId = prod.id;
+        }
 
         // 2) aprende o alias e liga o item
         await (supabase as any).rpc("label_learn_alias", {
           _restaurant_id: restaurantId,
           _raw: it.rawName,
-          _product_id: prod.id,
+          _product_id: prodId,
           _supplier_id: input.supplierId ?? null,
         });
         const upd: any = { product_id: prod.id, needs_info: false, missing_fields: [] };
