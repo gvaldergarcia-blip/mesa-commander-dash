@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronDown, Loader2, BookOpen, History, Clock, Printer, Truck, Flag } from "lucide-react";
+import { PackagePlus, Sparkles, CheckCircle2, AlertCircle, ChevronDown, Loader2, BookOpen, History, Clock, Printer, Truck, Flag, ChefHat, Camera, Trash2 } from "lucide-react";
 import { useReceipts } from "@/hooks/useReceipts";
 import { NewReceiptDialog } from "./NewReceiptDialog";
 import { PhotoFirstReceiving } from "./PhotoFirstReceiving";
@@ -12,13 +12,21 @@ import { useDiaryHistory } from "@/hooks/useDiaryReceipts";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { photoFirstStore, usePhotoFirstState } from "./photoFirstStore";
+import { ManipulationDialog } from "@/components/labels/ManipulationDialog";
 
 export function ReceivingTab() {
   const { receipts, isLoading, cancelReceipt, finalizeReceipt, isFinalizing } = useReceipts();
   const [newOpen, setNewOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [manipOpen, setManipOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [finalizingId, setFinalizingId] = useState<string | null>(null);
+  const pf = usePhotoFirstState();
+  const draftPhotos = pf.photos.length;
+  const draftGroups = pf.groups?.length ?? 0;
+  const draftReady = pf.groups?.filter((g) => g.missing.length === 0).length ?? 0;
+  const hasDraft = draftPhotos > 0 || draftGroups > 0;
 
   const openReceipts = receipts.filter((r) => r.status !== "confirmed" && r.status !== "canceled");
   const { data: history = [] } = useDiaryHistory(30);
@@ -47,9 +55,45 @@ export function ReceivingTab() {
             <Button size="lg" variant="outline" onClick={() => setNewOpen(true)} className="gap-2 w-full sm:w-auto">
               <PackagePlus className="h-5 w-5" /> Digitar manualmente
             </Button>
+            <Button size="lg" variant="outline" onClick={() => setManipOpen(true)} className="gap-2 w-full sm:w-auto">
+              <ChefHat className="h-5 w-5" /> Nova Manipulação
+            </Button>
           </div>
         </div>
       </Card>
+
+      {/* Rascunho de recebimento por fotos — persistente entre aberturas do dialog */}
+      {hasDraft && (
+        <Card className="p-4 border-amber-500/40 bg-amber-500/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/30 shrink-0">
+              <Camera className="h-4 w-4 text-amber-600" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm flex items-center gap-2">
+                Rascunho em andamento
+                <Badge variant="outline" className="text-[10px]">não finalizado</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {draftPhotos} foto(s) · {draftGroups} produto(s) identificado(s) · {draftReady} pronto(s) para imprimir
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button size="sm" onClick={() => setPhotoOpen(true)} className="gap-2 flex-1 sm:flex-none">
+              <Camera className="h-4 w-4" /> Continuar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => { if (confirm("Descartar rascunho de recebimento?")) photoFirstStore.reset(); }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Active receipts — cada fornecedor é um accordion (todo o conteúdo dele fica dentro do próprio card) */}
       {isLoading ? (
@@ -232,6 +276,13 @@ export function ReceivingTab() {
         onCreated={(id) => setExpandedId(id)}
       />
       <PhotoFirstReceiving open={photoOpen} onOpenChange={setPhotoOpen} />
+      <ManipulationDialog
+        open={manipOpen}
+        onOpenChange={setManipOpen}
+        productId={null}
+        productName=""
+        conservationMethod={null}
+      />
     </div>
   );
 }
