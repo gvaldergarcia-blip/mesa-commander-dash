@@ -13,6 +13,7 @@ import { useLabels } from "@/hooks/useLabels";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { useLabeledProducts } from "@/hooks/useLabeledProducts";
+import { useLabelDischarges } from "@/hooks/useLabelDischarges";
 import { mergeSectors } from "@/lib/labels/sectors";
 import { format, isToday, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -37,6 +38,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const { products } = useLabelProducts();
   const { activeEmployees } = useLabelEmployees();
   const { items: labeledProducts } = useLabeledProducts();
+  const { events: dischargeEvents } = useLabelDischarges();
   const restaurantCtx = (() => {
     try { return useRestaurant(); } catch { return null as any; }
   })();
@@ -210,19 +212,22 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
   // ============ Baixas por uso ============
   const usageDischarges = useMemo(() => {
-    return labels
-      .filter((l) => l.status === "discharged" && (l.discharge_reason === "use" || l.discharge_reason === "consumo"))
-      .filter((l) => l.resolved_at && new Date(l.resolved_at) >= cutoff)
-      .filter((l) => !search || l.product_name.toLowerCase().includes(search.toLowerCase()));
-  }, [labels, cutoff, search]);
+    // Fonte: eventos de baixa (label_discharges). Cada evento representa 1 baixa
+    // — inclusive parciais (por unidade), que a base label_issuances.status
+    // não expõe enquanto sobrar estoque na etiqueta.
+    return dischargeEvents
+      .filter((e) => e.reason === "use" || e.reason === "consumo")
+      .filter((e) => e.discharged_at && new Date(e.discharged_at) >= cutoff)
+      .filter((e) => !search || e.product_name.toLowerCase().includes(search.toLowerCase()));
+  }, [dischargeEvents, cutoff, search]);
 
   const usageRankProducts = useMemo(() => {
     const m = new Map<string, number>();
-    usageDischarges.forEach((l) => m.set(l.product_name, (m.get(l.product_name) || 0) + 1));
+    usageDischarges.forEach((e) => m.set(e.product_name, (m.get(e.product_name) || 0) + Number(e.units || 1)));
     return Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }, [usageDischarges]);
 
-  const totalUsedUnits = usageDischarges.reduce((s, l) => s + Number(l.quantity || 0), 0);
+  const totalUsedUnits = usageDischarges.reduce((s, e) => s + Number(e.units || 1), 0);
 
   // ============ Perdas ============
   const losses = useMemo(() => {
@@ -922,20 +927,23 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
             <div className="rounded-2xl border border-border/40 bg-card divide-y divide-border/40 max-h-96 overflow-y-auto">
               {usageDischarges
                 .slice()
-                .sort((a, b) => new Date(b.resolved_at!).getTime() - new Date(a.resolved_at!).getTime())
+                .sort((a, b) => new Date(b.discharged_at).getTime() - new Date(a.discharged_at).getTime())
                 .slice(0, 50)
-                .map((l) => (
-                  <div key={l.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                .map((e) => (
+                  <div key={e.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground truncate">{l.product_name}</div>
+                      <div className="font-medium text-foreground truncate">
+                        {e.product_name}
+                        {e.units > 1 && <span className="ml-2 text-xs text-muted-foreground">× {e.units}</span>}
+                      </div>
                       <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-                        <span>{format(new Date(l.resolved_at!), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                        {l.employee_name && <><span>·</span><span>{l.employee_name}</span></>}
-                        {(l as any).storage_location && <><span>·</span><span>{(l as any).storage_location}</span></>}
+                        <span>{format(new Date(e.discharged_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                        {e.employee_name && <><span>·</span><span>{e.employee_name}</span></>}
+                        {e.storage_location && <><span>·</span><span>{e.storage_location}</span></>}
                       </div>
                     </div>
                     <span className="text-xs font-mono tabular-nums text-muted-foreground shrink-0">
-                      {l.unique_code}
+                      {e.unique_code}
                     </span>
                   </div>
                 ))}

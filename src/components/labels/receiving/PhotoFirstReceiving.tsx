@@ -152,6 +152,22 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     setSupplierId("none"); setReference("");
   };
 
+  const hasWork = photos.length > 0 || (groups?.length ?? 0) > 0;
+  /** Fechar sem perder trabalho: só reseta se realmente for cancelar. */
+  const handleClose = (nextOpen: boolean) => {
+    if (nextOpen) { onOpenChange(true); return; }
+    if (hasWork) {
+      // Não descarta ao clicar no X — apenas oculta o diálogo, mantendo tudo em memória.
+      onOpenChange(false);
+      return;
+    }
+    onOpenChange(false);
+  };
+  const handleCancel = () => {
+    if (hasWork && !confirm("Descartar todas as fotos e dados coletados?")) return;
+    reset(); onOpenChange(false);
+  };
+
   const addFiles = (list: FileList | null) => {
     if (!list?.length) return;
     const remaining = Math.max(0, MAX_PHOTOS - photos.length);
@@ -375,7 +391,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -505,7 +521,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
               {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
             </p>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
               <Button onClick={finalize} disabled={!canFinalize} className="gap-2">
                 {(isCreating || isBulkResolving) && <Loader2 className="h-4 w-4 animate-spin" />}
                 <CheckCircle2 className="h-4 w-4" />
@@ -613,20 +629,31 @@ function GroupCard({
           {editorFields.includes("expires_at") && (
             <FieldEditor label="Validade" type="date" value={group.expires_at || ""} onChange={(v) => onPatch({ expires_at: v })} />
           )}
-          {editorFields.includes("batch") && (
-            <div>
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
-              <div className="flex gap-1.5">
-                <Input value={group.batch || ""} onChange={(e) => onPatch({ batch: e.target.value })} placeholder="Digite ou gere um lote MesaClik" />
-                <Button type="button" size="sm" variant="outline" onClick={onGenerateLot} title="Gerar lote interno MesaClik">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Não encontrado nas fotos. Gere um lote interno de rastreabilidade se o fornecedor não informou.
-              </p>
+          <div className={cn(!editorFields.includes("batch") && "sm:col-span-1")}>
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
+            <div className="flex gap-1.5">
+              <Input
+                value={group.batch || ""}
+                onChange={(e) => onPatch({ batch: e.target.value })}
+                placeholder="Lote do fabricante"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onGenerateLot}
+                title="Gerar lote interno de rastreabilidade a partir da data de recebimento"
+                className="whitespace-nowrap"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Não existe na embalagem
+              </Button>
             </div>
-          )}
+            {!group.batch && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Sem lote na embalagem? Clique em <span className="font-medium">Não existe na embalagem</span> — o MesaClik gera um lote interno MESA-AAAAMMDD baseado na data de recebimento para manter a rastreabilidade.
+              </p>
+            )}
+          </div>
           {editorFields.includes("sif") && (
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">SIF/SISP/SIM</label>
