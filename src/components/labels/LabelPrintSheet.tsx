@@ -22,6 +22,11 @@ export interface PrintLabelData {
   restaurantLogoUrl?: string | null;
   restaurantCnpj?: string | null;
   restaurantCep?: string | null;
+  restaurantAddress?: string | null;
+  /** Marca do fabricante e/ou fornecedor (ex: "SWIFT"). Impresso como MARCA/FORN. */
+  brand?: string | null;
+  /** Validade original do fabricante (usado quando o produto foi manipulado/aberto). */
+  originalExpiryDate?: Date | null;
   /** SVG markup pronto (ex: renderToStaticMarkup(<QRCodeSVG/>)) */
   checklistQrSvg?: string | null;
   /** Texto curto exibido abaixo do QR */
@@ -62,12 +67,10 @@ function buildLabelHtml(data: PrintLabelData): string {
     footerLines.push(`<div class="f-line est">${escapeHtml(data.restaurantName.toUpperCase())}</div>`);
   if (data.restaurantCnpj)
     footerLines.push(`<div class="f-line"><span class="k">CNPJ:</span> ${escapeHtml(data.restaurantCnpj)}</div>`);
-  if (data.cif)
-    footerLines.push(`<div class="f-line"><span class="k">CIF:</span> ${escapeHtml(data.cif)}</div>`);
-  if (data.sif)
-    footerLines.push(`<div class="f-line"><span class="k">SIF:</span> ${escapeHtml(data.sif)}</div>`);
   if (data.restaurantCep)
     footerLines.push(`<div class="f-line"><span class="k">CEP:</span> ${escapeHtml(data.restaurantCep)}</div>`);
+  if (data.restaurantAddress)
+    footerLines.push(`<div class="f-line addr">${escapeHtml(data.restaurantAddress)}</div>`);
 
   const allergensBlock = data.allergens
     ? `<div class="allergens">⚠ CONTÉM: ${escapeHtml(data.allergens.toUpperCase())}</div>`
@@ -81,6 +84,32 @@ function buildLabelHtml(data: PrintLabelData): string {
     ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
     : "";
 
+  // Quando há originalExpiryDate significa que a etiqueta é de manipulação/abertura:
+  // - VAL. ORIGINAL = validade impressa pelo fabricante (do lote de origem)
+  // - MANIPULAÇÃO  = data/hora em que a embalagem foi aberta (manufactureDate)
+  // - VALIDADE     = novo prazo pós-abertura
+  // Caso contrário (recebimento normal), imprime PREPARADO/VALIDADE tradicional.
+  const isManipulated = !!data.originalExpiryDate;
+  const datesBlock = isManipulated
+    ? `
+        <div class="d-row"><span class="k">VAL. ORIGINAL:</span><span class="v">${escapeHtml(fmtDateTime(data.originalExpiryDate!))}</span></div>
+        <div class="d-row"><span class="k">MANIPULAÇÃO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
+        <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
+        ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`
+    : `
+        <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
+        <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
+        ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`;
+
+  const identityLines: string[] = [];
+  if (data.brand)
+    identityLines.push(`<div class="id-row"><span class="k">MARCA/FORN:</span> <span class="v">${escapeHtml(data.brand.toUpperCase())}</span></div>`);
+  if (data.sif)
+    identityLines.push(`<div class="id-row"><span class="k">SIF:</span> <span class="v">${escapeHtml(data.sif)}</span></div>`);
+  if (data.cif)
+    identityLines.push(`<div class="id-row"><span class="k">CIF:</span> <span class="v">${escapeHtml(data.cif)}</span></div>`);
+  const identityBlock = identityLines.length ? `<div class="identity">${identityLines.join("")}</div>` : "";
+
   return `
         <div class="label">
           ${data.banner ? `<div class="banner">${escapeHtml(data.banner.toUpperCase())}</div>` : ""}
@@ -92,13 +121,10 @@ function buildLabelHtml(data: PrintLabelData): string {
             ${weight}
           </div>
 
-          <div class="dates">
-            <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
-            <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
-            ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}
-          </div>
+          <div class="dates">${datesBlock}</div>
 
           ${data.storageLocation ? `<div class="local-row"><span class="k">LOCAL:</span> <span class="v">${escapeHtml(data.storageLocation.toUpperCase())}</span></div>` : ""}
+          ${identityBlock}
 
           <div class="bottom">
             <div class="footer-info">${footerLines.join("")}</div>
@@ -163,11 +189,16 @@ export function printLabelsMany(items: PrintLabelData[]) {
     .local-row { margin-top: 0.7mm; font-size: 6.2pt; }
     .local-row .k { font-weight: 800; }
     .local-row .v { font-weight: 700; }
+    .identity { margin-top: 0.5mm; display: flex; flex-wrap: wrap; gap: 0 2.5mm; }
+    .id-row { font-size: 6.2pt; line-height: 1.15; white-space: nowrap; }
+    .id-row .k { font-weight: 800; }
+    .id-row .v { font-weight: 700; }
     .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.2mm; margin-top: 0.7mm; flex: 1; min-height: 0; }
     .footer-info { flex: 1; min-width: 0; }
     .f-line { font-size: 5.7pt; line-height: 1.08; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .f-line .k { font-weight: 700; }
     .f-line.est { font-weight: 700; font-size: 6pt; }
+    .f-line.addr { font-weight: 500; font-size: 5.6pt; }
     .qr-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.25mm; flex: 0 0 13mm; }
     .qr-wrap svg { width: 13mm; height: 13mm; display: block; }
     .qr-label { font-size: 5pt; font-weight: 800; line-height: 1; letter-spacing: 0; }
