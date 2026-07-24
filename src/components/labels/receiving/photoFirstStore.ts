@@ -32,6 +32,9 @@ export interface PfState {
   supplierId: string;
   reference: string;
   scanning: boolean;
+  /** Definido quando o recebimento já foi criado e etiquetas enviadas para impressão.
+   *  Permite reimprimir sem duplicar o recebimento e mantém a sessão até o dono concluir. */
+  finalizedReceiptId: string | null;
 }
 
 let state: PfState = {
@@ -40,6 +43,7 @@ let state: PfState = {
   supplierId: "none",
   reference: "",
   scanning: false,
+  finalizedReceiptId: null,
 };
 
 const listeners = new Set<() => void>();
@@ -56,7 +60,7 @@ export const photoFirstStore = {
   subscribe(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; },
   reset() {
     for (const p of state.photos) { try { URL.revokeObjectURL(p.previewUrl); } catch { /* noop */ } }
-    state = { photos: [], groups: null, supplierId: "none", reference: "", scanning: false };
+    state = { photos: [], groups: null, supplierId: "none", reference: "", scanning: false, finalizedReceiptId: null };
     emit();
   },
   hasWork(): boolean {
