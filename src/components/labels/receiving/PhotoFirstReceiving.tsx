@@ -629,20 +629,31 @@ function GroupCard({
           {editorFields.includes("expires_at") && (
             <FieldEditor label="Validade" type="date" value={group.expires_at || ""} onChange={(v) => onPatch({ expires_at: v })} />
           )}
-          {editorFields.includes("batch") && (
-            <div>
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
-              <div className="flex gap-1.5">
-                <Input value={group.batch || ""} onChange={(e) => onPatch({ batch: e.target.value })} placeholder="Digite ou gere um lote MesaClik" />
-                <Button type="button" size="sm" variant="outline" onClick={onGenerateLot} title="Gerar lote interno MesaClik">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Não encontrado nas fotos. Gere um lote interno de rastreabilidade se o fornecedor não informou.
-              </p>
+          <div className={cn(!editorFields.includes("batch") && "sm:col-span-1")}>
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
+            <div className="flex gap-1.5">
+              <Input
+                value={group.batch || ""}
+                onChange={(e) => onPatch({ batch: e.target.value })}
+                placeholder="Lote do fabricante"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onGenerateLot}
+                title="Gerar lote interno de rastreabilidade a partir da data de recebimento"
+                className="whitespace-nowrap"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Não existe na embalagem
+              </Button>
             </div>
-          )}
+            {!group.batch && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Sem lote na embalagem? Clique em <span className="font-medium">Não existe na embalagem</span> — o MesaClik gera um lote interno MESA-AAAAMMDD baseado na data de recebimento para manter a rastreabilidade.
+              </p>
+            )}
+          </div>
           {editorFields.includes("sif") && (
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">SIF/SISP/SIM</label>
