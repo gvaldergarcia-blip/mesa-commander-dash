@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
+import { printLabels } from "@/components/labels/LabelPrintSheet";
+import { useRestaurant } from "@/hooks/useRestaurantContext";
 
 interface ActiveLot {
   issuance_id: string;
@@ -47,6 +49,7 @@ interface Props {
 export function ManipulationDialog({ open, onOpenChange, productId, productName, conservationMethod }: Props) {
   const { createLabel } = useLabels();
   const { activeEmployees } = useLabelEmployees();
+  const { restaurant } = (useRestaurant() as any) || { restaurant: null };
 
   const [loadingLots, setLoadingLots] = useState(false);
   const [lots, setLots] = useState<ActiveLot[]>([]);
@@ -108,7 +111,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
 
     setSaving(true);
     try {
-      await createLabel({
+      const inserted = await createLabel({
         label_product_id: productId,
         product_name: productName,
         manufacture_date: manufacture,
@@ -123,6 +126,27 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         // supplier_id, supplier_lot e origin_traceability_lot vêm por trigger
       });
       toast.success(`Manipulação registrada · Lote ${batch}`);
+      // Imprime imediatamente com faixa "MANIPULADO" no topo
+      try {
+        printLabels({
+          productName,
+          manufactureDate: manufacture,
+          expiryDate: expiry,
+          responsible: employee?.name || "—",
+          quantity: 1,
+          batch,
+          banner: "MANIPULADO",
+          notes: originNote,
+          conservationLabel:
+            (conservationMethod === "frozen" && "Congelado") ||
+            (conservationMethod === "ambient" && "Ambiente") ||
+            (conservationMethod === "hot" && "Quente") ||
+            "Refrigerado",
+          restaurantName: restaurant?.name ?? null,
+          restaurantCnpj: restaurant?.cnpj ?? null,
+          restaurantCep: restaurant?.cep ?? null,
+        });
+      } catch { /* ignore print errors */ }
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message || "Erro ao registrar manipulação");
