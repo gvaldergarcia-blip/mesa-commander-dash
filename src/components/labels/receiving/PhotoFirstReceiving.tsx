@@ -152,6 +152,22 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     setSupplierId("none"); setReference("");
   };
 
+  const hasWork = photos.length > 0 || (groups?.length ?? 0) > 0;
+  /** Fechar sem perder trabalho: só reseta se realmente for cancelar. */
+  const handleClose = (nextOpen: boolean) => {
+    if (nextOpen) { onOpenChange(true); return; }
+    if (hasWork) {
+      // Não descarta ao clicar no X — apenas oculta o diálogo, mantendo tudo em memória.
+      onOpenChange(false);
+      return;
+    }
+    onOpenChange(false);
+  };
+  const handleCancel = () => {
+    if (hasWork && !confirm("Descartar todas as fotos e dados coletados?")) return;
+    reset(); onOpenChange(false);
+  };
+
   const addFiles = (list: FileList | null) => {
     if (!list?.length) return;
     const remaining = Math.max(0, MAX_PHOTOS - photos.length);
@@ -375,7 +391,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -505,7 +521,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
               {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
             </p>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
               <Button onClick={finalize} disabled={!canFinalize} className="gap-2">
                 {(isCreating || isBulkResolving) && <Loader2 className="h-4 w-4 animate-spin" />}
                 <CheckCircle2 className="h-4 w-4" />
