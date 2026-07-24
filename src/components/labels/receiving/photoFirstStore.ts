@@ -30,6 +30,13 @@ export interface PfGroup {
   missing: string[];
   missing_initial: string[];
   is_meat: boolean;
+  /** POP de Manipulação (regra do estabelecimento — cadastrada uma única vez por produto). */
+  pop_enabled: boolean;
+  pop_validity_value: number | null;
+  pop_validity_unit: "hours" | "days" | null;
+  pop_notes: string | null;
+  /** Indica que o produto já possui POP salvo no cadastro (permite apenas edição opcional). */
+  pop_existing: boolean;
 }
 
 export interface PfState {
