@@ -408,6 +408,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         storage_location: g.storage_location || null,
         sif: g.sif || null,
         batch: g.batch || null,
+        lot_source: g.lot_source || (g.batch ? "manufacturer" : "none"),
         weight: w?.value ?? null,
         weight_unit: w?.unit ?? null,
       };
@@ -545,7 +546,11 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                   photos={photos}
                   onPatch={(u) => patchGroup(g.id, u)}
                   onRemove={() => removeGroup(g.id)}
-                  onGenerateLot={() => patchGroup(g.id, { batch: genMesaLot() })}
+                  onGenerateInternalLot={() =>
+                    patchGroup(g.id, { batch: genInternalLot(groups), lot_source: "internal" })
+                  }
+                  onMarkNoLot={() => patchGroup(g.id, { batch: null, lot_source: "none" })}
+                  onClearLot={() => patchGroup(g.id, { batch: null, lot_source: null })}
                 />
               ))}
             </div>
@@ -598,7 +603,9 @@ function recomputeMissing(g: ProductGroup): string[] {
   const miss: string[] = [];
   if (!g.name?.trim()) miss.push("name");
   if (!g.expires_at) miss.push("expires_at");
-  if (!g.batch?.trim()) miss.push("batch");
+  // Lote é considerado resolvido quando o usuário digitou/leu um lote OU
+  // decidiu explicitamente por "sem lote" (lot_source === 'none').
+  if (!g.batch?.trim() && g.lot_source !== "none") miss.push("batch");
   if (!g.is_meat) {
     // SIF só é obrigatório para produtos de origem animal — se o usuário marcar
     // "não se aplica", removemos da obrigação. Por padrão, se veio SIF da IA
@@ -631,12 +638,15 @@ function ConfPill({ conf }: { conf: number }) {
 }
 
 function GroupCard({
-  group, photos, onPatch, onRemove, onGenerateLot,
+  group, photos, onPatch, onRemove,
+  onGenerateInternalLot, onMarkNoLot, onClearLot,
 }: {
   group: ProductGroup; photos: Photo[];
   onPatch: (u: Partial<ProductGroup>) => void;
   onRemove: () => void;
-  onGenerateLot: () => void;
+  onGenerateInternalLot: () => void;
+  onMarkNoLot: () => void;
+  onClearLot: () => void;
 }) {
   const previews = group.photo_ids.map((pid) => photos.find((p) => p.id === pid)).filter(Boolean) as Photo[];
   const ready = group.missing.length === 0;
@@ -688,29 +698,90 @@ function GroupCard({
           {editorFields.includes("expires_at") && (
             <FieldEditor label="Validade" type="date" value={group.expires_at || ""} onChange={(v) => onPatch({ expires_at: v })} />
           )}
-          <div className={cn(!editorFields.includes("batch") && "sm:col-span-1")}>
-            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
-            <div className="flex gap-1.5">
-              <Input
-                value={group.batch || ""}
-                onChange={(e) => onPatch({ batch: e.target.value })}
-                placeholder="Lote do fabricante"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={onGenerateLot}
-                title="Gerar lote interno de rastreabilidade a partir da data de recebimento"
-                className="whitespace-nowrap"
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Não existe na embalagem
-              </Button>
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
+              {group.lot_source && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] gap-1",
+                    group.lot_source === "manufacturer" && "bg-emerald-500/10 text-emerald-700 border-emerald-500/30",
+                    group.lot_source === "internal" && "bg-sky-500/10 text-sky-700 border-sky-500/30",
+                    group.lot_source === "none" && "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {group.lot_source === "manufacturer" && "Lote do fabricante"}
+                  {group.lot_source === "internal" && "Lote interno"}
+                  {group.lot_source === "none" && "Sem lote"}
+                </Badge>
+              )}
             </div>
-            {!group.batch && (
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Sem lote na embalagem? Clique em <span className="font-medium">Não existe na embalagem</span> — o MesaClik gera um lote interno MESA-AAAAMMDD baseado na data de recebimento para manter a rastreabilidade.
-              </p>
+
+            {/* Estado 1 — lote resolvido (fabricante/interno): mostra o valor e permite alterar */}
+            {(group.lot_source === "manufacturer" || group.lot_source === "internal") && (
+              <div className="flex gap-1.5 mt-1">
+                <Input
+                  value={group.batch || ""}
+                  onChange={(e) => onPatch({ batch: e.target.value, lot_source: "manufacturer" })}
+                  placeholder="Lote"
+                />
+                <Button type="button" size="sm" variant="ghost" onClick={onClearLot} title="Voltar a escolher">
+                  Alterar
+                </Button>
+              </div>
+            )}
+
+            {/* Estado 2 — decisão explícita: recebido sem lote */}
+            {group.lot_source === "none" && (
+              <div className="flex items-center justify-between gap-2 mt-1 p-2 rounded-md border border-dashed border-border/60 bg-muted/20">
+                <p className="text-[11px] text-muted-foreground">
+                  Produto recebido sem lote — o campo <span className="font-medium">Lote</span> não será impresso na etiqueta.
+                </p>
+                <Button type="button" size="sm" variant="ghost" onClick={onClearLot}>Alterar</Button>
+              </div>
+            )}
+
+            {/* Estado 3 — indefinido: apresentar as 3 opções */}
+            {!group.lot_source && (
+              <div className="mt-1 space-y-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Nenhum lote foi identificado na embalagem. Como deseja continuar?
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="default"
+                    className="gap-1.5 justify-start"
+                    onClick={onGenerateInternalLot}
+                    title="MesaClik gera um lote interno LT-AAAAMMDD-NNN para rastreabilidade"
+                  >
+                    <Hash className="h-3.5 w-3.5" /> Gerar lote interno
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 justify-start"
+                    onClick={() => onPatch({ lot_source: "manufacturer", batch: "" })}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Informar manualmente
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 justify-start"
+                    onClick={onMarkNoLot}
+                  >
+                    <MinusCircle className="h-3.5 w-3.5" /> Continuar sem lote
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  <span className="font-medium">Recomendado:</span> gerar um lote interno mantém a rastreabilidade completa sem inventar dados do fabricante.
+                </p>
+              </div>
             )}
           </div>
           {editorFields.includes("sif") && (
