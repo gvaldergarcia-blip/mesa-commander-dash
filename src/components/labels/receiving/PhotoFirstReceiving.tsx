@@ -21,6 +21,13 @@ import { printLabelsMany, type PrintLabelData } from "@/components/labels/LabelP
 import { QRCodeSVG } from "qrcode.react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { getSiteBaseUrl } from "@/config/site-url";
+import {
+  photoFirstStore,
+  usePhotoFirstState,
+  type PfGroup,
+  type PfPhoto,
+  type Conservation as PfConservation,
+} from "./photoFirstStore";
 
 const CONSERVATION_LABEL: Record<string, string> = {
   refrigerated: "REFRIGERADO",
@@ -45,28 +52,8 @@ const FIELD_LABEL: Record<string, string> = {
   storage_location: "Local",
 };
 
-interface Photo { id: string; file: File; previewUrl: string }
-
-interface ProductGroup {
-  id: string;
-  photo_ids: string[];
-  name: string | null;
-  brand: string | null;
-  barcode: string | null;
-  weight: string | null;
-  expires_at: string | null;
-  batch: string | null;
-  sif: string | null;
-  category: string | null;
-  conservation: Conservation | null;
-  storage_location: string;
-  confidence: Record<string, number>;
-  missing: string[];
-  /** Snapshot dos campos faltantes no momento da análise — controla quais editores aparecem
-   *  (não muda enquanto o usuário digita, para não sumir com o campo antes de terminar). */
-  missing_initial: string[];
-  is_meat: boolean; // se tem SIF/carne — deixamos SIF opcional se marcado
-}
+type Photo = PfPhoto;
+type ProductGroup = PfGroup;
 
 /** Redimensiona e comprime a imagem no navegador antes de enviar à IA.
  *  Reduz drasticamente o payload (evita "Memory limit exceeded" na edge function). */
@@ -137,20 +124,20 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { restaurant } = useRestaurant();
   const { activeEmployees } = useLabelEmployees();
   const registerPrints = useRegisterPrints();
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [groups, setGroups] = useState<ProductGroup[] | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [supplierId, setSupplierId] = useState<string>("none");
-  const [reference, setReference] = useState("");
+  // Estado persistente entre aberturas/fechamentos do dialog e trocas de aba.
+  const { photos, groups, supplierId, reference, scanning } = usePhotoFirstState();
+  const setPhotos = (updater: Photo[] | ((prev: Photo[]) => Photo[])) =>
+    photoFirstStore.set((s) => ({ photos: typeof updater === "function" ? (updater as any)(s.photos) : updater }));
+  const setGroups = (updater: ProductGroup[] | null | ((prev: ProductGroup[] | null) => ProductGroup[] | null)) =>
+    photoFirstStore.set((s) => ({ groups: typeof updater === "function" ? (updater as any)(s.groups) : updater }));
+  const setScanning = (v: boolean) => photoFirstStore.set({ scanning: v });
+  const setSupplierId = (v: string) => photoFirstStore.set({ supplierId: v });
+  const setReference = (v: string) => photoFirstStore.set({ reference: v });
   const camRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
 
-  const reset = () => {
-    photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-    setPhotos([]); setGroups(null); setScanning(false);
-    setSupplierId("none"); setReference("");
-  };
+  const reset = () => { photoFirstStore.reset(); };
 
   const hasWork = photos.length > 0 || (groups?.length ?? 0) > 0;
   /** Fechar sem perder trabalho: só reseta se realmente for cancelar. */
@@ -315,17 +302,31 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         .eq("status", "active");
       const issuances = (iss || []) as any[];
       if (issuances.length) {
-        // busca dados legais do restaurante (CNPJ / CEP)
-        let legal: { cnpj: string | null; cep: string | null } = { cnpj: null, cep: null };
+          // busca dados legais do restaurante (CNPJ / CEP / endereço)
+          let legal: { cnpj: string | null; cep: string | null; address: string | null } = {
+            cnpj: null, cep: null, address: (restaurant as any)?.address_line ?? null,
+          };
         if (restaurant?.id) {
           const { data: r } = await (supabase as any)
             .schema("mesaclik")
             .from("restaurants")
-            .select("cnpj, zip_code")
+              .select("cnpj, zip_code, address_line")
             .eq("id", restaurant.id)
             .maybeSingle();
-          legal = { cnpj: r?.cnpj || null, cep: r?.zip_code || null };
+            legal = {
+              cnpj: r?.cnpj || null,
+              cep: r?.zip_code || null,
+              address: r?.address_line || legal.address,
+            };
         }
+          const supplierName = supplier_id
+            ? ((suppliers as any[]).find((s) => s.id === supplier_id)?.name ?? null)
+            : null;
+          // Mapa nome→marca (do que a IA leu na embalagem) para preencher MARCA/FORN por produto.
+          const brandByName = new Map<string, string>();
+          for (const g of readyGroups) {
+            if (g.name && g.brand) brandByName.set(g.name.trim().toLowerCase(), g.brand);
+          }
         const respBySector = new Map<string, string>();
         for (const e of activeEmployees || []) {
           for (const s of e.sectors || []) if (!respBySector.has(s)) respBySector.set(s, e.name);
@@ -347,6 +348,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
             ? `${String(l.weight).replace(".", ",")} ${l.weight_unit}`
             : null;
           const sector = l.storage_location ?? null;
+            const nameKey = String(l.product_name || "").trim().toLowerCase();
+            const brand = brandByName.get(nameKey) || supplierName;
           jobs.push({
             productName: l.product_name,
             manufactureDate: new Date(l.manufacture_date),
@@ -356,6 +359,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
             notes: l.notes,
             cif: l.cif,
             sif: l.sif ?? null,
+              brand,
             allergens: l.allergens,
             ingredients: l.ingredients,
             conservationLabel: l.conservation_method
@@ -367,6 +371,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
             restaurantName: restaurant?.name || null,
             restaurantCnpj: legal.cnpj,
             restaurantCep: legal.cep,
+              restaurantAddress: legal.address,
             checklistQrSvg: qrSvg,
             checklistQrLabel: `#${l.unique_code}`,
           });
