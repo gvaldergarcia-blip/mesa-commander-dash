@@ -17,6 +17,10 @@ import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { printLabels } from "@/components/labels/LabelPrintSheet";
 import { useRestaurant } from "@/hooks/useRestaurantContext";
+import { useRestaurant as useRestaurantCtx } from "@/contexts/RestaurantContext";
+import { QRCodeSVG } from "qrcode.react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { getSiteBaseUrl } from "@/config/site-url";
 
 interface ActiveLot {
   issuance_id: string;
@@ -50,6 +54,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const { createLabel } = useLabels();
   const { activeEmployees } = useLabelEmployees();
   const { restaurant } = (useRestaurant() as any) || { restaurant: null };
+  const { restaurant: restaurantCtx } = useRestaurantCtx();
 
   const [loadingLots, setLoadingLots] = useState(false);
   const [lots, setLots] = useState<ActiveLot[]>([]);
@@ -106,12 +111,12 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       selectedLot.traceability_lot ||
       selectedLot.batch ||
       "—";
-    const originSupplier = selectedLot.supplier_name || "MesaClik";
-    const originNote = `[Manipulação] Origem: ${originSupplier} · Lote ${originLabel}${notes.trim() ? ` · ${notes.trim()}` : ""}`;
+    const originSupplier = selectedLot.supplier_name || null;
+    const originNote = notes.trim() ? notes.trim() : null;
 
     setSaving(true);
     try {
-      const inserted = await createLabel({
+      const inserted: any = await createLabel({
         label_product_id: productId,
         product_name: productName,
         manufacture_date: manufacture,
@@ -126,27 +131,80 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         // supplier_id, supplier_lot e origin_traceability_lot vêm por trigger
       });
       toast.success(`Manipulação registrada · Lote ${batch}`);
-      // Imprime imediatamente com faixa "MANIPULADO" no topo
+      // Busca dados legais e SIF/peso/local herdados via trigger para imprimir
+      // a etiqueta completa (mesma estrutura das etiquetas normais + faixa "MANIPULADO").
       try {
+        let legal: { cnpj: string | null; cep: string | null; address: string | null } = {
+          cnpj: (restaurant as any)?.cnpj ?? null,
+          cep: (restaurant as any)?.cep ?? null,
+          address: (restaurantCtx as any)?.address_line ?? null,
+        };
+        if (restaurantCtx?.id) {
+          const { data: r } = await (supabase as any)
+            .schema("mesaclik")
+            .from("restaurants")
+            .select("cnpj, zip_code, address_line")
+            .eq("id", restaurantCtx.id)
+            .maybeSingle();
+          if (r) legal = {
+            cnpj: r.cnpj || legal.cnpj,
+            cep: r.zip_code || legal.cep,
+            address: r.address_line || legal.address,
+          };
+        }
+        // Recarrega a issuance criada para obter unique_code, sif, weight, storage_location
+        // — herdados via trigger a partir do lote de origem.
+        let full: any = inserted || {};
+        if (inserted?.id) {
+          const { data: row } = await (supabase as any)
+            .from("label_issuances")
+            .select("*")
+            .eq("id", inserted.id)
+            .maybeSingle();
+          if (row) full = row;
+        }
+        const qrSvg = full.unique_code
+          ? renderToStaticMarkup(
+              <QRCodeSVG
+                value={`${getSiteBaseUrl()}/etiquetas/scan/${full.unique_code}?op=1`}
+                size={144}
+                level="L"
+                marginSize={1}
+              />,
+            )
+          : null;
+        const weightLabel = full.weight != null && full.weight_unit
+          ? `${String(full.weight).replace(".", ",")} ${full.weight_unit}`
+          : null;
+        const consMap: Record<string, string> = {
+          refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
+        };
         printLabels({
           productName,
           manufactureDate: manufacture,
           expiryDate: expiry,
-          responsible: employee?.name || "—",
+          originalExpiryDate: selectedLot.expiry_date ? new Date(selectedLot.expiry_date) : null,
+          responsible: employee?.name || full.responsible || "—",
           quantity: 1,
           batch,
           banner: "MANIPULADO",
-          notes: originNote,
-          conservationLabel:
-            (conservationMethod === "frozen" && "Congelado") ||
-            (conservationMethod === "ambient" && "Ambiente") ||
-            (conservationMethod === "hot" && "Quente") ||
-            "Refrigerado",
-          restaurantName: restaurant?.name ?? null,
-          restaurantCnpj: restaurant?.cnpj ?? null,
-          restaurantCep: restaurant?.cep ?? null,
+          brand: originSupplier,
+          sif: full.sif ?? null,
+          notes: originNote ? `Origem: ${originSupplier || "—"} · Lote ${originLabel} · ${originNote}`
+                            : `Origem: ${originSupplier || "—"} · Lote ${originLabel}`,
+          conservationLabel: consMap[full.conservation_method || (conservationMethod as any) || "refrigerated"] || null,
+          storageLocation: full.storage_location ?? null,
+          quantityWeight: weightLabel,
+          restaurantName: restaurantCtx?.name ?? null,
+          restaurantCnpj: legal.cnpj,
+          restaurantCep: legal.cep,
+          restaurantAddress: legal.address,
+          checklistQrSvg: qrSvg,
+          checklistQrLabel: full.unique_code ? `#${full.unique_code}` : null,
         });
-      } catch { /* ignore print errors */ }
+      } catch (e) {
+        console.error("[ManipulationDialog] print", e);
+      }
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message || "Erro ao registrar manipulação");
