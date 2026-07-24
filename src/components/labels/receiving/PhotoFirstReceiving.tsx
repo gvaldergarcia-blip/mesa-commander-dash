@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Camera, Upload, Loader2, Sparkles, X, CheckCircle2, AlertTriangle,
-  Image as ImageIcon, Wand2, Trash2, RefreshCw,
+  Image as ImageIcon, Wand2, Trash2, RefreshCw, Hash, Pencil, MinusCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -42,7 +42,7 @@ const REQUIRED_FIELDS = ["name", "expires_at", "batch", "sif"] as const;
 const FIELD_LABEL: Record<string, string> = {
   name: "Nome",
   expires_at: "Validade",
-  batch: "Lote",
+  batch: "Definir lote",
   sif: "SIF",
   brand: "Marca",
   weight: "Peso",
@@ -109,11 +109,20 @@ function daysUntil(dateStr: string | null): number {
   const today = Date.UTC(t.getFullYear(), t.getMonth(), t.getDate());
   return Math.max(1, Math.round((target - today) / 86400000));
 }
-function genMesaLot() {
+/** Gera um lote interno sequencial no formato `LT-YYYYMMDD-NNN`.
+ *  A contagem é feita sobre os grupos da sessão atual para manter numeração
+ *  crescente e legível dentro de um mesmo recebimento. */
+function genInternalLot(existingGroups: ProductGroup[] | null): string {
   const d = new Date();
   const s = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  const rnd = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `MESA-${s}-${rnd}`;
+  const prefix = `LT-${s}-`;
+  const used = (existingGroups || [])
+    .map((g) => g.batch || "")
+    .filter((b) => b.startsWith(prefix))
+    .map((b) => parseInt(b.slice(prefix.length), 10))
+    .filter((n) => Number.isFinite(n));
+  const next = (used.length ? Math.max(...used) : 0) + 1;
+  return `${prefix}${String(next).padStart(3, "0")}`;
 }
 
 interface Props { open: boolean; onOpenChange: (v: boolean) => void }
@@ -225,6 +234,9 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           missing: Array.isArray(p.missing) ? p.missing : [],
           missing_initial: [],
           is_meat: !!p.sif,
+          // Se a IA leu um lote, marcamos como do fabricante; caso contrário,
+          // deixamos indefinido para o usuário escolher entre as 3 opções.
+          lot_source: p.batch ? "manufacturer" : null,
         };
         base.missing = recomputeMissing(base);
         base.missing_initial = [...base.missing];
