@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { printLabels } from "@/components/labels/LabelPrintSheet";
-import { useRestaurantContext } from "@/hooks/useRestaurantContext";
+import { useRestaurant } from "@/hooks/useRestaurantContext";
 
 interface ActiveLot {
   issuance_id: string;
@@ -49,7 +49,7 @@ interface Props {
 export function ManipulationDialog({ open, onOpenChange, productId, productName, conservationMethod }: Props) {
   const { createLabel } = useLabels();
   const { activeEmployees } = useLabelEmployees();
-  const { restaurant } = (useRestaurantContext() as any) || { restaurant: null };
+  const { restaurant } = (useRestaurant() as any) || { restaurant: null };
 
   const [loadingLots, setLoadingLots] = useState(false);
   const [lots, setLots] = useState<ActiveLot[]>([]);
