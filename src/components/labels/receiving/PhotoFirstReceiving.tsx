@@ -14,6 +14,20 @@ import { cn } from "@/lib/utils";
 import { useReceipts } from "@/hooks/useReceipts";
 import { useLabelSuppliers } from "@/hooks/useLabelSuppliers";
 import { SectorCombobox } from "@/components/labels/SectorCombobox";
+import { useRestaurant } from "@/contexts/RestaurantContext";
+import { useLabelEmployees } from "@/hooks/useLabelEmployees";
+import { useRegisterPrints } from "@/hooks/useDiaryReceipts";
+import { printLabelsMany, type PrintLabelData } from "@/components/labels/LabelPrintSheet";
+import { QRCodeSVG } from "qrcode.react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { getSiteBaseUrl } from "@/config/site-url";
+
+const CONSERVATION_LABEL: Record<string, string> = {
+  refrigerated: "REFRIGERADO",
+  frozen: "CONGELADO",
+  ambient: "AMBIENTE",
+  hot: "QUENTE",
+};
 
 type Conservation = "refrigerated" | "frozen" | "ambient" | "hot";
 const MAX_PHOTOS = 40;
@@ -120,6 +134,9 @@ interface Props { open: boolean; onOpenChange: (v: boolean) => void }
 export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { createReceipt, bulkResolvePending, isCreating, isBulkResolving } = useReceipts();
   const { suppliers = [] } = useLabelSuppliers() as any;
+  const { restaurant } = useRestaurant();
+  const { activeEmployees } = useLabelEmployees();
+  const registerPrints = useRegisterPrints();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [groups, setGroups] = useState<ProductGroup[] | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -273,7 +290,87 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
     await bulkResolvePending({ receiptId: receipt.id, supplierId: supplier_id, items: bulkItems });
-    toast.success(`${bulkItems.length} etiqueta(s) prontas.`);
+    // 3) busca as issuances geradas para este recebimento e envia para impressão
+    try {
+      const { data: iss } = await (supabase as any)
+        .from("label_issuances")
+        .select("*")
+        .eq("receipt_id", receipt.id)
+        .eq("status", "active");
+      const issuances = (iss || []) as any[];
+      if (issuances.length) {
+        // busca dados legais do restaurante (CNPJ / CEP)
+        let legal: { cnpj: string | null; cep: string | null } = { cnpj: null, cep: null };
+        if (restaurant?.id) {
+          const { data: r } = await (supabase as any)
+            .schema("mesaclik")
+            .from("restaurants")
+            .select("cnpj, zip_code")
+            .eq("id", restaurant.id)
+            .maybeSingle();
+          legal = { cnpj: r?.cnpj || null, cep: r?.zip_code || null };
+        }
+        const respBySector = new Map<string, string>();
+        for (const e of activeEmployees || []) {
+          for (const s of e.sectors || []) if (!respBySector.has(s)) respBySector.set(s, e.name);
+        }
+        const jobs: PrintLabelData[] = [];
+        const prints: { id: string; count: number }[] = [];
+        for (const l of issuances) {
+          const remaining = Math.max(0, (l.quantity || 0) - (l.printed_labels || 0));
+          if (remaining <= 0) continue;
+          const qrSvg = renderToStaticMarkup(
+            <QRCodeSVG
+              value={`${getSiteBaseUrl()}/etiquetas/scan/${l.unique_code}?op=1`}
+              size={144}
+              level="L"
+              marginSize={1}
+            />,
+          );
+          const weightLabel = l.weight != null && l.weight_unit
+            ? `${String(l.weight).replace(".", ",")} ${l.weight_unit}`
+            : null;
+          const sector = l.storage_location ?? null;
+          jobs.push({
+            productName: l.product_name,
+            manufactureDate: new Date(l.manufacture_date),
+            expiryDate: new Date(l.expiry_date),
+            responsible: l.responsible || (sector ? respBySector.get(sector) : null) || "—",
+            quantity: remaining,
+            notes: l.notes,
+            cif: l.cif,
+            sif: l.sif ?? null,
+            allergens: l.allergens,
+            ingredients: l.ingredients,
+            conservationLabel: l.conservation_method
+              ? CONSERVATION_LABEL[l.conservation_method] || null
+              : null,
+            storageLocation: sector,
+            batch: l.batch,
+            quantityWeight: weightLabel,
+            restaurantName: restaurant?.name || null,
+            restaurantCnpj: legal.cnpj,
+            restaurantCep: legal.cep,
+            checklistQrSvg: qrSvg,
+            checklistQrLabel: `#${l.unique_code}`,
+          });
+          prints.push({ id: l.id, count: remaining });
+        }
+        if (jobs.length) {
+          await registerPrints.mutateAsync(prints);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          printLabelsMany(jobs);
+          toast.success(`${jobs.length} etiqueta(s) enviadas para impressão.`);
+        } else {
+          toast.success(`${bulkItems.length} etiqueta(s) prontas.`);
+        }
+      } else {
+        toast.success(`${bulkItems.length} etiqueta(s) prontas.`);
+      }
+    } catch (e: any) {
+      console.error("[PhotoFirstReceiving] print", e);
+      toast.warning("Etiquetas geradas, mas falhou ao imprimir automaticamente. Abra o Diário Operacional.");
+    }
     reset(); onOpenChange(false);
   };
 
