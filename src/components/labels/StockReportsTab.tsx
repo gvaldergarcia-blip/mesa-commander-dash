@@ -38,6 +38,7 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
   const { products } = useLabelProducts();
   const { activeEmployees } = useLabelEmployees();
   const { items: labeledProducts } = useLabeledProducts();
+  const { events: dischargeEvents } = useLabelDischarges();
   const restaurantCtx = (() => {
     try { return useRestaurant(); } catch { return null as any; }
   })();
@@ -211,19 +212,22 @@ export function StockReportsTab({ onOpenSector }: Props = {}) {
 
   // ============ Baixas por uso ============
   const usageDischarges = useMemo(() => {
-    return labels
-      .filter((l) => l.status === "discharged" && (l.discharge_reason === "use" || l.discharge_reason === "consumo"))
-      .filter((l) => l.resolved_at && new Date(l.resolved_at) >= cutoff)
-      .filter((l) => !search || l.product_name.toLowerCase().includes(search.toLowerCase()));
-  }, [labels, cutoff, search]);
+    // Fonte: eventos de baixa (label_discharges). Cada evento representa 1 baixa
+    // — inclusive parciais (por unidade), que a base label_issuances.status
+    // não expõe enquanto sobrar estoque na etiqueta.
+    return dischargeEvents
+      .filter((e) => e.reason === "use" || e.reason === "consumo")
+      .filter((e) => e.discharged_at && new Date(e.discharged_at) >= cutoff)
+      .filter((e) => !search || e.product_name.toLowerCase().includes(search.toLowerCase()));
+  }, [dischargeEvents, cutoff, search]);
 
   const usageRankProducts = useMemo(() => {
     const m = new Map<string, number>();
-    usageDischarges.forEach((l) => m.set(l.product_name, (m.get(l.product_name) || 0) + 1));
+    usageDischarges.forEach((e) => m.set(e.product_name, (m.get(e.product_name) || 0) + Number(e.units || 1)));
     return Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }, [usageDischarges]);
 
-  const totalUsedUnits = usageDischarges.reduce((s, l) => s + Number(l.quantity || 0), 0);
+  const totalUsedUnits = usageDischarges.reduce((s, e) => s + Number(e.units || 1), 0);
 
   // ============ Perdas ============
   const losses = useMemo(() => {
