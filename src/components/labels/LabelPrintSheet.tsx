@@ -7,6 +7,8 @@ export interface PrintLabelData {
   expiryDate: Date;
   responsible: string;
   notes?: string | null;
+  /** Faixa de destaque no topo (ex.: "MANIPULADO", "PRODUÇÃO INTERNA") */
+  banner?: string | null;
   cif?: string | null;
   sif?: string | null;
   allergens?: string | null;
@@ -81,6 +83,7 @@ function buildLabelHtml(data: PrintLabelData): string {
 
   return `
         <div class="label">
+          ${data.banner ? `<div class="banner">${escapeHtml(data.banner.toUpperCase())}</div>` : ""}
           <div class="top">
             <div class="top-left">
               <div class="name">${escapeHtml(data.productName.toUpperCase())}</div>
@@ -173,6 +176,7 @@ export function printLabelsMany(items: PrintLabelData[]) {
     .ingredients .k { font-weight: 700; }
     .notes { margin-top: 0.35mm; font-size: 5.4pt; font-style: italic; line-height: 1.02; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .notes .k { font-weight: 700; font-style: normal; }
+    .banner { background: #000 !important; color: #fff !important; font-size: 6.6pt; font-weight: 900; letter-spacing: 0.4mm; text-align: center; padding: 0.5mm 0; margin: -0.6mm -0.6mm 0.7mm; }
   }
   `;
 
