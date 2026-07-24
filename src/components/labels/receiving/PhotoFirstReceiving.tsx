@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Camera, Upload, Loader2, Sparkles, X, CheckCircle2, AlertTriangle,
-  Image as ImageIcon, Wand2, Trash2, RefreshCw, Hash, Pencil, MinusCircle,
+  Image as ImageIcon, Wand2, Trash2, RefreshCw, Hash, Pencil, MinusCircle, ClipboardCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -237,12 +237,41 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           // Se a IA leu um lote, marcamos como do fabricante; caso contrário,
           // deixamos indefinido para o usuário escolher entre as 3 opções.
           lot_source: p.batch ? "manufacturer" : null,
+          // POP começa vazio — será preenchido pelo lookup em `label_products` (abaixo).
+          pop_enabled: false,
+          pop_validity_value: null,
+          pop_validity_unit: null,
+          pop_notes: null,
+          pop_existing: false,
         };
         base.missing = recomputeMissing(base);
         base.missing_initial = [...base.missing];
         return base;
       });
       if (!built.length) toast.warning("A IA não conseguiu identificar nenhum produto. Tente adicionar fotos com melhor luz.");
+      // Prefill do POP consultando produtos já cadastrados (por nome, case-insensitive).
+      try {
+        const names = Array.from(new Set(built.map((g) => (g.name || "").trim()).filter(Boolean)));
+        if (names.length) {
+          const { data: existing } = await (supabase as any)
+            .from("label_products")
+            .select("name, manipulation_enabled, manipulation_validity_value, manipulation_validity_unit, manipulation_notes")
+            .in("name", names);
+          const byName = new Map<string, any>();
+          for (const r of (existing || [])) byName.set(String(r.name || "").trim().toLowerCase(), r);
+          for (const g of built) {
+            const key = (g.name || "").trim().toLowerCase();
+            const p = byName.get(key);
+            if (p?.manipulation_enabled) {
+              g.pop_enabled = true;
+              g.pop_validity_value = p.manipulation_validity_value ?? null;
+              g.pop_validity_unit = (p.manipulation_validity_unit as any) ?? null;
+              g.pop_notes = p.manipulation_notes ?? null;
+              g.pop_existing = true;
+            }
+          }
+        }
+      } catch (e) { console.warn("[PhotoFirstReceiving] POP prefill", e); }
       setGroups(built);
     } catch (e: any) {
       toast.error(e.message || "Erro ao analisar as fotos");
@@ -411,6 +440,11 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         lot_source: g.lot_source || (g.batch ? "manufacturer" : "none"),
         weight: w?.value ?? null,
         weight_unit: w?.unit ?? null,
+        // POP de Manipulação — salvo no cadastro permanente do produto
+        manipulation_enabled: !!g.pop_enabled,
+        manipulation_validity_value: g.pop_enabled ? (g.pop_validity_value ?? null) : null,
+        manipulation_validity_unit: g.pop_enabled ? (g.pop_validity_unit ?? null) : null,
+        manipulation_notes: g.pop_enabled ? (g.pop_notes ?? null) : null,
       };
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
