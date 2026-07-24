@@ -1549,6 +1549,7 @@ export type Database = {
           id: string
           ingredients: string | null
           label_product_id: string | null
+          lot_source: string | null
           manufacture_date: string
           notes: string | null
           origin_issuance_id: string | null
@@ -1584,6 +1585,7 @@ export type Database = {
           id?: string
           ingredients?: string | null
           label_product_id?: string | null
+          lot_source?: string | null
           manufacture_date?: string
           notes?: string | null
           origin_issuance_id?: string | null
@@ -1619,6 +1621,7 @@ export type Database = {
           id?: string
           ingredients?: string | null
           label_product_id?: string | null
+          lot_source?: string | null
           manufacture_date?: string
           notes?: string | null
           origin_issuance_id?: string | null
@@ -1850,6 +1853,7 @@ export type Database = {
           created_at: string
           id: string
           labels_prepared: number
+          lot_source: string | null
           missing_fields: string[]
           needs_info: boolean
           price_cents: number | null
@@ -1868,6 +1872,7 @@ export type Database = {
           created_at?: string
           id?: string
           labels_prepared?: number
+          lot_source?: string | null
           missing_fields?: string[]
           needs_info?: boolean
           price_cents?: number | null
@@ -1886,6 +1891,7 @@ export type Database = {
           created_at?: string
           id?: string
           labels_prepared?: number
+          lot_source?: string | null
           missing_fields?: string[]
           needs_info?: boolean
           price_cents?: number | null

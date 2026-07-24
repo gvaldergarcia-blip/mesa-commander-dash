@@ -16,6 +16,12 @@ export interface PfGroup {
   weight: string | null;
   expires_at: string | null;
   batch: string | null;
+  /** Origem do lote — usado para auditoria e para decidir se o campo já foi "resolvido":
+   *  - `manufacturer`: lote impresso na embalagem (lido pela IA) ou informado manualmente.
+   *  - `internal`: lote gerado pelo MesaClik (LT-YYYYMMDD-NNN).
+   *  - `none`: recebimento intencionalmente sem lote.
+   *  - `null`: ainda não decidido — o usuário precisa escolher. */
+  lot_source: "manufacturer" | "internal" | "none" | null;
   sif: string | null;
   category: string | null;
   conservation: Conservation | null;
