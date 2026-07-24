@@ -13,6 +13,7 @@ import { useLabels } from "@/hooks/useLabels";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { useLabeledProducts } from "@/hooks/useLabeledProducts";
+import { useLabelDischarges } from "@/hooks/useLabelDischarges";
 import { mergeSectors } from "@/lib/labels/sectors";
 import { format, isToday, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
