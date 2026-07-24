@@ -854,6 +854,9 @@ function GroupCard({
             <Input value={group.category || ""} onChange={(e) => onPatch({ category: e.target.value })} placeholder="Ex: Laticínio" />
           </div>
         </div>
+
+        {/* POP de Manipulação — cadastro único por produto */}
+        <PopEditor group={group} onPatch={onPatch} />
       </div>
     </div>
   );
@@ -864,6 +867,102 @@ function FieldEditor({ label, value, onChange, type = "text" }: { label: string;
     <div>
       <label className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</label>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Partial<ProductGroup>) => void }) {
+  const [editing, setEditing] = useState(false);
+  const configured = !!group.pop_enabled && !!group.pop_validity_value && !!group.pop_validity_unit;
+  const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
+  const unitLabel = group.pop_validity_unit === "hours" ? "hora(s)" : "dia(s)";
+  return (
+    <div className="pt-3 mt-1 border-t border-border/50">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide">POP de Manipulação</span>
+          {configured ? (
+            <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 gap-1">
+              <CheckCircle2 className="h-3 w-3" /> Configurado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1">
+              <AlertTriangle className="h-3 w-3" /> Não configurado
+            </Badge>
+          )}
+          {group.pop_existing && (
+            <Badge variant="outline" className="text-[10px]">Já existente no cadastro</Badge>
+          )}
+        </div>
+        {configured && !editing && (
+          <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(true)}>
+            Editar
+          </Button>
+        )}
+      </div>
+
+      {configured && !editing && (
+        <p className="text-xs text-muted-foreground">
+          ✓ <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel} após manipulação
+          {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
+        </p>
+      )}
+
+      {showForm && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Validade após manipulação</label>
+              <Input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={group.pop_validity_value ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  const n = v === "" ? null : Math.max(1, parseInt(v, 10) || 0) || null;
+                  onPatch({ pop_validity_value: n, pop_enabled: true });
+                }}
+                placeholder="Ex: 3, 24, 72"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Unidade</label>
+              <Select
+                value={group.pop_validity_unit || ""}
+                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days", pop_enabled: true })}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hours">Horas</SelectItem>
+                  <SelectItem value="days">Dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-1">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Observações (opcional)</label>
+              <Input
+                value={group.pop_notes || ""}
+                onChange={(e) => onPatch({ pop_notes: e.target.value, pop_enabled: true })}
+                placeholder="Ex: Após abertura manter refrigerado."
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-amber-500/40 pl-2">
+            A validade após manipulação deve ser definida pelo estabelecimento conforme seus Procedimentos Operacionais Padronizados (POPs),
+            Manual de Boas Práticas e orientações do Responsável Técnico, quando aplicável. O MesaClik apenas armazenará e aplicará
+            automaticamente essa configuração durante futuras manipulações.
+          </p>
+          {editing && (
+            <div className="flex justify-end">
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(false)}>
+                Fechar edição
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
