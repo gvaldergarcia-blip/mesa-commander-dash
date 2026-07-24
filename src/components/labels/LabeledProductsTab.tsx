@@ -51,6 +51,7 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
   const { statusMap } = useStockStatus();
   const [sectorFilter, setSectorFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "ok" | "critical" | "expired" | "warning">(initialStatusFilter ?? "all");
+  const [originFilter, setOriginFilter] = useState<"all" | "received" | "internal">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dischargeTarget, setDischargeTarget] = useState<LabeledProduct | null>(null);
@@ -114,6 +115,7 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
       if (sectorFilter === "__none__" && it.sector) return false;
       if (sectorFilter !== "all" && sectorFilter !== "__none__" && it.sector !== sectorFilter) return false;
       if (term && !it.product_name.toLowerCase().includes(term)) return false;
+      if (originFilter !== "all" && it.origin !== originFilter) return false;
       if (statusFilter !== "all") {
         if (statusFilter === "ok" && it.status !== "ok" && it.status !== "warning") return false;
         if (statusFilter === "critical" && it.status !== "critical") return false;
@@ -122,7 +124,12 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
       }
       return true;
     });
-  }, [activeItems, sectorFilter, search, statusFilter]);
+  }, [activeItems, sectorFilter, search, statusFilter, originFilter]);
+
+  const originCounts = useMemo(() => ({
+    received: activeItems.filter((i) => i.origin === "received").length,
+    internal: activeItems.filter((i) => i.origin === "internal").length,
+  }), [activeItems]);
 
   return (
     <div className="space-y-5">
@@ -168,6 +175,41 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
                 style={active && opt.value !== "all" ? { backgroundColor: withAlpha(opt.tone, 0.22), borderColor: opt.tone, color: opt.tone } : undefined}
               >
                 {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        {/* Filtro premium por origem: Recebimento vs Produção Interna */}
+        <div className="inline-flex p-1 rounded-2xl border border-border bg-muted/40 backdrop-blur-sm gap-1 w-fit shadow-inner">
+          {[
+            { value: "all", label: "Todos os produtos", icon: Tag, count: activeItems.length },
+            { value: "received", label: "Recebimento / Fornecedor", icon: Truck, count: originCounts.received },
+            { value: "internal", label: "Produção Interna", icon: ChefHat, count: originCounts.internal },
+          ].map((opt) => {
+            const Icon = opt.icon;
+            const active = originFilter === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setOriginFilter(opt.value as any)}
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all",
+                  active
+                    ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{opt.label}</span>
+                <span
+                  className={cn(
+                    "ml-0.5 px-1.5 py-0 rounded-full text-[10px] font-bold tabular-nums",
+                    active ? "bg-white/20 text-primary-foreground" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {opt.count}
+                </span>
               </button>
             );
           })}

@@ -21,6 +21,10 @@ export interface LabeledProduct {
   sector: string | null;          // storage_location
   category: string | null;        // categoria (compat)
   status: "ok" | "warning" | "critical" | "expired";
+  /** Origem predominante das etiquetas ativas do produto.
+   *  - "internal" : produzidas via Produção Interna (lotes PRD-/PI-)
+   *  - "received" : oriundas de Recebimento (fornecedor) — inclui MAN-/LT-/MESA- */
+  origin: "internal" | "received";
   labels_count: number;
   active_labels_count: number;
   active_non_expired_labels_count: number;
@@ -116,6 +120,12 @@ export function useLabeledProducts() {
       const activeSorted = [...active].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
+      // Origem = decidida pela etiqueta ativa mais recente. Produção Interna
+      // usa os prefixos PRD-/PI-; qualquer outra origem (LT-/MESA-/MAN-/lote
+      // do fabricante) é tratada como oriunda de Recebimento.
+      const latestBatch = activeSorted[0]?.batch || sorted[0]?.batch || "";
+      const origin: "internal" | "received" =
+        /^(PRD-|PI-)/.test(latestBatch) ? "internal" : "received";
       const discharged = list.filter((l) => l.status === "discharged");
       const lastDischarged = discharged.sort(
         (a, b) => new Date(b.resolved_at || b.created_at).getTime() - new Date(a.resolved_at || a.created_at).getTime()
@@ -126,6 +136,7 @@ export function useLabeledProducts() {
         sector: prod?.storage_location ?? first.storage_location ?? null,
         category: prod?.category ?? first.product_category ?? null,
         status: computeStatus(list),
+        origin,
         labels_count: list.length,
         active_labels_count: active.length,
         active_non_expired_labels_count: activeNonExpired.length,

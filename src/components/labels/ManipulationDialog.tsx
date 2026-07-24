@@ -10,12 +10,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Loader2, Truck, Calendar, Tag, ArrowRight } from "lucide-react";
+import { ChefHat, Loader2, Truck, Calendar, Tag, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { useLabeledProducts } from "@/hooks/useLabeledProducts";
+import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { printLabels } from "@/components/labels/LabelPrintSheet";
 import { useRestaurant } from "@/hooks/useRestaurantContext";
 import { useRestaurant as useRestaurantCtx } from "@/contexts/RestaurantContext";
@@ -36,11 +37,9 @@ interface ActiveLot {
   units_remaining: number;
 }
 
-function toDateInput(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function fmtDateTime(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 interface Props {
@@ -55,6 +54,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const { createLabel } = useLabels();
   const { activeEmployees } = useLabelEmployees();
   const { items: labeledProducts } = useLabeledProducts();
+  const { products: labelProducts } = useLabelProducts();
   const { restaurant } = (useRestaurant() as any) || { restaurant: null };
   const { restaurant: restaurantCtx } = useRestaurantCtx();
 
@@ -71,7 +71,6 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [lots, setLots] = useState<ActiveLot[]>([]);
   const [lotId, setLotId] = useState<string>("");
   const [employeeId, setEmployeeId] = useState<string>("");
-  const [newValidity, setNewValidity] = useState<string>(toDateInput(new Date(Date.now() + 3 * 86400000)));
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -88,7 +87,6 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     setLotId("");
     setLots([]);
     setNotes("");
-    setNewValidity(toDateInput(new Date(Date.now() + 3 * 86400000)));
   }, [open, productId, productName]);
 
   // Busca lotes ativos sempre que o produto selecionado mudar no modo "linked"
@@ -118,21 +116,50 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     [labeledProducts],
   );
 
+  // Regra de validade após manipulação — vem do cadastro do produto (POPs do estabelecimento).
+  // O MesaClik NÃO define validade, apenas aplica a configuração previamente definida.
+  const productConfig = useMemo(
+    () => (selectedProductId ? labelProducts.find((p) => p.id === selectedProductId) : null),
+    [labelProducts, selectedProductId],
+  );
+  const manipulationRule = useMemo(() => {
+    if (mode !== "linked") return null;
+    if (!productConfig?.manipulation_enabled) return null;
+    const v = Number(productConfig.manipulation_validity_value || 0);
+    const u = productConfig.manipulation_validity_unit;
+    if (!v || (u !== "hours" && u !== "days")) return null;
+    return { value: v, unit: u as "hours" | "days" };
+  }, [mode, productConfig]);
+  const computedExpiry = useMemo(() => {
+    const base = new Date();
+    if (!manipulationRule) return null;
+    const ms = manipulationRule.unit === "hours"
+      ? manipulationRule.value * 3600_000
+      : manipulationRule.value * 86_400_000;
+    return new Date(base.getTime() + ms);
+  }, [manipulationRule]);
+  const missingConfig = mode === "linked" && !!selectedProductId && !manipulationRule;
+
   const confirm = async () => {
     if (!employeeId) return toast.error("Selecione o responsável");
     const manufacture = new Date();
-    const expiry = new Date(`${newValidity}T23:59:00`);
-    if (expiry <= manufacture) return toast.error("A nova validade precisa ser futura");
 
     // Validação por modo
     if (mode === "linked") {
       if (!selectedProductId) return toast.error("Selecione o produto");
       if (!selectedLot) return toast.error("Selecione o lote de origem");
+      if (!manipulationRule || !computedExpiry) {
+        return toast.error("Este produto não possui regra de validade após manipulação cadastrada.");
+      }
     } else {
       if (!directName.trim()) return toast.error("Informe o nome do produto");
       if (!directOriginBatch.trim()) return toast.error("Informe o lote original");
       if (!directOriginExpiry) return toast.error("Informe a validade original");
     }
+    const expiry = mode === "linked"
+      ? computedExpiry!
+      : new Date(manufacture.getTime() + 24 * 3600_000); // fallback 24h para manipulação direta
+    if (expiry <= manufacture) return toast.error("Validade calculada inválida");
 
     // Novo lote interno MAN-YYYYMMDD-NNN
     let batch = `MAN-${Date.now().toString(36).toUpperCase()}`;
@@ -226,7 +253,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           responsible: employee?.name || full.responsible || "—",
           quantity: 1,
           batch,
-          banner: "MANIPULADO",
+          template: "manipulation",
           brand: originSupplier,
           sif: full.sif ?? null,
           notes: originNote ? `Origem: ${originSupplier || "—"} · Lote ${originLabel} · ${originNote}`
@@ -368,23 +395,42 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Responsável</Label>
-              <Select value={employeeId} onValueChange={setEmployeeId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
-                <SelectContent>
-                  {activeEmployees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Nova validade</Label>
-              <Input type="date" min={toDateInput(new Date())} value={newValidity} onChange={(e) => setNewValidity(e.target.value)} />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Responsável</Label>
+            <Select value={employeeId} onValueChange={setEmployeeId}>
+              <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+              <SelectContent>
+                {activeEmployees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {mode === "linked" && manipulationRule && computedExpiry && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1 text-xs">
+              <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                <Clock className="h-3.5 w-3.5" /> Regra aplicada
+              </div>
+              <div>✓ {manipulationRule.value} {manipulationRule.unit === "hours" ? "hora(s)" : "dia(s)"} após manipulação</div>
+              <div className="text-muted-foreground">
+                Nova validade calculada: <span className="font-semibold text-foreground">{fmtDateTime(computedExpiry)}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground pt-1 border-t border-emerald-500/20 mt-1">
+                Regra definida pelo estabelecimento no cadastro do produto. O MesaClik apenas aplica automaticamente.
+              </p>
+            </div>
+          )}
+          {missingConfig && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-2">
+              <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="h-3.5 w-3.5" /> Produto sem regra de validade cadastrada
+              </div>
+              <p className="text-muted-foreground">
+                Este produto não possui uma regra de validade após manipulação cadastrada. Defina no cadastro do produto conforme seus POPs.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label>Observação (opcional)</Label>
@@ -404,7 +450,12 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
           <Button
             onClick={confirm}
-            disabled={saving || !employeeId || (mode === "linked" ? !selectedLot : (!directName.trim() || !directOriginBatch.trim() || !directOriginExpiry))}
+            disabled={
+              saving || !employeeId ||
+              (mode === "linked"
+                ? (!selectedLot || !manipulationRule)
+                : (!directName.trim() || !directOriginBatch.trim() || !directOriginExpiry))
+            }
             className="gap-2"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}

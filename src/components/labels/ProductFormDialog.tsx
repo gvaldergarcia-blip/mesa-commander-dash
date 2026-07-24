@@ -9,6 +9,7 @@ import { LabelProduct, LabelProductInput } from "@/hooks/useLabelProducts";
 import { PRODUCT_CATEGORIES, ALLERGEN_OPTIONS } from "@/lib/labels/categories";
 import { SectorCombobox } from "@/components/labels/SectorCombobox";
 import { cn } from "@/lib/utils";
+import { ChefHat, AlertTriangle } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -30,6 +31,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [ingredients, setIngredients] = useState<string>("");
   const [storageLocation, setStorageLocation] = useState<string>("");
   const [autoReprint, setAutoReprint] = useState<boolean>(true);
+  const [manipEnabled, setManipEnabled] = useState<boolean>(false);
+  const [manipValue, setManipValue] = useState<string>("3");
+  const [manipUnit, setManipUnit] = useState<"days" | "hours">("days");
+  const [manipNotes, setManipNotes] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -48,6 +53,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setIngredients(product?.ingredients ?? "");
       setStorageLocation((product as any)?.storage_location ?? "");
       setAutoReprint((product as any)?.auto_reprint_enabled ?? true);
+      setManipEnabled(!!(product as any)?.manipulation_enabled);
+      setManipValue(String((product as any)?.manipulation_validity_value ?? "3"));
+      setManipUnit(((product as any)?.manipulation_validity_unit as any) ?? "days");
+      setManipNotes((product as any)?.manipulation_notes ?? "");
     }
   }, [open, product]);
 
@@ -74,6 +83,10 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       ingredients: ingredients.trim() || null,
       storage_location: storageLocation.trim() || null,
       auto_reprint_enabled: autoReprint,
+      manipulation_enabled: manipEnabled,
+      manipulation_validity_value: manipEnabled ? Math.max(1, parseInt(manipValue, 10) || 0) : null,
+      manipulation_validity_unit: manipEnabled ? manipUnit : null,
+      manipulation_notes: manipEnabled ? (manipNotes.trim() || null) : null,
     });
     onOpenChange(false);
   };
@@ -195,6 +208,72 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               </p>
             </label>
           </div>
+
+          {/* Configuração de Manipulação — definida pelo estabelecimento (POPs). */}
+          <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-start gap-3">
+              <input
+                id="prod-manip-enabled"
+                type="checkbox"
+                checked={manipEnabled}
+                onChange={(e) => setManipEnabled(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primary"
+              />
+              <label htmlFor="prod-manip-enabled" className="text-sm cursor-pointer">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <ChefHat className="h-3.5 w-3.5 text-primary" /> Produto pode ser manipulado?
+                </span>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Se sim, informe abaixo a validade que será aplicada automaticamente após a manipulação.
+                </p>
+              </label>
+            </div>
+
+            {manipEnabled && (
+              <div className="space-y-3 pl-7">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Validade após manipulação</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={manipValue}
+                      onChange={(e) => setManipValue(e.target.value)}
+                      placeholder="Ex.: 3"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Unidade</Label>
+                    <Select value={manipUnit} onValueChange={(v) => setManipUnit(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hours">Horas</SelectItem>
+                        <SelectItem value="days">Dias</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prod-manip-notes">Observação (opcional)</Label>
+                  <Textarea
+                    id="prod-manip-notes"
+                    value={manipNotes}
+                    onChange={(e) => setManipNotes(e.target.value)}
+                    rows={2}
+                    maxLength={300}
+                    placeholder="Ex.: manter refrigerado a 4°C após aberto"
+                  />
+                </div>
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-800 dark:text-amber-300 flex gap-1.5 leading-snug">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    A validade após manipulação deve ser definida pelo estabelecimento conforme seus POPs, Manual de Boas Práticas e orientações do Responsável Técnico, quando aplicável. O MesaClik apenas aplica automaticamente essa configuração durante a geração das etiquetas.
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label>Alergênicos (RDC 26/2015) — opcional</Label>
             <div className="flex flex-wrap gap-1.5">
