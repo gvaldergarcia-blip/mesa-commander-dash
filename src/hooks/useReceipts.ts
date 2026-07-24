@@ -144,7 +144,10 @@ export function useReceipts() {
         missing_fields: ["foto da etiqueta do fornecedor"],
       }));
 
-      const { error: iErr } = await (supabase as any).from("label_receipt_items").insert(itemsRows);
+      const { data: insertedItems, error: iErr } = await (supabase as any)
+        .from("label_receipt_items")
+        .insert(itemsRows)
+        .select("id, raw_name");
       if (iErr) throw iErr;
 
       await (supabase as any)
@@ -152,7 +155,12 @@ export function useReceipts() {
         .update({ status: "pending_info" })
         .eq("id", receipt.id);
 
-      return { receiptId: receipt.id as string, result: { pending: itemsRows.length } };
+      return {
+        receiptId: receipt.id as string,
+        id: receipt.id as string,
+        items: insertedItems ?? [],
+        result: { pending: itemsRows.length },
+      };
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
