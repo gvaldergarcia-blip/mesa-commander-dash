@@ -468,6 +468,9 @@ function GroupCard({
 }) {
   const previews = group.photo_ids.map((pid) => photos.find((p) => p.id === pid)).filter(Boolean) as Photo[];
   const ready = group.missing.length === 0;
+  // Campos exibidos = os que estavam faltando no momento da análise (snapshot).
+  // Assim o editor não some quando o usuário digita a 1ª letra.
+  const editorFields = group.missing_initial?.length ? group.missing_initial : group.missing;
   return (
     <div className={cn(
       "rounded-xl border bg-card overflow-hidden",
@@ -480,9 +483,9 @@ function GroupCard({
               <h4 className="font-semibold text-base leading-tight">
                 {group.name || <span className="text-muted-foreground italic">Sem nome identificado</span>}
               </h4>
-              {ready
-                ? <Badge className="gap-1 text-[11px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
-                : <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Falta {group.missing.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>}
+               {ready
+                 ? <Badge className="gap-1 text-[11px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
+                 : <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Falta {group.missing.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
               {group.brand && <span>{group.brand}</span>}
@@ -507,13 +510,13 @@ function GroupCard({
 
         {/* Campos: nome sempre editável se faltando; demais expostos quando faltando */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {group.missing.includes("name") && (
+          {editorFields.includes("name") && (
             <FieldEditor label="Nome do produto" value={group.name || ""} onChange={(v) => onPatch({ name: v })} />
           )}
-          {group.missing.includes("expires_at") && (
+          {editorFields.includes("expires_at") && (
             <FieldEditor label="Validade" type="date" value={group.expires_at || ""} onChange={(v) => onPatch({ expires_at: v })} />
           )}
-          {group.missing.includes("batch") && (
+          {editorFields.includes("batch") && (
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Lote</label>
               <div className="flex gap-1.5">
@@ -527,7 +530,7 @@ function GroupCard({
               </p>
             </div>
           )}
-          {group.missing.includes("sif") && (
+          {editorFields.includes("sif") && (
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">SIF/SISP/SIM</label>
               <div className="flex gap-1.5 items-start">
