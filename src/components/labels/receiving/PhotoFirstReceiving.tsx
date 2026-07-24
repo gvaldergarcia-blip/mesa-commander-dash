@@ -48,16 +48,48 @@ interface ProductGroup {
   storage_location: string;
   confidence: Record<string, number>;
   missing: string[];
+  /** Snapshot dos campos faltantes no momento da análise — controla quais editores aparecem
+   *  (não muda enquanto o usuário digita, para não sumir com o campo antes de terminar). */
+  missing_initial: string[];
   is_meat: boolean; // se tem SIF/carne — deixamos SIF opcional se marcado
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result || "").split(",")[1] || "");
-    r.onerror = () => reject(new Error("Falha ao ler arquivo"));
-    r.readAsDataURL(file);
-  });
+/** Redimensiona e comprime a imagem no navegador antes de enviar à IA.
+ *  Reduz drasticamente o payload (evita "Memory limit exceeded" na edge function). */
+async function compressImageToBase64(
+  file: File,
+  maxDim = 1400,
+  quality = 0.72,
+): Promise<{ base64: string; mime_type: string }> {
+  // SVG/heic e casos raros — devolve original em base64.
+  if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) {
+    const buf = await file.arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    return { base64: btoa(bin), mime_type: file.type || "image/jpeg" };
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("Falha ao decodificar imagem"));
+      i.src = url;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas indisponível");
+    ctx.drawImage(img, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    return { base64: dataUrl.split(",")[1] || "", mime_type: "image/jpeg" };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 function parseWeightString(s: string | null | undefined) {
   if (!s) return null as null | { value: number; unit: string };
@@ -128,18 +160,39 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     if (!photos.length) return;
     setScanning(true);
     try {
-      const payload = await Promise.all(photos.map(async (p) => ({
-        base64: await fileToBase64(p.file), mime_type: p.file.type,
-      })));
-      const { data, error } = await supabase.functions.invoke("group-photos-into-products", {
-        body: { photos: payload },
-      });
-      if (error) throw error;
-      const products = (data?.products ?? []) as any[];
+      // Comprime todas as fotos em paralelo antes de enviar
+      const payload = await Promise.all(
+        photos.map((p) => compressImageToBase64(p.file)),
+      );
+      // Envia em chunks de até 8 fotos por chamada para respeitar o limite de memória
+      // da edge function (16+ fotos grandes estouram). Depois consolida os grupos.
+      const CHUNK = 8;
+      const chunks: Array<{ base64: string; mime_type: string }[]> = [];
+      const chunkIdx: number[][] = [];
+      for (let i = 0; i < payload.length; i += CHUNK) {
+        chunks.push(payload.slice(i, i + CHUNK));
+        chunkIdx.push(photos.slice(i, i + CHUNK).map((_, j) => i + j));
+      }
+      const products: any[] = [];
+      for (let c = 0; c < chunks.length; c++) {
+        const { data, error } = await supabase.functions.invoke("group-photos-into-products", {
+          body: { photos: chunks[c] },
+        });
+        if (error) throw error;
+        const arr = (data?.products ?? []) as any[];
+        // Re-mapear índices locais do chunk para índices globais
+        const globalMap = chunkIdx[c];
+        for (const p of arr) {
+          const gidxs = Array.isArray(p.photo_indices)
+            ? p.photo_indices.map((i: number) => globalMap[i]).filter((x: any) => typeof x === "number")
+            : [];
+          products.push({ ...p, photo_indices: gidxs });
+        }
+      }
       const built: ProductGroup[] = products.map((p, idx) => {
         const idxs: number[] = Array.isArray(p.photo_indices) ? p.photo_indices : [];
         const ids = idxs.map((i) => photos[i]?.id).filter(Boolean) as string[];
-        return {
+        const base: ProductGroup = {
           id: `g-${Date.now()}-${idx}`,
           photo_ids: ids,
           name: p.name, brand: p.brand, barcode: p.barcode, weight: p.weight,
@@ -148,8 +201,12 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           storage_location: "",
           confidence: p.confidence || {},
           missing: Array.isArray(p.missing) ? p.missing : [],
+          missing_initial: [],
           is_meat: !!p.sif,
         };
+        base.missing = recomputeMissing(base);
+        base.missing_initial = [...base.missing];
+        return base;
       });
       if (!built.length) toast.warning("A IA não conseguiu identificar nenhum produto. Tente adicionar fotos com melhor luz.");
       setGroups(built);
@@ -158,8 +215,15 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     } finally { setScanning(false); }
   }, [photos]);
 
+  // Enquanto o usuário edita, NÃO recalculamos `missing_initial` — assim o campo
+  // não some no meio da digitação. Só o status "pronto" (missing) é reavaliado.
   const patchGroup = (id: string, upd: Partial<ProductGroup>) =>
-    setGroups((gs) => gs?.map((g) => g.id === id ? { ...g, ...upd, missing: recomputeMissing({ ...g, ...upd }) } : g) ?? gs);
+    setGroups((gs) => gs?.map((g) => {
+      if (g.id !== id) return g;
+      const merged = { ...g, ...upd };
+      merged.missing = recomputeMissing(merged);
+      return merged;
+    }) ?? gs);
 
   const removeGroup = (id: string) => setGroups((gs) => gs?.filter((g) => g.id !== id) ?? gs);
 
