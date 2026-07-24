@@ -335,7 +335,7 @@ export function useReceipts() {
           _product_id: prodId,
           _supplier_id: input.supplierId ?? null,
         });
-        const upd: any = { product_id: prod.id, needs_info: false, missing_fields: [] };
+        const upd: any = { product_id: prodId, needs_info: false, missing_fields: [] };
         if (it.weight != null) upd.weight = it.weight;
         if (it.weight_unit) upd.weight_unit = it.weight_unit;
         if (it.lot_source) upd.lot_source = it.lot_source;
