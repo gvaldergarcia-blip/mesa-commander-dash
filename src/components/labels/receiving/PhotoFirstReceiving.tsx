@@ -125,7 +125,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { activeEmployees } = useLabelEmployees();
   const registerPrints = useRegisterPrints();
   // Estado persistente entre aberturas/fechamentos do dialog e trocas de aba.
-  const { photos, groups, supplierId, reference, scanning } = usePhotoFirstState();
+  const { photos, groups, supplierId, reference, scanning, finalizedReceiptId } = usePhotoFirstState();
   const setPhotos = (updater: Photo[] | ((prev: Photo[]) => Photo[])) =>
     photoFirstStore.set((s) => ({ photos: typeof updater === "function" ? (updater as any)(s.photos) : updater }));
   const setGroups = (updater: ProductGroup[] | null | ((prev: ProductGroup[] | null) => ProductGroup[] | null)) =>
@@ -133,6 +133,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const setScanning = (v: boolean) => photoFirstStore.set({ scanning: v });
   const setSupplierId = (v: string) => photoFirstStore.set({ supplierId: v });
   const setReference = (v: string) => photoFirstStore.set({ reference: v });
+  const setFinalizedReceiptId = (v: string | null) => photoFirstStore.set({ finalizedReceiptId: v });
+  const [reprinting, setReprinting] = useState(false);
   const camRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -252,6 +254,113 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
 
   const canFinalize = readyGroups.length > 0 && !isCreating && !isBulkResolving && !scanning;
 
+  /** Busca as etiquetas ativas de um recebimento e dispara impressão em lote.
+   *  Reutilizado tanto no `finalize` inicial quanto no botão "Reimprimir". */
+  const printFromReceipt = async (receiptId: string, supplier_id: string | null) => {
+    const { data: iss } = await (supabase as any)
+      .from("label_issuances")
+      .select("*")
+      .eq("receipt_id", receiptId)
+      .eq("status", "active");
+    const issuances = (iss || []) as any[];
+    if (!issuances.length) { toast.info("Nenhuma etiqueta ativa para imprimir."); return 0; }
+    let legal: { cnpj: string | null; cep: string | null; address: string | null } = {
+      cnpj: null, cep: null, address: (restaurant as any)?.address_line ?? null,
+    };
+    if (restaurant?.id) {
+      const { data: r } = await (supabase as any)
+        .schema("mesaclik")
+        .from("restaurants")
+        .select("cnpj, zip_code, address_line")
+        .eq("id", restaurant.id)
+        .maybeSingle();
+      legal = {
+        cnpj: r?.cnpj || null,
+        cep: r?.zip_code || null,
+        address: r?.address_line || legal.address,
+      };
+    }
+    const supplierName = supplier_id
+      ? ((suppliers as any[]).find((s) => s.id === supplier_id)?.name ?? null)
+      : null;
+    const brandByName = new Map<string, string>();
+    for (const g of (groups || [])) {
+      if (g.name && g.brand) brandByName.set(g.name.trim().toLowerCase(), g.brand);
+    }
+    const respBySector = new Map<string, string>();
+    for (const e of activeEmployees || []) {
+      for (const s of e.sectors || []) if (!respBySector.has(s)) respBySector.set(s, e.name);
+    }
+    const jobs: PrintLabelData[] = [];
+    const prints: { id: string; count: number }[] = [];
+    for (const l of issuances) {
+      const remaining = Math.max(0, (l.quantity || 0) - (l.printed_labels || 0));
+      const qty = remaining > 0 ? remaining : (l.quantity || 1);
+      const qrSvg = renderToStaticMarkup(
+        <QRCodeSVG
+          value={`${getSiteBaseUrl()}/etiquetas/scan/${l.unique_code}?op=1`}
+          size={144}
+          level="L"
+          marginSize={1}
+        />,
+      );
+      const weightLabel = l.weight != null && l.weight_unit
+        ? `${String(l.weight).replace(".", ",")} ${l.weight_unit}`
+        : null;
+      const sector = l.storage_location ?? null;
+      const nameKey = String(l.product_name || "").trim().toLowerCase();
+      const brand = brandByName.get(nameKey) || supplierName;
+      jobs.push({
+        productName: l.product_name,
+        manufactureDate: new Date(l.manufacture_date),
+        expiryDate: new Date(l.expiry_date),
+        responsible: l.responsible || (sector ? respBySector.get(sector) : null) || "—",
+        quantity: qty,
+        notes: l.notes,
+        cif: l.cif,
+        sif: l.sif ?? null,
+        brand,
+        allergens: l.allergens,
+        ingredients: l.ingredients,
+        conservationLabel: l.conservation_method
+          ? CONSERVATION_LABEL[l.conservation_method] || null
+          : null,
+        storageLocation: sector,
+        batch: l.batch,
+        quantityWeight: weightLabel,
+        restaurantName: restaurant?.name || null,
+        restaurantCnpj: legal.cnpj,
+        restaurantCep: legal.cep,
+        restaurantAddress: legal.address,
+        checklistQrSvg: qrSvg,
+        checklistQrLabel: `#${l.unique_code}`,
+      });
+      if (remaining > 0) prints.push({ id: l.id, count: remaining });
+    }
+    if (prints.length) await registerPrints.mutateAsync(prints);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (jobs.length) printLabelsMany(jobs);
+    return jobs.length;
+  };
+
+  const reprint = async () => {
+    if (!finalizedReceiptId) return;
+    setReprinting(true);
+    try {
+      const supplier_id = supplierId === "none" ? null : supplierId;
+      const n = await printFromReceipt(finalizedReceiptId, supplier_id);
+      if (n > 0) toast.success(`${n} etiqueta(s) reenviadas para impressão.`);
+    } catch (e: any) {
+      console.error("[PhotoFirstReceiving] reprint", e);
+      toast.error("Falha ao reimprimir. Tente pelo Diário Operacional.");
+    } finally { setReprinting(false); }
+  };
+
+  const concludeSession = () => {
+    if (!confirm("Concluir esta sessão de recebimento? A prévia dos produtos será limpa. As etiquetas continuam disponíveis no Diário Operacional.")) return;
+    reset(); onOpenChange(false);
+  };
+
   const finalize = async () => {
     if (!readyGroups.length) { toast.warning("Nenhum produto pronto."); return; }
     // 1) cria o recebimento com todos os produtos prontos
@@ -293,106 +402,19 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
     await bulkResolvePending({ receiptId: receipt.id, supplierId: supplier_id, items: bulkItems });
-    // 3) busca as issuances geradas para este recebimento e envia para impressão
+    // 3) marca sessão como finalizada — a sessão fica preservada até o dono
+    //    clicar em "Concluir sessão". Assim, se cancelar a caixa de impressão
+    //    do navegador, ele volta para a lista de produtos lidos pela IA e pode
+    //    reimprimir a qualquer momento.
+    setFinalizedReceiptId(receipt.id);
     try {
-      const { data: iss } = await (supabase as any)
-        .from("label_issuances")
-        .select("*")
-        .eq("receipt_id", receipt.id)
-        .eq("status", "active");
-      const issuances = (iss || []) as any[];
-      if (issuances.length) {
-          // busca dados legais do restaurante (CNPJ / CEP / endereço)
-          let legal: { cnpj: string | null; cep: string | null; address: string | null } = {
-            cnpj: null, cep: null, address: (restaurant as any)?.address_line ?? null,
-          };
-        if (restaurant?.id) {
-          const { data: r } = await (supabase as any)
-            .schema("mesaclik")
-            .from("restaurants")
-              .select("cnpj, zip_code, address_line")
-            .eq("id", restaurant.id)
-            .maybeSingle();
-            legal = {
-              cnpj: r?.cnpj || null,
-              cep: r?.zip_code || null,
-              address: r?.address_line || legal.address,
-            };
-        }
-          const supplierName = supplier_id
-            ? ((suppliers as any[]).find((s) => s.id === supplier_id)?.name ?? null)
-            : null;
-          // Mapa nome→marca (do que a IA leu na embalagem) para preencher MARCA/FORN por produto.
-          const brandByName = new Map<string, string>();
-          for (const g of readyGroups) {
-            if (g.name && g.brand) brandByName.set(g.name.trim().toLowerCase(), g.brand);
-          }
-        const respBySector = new Map<string, string>();
-        for (const e of activeEmployees || []) {
-          for (const s of e.sectors || []) if (!respBySector.has(s)) respBySector.set(s, e.name);
-        }
-        const jobs: PrintLabelData[] = [];
-        const prints: { id: string; count: number }[] = [];
-        for (const l of issuances) {
-          const remaining = Math.max(0, (l.quantity || 0) - (l.printed_labels || 0));
-          if (remaining <= 0) continue;
-          const qrSvg = renderToStaticMarkup(
-            <QRCodeSVG
-              value={`${getSiteBaseUrl()}/etiquetas/scan/${l.unique_code}?op=1`}
-              size={144}
-              level="L"
-              marginSize={1}
-            />,
-          );
-          const weightLabel = l.weight != null && l.weight_unit
-            ? `${String(l.weight).replace(".", ",")} ${l.weight_unit}`
-            : null;
-          const sector = l.storage_location ?? null;
-            const nameKey = String(l.product_name || "").trim().toLowerCase();
-            const brand = brandByName.get(nameKey) || supplierName;
-          jobs.push({
-            productName: l.product_name,
-            manufactureDate: new Date(l.manufacture_date),
-            expiryDate: new Date(l.expiry_date),
-            responsible: l.responsible || (sector ? respBySector.get(sector) : null) || "—",
-            quantity: remaining,
-            notes: l.notes,
-            cif: l.cif,
-            sif: l.sif ?? null,
-              brand,
-            allergens: l.allergens,
-            ingredients: l.ingredients,
-            conservationLabel: l.conservation_method
-              ? CONSERVATION_LABEL[l.conservation_method] || null
-              : null,
-            storageLocation: sector,
-            batch: l.batch,
-            quantityWeight: weightLabel,
-            restaurantName: restaurant?.name || null,
-            restaurantCnpj: legal.cnpj,
-            restaurantCep: legal.cep,
-              restaurantAddress: legal.address,
-            checklistQrSvg: qrSvg,
-            checklistQrLabel: `#${l.unique_code}`,
-          });
-          prints.push({ id: l.id, count: remaining });
-        }
-        if (jobs.length) {
-          await registerPrints.mutateAsync(prints);
-          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-          printLabelsMany(jobs);
-          toast.success(`${jobs.length} etiqueta(s) enviadas para impressão.`);
-        } else {
-          toast.success(`${bulkItems.length} etiqueta(s) prontas.`);
-        }
-      } else {
-        toast.success(`${bulkItems.length} etiqueta(s) prontas.`);
-      }
+      const n = await printFromReceipt(receipt.id, supplier_id);
+      if (n > 0) toast.success(`${n} etiqueta(s) enviadas para impressão. Cancele a impressão e clique em "Reimprimir" se precisar reenviar.`);
+      else toast.success(`${bulkItems.length} etiqueta(s) prontas.`);
     } catch (e: any) {
       console.error("[PhotoFirstReceiving] print", e);
-      toast.warning("Etiquetas geradas, mas falhou ao imprimir automaticamente. Abra o Diário Operacional.");
+      toast.warning("Etiquetas geradas, mas falhou ao imprimir automaticamente. Use \"Reimprimir\" abaixo ou abra o Diário Operacional.");
     }
-    reset(); onOpenChange(false);
   };
 
   return (
@@ -521,18 +543,38 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         {/* Rodapé */}
         {groups && (
           <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background/95 backdrop-blur border-t flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{readyGroups.length}</span> pronto(s)
-              {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
-              <Button onClick={finalize} disabled={!canFinalize} className="gap-2">
-                {(isCreating || isBulkResolving) && <Loader2 className="h-4 w-4 animate-spin" />}
-                <CheckCircle2 className="h-4 w-4" />
-                Gerar {readyGroups.length} etiqueta(s)
-              </Button>
-            </div>
+            {finalizedReceiptId ? (
+              <>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Recebimento criado. Se cancelou a impressão, clique em <span className="font-semibold">Reimprimir</span>.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
+                    {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Reimprimir
+                  </Button>
+                  <Button onClick={concludeSession} className="gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> Concluir sessão
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{readyGroups.length}</span> pronto(s)
+                  {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
+                  <Button onClick={finalize} disabled={!canFinalize} className="gap-2">
+                    {(isCreating || isBulkResolving) && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <CheckCircle2 className="h-4 w-4" />
+                    Gerar {readyGroups.length} etiqueta(s)
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </DialogContent>
