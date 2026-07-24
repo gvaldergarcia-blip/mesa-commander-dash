@@ -9,6 +9,11 @@ export interface PrintLabelData {
   notes?: string | null;
   /** Faixa de destaque no topo (ex.: "MANIPULADO", "PRODUÇÃO INTERNA") */
   banner?: string | null;
+  /** Tipo de etiqueta — controla o layout de datas.
+   *  - "received"     : RECEBIDO EM + VAL. ORIGINAL (padrão para recebimentos)
+   *  - "manipulation" : VAL. ORIGINAL + MANIPULAÇÃO + VALIDADE (produto manipulado)
+   *  - "production"   : PRODUZIDO EM + VALIDADE (produção interna) */
+  template?: "received" | "manipulation" | "production";
   cif?: string | null;
   sif?: string | null;
   allergens?: string | null;
@@ -84,13 +89,15 @@ function buildLabelHtml(data: PrintLabelData): string {
     ? `<div class="notes"><span class="k">Obs:</span> ${escapeHtml(data.notes)}</div>`
     : "";
 
-  // Quando há originalExpiryDate significa que a etiqueta é de manipulação/abertura:
-  // - VAL. ORIGINAL = validade impressa pelo fabricante (do lote de origem)
-  // - MANIPULAÇÃO  = data/hora em que a embalagem foi aberta (manufactureDate)
-  // - VALIDADE     = novo prazo pós-abertura
-  // Caso contrário (recebimento normal), imprime PREPARADO/VALIDADE tradicional.
-  const isManipulated = !!data.originalExpiryDate;
-  const datesBlock = isManipulated
+  // Modo do bloco de datas.
+  const template = data.template
+    || (data.originalExpiryDate ? "manipulation" : "received");
+  const datesBlock = template === "production"
+    ? `
+        <div class="d-row"><span class="k">PRODUZIDO EM:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
+        <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
+        ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`
+    : template === "manipulation"
     ? `
         <div class="d-row"><span class="k">VAL. ORIGINAL:</span><span class="v">${escapeHtml(fmtDateTime(data.originalExpiryDate!))}</span></div>
         <div class="d-row"><span class="k">MANIPULAÇÃO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
@@ -102,7 +109,8 @@ function buildLabelHtml(data: PrintLabelData): string {
         ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`;
 
   const identityLines: string[] = [];
-  if (data.brand)
+  // Produção Interna nunca deve exibir marca/fornecedor — é um alimento produzido internamente.
+  if (data.brand && template !== "production")
     identityLines.push(`<div class="id-row"><span class="k">MARCA/FORN:</span> <span class="v">${escapeHtml(data.brand.toUpperCase())}</span></div>`);
   if (data.sif)
     identityLines.push(`<div class="id-row"><span class="k">SIF:</span> <span class="v">${escapeHtml(data.sif)}</span></div>`);
