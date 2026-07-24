@@ -20,6 +20,10 @@ export interface LabelProduct {
   ingredients?: string | null;
   storage_location?: string | null;
   sif?: string | null;
+  manipulation_enabled?: boolean;
+  manipulation_validity_value?: number | null;
+  manipulation_validity_unit?: "hours" | "days" | null;
+  manipulation_notes?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +44,10 @@ export interface LabelProductInput {
   storage_location?: string | null;
   sif?: string | null;
   auto_reprint_enabled?: boolean;
+  manipulation_enabled?: boolean;
+  manipulation_validity_value?: number | null;
+  manipulation_validity_unit?: "hours" | "days" | null;
+  manipulation_notes?: string | null;
 }
 
 export function useLabelProducts() {
@@ -83,6 +91,10 @@ export function useLabelProducts() {
           storage_location: input.storage_location?.trim() || null,
           sif: input.sif?.trim() || null,
           auto_reprint_enabled: input.auto_reprint_enabled ?? true,
+          manipulation_enabled: input.manipulation_enabled ?? false,
+          manipulation_validity_value: input.manipulation_validity_value ?? null,
+          manipulation_validity_unit: input.manipulation_validity_unit ?? null,
+          manipulation_notes: input.manipulation_notes?.trim() || null,
         })
         .select()
         .single();
@@ -116,6 +128,10 @@ export function useLabelProducts() {
           storage_location: input.storage_location?.trim() || null,
           sif: input.sif?.trim() || null,
           auto_reprint_enabled: input.auto_reprint_enabled ?? undefined,
+          manipulation_enabled: input.manipulation_enabled ?? undefined,
+          manipulation_validity_value: input.manipulation_validity_value ?? null,
+          manipulation_validity_unit: input.manipulation_validity_unit ?? null,
+          manipulation_notes: input.manipulation_notes?.trim() || null,
         })
         .eq("id", id)
         .select()
