@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ManipulationDialog } from "@/components/labels/ManipulationDialog";
+// Manipulação foi removida deste ponto — passa a ser um módulo próprio ("Nova Manipulação").
 
 const STATUS_STYLES: Record<LabeledProduct["status"], { label: string; bg: string; fg: string }> = {
   ok:       { label: "OK",       bg: "#1C4532", fg: "#68D391" },
@@ -55,7 +55,7 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dischargeTarget, setDischargeTarget] = useState<LabeledProduct | null>(null);
   const [isDischarging, setIsDischarging] = useState(false);
-  const [manipTarget, setManipTarget] = useState<LabeledProduct | null>(null);
+  // (Manipular removido daqui)
 
   // Sincroniza quando o pai muda o filtro (ex.: usuário clicou em "vencem hoje" na aba Hoje)
   useEffect(() => {
@@ -339,16 +339,7 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
                       <PackageMinus className="h-3.5 w-3.5" /> Baixa
                     </button>
                   )}
-                  {it.active_labels_count > 0 && it.product_id && (
-                    <button
-                      type="button"
-                      onClick={() => setManipTarget(it)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-primary border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/40 transition-all text-xs font-medium"
-                      title="Gerar nova etiqueta a partir deste produto"
-                    >
-                      <ChefHat className="h-3.5 w-3.5" /> Manipular
-                    </button>
-                  )}
+                  {/* Botão "Manipular" removido: use o módulo Nova Manipulação. */}
                 </div>
 
                 {isOpen && (
@@ -437,13 +428,6 @@ export function LabeledProductsTab({ onPrintProduct, initialStatusFilter }: Prop
         </DialogContent>
       </Dialog>
 
-      <ManipulationDialog
-        open={!!manipTarget}
-        onOpenChange={(o) => !o && setManipTarget(null)}
-        productId={manipTarget?.product_id ?? null}
-        productName={manipTarget?.product_name ?? ""}
-        conservationMethod={null}
-      />
     </div>
   );
 }

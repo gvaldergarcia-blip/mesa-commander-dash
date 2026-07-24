@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLabels } from "@/hooks/useLabels";
 import { useLabelEmployees } from "@/hooks/useLabelEmployees";
+import { useLabeledProducts } from "@/hooks/useLabeledProducts";
 import { printLabels } from "@/components/labels/LabelPrintSheet";
 import { useRestaurant } from "@/hooks/useRestaurantContext";
 import { useRestaurant as useRestaurantCtx } from "@/contexts/RestaurantContext";
@@ -53,8 +54,18 @@ interface Props {
 export function ManipulationDialog({ open, onOpenChange, productId, productName, conservationMethod }: Props) {
   const { createLabel } = useLabels();
   const { activeEmployees } = useLabelEmployees();
+  const { items: labeledProducts } = useLabeledProducts();
   const { restaurant } = (useRestaurant() as any) || { restaurant: null };
   const { restaurant: restaurantCtx } = useRestaurantCtx();
+
+  // Modo: "linked" = a partir de um lote recebido; "direct" = manipulação direta.
+  const [mode, setMode] = useState<"linked" | "direct">(productId ? "linked" : "linked");
+  const [selectedProductId, setSelectedProductId] = useState<string>(productId ?? "");
+  const [selectedProductName, setSelectedProductName] = useState<string>(productName ?? "");
+  const [directName, setDirectName] = useState<string>("");
+  const [directWeight, setDirectWeight] = useState<string>("");
+  const [directOriginBatch, setDirectOriginBatch] = useState<string>("");
+  const [directOriginExpiry, setDirectOriginExpiry] = useState<string>("");
 
   const [loadingLots, setLoadingLots] = useState(false);
   const [lots, setLots] = useState<ActiveLot[]>([]);
@@ -65,16 +76,29 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open || !productId) return;
+    if (!open) return;
+    // Reset ao abrir
+    setMode(productId ? "linked" : "linked");
+    setSelectedProductId(productId ?? "");
+    setSelectedProductName(productName ?? "");
+    setDirectName("");
+    setDirectWeight("");
+    setDirectOriginBatch("");
+    setDirectOriginExpiry("");
     setLotId("");
     setLots([]);
     setNotes("");
     setNewValidity(toDateInput(new Date(Date.now() + 3 * 86400000)));
+  }, [open, productId, productName]);
+
+  // Busca lotes ativos sempre que o produto selecionado mudar no modo "linked"
+  useEffect(() => {
+    if (!open || mode !== "linked" || !selectedProductId) { setLots([]); setLotId(""); return; }
     setLoadingLots(true);
     (async () => {
       try {
         const { data, error } = await (supabase as any).rpc("label_active_lots_for_product", {
-          _product_id: productId,
+          _product_id: selectedProductId,
         });
         if (error) throw error;
         const rows = (data || []) as ActiveLot[];
@@ -86,17 +110,29 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         setLoadingLots(false);
       }
     })();
-  }, [open, productId]);
+  }, [open, mode, selectedProductId]);
 
   const selectedLot = useMemo(() => lots.find((l) => l.issuance_id === lotId) || null, [lots, lotId]);
+  const productsForSelect = useMemo(
+    () => (labeledProducts || []).filter((p: any) => p.product_id).slice(0, 500),
+    [labeledProducts],
+  );
 
   const confirm = async () => {
-    if (!productId) return;
-    if (!selectedLot) return toast.error("Selecione o lote de origem");
     if (!employeeId) return toast.error("Selecione o responsável");
     const manufacture = new Date();
     const expiry = new Date(`${newValidity}T23:59:00`);
     if (expiry <= manufacture) return toast.error("A nova validade precisa ser futura");
+
+    // Validação por modo
+    if (mode === "linked") {
+      if (!selectedProductId) return toast.error("Selecione o produto");
+      if (!selectedLot) return toast.error("Selecione o lote de origem");
+    } else {
+      if (!directName.trim()) return toast.error("Informe o nome do produto");
+      if (!directOriginBatch.trim()) return toast.error("Informe o lote original");
+      if (!directOriginExpiry) return toast.error("Informe a validade original");
+    }
 
     // Novo lote interno MAN-YYYYMMDD-NNN
     let batch = `MAN-${Date.now().toString(36).toUpperCase()}`;
@@ -106,19 +142,22 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     } catch { /* fallback local */ }
 
     const employee = activeEmployees.find((e) => e.id === employeeId);
-    const originLabel =
-      selectedLot.supplier_lot ||
-      selectedLot.traceability_lot ||
-      selectedLot.batch ||
-      "—";
-    const originSupplier = selectedLot.supplier_name || null;
+    const originLabel = mode === "linked"
+      ? (selectedLot!.supplier_lot || selectedLot!.traceability_lot || selectedLot!.batch || "—")
+      : directOriginBatch.trim();
+    const originSupplier = mode === "linked" ? (selectedLot!.supplier_name || null) : null;
+    const originExpiry = mode === "linked"
+      ? (selectedLot!.expiry_date ? new Date(selectedLot!.expiry_date) : null)
+      : new Date(`${directOriginExpiry}T23:59:00`);
+    const finalProductName = mode === "linked" ? selectedProductName : directName.trim();
     const originNote = notes.trim() ? notes.trim() : null;
+    const originTag = mode === "direct" ? "Manipulação Direta" : "Recebimento";
 
     setSaving(true);
     try {
       const inserted: any = await createLabel({
-        label_product_id: productId,
-        product_name: productName,
+        label_product_id: mode === "linked" ? selectedProductId : null,
+        product_name: finalProductName,
         manufacture_date: manufacture,
         expiry_date: expiry,
         quantity: 1,
@@ -126,8 +165,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         responsible: employee?.name || null,
         employee_id: employee?.id || null,
         conservation_method: (conservationMethod as any) || "refrigerated",
-        notes: originNote,
-        origin_issuance_id: selectedLot.issuance_id,
+        notes: originNote ? `[${originTag}] ${originNote}` : `[${originTag}]`,
+        origin_issuance_id: mode === "linked" ? selectedLot!.issuance_id : null,
         // supplier_id, supplier_lot e origin_traceability_lot vêm por trigger
       });
       toast.success(`Manipulação registrada · Lote ${batch}`);
@@ -175,15 +214,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           : null;
         const weightLabel = full.weight != null && full.weight_unit
           ? `${String(full.weight).replace(".", ",")} ${full.weight_unit}`
-          : null;
+          : (directWeight.trim() || null);
         const consMap: Record<string, string> = {
           refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
         };
         printLabels({
-          productName,
+          productName: finalProductName,
           manufactureDate: manufacture,
           expiryDate: expiry,
-          originalExpiryDate: selectedLot.expiry_date ? new Date(selectedLot.expiry_date) : null,
+          originalExpiryDate: originExpiry,
           responsible: employee?.name || full.responsible || "—",
           quantity: 1,
           batch,
@@ -221,12 +260,50 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <ChefHat className="h-5 w-5 text-primary" /> Manipular produto
           </DialogTitle>
           <DialogDescription>
-            Registra uma manipulação de <b>{productName}</b>. Uma nova etiqueta será gerada com lote interno
-            <span className="font-mono"> MAN-…</span> vinculado ao lote de origem.
+            Escolha a origem. Uma nova etiqueta será gerada com lote interno
+            <span className="font-mono"> MAN-…</span>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Seletor de modo */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("linked")}
+              className={`p-3 rounded-lg border text-left text-xs ${mode === "linked" ? "border-primary bg-primary/10" : "border-border bg-muted/30"}`}
+            >
+              <div className="font-semibold text-sm mb-0.5">Produto recebido</div>
+              <div className="text-muted-foreground">Rastreabilidade total (recomendado)</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("direct")}
+              className={`p-3 rounded-lg border text-left text-xs ${mode === "direct" ? "border-primary bg-primary/10" : "border-border bg-muted/30"}`}
+            >
+              <div className="font-semibold text-sm mb-0.5">Manipulação direta</div>
+              <div className="text-muted-foreground">Sem recebimento prévio</div>
+            </button>
+          </div>
+
+          {mode === "linked" ? (
+            <>
+          <div className="space-y-1.5">
+            <Label>Produto</Label>
+            <Select value={selectedProductId} onValueChange={(v) => {
+              setSelectedProductId(v);
+              const p = productsForSelect.find((x: any) => x.product_id === v);
+              setSelectedProductName(p?.product_name ?? "");
+            }}>
+              <SelectTrigger><SelectValue placeholder="Selecionar produto…" /></SelectTrigger>
+              <SelectContent>
+                {productsForSelect.map((p: any) => (
+                  <SelectItem key={p.product_id} value={p.product_id}>{p.product_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <Label>Lote de origem</Label>
             {loadingLots ? (
@@ -235,7 +312,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
               </div>
             ) : lots.length === 0 ? (
               <div className="text-xs text-muted-foreground border border-dashed rounded-lg p-3">
-                Nenhum lote ativo disponível para este produto. Registre um recebimento antes de manipular.
+                Nenhum lote ativo. Use <b>Manipulação direta</b> ou registre um recebimento antes.
               </div>
             ) : (
               <Select value={lotId} onValueChange={setLotId}>
@@ -264,6 +341,32 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
               </div>
             )}
           </div>
+            </>
+          ) : (
+            <div className="space-y-3 rounded-lg border border-dashed p-3">
+              <div className="space-y-1.5">
+                <Label>Nome do produto</Label>
+                <Input value={directName} onChange={(e) => setDirectName(e.target.value)} placeholder="Ex.: Alface americana" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Peso (opcional)</Label>
+                  <Input value={directWeight} onChange={(e) => setDirectWeight(e.target.value)} placeholder="500 g / 1 kg" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Lote original</Label>
+                  <Input value={directOriginBatch} onChange={(e) => setDirectOriginBatch(e.target.value)} placeholder="Ex.: L2026-07" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Validade original</Label>
+                <Input type="date" value={directOriginExpiry} onChange={(e) => setDirectOriginExpiry(e.target.value)} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Origem registrada como <b>Manipulação Direta</b> (sem recebimento anterior).
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -287,8 +390,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <Label>Observação (opcional)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex.: porcionado, higienizado…" />
           </div>
-
-          {selectedLot && (
+          {mode === "linked" && selectedLot && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs flex items-center gap-2">
               <span className="font-mono">{selectedLot.supplier_lot || selectedLot.traceability_lot}</span>
               <ArrowRight className="h-3.5 w-3.5 text-primary" />
@@ -300,7 +402,11 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={confirm} disabled={saving || !selectedLot || !employeeId} className="gap-2">
+          <Button
+            onClick={confirm}
+            disabled={saving || !employeeId || (mode === "linked" ? !selectedLot : (!directName.trim() || !directOriginBatch.trim() || !directOriginExpiry))}
+            className="gap-2"
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Registrar manipulação
           </Button>

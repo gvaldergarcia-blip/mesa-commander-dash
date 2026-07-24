@@ -97,8 +97,8 @@ function buildLabelHtml(data: PrintLabelData): string {
         <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
         ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`
     : `
-        <div class="d-row"><span class="k">PREPARADO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
-        <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
+        <div class="d-row"><span class="k">RECEBIDO EM:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
+        <div class="d-row"><span class="k">VAL. ORIGINAL:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
         ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`;
 
   const identityLines: string[] = [];
