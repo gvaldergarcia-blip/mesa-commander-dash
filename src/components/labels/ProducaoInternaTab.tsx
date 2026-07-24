@@ -78,7 +78,7 @@ export function ProducaoInternaTab() {
       responsible: l.employee_name || l.responsible || "—",
       notes: l.notes,
       cif: l.cif,
-      sif: l.sif,
+      sif: null,
       allergens: l.allergens,
       ingredients: l.ingredients,
       conservationLabel: CONSERVATION_LABEL[l.conservation_method || ""] || null,
@@ -92,6 +92,7 @@ export function ProducaoInternaTab() {
       checklistQrSvg: qrSvg,
       checklistQrLabel: `#${l.unique_code}`,
       quantity: l.quantity,
+      template: "production",
     });
   };
 
@@ -139,6 +140,7 @@ export function ProducaoInternaTab() {
             checklistQrSvg: qrSvg,
             checklistQrLabel: `#${inserted.unique_code}`,
             quantity: ctx.qty,
+            template: "production",
           });
         }}
       />

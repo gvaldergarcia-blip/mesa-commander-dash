@@ -748,12 +748,12 @@ function GroupCard({
                 <p className="text-[11px] text-muted-foreground">
                   Nenhum lote foi identificado na embalagem. Como deseja continuar?
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                   <Button
                     type="button"
                     size="sm"
                     variant="default"
-                    className="gap-1.5 justify-start"
+                    className="gap-1.5 justify-start flex-1 min-w-[160px] whitespace-nowrap"
                     onClick={onGenerateInternalLot}
                     title="MesaClik gera um lote interno LT-AAAAMMDD-NNN para rastreabilidade"
                   >
@@ -763,7 +763,7 @@ function GroupCard({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="gap-1.5 justify-start"
+                    className="gap-1.5 justify-start flex-1 min-w-[180px] whitespace-nowrap"
                     onClick={() => onPatch({ lot_source: "manufacturer", batch: "" })}
                   >
                     <Pencil className="h-3.5 w-3.5" /> Informar manualmente
@@ -771,8 +771,8 @@ function GroupCard({
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
-                    className="gap-1.5 justify-start"
+                    variant="outline"
+                    className="gap-1.5 justify-start flex-1 min-w-[180px] whitespace-nowrap"
                     onClick={onMarkNoLot}
                   >
                     <MinusCircle className="h-3.5 w-3.5" /> Continuar sem lote
