@@ -1775,6 +1775,10 @@ export type Database = {
           group_id: string | null
           id: string
           ingredients: string | null
+          manipulation_enabled: boolean
+          manipulation_notes: string | null
+          manipulation_validity_unit: string | null
+          manipulation_validity_value: number | null
           name: string
           notes: string | null
           restaurant_id: string
@@ -1798,6 +1802,10 @@ export type Database = {
           group_id?: string | null
           id?: string
           ingredients?: string | null
+          manipulation_enabled?: boolean
+          manipulation_notes?: string | null
+          manipulation_validity_unit?: string | null
+          manipulation_validity_value?: number | null
           name: string
           notes?: string | null
           restaurant_id: string
@@ -1821,6 +1829,10 @@ export type Database = {
           group_id?: string | null
           id?: string
           ingredients?: string | null
+          manipulation_enabled?: boolean
+          manipulation_notes?: string | null
+          manipulation_validity_unit?: string | null
+          manipulation_validity_value?: number | null
           name?: string
           notes?: string | null
           restaurant_id?: string
