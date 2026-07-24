@@ -269,6 +269,7 @@ export function useReceipts() {
         storage_location?: string | null;
         sif?: string | null;
         batch?: string | null;
+        lot_source?: "manufacturer" | "internal" | "none" | null;
         weight?: number | null;
         weight_unit?: string | null;
       }>;
@@ -303,6 +304,7 @@ export function useReceipts() {
         const upd: any = { product_id: prod.id, needs_info: false, missing_fields: [] };
         if (it.weight != null) upd.weight = it.weight;
         if (it.weight_unit) upd.weight_unit = it.weight_unit;
+        if (it.lot_source) upd.lot_source = it.lot_source;
         await (supabase as any)
           .from("label_receipt_items")
           .update(upd)
@@ -319,7 +321,9 @@ export function useReceipts() {
 
       // 5) grava lote nas issuances recém-criadas
       for (const it of input.items) {
-        if (!it.batch) continue;
+        // Grava lote (quando existir) e a origem do lote em toda emissão do item —
+        // permite auditoria mesmo quando o lote foi omitido intencionalmente.
+        if (!it.batch && !it.lot_source) continue;
         try {
           const { data: prod } = await (supabase as any)
             .from("label_receipt_items")
@@ -335,9 +339,12 @@ export function useReceipts() {
             .limit(1)
             .maybeSingle();
           if (last?.id) {
+            const upd: any = {};
+            if (it.batch) upd.batch = it.batch;
+            if (it.lot_source) upd.lot_source = it.lot_source;
             await (supabase as any)
               .from("label_issuances")
-              .update({ batch: it.batch })
+              .update(upd)
               .eq("id", last.id);
           }
         } catch (e) { console.warn("Falha ao gravar lote", e); }
