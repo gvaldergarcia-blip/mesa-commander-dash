@@ -44,33 +44,52 @@ Regras:
 - Retorne SOMENTE JSON válido, sem markdown: {"labels":[...]}`;
 
 async function readOne(fileBase64: string, mimeType: string, candidates: string[], apiKey: string) {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
+  // Modelo de ponta para leitura de embalagens (Gemini 3 Pro).
+  // Fallback automático para modelos mais rápidos caso o principal falhe.
+  const MODELS = [
+    "google/gemini-3.1-pro-preview",
+    "openai/gpt-5.5",
+    "google/gemini-3.6-flash",
+  ];
+  let lastErr = "";
+  for (const model of MODELS) {
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: [
           { type: "text", text: `Lista de candidatos recebidos hoje:\n${candidates.map((c, i) => `${i + 1}. ${c}`).join("\n")}\n\nLeia a foto abaixo e retorne o JSON.` },
           { type: "image_url", image_url: { url: `data:${mimeType};base64,${fileBase64}` } },
         ] },
       ],
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gateway ${res.status}: ${errText.slice(0, 200)}`);
+        }),
+      });
+      if (!res.ok) {
+        lastErr = `Gateway ${res.status} (${model}): ${(await res.text()).slice(0, 200)}`;
+        console.warn(lastErr);
+        continue;
+      }
+      const data = await res.json();
+      let raw: string = data?.choices?.[0]?.message?.content ?? "";
+      raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+      try { return JSON.parse(raw); }
+      catch {
+        const m = raw.match(/\{[\s\S]*\}/);
+        if (m) return JSON.parse(m[0]);
+        lastErr = "Resposta IA inválida: " + raw.slice(0, 200);
+        console.warn(lastErr);
+        continue;
+      }
+    } catch (e: any) {
+      lastErr = e?.message || String(e);
+      console.warn("model fail", model, lastErr);
+    }
   }
-  const data = await res.json();
-  let raw: string = data?.choices?.[0]?.message?.content ?? "";
-  raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  try { return JSON.parse(raw); }
-  catch {
-    const m = raw.match(/\{[\s\S]*\}/);
-    if (m) return JSON.parse(m[0]);
-    throw new Error("Resposta IA inválida: " + raw.slice(0, 200));
-  }
+  throw new Error(lastErr || "Todas as tentativas de IA falharam");
 }
 
 function clean(l: any) {
