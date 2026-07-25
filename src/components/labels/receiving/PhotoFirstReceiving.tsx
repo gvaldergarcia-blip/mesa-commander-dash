@@ -177,11 +177,18 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     if (list.length > remaining) toast.info(`Adicionadas ${next.length} foto(s). Limite: ${MAX_PHOTOS}.`);
     setPhotos((ps) => [...ps, ...next]);
     setGroups(null); // convida a reanalisar
+    // Sobe cada foto para o bucket em segundo plano — habilita sync
+    // celular ↔ computador. Não bloqueia a UI.
+    for (const p of next) void photoFirstStore.uploadPhoto(p.id, p.file);
   };
 
   const removePhoto = (id: string) => {
     setPhotos((ps) => {
-      const p = ps.find((x) => x.id === id); if (p) URL.revokeObjectURL(p.previewUrl);
+      const p = ps.find((x) => x.id === id);
+      if (p) {
+        if (p.file) { try { URL.revokeObjectURL(p.previewUrl); } catch { /* noop */ } }
+        void photoFirstStore.removeRemotePhoto(p.storage_path);
+      }
       return ps.filter((x) => x.id !== id);
     });
     setGroups(null);
@@ -191,9 +198,16 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     if (!photos.length) return;
     setScanning(true);
     try {
-      // Comprime todas as fotos em paralelo antes de enviar
+      // Fotos hidratadas de outro dispositivo não têm `file` local — nesse
+      // caso, baixamos o preview assinado antes de comprimir.
       const payload = await Promise.all(
-        photos.map((p) => compressImageToBase64(p.file)),
+        photos.map(async (p) => {
+          if (p.file) return compressImageToBase64(p.file);
+          const res = await fetch(p.previewUrl);
+          const blob = await res.blob();
+          const f = new File([blob], `${p.id}.jpg`, { type: blob.type || "image/jpeg" });
+          return compressImageToBase64(f);
+        }),
       );
       // Envia em chunks de até 8 fotos por chamada para respeitar o limite de memória
       // da edge function (16+ fotos grandes estouram). Depois consolida os grupos.
