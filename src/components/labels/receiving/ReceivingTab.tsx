@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { photoFirstStore, usePhotoFirstState } from "./photoFirstStore";
+import { useRestaurantId } from "@/contexts/RestaurantContext";
+import { supabase } from "@/integrations/supabase/client";
 import { ManipulationDialog } from "@/components/labels/ManipulationDialog";
 
 export function ReceivingTab() {
@@ -22,7 +24,30 @@ export function ReceivingTab() {
   const [manipOpen, setManipOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [finalizingId, setFinalizingId] = useState<string | null>(null);
+  const restaurantId = useRestaurantId();
   const pf = usePhotoFirstState();
+
+  // Hidrata o rascunho persistente ao entrar/trocar restaurante.
+  useEffect(() => {
+    if (!restaurantId) return;
+    void photoFirstStore.hydrate(restaurantId);
+  }, [restaurantId]);
+
+  // Realtime: qualquer alteração no rascunho deste restaurante (feita em outro
+  // dispositivo) re-hidrata o store local para refletir na hora.
+  useEffect(() => {
+    if (!restaurantId) return;
+    const channel = supabase
+      .channel(`label-receipt-drafts-${restaurantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "label_receipt_drafts", filter: `restaurant_id=eq.${restaurantId}` },
+        () => { void photoFirstStore.hydrate(restaurantId); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [restaurantId]);
+
   const draftPhotos = pf.photos.length;
   const draftGroups = pf.groups?.length ?? 0;
   const draftReady = pf.groups?.filter((g) => g.missing.length === 0).length ?? 0;
