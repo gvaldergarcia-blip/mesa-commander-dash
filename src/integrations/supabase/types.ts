@@ -1860,6 +1860,45 @@ export type Database = {
           },
         ]
       }
+      label_receipt_drafts: {
+        Row: {
+          created_at: string
+          finalized_receipt_id: string | null
+          groups: Json
+          id: string
+          photos: Json
+          reference: string | null
+          restaurant_id: string
+          supplier_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          finalized_receipt_id?: string | null
+          groups?: Json
+          id?: string
+          photos?: Json
+          reference?: string | null
+          restaurant_id: string
+          supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          finalized_receipt_id?: string | null
+          groups?: Json
+          id?: string
+          photos?: Json
+          reference?: string | null
+          restaurant_id?: string
+          supplier_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       label_receipt_items: {
         Row: {
           created_at: string

@@ -1,126 +1,40 @@
-# MesaClik como Sistema Operacional da Cozinha (escopo: /etiquetas)
+# Rascunho de Recebimento sincronizado entre dispositivos
 
-Toda mudança fica **dentro do módulo Etiquetas**. Nenhum outro módulo do app é tocado.
+## Problema
+Hoje o "Recebimento por fotos" guarda tudo (fotos, agrupamentos da IA, lotes, POP) apenas na memória do navegador (`photoFirstStore` em `src/components/labels/receiving/photoFirstStore.ts`). Por isso, ao começar no celular e abrir no computador — mesmo logado na mesma conta — o computador não vê nada. Só existe registro no banco quando o dono clica em **Finalizar / Imprimir**, e nesse ponto o `label_receipt` é criado.
 
-## Diagnóstico
+## Solução
+Persistir o rascunho no Supabase, por restaurante, com auto-save contínuo, e carregar automaticamente ao abrir o módulo em qualquer dispositivo. Fotos vão para o Storage (não ficam mais só como blob local).
 
-Dentro de `/etiquetas` temos 9 abas que hoje funcionam como ilhas: Dashboard, Recebimento, Etiquetas, Imprimir, Compras, Estoque, Produtos, Funcionários, SMS. Cada uma grava numa tabela própria. Não existe uma fonte única que descreva "o que aconteceu na cozinha hoje". Recebimento virou mais uma ilha.
+## O que muda para o usuário
+- Ao tirar fotos no celular, o card **"Rascunho em andamento"** já aparece no computador em segundos.
+- O botão **Continuar** no computador reabre exatamente o mesmo estado (fotos + produtos identificados + lotes escolhidos + POP).
+- Só um rascunho ativo por restaurante (o fluxo atual já assume isso). Se dois dispositivos editarem ao mesmo tempo, o último a salvar vence (com aviso).
+- Ao **Concluir sessão** ou finalizar o recebimento, o rascunho é apagado.
 
-## Princípio
+## Detalhes técnicos
 
-Toda ação da cozinha é um **evento** gravado numa única timeline. As abas viram *janelas* sobre essa timeline. Etiquetas, estoque, relatórios e IA são **consequências automáticas** — nunca dados digitados de novo.
+### Banco (nova migration)
+- Bucket privado `label-receipt-drafts` no Storage (path `{restaurant_id}/{draft_id}/{photo_id}.jpg`).
+- Tabela `public.label_receipt_drafts`:
+  - `id uuid pk`, `restaurant_id uuid` (unique — 1 rascunho ativo por restaurante), `supplier_id`, `reference`, `groups jsonb`, `photos jsonb` (id + storage_path + width/height), `finalized_receipt_id`, `updated_by`, `updated_at`.
+  - RLS: acesso só a membros do restaurante (`is_member_or_admin`). GRANTs para `authenticated` + `service_role`.
+- Realtime habilitado para propagar mudanças entre dispositivos.
 
-```text
-                       ┌──────────────────────────┐
-  Recebimento (XML/CSV)│                          │──► Etiquetas (auto)
-  Manipulação          │   kitchen_events         │──► Estoque (auto)
-  Consumo / Perda      │   (fonte única)          │──► Diário Operacional
-  Transferência        │                          │──► Relatórios
-  Impressão / Baixa    └──────────────────────────┘──► IA / Alertas
-```
+### Frontend
+- `photoFirstStore.ts`: adicionar `draftId`, `hydrated`, `saving`; funções `loadFromRemote(restaurantId)`, `persist()` (debounce 800 ms), `clearRemote()`.
+- Upload de foto: ao adicionar arquivo, comprimir (já existe), enviar ao Storage, guardar `storage_path` + URL assinada. Preview usa URL assinada em vez de `blob:` quando vier do remoto.
+- `PhotoFirstReceiving.tsx`: hidratar do remoto ao abrir; salvar após cada mutação relevante (add/remove foto, resultado da IA, edição de campo, escolha de lote, POP).
+- `ReceivingTab.tsx`: o card "Rascunho em andamento" passa a ler do estado hidratado; assina Realtime para atualizar contadores.
+- Ao finalizar (`printFromReceipt` bem-sucedido) ou clicar **Concluir sessão**: chamar `clearRemote()` (apaga row + arquivos do bucket).
 
-## Nova arquitetura de dados
-
-### 1. `kitchen_events` (nova — coração do módulo)
-Registro imutável. Campos:
-- `event_type` enum: `receipt`, `label_issued`, `label_discharged`, `manipulation`, `consumption`, `loss`, `transfer`, `stock_check`, `purchase_request`
-- `product_id`, `supplier_id`, `employee_id`, `receipt_id`, `label_id` (nullable)
-- `quantity numeric`, `unit text` (opcionais hoje, preparados p/ futuro quantitativo)
-- `occurred_at`, `payload jsonb`
-- `restaurant_id` + RLS por membership + grants
-
-### 2. Tabelas atuais viram projeções
-- `label_issuances`, `label_receipts`, `label_discharges`, `label_stock_movements`, `stock_check_logs`: mantidas. **Triggers** espelham cada insert para `kitchen_events`.
-- `product_stock_status` (Ok/Falta): permanece — passa a ser complementada pela view de saldo.
-- `label_reprint_queue`: continua, disparada por evento `label_discharged` quando `auto_reprint = true`.
-
-### 3. Views derivadas
-- `v_operational_diary` — feed cronológico com joins em produto/fornecedor/funcionário.
-- `v_stock_balance` — soma entradas − saídas por produto. Retorna `null` enquanto `quantity` não for preenchida; funcional para "o que existe hoje" desde já.
-
-### 4. Preparado para o futuro (sem UI agora)
-- **Quantidade real**: campos já existem em `kitchen_events`.
-- **Saídas manuais**: basta inserir evento `consumption` — motor pronto.
-- **Alertas** ("800g de parmesão vencem amanhã"): view cruza `v_stock_balance` × validade das etiquetas ativas.
-- **Sugestão de compra**: cron lê saldo < mínimo e gera `purchase_request`.
-- **IA**: treina em cima de `kitchen_events`.
-
-## Reorganização das abas (dentro de /etiquetas)
-
-De 9 abas para **4 áreas**:
+### Fora de escopo
+- Edição colaborativa simultânea (dois dispositivos digitando ao mesmo tempo no mesmo campo). Mantém "último salva vence".
+- Migração de rascunhos locais antigos — quem tinha rascunho só em memória perde ao atualizar (aviso no card se detectar estado local sem `draftId`).
 
 ```text
-1. HOJE (nova aba default)
-   ├─ Diário operacional (feed de eventos em tempo real)
-   ├─ Alertas (vence hoje, faltas, sugestões)
-   └─ Ações rápidas (nova etiqueta, novo recebimento)
-
-2. ENTRADAS
-   ├─ Recebimento (XML/CSV/PDF, manual como fallback)
-   ├─ Fornecedores
-   └─ Histórico
-
-3. OPERAÇÃO
-   ├─ Etiquetas ativas
-   ├─ Impressão avulsa
-   ├─ Estoque (check rápido; saldo quantitativo futuro)
-   └─ Baixas / Perdas / Transferências (esqueleto pronto, UI depois)
-
-4. CADASTROS
-   ├─ Produtos (+ Catálogo MesaClik)
-   ├─ Funcionários + SMS
-   └─ Relatórios
+Celular                              Supabase                       Computador
+  tira foto ──► upload Storage ──►  drafts row ──► Realtime ──►  card "Rascunho" atualiza
+  IA agrupa  ──► persist(groups) ──► drafts row ──► Realtime ──►  Continuar abre estado igual
+  finaliza   ──► clearRemote     ──► delete row/files ──────────► card some
 ```
-
-Botão "Nova etiqueta" continua existindo como atalho — passa a gravar evento `label_issued` no mesmo fluxo.
-
-## Fluxo unificado (exemplo)
-
-Fornecedor entrega mussarela na terça:
-
-```text
-1. Arrasta XML da NF-e            → parse
-2. Sistema faz matching           → 8 conhecidos, 2 pendentes
-3. Preenche só o que falta        → validade/setor dos 2
-4. Um clique em "Confirmar"       → dispara:
-     • N eventos `receipt`
-     • N eventos `label_issued` (auto)
-     • Aprende aliases
-     • Atualiza fornecedor padrão
-     • Atualiza saldo
-     • Aparece no Diário
-     • Reprint queue se auto_reprint
-     • Alertas recalculam
-```
-
-Nenhuma outra tela precisa ser tocada.
-
-## Plano de migração (sem quebrar nada)
-
-**Passo 1 — Fundação SQL**
-- `kitchen_events` + enum + RLS + grants
-- Views `v_operational_diary` e `v_stock_balance`
-- Triggers de espelhamento em `label_issuances`, `label_receipts`, `label_discharges`, `label_stock_movements`, `stock_check_logs`
-- Backfill dos últimos 90 dias
-
-**Passo 2 — Aba "Hoje"**
-- Nova aba em `EtiquetasPage` alimentada por `v_operational_diary`
-- Vira aba default (Dashboard atual permanece acessível)
-
-**Passo 3 — Recebimento grava via evento**
-- `useReceipts` passa por RPC transacional que cria receipt + itens + movimentos + eventos + etiquetas + aliases num só passo
-- Visualmente idêntico ao usuário
-
-**Passo 4 — Consolidação das abas**
-- Agrupar as 9 abas nas 4 áreas
-- Manter as antigas por 1 ciclo com redirect
-
-**Passo 5 — Campos quantitativos opcionais**
-- `quantity` / `unit` opcionais no recebimento
-- Começa a acumular dado para IA
-
-Cada passo é independente e reversível. Nada fora de `/etiquetas` é tocado.
-
----
-
-**Se aprovar, começo pelo Passo 1** (migração + triggers + views) — fundação que destrava o resto sem alterar nenhuma tela ainda.
