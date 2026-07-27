@@ -40,6 +40,16 @@ export interface PfGroup {
   conservation: Conservation | null;
   storage_location: string;
   confidence: Record<string, number>;
+  /** Status por campo crítico devolvido pela auditoria da IA:
+   *  `verified` (duas leituras iguais + alta confiança), `single_read`,
+   *  `low_confidence`, `conflict`, `invalid`, `absent`. */
+  field_status?: Record<string, string>;
+  /** Motivos legíveis de falha de leitura por campo. */
+  issues?: Array<{ field: string; reason: string; hint: string }>;
+  /** Campos críticos que a IA NÃO garante — exigem confirmação humana. */
+  needs_review?: string[];
+  /** Campos já confirmados/corrigidos manualmente pelo operador. */
+  confirmed_fields?: string[];
   missing: string[];
   missing_initial: string[];
   is_meat: boolean;
