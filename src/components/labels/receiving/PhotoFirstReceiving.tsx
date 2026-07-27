@@ -308,8 +308,28 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
 
   const removeGroup = (id: string) => setGroups((gs) => gs?.filter((g) => g.id !== id) ?? gs);
 
-  const readyGroups = useMemo(() => groups?.filter((g) => g.missing.length === 0) ?? [], [groups]);
-  const pendingGroups = useMemo(() => groups?.filter((g) => g.missing.length > 0) ?? [], [groups]);
+  /** Confirma explicitamente um campo auditado (o operador assume a leitura). */
+  const confirmField = (id: string, field: string, value?: string) =>
+    setGroups((gs) => gs?.map((g) => {
+      if (g.id !== id) return g;
+      const merged: ProductGroup = {
+        ...g,
+        ...(value !== undefined ? ({ [field]: value || null } as any) : {}),
+        confirmed_fields: Array.from(new Set([...(g.confirmed_fields || []), field])),
+      };
+      if (field === "batch" && value) merged.lot_source = "manufacturer";
+      merged.missing = recomputeMissing(merged);
+      return merged;
+    }) ?? gs);
+
+  const readyGroups = useMemo(
+    () => groups?.filter((g) => g.missing.length === 0 && unverifiedFields(g).length === 0) ?? [],
+    [groups],
+  );
+  const pendingGroups = useMemo(
+    () => groups?.filter((g) => g.missing.length > 0 || unverifiedFields(g).length > 0) ?? [],
+    [groups],
+  );
 
   const canFinalize = readyGroups.length > 0 && !isCreating && !isBulkResolving && !scanning;
 
