@@ -618,6 +618,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                   photos={photos}
                   onPatch={(u) => patchGroup(g.id, u)}
                   onRemove={() => removeGroup(g.id)}
+                  onConfirmField={(f, v) => confirmField(g.id, f, v)}
                   onGenerateInternalLot={() =>
                     patchGroup(g.id, { batch: genInternalLot(groups), lot_source: "internal" })
                   }
