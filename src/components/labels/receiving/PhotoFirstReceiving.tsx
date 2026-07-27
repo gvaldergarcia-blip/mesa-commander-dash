@@ -795,18 +795,20 @@ function ConfPill({ conf }: { conf: number }) {
 }
 
 function GroupCard({
-  group, photos, onPatch, onRemove,
+  group, photos, onPatch, onRemove, onConfirmField,
   onGenerateInternalLot, onMarkNoLot, onClearLot,
 }: {
   group: ProductGroup; photos: Photo[];
   onPatch: (u: Partial<ProductGroup>) => void;
   onRemove: () => void;
+  onConfirmField: (field: string, value?: string) => void;
   onGenerateInternalLot: () => void;
   onMarkNoLot: () => void;
   onClearLot: () => void;
 }) {
   const previews = group.photo_ids.map((pid) => photos.find((p) => p.id === pid)).filter(Boolean) as Photo[];
-  const ready = group.missing.length === 0;
+  const unverified = unverifiedFields(group);
+  const ready = group.missing.length === 0 && unverified.length === 0;
   // Campos exibidos = os que estavam faltando no momento da análise (snapshot).
   // Assim o editor não some quando o usuário digita a 1ª letra.
   const editorFields = group.missing_initial?.length ? group.missing_initial : group.missing;
@@ -824,7 +826,9 @@ function GroupCard({
               </h4>
                {ready
                  ? <Badge className="gap-1 text-[11px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
-                 : <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Falta {group.missing.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>}
+                 : group.missing.length > 0
+                   ? <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Falta {group.missing.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>
+                   : <Badge className="gap-1 text-[11px] bg-rose-500/15 text-rose-700 border-rose-500/30"><AlertTriangle className="h-3 w-3" /> Confirmar {unverified.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
               {group.brand && <span>{group.brand}</span>}
@@ -846,6 +850,9 @@ function GroupCard({
             ))}
           </div>
         )}
+
+        {/* Auditoria de leitura — bloqueia impressão até confirmação humana */}
+        <AuditPanel group={group} onConfirm={onConfirmField} onPatch={onPatch} />
 
         {/* Campos: nome sempre editável se faltando; demais expostos quando faltando */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
