@@ -510,7 +510,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
             <Sparkles className="h-5 w-5 text-primary" /> Recebimento por fotos
           </DialogTitle>
           <DialogDescription>
-            Fotografe as embalagens (frente, verso, lote, validade, SIF...). A IA agrupa por produto e extrai tudo sozinha.
+            Fotografe as embalagens (frente, verso, lote, validade, SIF...). Cada foto passa por <span className="font-medium">duas leituras independentes</span>: só é impresso o dado em que as duas concordam com confiança ≥ 85%. O resto exige confirmação humana.
           </DialogDescription>
         </DialogHeader>
 
