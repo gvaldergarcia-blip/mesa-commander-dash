@@ -6,55 +6,76 @@ const corsHeaders = {
 };
 
 /**
- * Recebe várias fotos que juntas representam UM ou VÁRIOS produtos.
- * A IA deve:
- *  1) Agrupar as fotos por produto (uma mesma embalagem pode aparecer em várias fotos: frente, verso, lote, validade, SIF, código de barras...).
- *  2) Para cada grupo, extrair todos os campos usando o conjunto de fotos.
- *  3) Retornar confiança por campo. Nunca inventar dados.
+ * Leitura de embalagens com política "zero erro":
+ *  1) Duas leituras independentes (consenso) das MESMAS fotos.
+ *  2) Campos críticos só são aceitos quando as duas leituras concordam
+ *     E a confiança declarada é >= CRITICAL_THRESHOLD.
+ *  3) Validação determinística (datas plausíveis, EAN, SIF, lote).
+ *  4) Tudo que não passar vira `needs_review` com um motivo legível — o app
+ *     bloqueia a impressão até o humano confirmar.
  */
-const SYSTEM = `Você é um assistente de recebimento de restaurante.
-Você recebe VÁRIAS fotografias de embalagens de alimentos. Cada foto tem um índice (0-based) na ordem enviada.
+const CRITICAL_THRESHOLD = 0.85;
+const CRITICAL_FIELDS = ["name", "expires_at", "manufactured_at", "batch", "sif", "barcode"] as const;
 
-Seu trabalho:
-1) AGRUPAR as fotos que pertencem ao MESMO produto físico. Use nome, marca, código de barras, logotipo, layout, peso, formato, semelhança visual e ordem das fotos. Uma mesma embalagem pode aparecer em várias fotos (frente/verso/lateral/etiqueta do fabricante/lote/validade/SIF/código de barras).
-2) Para cada grupo, ANALISAR TODAS as fotos juntas e extrair os campos abaixo. Cada campo pode vir de uma foto diferente.
-3) NUNCA inventar. Se um campo não aparece em NENHUMA foto do grupo, deixe null e coloque em "missing".
+const SYSTEM = `Você é um leitor técnico de embalagens de alimentos para um sistema de rastreabilidade sanitária. Erros custam multa sanitária e risco à saúde. Precisão é mais importante que preencher campos.
 
-Retorne SOMENTE JSON válido, sem markdown, no formato:
+Você recebe VÁRIAS fotografias. Cada foto tem um índice (0-based) na ordem enviada.
+
+Tarefas:
+1) AGRUPAR as fotos que pertencem ao MESMO produto físico (frente/verso/lote/validade/SIF/código de barras da mesma embalagem).
+2) Para cada grupo, LER os campos abaixo usando todas as fotos do grupo.
+3) NUNCA inferir, deduzir, completar ou "chutar". Só informe o que está LITERALMENTE legível na imagem. Se estiver borrado, cortado, com reflexo ou parcialmente visível: retorne null e explique em "issues".
+
+REGRAS ANTI-ALUCINAÇÃO (obrigatórias):
+- É PREFERÍVEL retornar null a retornar um valor incerto.
+- Nunca complete dígitos ausentes de lote, SIF, código de barras ou data.
+- Nunca calcule validade a partir da fabricação. Só leia o que está impresso.
+- Confiança deve refletir a legibilidade REAL: use < 0.85 sempre que houver qualquer dúvida de caractere.
+
+Retorne SOMENTE JSON válido, sem markdown:
 {
   "products": [
     {
-      "photo_indices": [number, ...],
+      "photo_indices": [number],
       "name": string|null,
       "brand": string|null,
       "barcode": string|null,
-      "weight": string|null,          // "500 g", "1 kg", "1L"
+      "weight": string|null,
       "expires_at": "YYYY-MM-DD"|null,
       "manufactured_at": "YYYY-MM-DD"|null,
       "batch": string|null,
-      "sif": string|null,             // só número
+      "sif": string|null,
       "category": string|null,
       "conservation": "refrigerated"|"frozen"|"ambient"|"hot"|null,
-      "confidence": {                 // 0..1 por campo lido
-        "name": number, "brand": number, "barcode": number, "weight": number,
-        "expires_at": number, "manufactured_at": number, "batch": number,
-        "sif": number, "category": number, "conservation": number
-      },
-      "missing": [string, ...]        // nomes dos campos ausentes (ex.: "batch","expires_at","sif")
+      "confidence": { "name": number, "brand": number, "barcode": number, "weight": number, "expires_at": number, "manufactured_at": number, "batch": number, "sif": number, "category": number, "conservation": number },
+      "issues": [ { "field": string, "reason": "blur"|"glare"|"cropped"|"absent"|"unreadable"|"ambiguous", "hint": string } ],
+      "missing": [string]
     }
   ]
 }
 
-Regras:
-- Datas SEMPRE ISO YYYY-MM-DD. Converta DD/MM/AAAA. Ano de 2 dígitos = 20AA.
-- Se conservação não aparecer explícita, deixe null.
-- Se nome não aparece em NENHUMA foto do grupo, "name" = null e adicione "name" em missing.
-- "missing" deve conter obrigatoriamente ao menos: name, expires_at, batch, sif — sempre que qualquer um deles for null.`;
+- Datas SEMPRE ISO YYYY-MM-DD (converta DD/MM/AAAA; ano 2 dígitos = 20AA).
+- "sif" apenas números.
+- "hint" deve ser uma instrução curta em português dizendo o que refotografar (ex.: "Aproxime a foto do lote impresso a laser na lateral").`;
 
 function clampConf(n: any): number {
   const v = Number(n);
   if (!isFinite(v)) return 0;
   return Math.max(0, Math.min(1, v));
+}
+
+const norm = (v: any) =>
+  v == null ? "" : String(v).toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+function isoOk(s: any) { return /^\d{4}-\d{2}-\d{2}$/.test(s || ""); }
+
+function eanValid(code: string): boolean {
+  if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
+  const digits = code.split("").map(Number);
+  const check = digits.pop()!;
+  let sum = 0;
+  digits.reverse().forEach((d, i) => { sum += d * (i % 2 === 0 ? 3 : 1); });
+  return (10 - (sum % 10)) % 10 === check;
 }
 
 function cleanProduct(p: any) {
@@ -65,32 +86,154 @@ function cleanProduct(p: any) {
     brand: p?.brand || null,
     barcode: p?.barcode ? String(p.barcode).replace(/\D/g, "") || null : null,
     weight: p?.weight || null,
-    expires_at: /^\d{4}-\d{2}-\d{2}$/.test(p?.expires_at || "") ? p.expires_at : null,
-    manufactured_at: /^\d{4}-\d{2}-\d{2}$/.test(p?.manufactured_at || "") ? p.manufactured_at : null,
-    batch: p?.batch || null,
+    expires_at: isoOk(p?.expires_at) ? p.expires_at : null,
+    manufactured_at: isoOk(p?.manufactured_at) ? p.manufactured_at : null,
+    batch: p?.batch ? String(p.batch).trim() : null,
     sif: p?.sif ? String(p.sif).replace(/\D/g, "") || null : null,
     category: p?.category || null,
     conservation: ["refrigerated", "frozen", "ambient", "hot"].includes(p?.conservation) ? p.conservation : null,
-    confidence: {
-      name: clampConf(conf.name),
-      brand: clampConf(conf.brand),
-      barcode: clampConf(conf.barcode),
-      weight: clampConf(conf.weight),
-      expires_at: clampConf(conf.expires_at),
-      manufactured_at: clampConf(conf.manufactured_at),
-      batch: clampConf(conf.batch),
-      sif: clampConf(conf.sif),
-      category: clampConf(conf.category),
-      conservation: clampConf(conf.conservation),
-    },
+    confidence: {} as Record<string, number>,
+    issues: Array.isArray(p?.issues)
+      ? p.issues.filter((i: any) => i && typeof i.field === "string").map((i: any) => ({
+          field: i.field,
+          reason: ["blur", "glare", "cropped", "absent", "unreadable", "ambiguous"].includes(i.reason) ? i.reason : "unreadable",
+          hint: typeof i.hint === "string" ? i.hint.slice(0, 160) : "",
+        }))
+      : [],
     missing: [] as string[],
   };
-  // Recalcula missing por segurança
-  const required = ["name", "expires_at", "batch", "sif"];
-  const miss = new Set<string>(Array.isArray(p?.missing) ? p.missing.filter((s: any) => typeof s === "string") : []);
-  for (const f of required) if (!out[f]) miss.add(f);
-  out.missing = Array.from(miss);
+  for (const f of ["name", "brand", "barcode", "weight", "expires_at", "manufactured_at", "batch", "sif", "category", "conservation"]) {
+    out.confidence[f] = clampConf(conf[f]);
+  }
   return out;
+}
+
+/** Pareia produtos da 2ª leitura com os da 1ª por sobreposição de fotos. */
+function matchProduct(target: any, pool: any[]): any | null {
+  let best: any = null; let bestScore = 0;
+  for (const c of pool) {
+    const a = new Set(target.photo_indices);
+    const inter = (c.photo_indices || []).filter((i: number) => a.has(i)).length;
+    const score = inter / Math.max(1, Math.max(a.size, (c.photo_indices || []).length));
+    if (inter > 0 && score > bestScore) { best = c; bestScore = score; }
+  }
+  return bestScore >= 0.3 ? best : null;
+}
+
+const REASON_HINT: Record<string, string> = {
+  conflict: "As duas leituras da IA discordaram — confirme manualmente ou refotografe este campo.",
+  low_confidence: "A IA não teve certeza da leitura — confirme manualmente ou refotografe este campo.",
+  invalid: "O valor lido não passou na validação técnica.",
+  absent: "Não encontrado em nenhuma foto deste produto.",
+};
+
+/** Cruza as duas leituras + validações determinísticas. */
+function reconcile(a: any, b: any | null) {
+  const out = { ...a };
+  const status: Record<string, string> = {};
+  const issues: Array<{ field: string; reason: string; hint: string }> = [...(a.issues || [])];
+  const needs: string[] = [];
+
+  const pushIssue = (field: string, reason: string, hint?: string) => {
+    if (!issues.some((i) => i.field === field && i.reason === reason)) {
+      issues.push({ field, reason, hint: hint || REASON_HINT[reason] || "" });
+    }
+  };
+
+  // Validações determinísticas antes do consenso.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const y = today.getUTCFullYear();
+  if (out.expires_at) {
+    const yr = Number(out.expires_at.slice(0, 4));
+    if (yr < y - 1 || yr > y + 12) { pushIssue("expires_at", "invalid", "Ano de validade implausível. Refotografe a data."); out.expires_at = null; }
+  }
+  if (out.manufactured_at) {
+    const yr = Number(out.manufactured_at.slice(0, 4));
+    if (yr < y - 12 || yr > y + 1) { pushIssue("manufactured_at", "invalid", "Ano de fabricação implausível."); out.manufactured_at = null; }
+  }
+  if (out.expires_at && out.manufactured_at && out.expires_at <= out.manufactured_at) {
+    pushIssue("expires_at", "invalid", "Validade anterior ou igual à fabricação. Refotografe as datas.");
+    out.expires_at = null;
+  }
+  if (out.barcode && !eanValid(out.barcode)) {
+    pushIssue("barcode", "invalid", "Código de barras não passou no dígito verificador.");
+    out.barcode = null;
+  }
+  if (out.sif && !/^\d{1,5}$/.test(out.sif)) {
+    pushIssue("sif", "invalid", "Registro SIF/SISP/SIM fora do padrão numérico.");
+    out.sif = null;
+  }
+  if (out.batch && (out.batch.length < 2 || out.batch.length > 30)) {
+    pushIssue("batch", "invalid", "Lote lido com tamanho improvável.");
+    out.batch = null;
+  }
+
+  for (const f of CRITICAL_FIELDS) {
+    const val = (out as any)[f];
+    const conf = out.confidence[f] ?? 0;
+    if (!val) {
+      status[f] = "absent";
+      if (!issues.some((i) => i.field === f)) pushIssue(f, "absent");
+      continue;
+    }
+    const other = b ? (b as any)[f] : undefined;
+    if (b && norm(other) && norm(other) !== norm(val)) {
+      status[f] = "conflict";
+      pushIssue(f, "conflict", `Leitura 1: "${val}" · Leitura 2: "${other}". Confirme o valor correto.`);
+      needs.push(f);
+      continue;
+    }
+    if (conf < CRITICAL_THRESHOLD) {
+      status[f] = "low_confidence";
+      pushIssue(f, "low_confidence");
+      needs.push(f);
+      continue;
+    }
+    // Consenso + confiança alta → verificado.
+    status[f] = b && norm(other) === norm(val) ? "verified" : "single_read";
+    if (status[f] === "single_read" && conf < 0.95) {
+      // Só uma leitura enxergou o campo: exige confirmação humana.
+      status[f] = "low_confidence";
+      pushIssue(f, "low_confidence", "Apenas uma das duas leituras encontrou este dado.");
+      needs.push(f);
+    }
+  }
+
+  out.issues = issues;
+  out.field_status = status;
+  out.needs_review = Array.from(new Set(needs));
+  out.missing = ["name", "expires_at", "batch", "sif"].filter((f) => !(out as any)[f]);
+  return out;
+}
+
+async function readPass(apiKey: string, userContent: any[], variant: number) {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: variant === 0 ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
+      temperature: 0,
+      messages: [
+        { role: "system", content: SYSTEM },
+        ...(variant === 1
+          ? [{ role: "system", content: "Esta é uma SEGUNDA leitura independente para auditoria. Releia do zero, caractere por caractere, sem suposições." }]
+          : []),
+        { role: "user", content: userContent },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`Gateway ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  let raw: string = data?.choices?.[0]?.message?.content ?? "";
+  raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  let parsed: any;
+  try { parsed = JSON.parse(raw); }
+  catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error("Resposta IA inválida");
+    parsed = JSON.parse(m[0]);
+  }
+  return Array.isArray(parsed?.products) ? parsed.products.map(cleanProduct) : [];
 }
 
 serve(async (req) => {
@@ -111,7 +254,7 @@ serve(async (req) => {
 
     const userContent: any[] = [{
       type: "text",
-      text: `Analise as ${photos.length} fotos abaixo. Agrupe as que pertencem ao MESMO produto e extraia os campos. Retorne o JSON conforme instruído.`,
+      text: `Analise as ${photos.length} fotos abaixo. Agrupe as que pertencem ao MESMO produto e leia os campos. Não invente nada.`,
     }];
     photos.forEach((p: any, idx: number) => {
       if (!p?.base64 || !p?.mime_type) return;
@@ -119,35 +262,14 @@ serve(async (req) => {
       userContent.push({ type: "image_url", image_url: { url: `data:${p.mime_type};base64,${p.base64}` } });
     });
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userContent },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      return new Response(JSON.stringify({ error: `Gateway ${res.status}: ${errText.slice(0, 300)}` }), {
-        status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const data = await res.json();
-    let raw: string = data?.choices?.[0]?.message?.content ?? "";
-    raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-    let parsed: any;
-    try { parsed = JSON.parse(raw); }
-    catch {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error("Resposta IA inválida");
-      parsed = JSON.parse(m[0]);
-    }
-    const products = Array.isArray(parsed?.products) ? parsed.products.map(cleanProduct) : [];
-    return new Response(JSON.stringify({ products }), {
+    // Duas leituras independentes em paralelo (consenso).
+    const [passA, passB] = await Promise.all([
+      readPass(apiKey, userContent, 0),
+      readPass(apiKey, userContent, 1).catch((e) => { console.warn("2ª leitura falhou", e); return null; }),
+    ]);
+
+    const products = passA.map((p: any) => reconcile(p, passB ? matchProduct(p, passB) : null));
+    return new Response(JSON.stringify({ products, consensus: !!passB, threshold: CRITICAL_THRESHOLD }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
