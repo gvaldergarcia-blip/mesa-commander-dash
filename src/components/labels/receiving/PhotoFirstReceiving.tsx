@@ -672,6 +672,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
 }
 
 function recomputeMissing(g: ProductGroup): string[] {
+  const miss0 = [] as string[];
+  void miss0;
   const miss: string[] = [];
   if (!g.name?.trim()) miss.push("name");
   if (!g.expires_at) miss.push("expires_at");
@@ -684,6 +686,90 @@ function recomputeMissing(g: ProductGroup): string[] {
     // ou o usuário indicou is_meat=true, exigimos.
   } else if (!g.sif?.trim()) miss.push("sif");
   return miss;
+}
+
+/** Campos críticos lidos pela IA que NÃO atingiram o padrão de confiança
+ *  (conflito entre as duas leituras, confiança < 85% ou valor inválido) e
+ *  que ainda não foram confirmados manualmente pelo operador. */
+function unverifiedFields(g: ProductGroup): string[] {
+  const confirmed = new Set(g.confirmed_fields || []);
+  return (g.needs_review || []).filter((f) => {
+    if (confirmed.has(f)) return false;
+    if (f === "sif" && !g.is_meat) return false;
+    if (f === "batch" && g.lot_source === "none") return false;
+    // Só exige revisão de campos que realmente têm valor a validar.
+    return !!(g as any)[f];
+  });
+}
+
+const REASON_LABEL: Record<string, string> = {
+  conflict: "Leituras divergentes",
+  low_confidence: "Baixa confiança",
+  invalid: "Valor inválido",
+  blur: "Foto desfocada",
+  glare: "Reflexo na embalagem",
+  cropped: "Informação cortada",
+  unreadable: "Ilegível",
+  ambiguous: "Ambíguo",
+  absent: "Não encontrado",
+};
+
+/** Painel de auditoria: exige confirmação humana antes de imprimir. */
+function AuditPanel({
+  group, onConfirm, onPatch,
+}: {
+  group: ProductGroup;
+  onConfirm: (field: string, value?: string) => void;
+  onPatch: (u: Partial<ProductGroup>) => void;
+}) {
+  const pending = unverifiedFields(group);
+  if (!pending.length) return null;
+  return (
+    <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-3 space-y-2">
+      <div className="flex items-center gap-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400">
+          Confirmação obrigatória — a IA não garante estes dados
+        </span>
+      </div>
+      {pending.map((f) => {
+        const issue = (group.issues || []).find((i) => i.field === f);
+        const conf = Math.round((group.confidence?.[f] ?? 0) * 100);
+        return (
+          <div key={f} className="rounded-md border bg-background p-2 space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold">{FIELD_LABEL[f] || f}</span>
+              <Badge variant="outline" className="text-[10px] bg-rose-500/10 text-rose-700 border-rose-500/30">
+                {REASON_LABEL[issue?.reason || group.field_status?.[f] || "low_confidence"] || "Revisar"}
+              </Badge>
+              {conf > 0 && <span className="text-[10px] font-mono text-muted-foreground">confiança {conf}%</span>}
+            </div>
+            {issue?.hint && <p className="text-[11px] text-muted-foreground">{issue.hint}</p>}
+            <div className="flex gap-1.5">
+              <Input
+                type={f === "expires_at" || f === "manufactured_at" ? "date" : "text"}
+                value={((group as any)[f] as string) || ""}
+                onChange={(e) => onPatch({ [f]: e.target.value || null } as any)}
+                className="h-8 text-sm"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1 shrink-0"
+                disabled={!((group as any)[f])}
+                onClick={() => onConfirm(f, ((group as any)[f] as string) || undefined)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Confirmar
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Confira o valor diretamente na embalagem antes de confirmar. Se não conseguir ler, adicione uma nova foto aproximada e reanalise.
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function SummaryCard({ label, value, tone }: { label: string; value: number; tone: "neutral" | "success" | "warning" }) {
