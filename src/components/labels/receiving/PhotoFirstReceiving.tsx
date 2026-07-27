@@ -245,6 +245,10 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           conservation: p.conservation ?? "refrigerated",
           storage_location: "",
           confidence: p.confidence || {},
+          field_status: p.field_status || {},
+          issues: Array.isArray(p.issues) ? p.issues : [],
+          needs_review: Array.isArray(p.needs_review) ? p.needs_review : [],
+          confirmed_fields: [],
           missing: Array.isArray(p.missing) ? p.missing : [],
           missing_initial: [],
           is_meat: !!p.sif,
@@ -304,8 +308,28 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
 
   const removeGroup = (id: string) => setGroups((gs) => gs?.filter((g) => g.id !== id) ?? gs);
 
-  const readyGroups = useMemo(() => groups?.filter((g) => g.missing.length === 0) ?? [], [groups]);
-  const pendingGroups = useMemo(() => groups?.filter((g) => g.missing.length > 0) ?? [], [groups]);
+  /** Confirma explicitamente um campo auditado (o operador assume a leitura). */
+  const confirmField = (id: string, field: string, value?: string) =>
+    setGroups((gs) => gs?.map((g) => {
+      if (g.id !== id) return g;
+      const merged: ProductGroup = {
+        ...g,
+        ...(value !== undefined ? ({ [field]: value || null } as any) : {}),
+        confirmed_fields: Array.from(new Set([...(g.confirmed_fields || []), field])),
+      };
+      if (field === "batch" && value) merged.lot_source = "manufacturer";
+      merged.missing = recomputeMissing(merged);
+      return merged;
+    }) ?? gs);
+
+  const readyGroups = useMemo(
+    () => groups?.filter((g) => g.missing.length === 0 && unverifiedFields(g).length === 0) ?? [],
+    [groups],
+  );
+  const pendingGroups = useMemo(
+    () => groups?.filter((g) => g.missing.length > 0 || unverifiedFields(g).length > 0) ?? [],
+    [groups],
+  );
 
   const canFinalize = readyGroups.length > 0 && !isCreating && !isBulkResolving && !scanning;
 
@@ -486,7 +510,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
             <Sparkles className="h-5 w-5 text-primary" /> Recebimento por fotos
           </DialogTitle>
           <DialogDescription>
-            Fotografe as embalagens (frente, verso, lote, validade, SIF...). A IA agrupa por produto e extrai tudo sozinha.
+            Fotografe as embalagens (frente, verso, lote, validade, SIF...). Cada foto passa por <span className="font-medium">duas leituras independentes</span>: só é impresso o dado em que as duas concordam com confiança ≥ 85%. O resto exige confirmação humana.
           </DialogDescription>
         </DialogHeader>
 
@@ -594,6 +618,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                   photos={photos}
                   onPatch={(u) => patchGroup(g.id, u)}
                   onRemove={() => removeGroup(g.id)}
+                  onConfirmField={(f, v) => confirmField(g.id, f, v)}
                   onGenerateInternalLot={() =>
                     patchGroup(g.id, { batch: genInternalLot(groups), lot_source: "internal" })
                   }
@@ -662,6 +687,90 @@ function recomputeMissing(g: ProductGroup): string[] {
   return miss;
 }
 
+/** Campos críticos lidos pela IA que NÃO atingiram o padrão de confiança
+ *  (conflito entre as duas leituras, confiança < 85% ou valor inválido) e
+ *  que ainda não foram confirmados manualmente pelo operador. */
+function unverifiedFields(g: ProductGroup): string[] {
+  const confirmed = new Set(g.confirmed_fields || []);
+  return (g.needs_review || []).filter((f) => {
+    if (confirmed.has(f)) return false;
+    if (f === "sif" && !g.is_meat) return false;
+    if (f === "batch" && g.lot_source === "none") return false;
+    // Só exige revisão de campos que realmente têm valor a validar.
+    return !!(g as any)[f];
+  });
+}
+
+const REASON_LABEL: Record<string, string> = {
+  conflict: "Leituras divergentes",
+  low_confidence: "Baixa confiança",
+  invalid: "Valor inválido",
+  blur: "Foto desfocada",
+  glare: "Reflexo na embalagem",
+  cropped: "Informação cortada",
+  unreadable: "Ilegível",
+  ambiguous: "Ambíguo",
+  absent: "Não encontrado",
+};
+
+/** Painel de auditoria: exige confirmação humana antes de imprimir. */
+function AuditPanel({
+  group, onConfirm, onPatch,
+}: {
+  group: ProductGroup;
+  onConfirm: (field: string, value?: string) => void;
+  onPatch: (u: Partial<ProductGroup>) => void;
+}) {
+  const pending = unverifiedFields(group);
+  if (!pending.length) return null;
+  return (
+    <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-3 space-y-2">
+      <div className="flex items-center gap-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400">
+          Confirmação obrigatória — a IA não garante estes dados
+        </span>
+      </div>
+      {pending.map((f) => {
+        const issue = (group.issues || []).find((i) => i.field === f);
+        const conf = Math.round((group.confidence?.[f] ?? 0) * 100);
+        return (
+          <div key={f} className="rounded-md border bg-background p-2 space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold">{FIELD_LABEL[f] || f}</span>
+              <Badge variant="outline" className="text-[10px] bg-rose-500/10 text-rose-700 border-rose-500/30">
+                {REASON_LABEL[issue?.reason || group.field_status?.[f] || "low_confidence"] || "Revisar"}
+              </Badge>
+              {conf > 0 && <span className="text-[10px] font-mono text-muted-foreground">confiança {conf}%</span>}
+            </div>
+            {issue?.hint && <p className="text-[11px] text-muted-foreground">{issue.hint}</p>}
+            <div className="flex gap-1.5">
+              <Input
+                type={f === "expires_at" || f === "manufactured_at" ? "date" : "text"}
+                value={((group as any)[f] as string) || ""}
+                onChange={(e) => onPatch({ [f]: e.target.value || null } as any)}
+                className="h-8 text-sm"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 gap-1 shrink-0"
+                disabled={!((group as any)[f])}
+                onClick={() => onConfirm(f, ((group as any)[f] as string) || undefined)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Confirmar
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Confira o valor diretamente na embalagem antes de confirmar. Se não conseguir ler, adicione uma nova foto aproximada e reanalise.
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SummaryCard({ label, value, tone }: { label: string; value: number; tone: "neutral" | "success" | "warning" }) {
   const cls = {
     neutral: "bg-background border-border text-foreground",
@@ -686,18 +795,20 @@ function ConfPill({ conf }: { conf: number }) {
 }
 
 function GroupCard({
-  group, photos, onPatch, onRemove,
+  group, photos, onPatch, onRemove, onConfirmField,
   onGenerateInternalLot, onMarkNoLot, onClearLot,
 }: {
   group: ProductGroup; photos: Photo[];
   onPatch: (u: Partial<ProductGroup>) => void;
   onRemove: () => void;
+  onConfirmField: (field: string, value?: string) => void;
   onGenerateInternalLot: () => void;
   onMarkNoLot: () => void;
   onClearLot: () => void;
 }) {
   const previews = group.photo_ids.map((pid) => photos.find((p) => p.id === pid)).filter(Boolean) as Photo[];
-  const ready = group.missing.length === 0;
+  const unverified = unverifiedFields(group);
+  const ready = group.missing.length === 0 && unverified.length === 0;
   // Campos exibidos = os que estavam faltando no momento da análise (snapshot).
   // Assim o editor não some quando o usuário digita a 1ª letra.
   const editorFields = group.missing_initial?.length ? group.missing_initial : group.missing;
@@ -715,7 +826,9 @@ function GroupCard({
               </h4>
                {ready
                  ? <Badge className="gap-1 text-[11px] bg-emerald-500/15 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3" /> Pronto</Badge>
-                 : <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Falta {group.missing.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>}
+                 : group.missing.length > 0
+                   ? <Badge className="gap-1 text-[11px] bg-amber-500/15 text-amber-700 border-amber-500/30"><AlertTriangle className="h-3 w-3" /> Falta {group.missing.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>
+                   : <Badge className="gap-1 text-[11px] bg-rose-500/15 text-rose-700 border-rose-500/30"><AlertTriangle className="h-3 w-3" /> Confirmar {unverified.map((m) => FIELD_LABEL[m] || m).join(", ")}</Badge>}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
               {group.brand && <span>{group.brand}</span>}
@@ -737,6 +850,9 @@ function GroupCard({
             ))}
           </div>
         )}
+
+        {/* Auditoria de leitura — bloqueia impressão até confirmação humana */}
+        <AuditPanel group={group} onConfirm={onConfirmField} onPatch={onPatch} />
 
         {/* Campos: nome sempre editável se faltando; demais expostos quando faltando */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
