@@ -672,8 +672,6 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
 }
 
 function recomputeMissing(g: ProductGroup): string[] {
-  const miss0 = [] as string[];
-  void miss0;
   const miss: string[] = [];
   if (!g.name?.trim()) miss.push("name");
   if (!g.expires_at) miss.push("expires_at");
