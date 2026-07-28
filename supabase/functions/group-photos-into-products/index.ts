@@ -51,7 +51,8 @@ Retorne SOMENTE JSON válido, sem markdown:
       "post_opening_value": number|null,
       "post_opening_unit": "hours"|"days"|"months"|"immediate"|null,
       "post_opening_text": string|null,
-      "confidence": { "name": number, "brand": number, "barcode": number, "weight": number, "expires_at": number, "manufactured_at": number, "batch": number, "sif": number, "category": number, "conservation": number },
+          "post_opening_raw": string|null,
+      "confidence": { "name": number, "brand": number, "barcode": number, "weight": number, "expires_at": number, "manufactured_at": number, "batch": number, "sif": number, "category": number, "conservation": number, "post_opening": number },
       "issues": [ { "field": string, "reason": "blur"|"glare"|"cropped"|"absent"|"unreadable"|"ambiguous", "hint": string } ],
       "missing": [string]
     }
@@ -97,8 +98,94 @@ REGRA PÓS-ABERTURA (informação do fabricante após abertura/descongelamento) 
   "consumo imediato" ou equivalente, retorne "post_opening_unit": "immediate", "post_opening_value": 1
   e o texto literal em "post_opening_text". Não solicite quantidade nesses casos.
 - Se NÃO houver essa informação impressa, retorne os três campos como null. Nunca deduza nem estime.
+- "post_opening_raw": transcreva LITERALMENTE (sem resumir) todo trecho da embalagem que fale sobre
+  abertura, descongelamento, refrigeração após aberto ou consumo — mesmo que você não consiga
+  estruturar a regra. Esse texto é usado por um interpretador determinístico do sistema.
+- "confidence.post_opening": obrigatório. Reflita a legibilidade REAL da frase (1.0 = frase nítida e
+  completa; < 0.6 = trecho borrado, cortado ou deduzido).
 
 - "hint" deve ser uma instrução curta em português dizendo o que refotografar (ex.: "Aproxime a foto do lote impresso a laser na lateral").`;
+
+/** Interpretador determinístico da regra pós-abertura a partir de texto livre. */
+const NUM_WORDS: Record<string, number> = {
+  um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7,
+  oito: 8, nove: 9, dez: 10, doze: 12, quinze: 15, vinte: 20, trinta: 30,
+};
+
+const deaccent = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export function parsePostOpening(
+  raw: string | null | undefined,
+): { value: number; unit: "hours" | "days" | "months" | "immediate"; text: string } | null {
+  if (!raw) return null;
+  const t = deaccent(String(raw)).replace(/\s+/g, " ").trim();
+  if (!t) return null;
+
+  const opening =
+    /(apos|depois de|depois da|pos)\s+(aberto|aberta|abertura|abrir|descongel|aberto o|a abertura)|abertura|descongelamento|descongelado/.test(t);
+
+  // Consumo imediato
+  if (
+    /(consum[ai]r?|utilizar|usar)\s+(imediatamente|logo|de imediato)/.test(t) ||
+    /consumo imediato/.test(t) ||
+    /(imediatamente|logo)\s+(apos|depois)\s+(aberto|aberta|a abertura|abertura)/.test(t)
+  ) {
+    return { value: 1, unit: "immediate", text: String(raw).slice(0, 200) };
+  }
+
+  if (!opening) return null;
+
+  // "5 dias", "48h", "24 hrs", "2 meses", "cinco dias"
+  const re =
+    /(\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|doze|quinze|vinte|trinta)\s*(h|hs|hr|hrs|hora|horas|d|dia|dias|mes|meses|m)\b/g;
+  let m: RegExpExecArray | null;
+  const candidates: Array<{ value: number; unit: "hours" | "days" | "months" }> = [];
+  while ((m = re.exec(t))) {
+    const rawN = m[1];
+    const value = /^\d+$/.test(rawN) ? Number(rawN) : NUM_WORDS[rawN];
+    if (!value || value <= 0) continue;
+    const u = m[2];
+    const unit: "hours" | "days" | "months" =
+      /^(h|hs|hr|hrs|hora|horas)$/.test(u) ? "hours" : /^(mes|meses)$/.test(u) ? "months" : "days";
+    // Descarta números que claramente pertencem a outro contexto (ex.: "0 a 5 graus").
+    if (unit === "hours" && value > 240) continue;
+    if (unit === "days" && value > 365) continue;
+    if (unit === "months" && value > 36) continue;
+    candidates.push({ value, unit });
+  }
+  if (!candidates.length) return null;
+  // Preferimos a ocorrência mais próxima da palavra "consumir/utilizar/validade".
+  const best = candidates[0];
+  return { value: best.value, unit: best.unit, text: String(raw).slice(0, 200) };
+}
+
+/** Prompt do especialista: uma leitura dedicada SÓ à regra pós-abertura. */
+const POST_OPENING_SPECIALIST = `Você é um especialista em legislação de rotulagem de alimentos.
+Sua ÚNICA tarefa nesta leitura é encontrar a INFORMAÇÃO APÓS ABERTURA em cada produto fotografado.
+
+Ignore todos os outros campos. Concentre 100% da atenção nas letras pequenas, texto legal, tabela
+nutricional, verso, lateral, tampa, lacre, adesivos e instruções de conservação.
+
+Procure qualquer frase equivalente a (aceite variações, abreviações, falta de acento e quebra de linha):
+"Após aberto consumir em até X dias/horas/meses", "Consumir em até X dias após abertura",
+"Após abertura consumir em...", "Depois de aberto consumir em...", "Após descongelamento consumir em...",
+"Após aberto manter refrigerado e consumir em...", "Depois de aberto manter refrigerado por...",
+"Validade após abertura", "Válido por X dias após aberto", "Após aberto conservar refrigerado e consumir em...",
+"Consumir imediatamente após aberto", "Consumir logo após aberto", "Consumo imediato".
+
+Retorne SOMENTE JSON:
+{ "products": [ { "photo_indices": [number], "post_opening_value": number|null,
+  "post_opening_unit": "hours"|"days"|"months"|"immediate"|null,
+  "post_opening_text": string|null, "post_opening_raw": string|null,
+  "confidence": { "post_opening": number } } ] }
+
+- Agrupe as fotos do MESMO produto físico, igual à leitura principal.
+- "post_opening_raw": transcrição literal do trecho encontrado (ou de qualquer trecho sobre abertura /
+  descongelamento / refrigeração após aberto), mesmo que incompleto.
+- Consumo imediato → unit "immediate" e value 1, sem pedir quantidade.
+- Se realmente não existir nada impresso sobre abertura, retorne os campos como null e confidence 0.
+- Nunca invente valores.`;
 
 function clampConf(n: any): number {
   const v = Number(n);
@@ -140,6 +227,7 @@ function cleanProduct(p: any) {
       : (Number.isFinite(Number(p?.post_opening_value)) && Number(p?.post_opening_value) > 0 ? Number(p.post_opening_value) : null),
     post_opening_unit: ["hours", "days", "months", "immediate"].includes(p?.post_opening_unit) ? p.post_opening_unit : null,
     post_opening_text: typeof p?.post_opening_text === "string" ? p.post_opening_text.slice(0, 200) : null,
+    post_opening_raw: typeof p?.post_opening_raw === "string" ? p.post_opening_raw.slice(0, 400) : null,
     conservation: ["refrigerated", "frozen", "ambient", "hot"].includes(p?.conservation) ? p.conservation : null,
     confidence: {} as Record<string, number>,
     issues: Array.isArray(p?.issues)
@@ -151,7 +239,7 @@ function cleanProduct(p: any) {
       : [],
     missing: [] as string[],
   };
-  for (const f of ["name", "brand", "barcode", "weight", "expires_at", "manufactured_at", "batch", "sif", "category", "conservation"]) {
+  for (const f of ["name", "brand", "barcode", "weight", "expires_at", "manufactured_at", "batch", "sif", "category", "conservation", "post_opening"]) {
     out.confidence[f] = clampConf(conf[f]);
   }
   return out;
@@ -176,8 +264,85 @@ const REASON_HINT: Record<string, string> = {
   absent: "Não encontrado em nenhuma foto deste produto.",
 };
 
+/**
+ * Resolve a regra pós-abertura cruzando: leitura principal, 2ª leitura, leitura
+ * especialista e o interpretador determinístico sobre o texto literal do rótulo.
+ * Define também o nível de confiança:
+ *  - "verified"            → alta: preenche sozinho.
+ *  - "needs_confirmation"  → média: preenche, mas pede o "ok" do operador.
+ *  - "manual"              → baixa/ausente: campo em branco, preenchimento manual.
+ */
+function resolvePostOpening(out: any, sources: any[]) {
+  type Cand = { value: number | null; unit: string | null; text: string | null; conf: number; det: boolean };
+  const cands: Cand[] = [];
+
+  const push = (src: any, det = false) => {
+    if (!src) return;
+    const conf = clampConf(src?.confidence?.post_opening);
+    if (src.post_opening_unit) {
+      cands.push({
+        value: src.post_opening_unit === "immediate" ? 1 : (src.post_opening_value ?? null),
+        unit: src.post_opening_unit,
+        text: src.post_opening_text || src.post_opening_raw || null,
+        conf, det,
+      });
+    }
+    // Interpretação determinística do texto literal (mais confiável que o parse do modelo).
+    const parsed = parsePostOpening(src.post_opening_raw || src.post_opening_text);
+    if (parsed) {
+      cands.push({ value: parsed.value, unit: parsed.unit, text: parsed.text, conf: Math.max(conf, 0.9), det: true });
+    }
+    if (!out.post_opening_raw && src.post_opening_raw) out.post_opening_raw = src.post_opening_raw;
+  };
+
+  for (const src of sources) push(src);
+
+  if (!cands.length) {
+    out.post_opening_value = null;
+    out.post_opening_unit = null;
+    out.post_opening_confidence = 0;
+    out.post_opening_status = "manual";
+    return;
+  }
+
+  // Agrupa candidatos idênticos para medir concordância entre leituras.
+  const key = (c: Cand) => `${c.unit}:${c.unit === "immediate" ? 1 : c.value}`;
+  const groups = new Map<string, { c: Cand; agree: number; det: boolean; conf: number }>();
+  for (const c of cands) {
+    const k = key(c);
+    const g = groups.get(k);
+    if (g) { g.agree += 1; g.det = g.det || c.det; g.conf = Math.max(g.conf, c.conf); }
+    else groups.set(k, { c, agree: 1, det: c.det, conf: c.conf });
+  }
+  const ranked = Array.from(groups.values()).sort((x, y) =>
+    (y.agree - x.agree) || (Number(y.det) - Number(x.det)) || (y.conf - x.conf),
+  );
+  const win = ranked[0];
+  const disagreement = ranked.length > 1;
+
+  out.post_opening_value = win.c.unit === "immediate" ? 1 : win.c.value;
+  out.post_opening_unit = win.c.unit;
+  out.post_opening_text = win.c.text || out.post_opening_text || out.post_opening_raw || null;
+
+  // Score final: concordância entre leituras + leitura determinística elevam a confiança.
+  let score = win.conf;
+  if (win.agree >= 2) score = Math.max(score, 0.92);
+  if (win.det) score = Math.max(score, 0.88);
+  if (disagreement) score = Math.min(score, 0.7);
+  if (win.c.unit !== "immediate" && !win.c.value) score = 0;
+  out.post_opening_confidence = Number(score.toFixed(2));
+
+  if (score >= 0.85) out.post_opening_status = "verified";
+  else if (score >= 0.6) out.post_opening_status = "needs_confirmation";
+  else {
+    out.post_opening_status = "manual";
+    out.post_opening_value = null;
+    out.post_opening_unit = null;
+  }
+}
+
 /** Cruza as duas leituras + validações determinísticas. */
-function reconcile(a: any, b: any | null) {
+function reconcile(a: any, b: any | null, c: any | null = null) {
   const out = { ...a };
   const status: Record<string, string> = {};
   const issues: Array<{ field: string; reason: string; hint: string }> = [...(a.issues || [])];
@@ -253,15 +418,20 @@ function reconcile(a: any, b: any | null) {
   // regra pós-abertura, que pode estar em texto pequeno e aparecer só em uma
   // das leituras.
   if (b) {
-    for (const f of ["supplier", "category", "conservation", "post_opening_text"] as const) {
+    for (const f of ["supplier", "category", "conservation", "post_opening_text", "post_opening_raw"] as const) {
       if (!(out as any)[f] && (b as any)[f]) (out as any)[f] = (b as any)[f];
     }
-    if (!out.post_opening_unit && b.post_opening_unit) {
-      out.post_opening_unit = b.post_opening_unit;
-      out.post_opening_value = b.post_opening_unit === "immediate" ? 1 : (b.post_opening_value ?? null);
-      out.post_opening_text = out.post_opening_text || b.post_opening_text || null;
-    }
   }
+
+  resolvePostOpening(out, [a, b, c]);
+  if (out.post_opening_status === "manual") {
+    pushIssue("post_opening", "absent", "Regra após abertura não localizada nas fotos — informe manualmente ou refotografe as letras pequenas do rótulo.");
+  } else if (out.post_opening_status === "needs_confirmation") {
+    pushIssue("post_opening", "low_confidence", "Regra após abertura lida com confiança média — confirme antes de imprimir.");
+  }
+  status.post_opening = out.post_opening_status === "verified"
+    ? "verified"
+    : out.post_opening_status === "needs_confirmation" ? "low_confidence" : "absent";
 
   out.issues = issues;
   out.field_status = status;
@@ -334,6 +504,40 @@ async function readPassResilient(apiKey: string, userContent: any[], variant: nu
   throw lastErr;
 }
 
+async function specialistPass(apiKey: string, userContent: any[]) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 55_000);
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        temperature: 0,
+        messages: [
+          { role: "system", content: POST_OPENING_SPECIALIST },
+          { role: "user", content: userContent },
+        ],
+      }),
+    });
+    if (!res.ok) throw new Error(`Gateway ${res.status}`);
+    const data = await res.json();
+    let raw: string = data?.choices?.[0]?.message?.content ?? "";
+    raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    let parsed: any;
+    try { parsed = JSON.parse(raw); }
+    catch {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (!m) return null;
+      parsed = JSON.parse(m[0]);
+    }
+    return Array.isArray(parsed?.products) ? parsed.products.map(cleanProduct) : null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -362,15 +566,24 @@ serve(async (req) => {
 
     // As duas leituras rodam em PARALELO — antes eram sequenciais e somavam
     // 60-70s por bloco, o que fazia a tela ficar "Agrupando..." sem fim.
-    const [passA, passB] = await Promise.all([
+    const [passA, passB, passC] = await Promise.all([
       readPassResilient(apiKey, userContent, 0),
       readPassResilient(apiKey, userContent, 1).catch((e) => {
         console.warn("2ª leitura falhou", e);
         return null;
       }),
+      // Leitura dedicada exclusivamente à regra após abertura (prioridade máxima).
+      specialistPass(apiKey, userContent).catch((e) => {
+        console.warn("Leitura especialista pós-abertura falhou", e);
+        return null;
+      }),
     ]);
 
-    const products = passA.map((p: any) => reconcile(p, passB ? matchProduct(p, passB) : null));
+    const products = passA.map((p: any) => reconcile(
+      p,
+      passB ? matchProduct(p, passB) : null,
+      passC ? matchProduct(p, passC) : null,
+    ));
     return new Response(JSON.stringify({ products, consensus: !!passB, threshold: CRITICAL_THRESHOLD }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

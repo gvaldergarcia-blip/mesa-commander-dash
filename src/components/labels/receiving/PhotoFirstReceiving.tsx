@@ -204,7 +204,7 @@ function sameProduct(a: any, b: any) {
 const MERGE_FIELDS = [
   "name", "brand", "supplier", "barcode", "weight", "expires_at", "manufactured_at",
   "batch", "sif", "category", "conservation",
-  "post_opening_value", "post_opening_unit", "post_opening_text",
+  "post_opening_value", "post_opening_unit", "post_opening_text", "post_opening_raw",
 ] as const;
 
 function mergeInto(base: any, extra: any) {
@@ -459,11 +459,16 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           // Regra pós-abertura lida pela IA no rótulo (quando existir).
           pop_source: p.post_opening_value && p.post_opening_unit ? "ai" : null,
           pop_ai_text: p.post_opening_text ?? null,
+          pop_confidence: typeof p.post_opening_confidence === "number" ? p.post_opening_confidence : null,
+          pop_needs_confirmation: false,
         };
+        // Confiança alta → preenche sozinho. Média → preenche e pede confirmação.
+        // Baixa → o backend já devolve nulo e o campo abre em branco.
         if (p.post_opening_value && p.post_opening_unit) {
           base.pop_enabled = true;
           base.pop_validity_value = Number(p.post_opening_value);
           base.pop_validity_unit = p.post_opening_unit;
+          base.pop_needs_confirmation = p.post_opening_status === "needs_confirmation";
         }
         base.missing = recomputeMissing(base);
         base.missing_initial = [...base.missing];
@@ -947,7 +952,8 @@ function recomputeMissing(g: ProductGroup): string[] {
   } else if (!g.sif?.trim()) miss.push("sif");
   const popImmediate = g.pop_validity_unit === "immediate";
   const popConfigured = !!g.pop_enabled && !!g.pop_validity_unit && (popImmediate || !!g.pop_validity_value);
-  if (!popConfigured) miss.push("post_opening_rule");
+  // Leitura de confiança média conta como pendente até o operador confirmar.
+  if (!popConfigured || g.pop_needs_confirmation) miss.push("post_opening_rule");
   return miss;
 }
 
@@ -1323,9 +1329,16 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
           {group.pop_existing && (
             <Badge variant="outline" className="text-[10px]">Já existente no cadastro</Badge>
           )}
-          {!group.pop_existing && group.pop_source === "ai" && configured && (
+          {!group.pop_existing && group.pop_source === "ai" && configured && !group.pop_needs_confirmation && (
             <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
               Identificada automaticamente
+              {typeof group.pop_confidence === "number" ? ` · ${Math.round(group.pop_confidence * 100)}%` : ""}
+            </Badge>
+          )}
+          {group.pop_needs_confirmation && (
+            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1">
+              <AlertTriangle className="h-3 w-3" /> Confirme a leitura
+              {typeof group.pop_confidence === "number" ? ` · ${Math.round(group.pop_confidence * 100)}%` : ""}
             </Badge>
           )}
         </div>
@@ -1363,6 +1376,51 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             </span>
           )}
         </p>
+      )}
+
+      {group.pop_needs_confirmation && (
+        <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs space-y-1.5">
+          <div>
+            A IA leu no rótulo{group.pop_ai_text ? <> — <span className="italic">“{group.pop_ai_text}”</span></> : null}:{" "}
+            <span className="font-semibold text-foreground">
+              {immediate ? "consumo imediato" : `${group.pop_validity_value} ${unitLabel}`}
+            </span>
+            , mas com confiança média. Confirme antes de imprimir.
+          </div>
+          {computed && !immediate && (
+            <div className="text-[11px] text-muted-foreground">
+              Validade da manipulação se impressa agora: <span className="font-semibold text-foreground">{fmtPopDate(computed)}</span>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => onPatch({ pop_needs_confirmation: false, pop_source: "operator" })}
+            >
+              Confirmar leitura
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => {
+                onPatch({
+                  pop_needs_confirmation: false,
+                  pop_validity_value: null,
+                  pop_validity_unit: null,
+                  pop_enabled: false,
+                  pop_source: "manual",
+                });
+                setEditing(true);
+              }}
+            >
+              Corrigir manualmente
+            </Button>
+          </div>
+        </div>
       )}
 
       {showForm && (

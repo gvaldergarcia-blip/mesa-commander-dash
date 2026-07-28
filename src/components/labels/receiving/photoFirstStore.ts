@@ -69,6 +69,10 @@ export interface PfGroup {
   pop_ai_text?: string | null;
   /** Data/hora completa informada manualmente (ISO local: yyyy-MM-ddTHH:mm). */
   pop_fixed_date?: string | null;
+  /** Confiança (0-1) da leitura automática da regra após abertura. */
+  pop_confidence?: number | null;
+  /** Confiança média: valor preenchido, mas aguardando confirmação do operador. */
+  pop_needs_confirmation?: boolean;
 }
 
 export interface PfState {
