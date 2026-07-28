@@ -1291,10 +1291,11 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
     return () => clearInterval(t);
   }, []);
   const immediate = group.pop_validity_unit === "immediate";
-  const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
-  const showForm = editing || group.pop_source === "manual" || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
   const fixedDate = group.pop_fixed_date ? new Date(group.pop_fixed_date) : null;
   const hasFixed = !!fixedDate && !isNaN(fixedDate.getTime());
+  const configured =
+    hasFixed || (!!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value));
+  const showForm = editing || group.pop_source === "manual" || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
   const [mode, setMode] = useState<"rule" | "date">(hasFixed ? "date" : "rule");
   const computed = hasFixed
     ? fixedDate
