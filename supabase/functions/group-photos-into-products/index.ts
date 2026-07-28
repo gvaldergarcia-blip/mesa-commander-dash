@@ -118,6 +118,7 @@ function cleanProduct(p: any) {
     photo_indices: Array.isArray(p?.photo_indices) ? p.photo_indices.filter((n: any) => Number.isInteger(n) && n >= 0) : [],
     name: p?.name || null,
     brand: p?.brand || null,
+    supplier: p?.supplier || null,
     barcode: p?.barcode ? String(p.barcode).replace(/\D/g, "") || null : null,
     weight: p?.weight || null,
     expires_at: isoOk(p?.expires_at) ? p.expires_at : null,
