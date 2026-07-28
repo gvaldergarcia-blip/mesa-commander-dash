@@ -360,18 +360,18 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
               <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando lotes ativos…
               </div>
+            ) : !selectedProductId ? (
+              <p className="text-xs text-muted-foreground">Selecione o produto para carregar os lotes.</p>
             ) : lots.length === 0 ? (
-              <div className="text-xs text-muted-foreground border border-dashed rounded-lg p-3">
-                <p>Nenhum lote ativo para este produto.</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="mt-2 h-7 text-xs"
-                  onClick={() => { setMode("direct"); setDirectName(selectedProductName); }}
-                >
-                  Manipular mesmo assim (informar lote manualmente)
-                </Button>
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-muted-foreground">
+                  Nenhum lote ativo encontrado. Informe o lote do produto abaixo para seguir com a impressão.
+                </p>
+                <Input
+                  value={manualOriginBatch}
+                  onChange={(e) => setManualOriginBatch(e.target.value)}
+                  placeholder="Lote do produto (ex.: L2026-07)"
+                />
               </div>
             ) : (
               <Select value={lotId} onValueChange={setLotId}>
@@ -400,32 +400,6 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
               </div>
             )}
           </div>
-            </>
-          ) : (
-            <div className="space-y-3 rounded-lg border border-dashed p-3">
-              <div className="space-y-1.5">
-                <Label>Nome do produto</Label>
-                <Input value={directName} onChange={(e) => setDirectName(e.target.value)} placeholder="Ex.: Alface americana" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Peso (opcional)</Label>
-                  <Input value={directWeight} onChange={(e) => setDirectWeight(e.target.value)} placeholder="500 g / 1 kg" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Lote original</Label>
-                  <Input value={directOriginBatch} onChange={(e) => setDirectOriginBatch(e.target.value)} placeholder="Ex.: L2026-07" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Validade original</Label>
-                <Input type="date" value={directOriginExpiry} onChange={(e) => setDirectOriginExpiry(e.target.value)} />
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Origem registrada como <b>Manipulação Direta</b> (sem recebimento anterior).
-              </p>
-            </div>
-          )}
 
           <div className="space-y-1.5">
             <Label>Responsável</Label>
