@@ -60,14 +60,10 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const { restaurant } = (useRestaurant() as any) || { restaurant: null };
   const { restaurant: restaurantCtx } = useRestaurantCtx();
 
-  // Modo: "linked" = a partir de um lote recebido; "direct" = manipulação direta.
-  const [mode, setMode] = useState<"linked" | "direct">(productId ? "linked" : "linked");
   const [selectedProductId, setSelectedProductId] = useState<string>(productId ?? "");
   const [selectedProductName, setSelectedProductName] = useState<string>(productName ?? "");
-  const [directName, setDirectName] = useState<string>("");
-  const [directWeight, setDirectWeight] = useState<string>("");
-  const [directOriginBatch, setDirectOriginBatch] = useState<string>("");
-  const [directOriginExpiry, setDirectOriginExpiry] = useState<string>("");
+  // Quando o produto não tem lote ativo, o operador informa o lote aqui mesmo.
+  const [forceManualOrigin, setForceManualOrigin] = useState(false);
 
   const [loadingLots, setLoadingLots] = useState(false);
   const [lots, setLots] = useState<ActiveLot[]>([]);
@@ -78,8 +74,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [productOpen, setProductOpen] = useState(false);
 
   // Preenchimento manual quando o dado necessário não existe no recebimento
-  const [manualValidityValue, setManualValidityValue] = useState<string>("");
-  const [manualValidityUnit, setManualValidityUnit] = useState<"hours" | "days">("hours");
+  const [manualExpiryAt, setManualExpiryAt] = useState<string>("");
   const [manualOriginBatch, setManualOriginBatch] = useState<string>("");
   const [manualOriginExpiry, setManualOriginExpiry] = useState<string>("");
   const [manualWeight, setManualWeight] = useState<string>("");
@@ -88,27 +83,22 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   useEffect(() => {
     if (!open) return;
     // Reset ao abrir
-    setMode(productId ? "linked" : "linked");
     setSelectedProductId(productId ?? "");
     setSelectedProductName(productName ?? "");
-    setDirectName("");
-    setDirectWeight("");
-    setDirectOriginBatch("");
-    setDirectOriginExpiry("");
+    setForceManualOrigin(false);
     setLotId("");
     setLots([]);
     setNotes("");
-    setManualValidityValue("");
-    setManualValidityUnit("hours");
+    setManualExpiryAt("");
     setManualOriginBatch("");
     setManualOriginExpiry("");
     setManualWeight("");
     setManualSif("");
   }, [open, productId, productName]);
 
-  // Busca lotes ativos sempre que o produto selecionado mudar no modo "linked"
+  // Busca lotes ativos sempre que o produto selecionado mudar
   useEffect(() => {
-    if (!open || mode !== "linked" || !selectedProductId) { setLots([]); setLotId(""); return; }
+    if (!open || !selectedProductId) { setLots([]); setLotId(""); return; }
     setLoadingLots(true);
     (async () => {
       try {
@@ -125,7 +115,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         setLoadingLots(false);
       }
     })();
-  }, [open, mode, selectedProductId]);
+  }, [open, selectedProductId]);
 
   const selectedLot = useMemo(() => lots.find((l) => l.issuance_id === lotId) || null, [lots, lotId]);
   const productsForSelect = useMemo(
