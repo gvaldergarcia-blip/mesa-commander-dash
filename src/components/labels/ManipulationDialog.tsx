@@ -79,6 +79,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [manualOriginExpiry, setManualOriginExpiry] = useState<string>("");
   const [manualWeight, setManualWeight] = useState<string>("");
   const [manualSif, setManualSif] = useState<string>("");
+  // Após registrar, guardamos o payload da etiqueta para o operador decidir imprimir.
+  const [printPayload, setPrintPayload] = useState<any | null>(null);
+  const [doneBatch, setDoneBatch] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +97,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     setManualOriginExpiry("");
     setManualWeight("");
     setManualSif("");
+    setPrintPayload(null);
+    setDoneBatch("");
   }, [open, productId, productName]);
 
   // Busca lotes ativos sempre que o produto selecionado mudar
@@ -257,7 +262,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         const consMap: Record<string, string> = {
           refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
         };
-        printLabels({
+        setPrintPayload({
           productName: finalProductName,
           manufactureDate: manufacture,
           expiryDate: expiry,
@@ -283,7 +288,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       } catch (e) {
         console.error("[ManipulationDialog] print", e);
       }
-      onOpenChange(false);
+      setDoneBatch(batch);
     } catch (e: any) {
       toast.error(e.message || "Erro ao registrar manipulação");
     } finally {
