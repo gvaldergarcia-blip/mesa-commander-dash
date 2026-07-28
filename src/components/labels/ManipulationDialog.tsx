@@ -130,53 +130,46 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     [labelProducts, selectedProductId],
   );
   const manipulationRule = useMemo(() => {
-    if (mode !== "linked") return null;
     if (productConfig?.manipulation_enabled) {
       const v = Number(productConfig.manipulation_validity_value || 0);
       const u = productConfig.manipulation_validity_unit;
       if (v && (u === "hours" || u === "days")) return { value: v, unit: u as "hours" | "days", manual: false };
     }
-    const mv = Number(String(manualValidityValue).replace(",", "."));
-    if (mv > 0) return { value: mv, unit: manualValidityUnit, manual: true };
     return null;
-  }, [mode, productConfig, manualValidityValue, manualValidityUnit]);
+  }, [productConfig]);
+  // A validade SEMPRE parte da data/hora da manipulação (nunca da validade original).
   const computedExpiry = useMemo(() => {
-    const base = new Date();
-    if (!manipulationRule) return null;
-    const ms = manipulationRule.unit === "hours"
-      ? manipulationRule.value * 3600_000
-      : manipulationRule.value * 86_400_000;
-    return new Date(base.getTime() + ms);
-  }, [manipulationRule]);
+    if (manipulationRule) {
+      const base = new Date();
+      const ms = manipulationRule.unit === "hours"
+        ? manipulationRule.value * 3600_000
+        : manipulationRule.value * 86_400_000;
+      return new Date(base.getTime() + ms);
+    }
+    if (manualExpiryAt) {
+      const d = new Date(manualExpiryAt);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }, [manipulationRule, manualExpiryAt]);
   const configuredRule = !!productConfig?.manipulation_enabled
     && Number(productConfig?.manipulation_validity_value || 0) > 0;
-  const missingConfig = mode === "linked" && !!selectedProductId && !configuredRule;
+  const missingConfig = !!selectedProductId && !configuredRule;
+  const manualOriginMode = !!selectedProductId && (forceManualOrigin || (!loadingLots && lots.length === 0));
   // Dados que o recebimento pode não ter informado
-  const lotMissingBatch = mode === "linked" && !!selectedLot
-    && !(selectedLot.supplier_lot || selectedLot.traceability_lot || selectedLot.batch);
-  const lotMissingExpiry = mode === "linked" && !!selectedLot && !selectedLot.expiry_date;
+  const lotMissingBatch = manualOriginMode
+    || (!!selectedLot && !(selectedLot.supplier_lot || selectedLot.traceability_lot || selectedLot.batch));
+  const lotMissingExpiry = manualOriginMode || (!!selectedLot && !selectedLot.expiry_date);
 
   const confirm = async () => {
     if (!employeeId) return toast.error("Selecione o responsável");
     const manufacture = new Date();
 
-    // Validação por modo
-    if (mode === "linked") {
-      if (!selectedProductId) return toast.error("Selecione o produto");
-      if (!selectedLot) return toast.error("Selecione o lote de origem");
-      if (!manipulationRule || !computedExpiry) {
-        return toast.error("Informe a validade após manipulação para continuar.");
-      }
-      if (lotMissingBatch && !manualOriginBatch.trim()) return toast.error("Informe o lote original");
-      if (lotMissingExpiry && !manualOriginExpiry) return toast.error("Informe a validade original");
-    } else {
-      if (!directName.trim()) return toast.error("Informe o nome do produto");
-      if (!directOriginBatch.trim()) return toast.error("Informe o lote original");
-      if (!directOriginExpiry) return toast.error("Informe a validade original");
-    }
-    const expiry = mode === "linked"
-      ? computedExpiry!
-      : new Date(manufacture.getTime() + 24 * 3600_000); // fallback 24h para manipulação direta
+    if (!selectedProductId) return toast.error("Selecione o produto");
+    if (!manualOriginMode && !selectedLot) return toast.error("Selecione o lote de origem");
+    if (!computedExpiry) return toast.error("Informe a validade da manipulação para continuar.");
+    if (lotMissingBatch && !manualOriginBatch.trim()) return toast.error("Informe o lote do produto");
+    const expiry = computedExpiry;
     if (expiry <= manufacture) return toast.error("Validade calculada inválida");
 
     // Novo lote interno MAN-YYYYMMDD-NNN
@@ -187,23 +180,22 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     } catch { /* fallback local */ }
 
     const employee = activeEmployees.find((e) => e.id === employeeId);
-    const originLabel = mode === "linked"
-      ? (selectedLot!.supplier_lot || selectedLot!.traceability_lot || selectedLot!.batch || manualOriginBatch.trim() || "—")
-      : directOriginBatch.trim();
-    const originSupplier = mode === "linked" ? (selectedLot!.supplier_name || null) : null;
-    const originExpiry = mode === "linked"
-      ? (selectedLot!.expiry_date
-          ? new Date(selectedLot!.expiry_date)
-          : (manualOriginExpiry ? new Date(`${manualOriginExpiry}T23:59:00`) : null))
-      : new Date(`${directOriginExpiry}T23:59:00`);
-    const finalProductName = mode === "linked" ? selectedProductName : directName.trim();
+    const originLabel = selectedLot
+      ? (selectedLot.supplier_lot || selectedLot.traceability_lot || selectedLot.batch || manualOriginBatch.trim() || "—")
+      : (manualOriginBatch.trim() || "—");
+    const originSupplier = selectedLot?.supplier_name || null;
+    // Validade original do fabricante: apenas rastreabilidade, nunca base de cálculo.
+    const originExpiry = selectedLot?.expiry_date
+      ? new Date(selectedLot.expiry_date)
+      : (manualOriginExpiry ? new Date(`${manualOriginExpiry}T23:59:00`) : null);
+    const finalProductName = selectedProductName;
     const originNote = notes.trim() ? notes.trim() : null;
-    const originTag = mode === "direct" ? "Manipulação Direta" : "Recebimento";
+    const originTag = "Recebimento";
 
     setSaving(true);
     try {
       const inserted: any = await createLabel({
-        label_product_id: mode === "linked" ? selectedProductId : null,
+        label_product_id: selectedProductId,
         product_name: finalProductName,
         manufacture_date: manufacture,
         expiry_date: expiry,
@@ -213,7 +205,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         employee_id: employee?.id || null,
         conservation_method: (conservationMethod as any) || "refrigerated",
         notes: originNote ? `[${originTag}] ${originNote}` : `[${originTag}]`,
-        origin_issuance_id: mode === "linked" ? selectedLot!.issuance_id : null,
+        origin_issuance_id: selectedLot?.issuance_id ?? null,
         // supplier_id, supplier_lot e origin_traceability_lot vêm por trigger
       });
       toast.success(`Manipulação registrada · Lote ${batch}`);
