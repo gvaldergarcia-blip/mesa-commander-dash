@@ -51,7 +51,8 @@ Retorne SOMENTE JSON válido, sem markdown:
       "post_opening_value": number|null,
       "post_opening_unit": "hours"|"days"|"months"|"immediate"|null,
       "post_opening_text": string|null,
-      "confidence": { "name": number, "brand": number, "barcode": number, "weight": number, "expires_at": number, "manufactured_at": number, "batch": number, "sif": number, "category": number, "conservation": number },
+          "post_opening_raw": string|null,
+      "confidence": { "name": number, "brand": number, "barcode": number, "weight": number, "expires_at": number, "manufactured_at": number, "batch": number, "sif": number, "category": number, "conservation": number, "post_opening": number },
       "issues": [ { "field": string, "reason": "blur"|"glare"|"cropped"|"absent"|"unreadable"|"ambiguous", "hint": string } ],
       "missing": [string]
     }
@@ -97,8 +98,94 @@ REGRA PÓS-ABERTURA (informação do fabricante após abertura/descongelamento) 
   "consumo imediato" ou equivalente, retorne "post_opening_unit": "immediate", "post_opening_value": 1
   e o texto literal em "post_opening_text". Não solicite quantidade nesses casos.
 - Se NÃO houver essa informação impressa, retorne os três campos como null. Nunca deduza nem estime.
+- "post_opening_raw": transcreva LITERALMENTE (sem resumir) todo trecho da embalagem que fale sobre
+  abertura, descongelamento, refrigeração após aberto ou consumo — mesmo que você não consiga
+  estruturar a regra. Esse texto é usado por um interpretador determinístico do sistema.
+- "confidence.post_opening": obrigatório. Reflita a legibilidade REAL da frase (1.0 = frase nítida e
+  completa; < 0.6 = trecho borrado, cortado ou deduzido).
 
 - "hint" deve ser uma instrução curta em português dizendo o que refotografar (ex.: "Aproxime a foto do lote impresso a laser na lateral").`;
+
+/** Interpretador determinístico da regra pós-abertura a partir de texto livre. */
+const NUM_WORDS: Record<string, number> = {
+  um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7,
+  oito: 8, nove: 9, dez: 10, doze: 12, quinze: 15, vinte: 20, trinta: 30,
+};
+
+const deaccent = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export function parsePostOpening(
+  raw: string | null | undefined,
+): { value: number; unit: "hours" | "days" | "months" | "immediate"; text: string } | null {
+  if (!raw) return null;
+  const t = deaccent(String(raw)).replace(/\s+/g, " ").trim();
+  if (!t) return null;
+
+  const opening =
+    /(apos|depois de|depois da|pos)\s+(aberto|aberta|abertura|abrir|descongel|aberto o|a abertura)|abertura|descongelamento|descongelado/.test(t);
+
+  // Consumo imediato
+  if (
+    /(consum[ai]r?|utilizar|usar)\s+(imediatamente|logo|de imediato)/.test(t) ||
+    /consumo imediato/.test(t) ||
+    /(imediatamente|logo)\s+(apos|depois)\s+(aberto|aberta|a abertura|abertura)/.test(t)
+  ) {
+    return { value: 1, unit: "immediate", text: String(raw).slice(0, 200) };
+  }
+
+  if (!opening) return null;
+
+  // "5 dias", "48h", "24 hrs", "2 meses", "cinco dias"
+  const re =
+    /(\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|doze|quinze|vinte|trinta)\s*(h|hs|hr|hrs|hora|horas|d|dia|dias|mes|meses|m)\b/g;
+  let m: RegExpExecArray | null;
+  const candidates: Array<{ value: number; unit: "hours" | "days" | "months" }> = [];
+  while ((m = re.exec(t))) {
+    const rawN = m[1];
+    const value = /^\d+$/.test(rawN) ? Number(rawN) : NUM_WORDS[rawN];
+    if (!value || value <= 0) continue;
+    const u = m[2];
+    const unit: "hours" | "days" | "months" =
+      /^(h|hs|hr|hrs|hora|horas)$/.test(u) ? "hours" : /^(mes|meses)$/.test(u) ? "months" : "days";
+    // Descarta números que claramente pertencem a outro contexto (ex.: "0 a 5 graus").
+    if (unit === "hours" && value > 240) continue;
+    if (unit === "days" && value > 365) continue;
+    if (unit === "months" && value > 36) continue;
+    candidates.push({ value, unit });
+  }
+  if (!candidates.length) return null;
+  // Preferimos a ocorrência mais próxima da palavra "consumir/utilizar/validade".
+  const best = candidates[0];
+  return { value: best.value, unit: best.unit, text: String(raw).slice(0, 200) };
+}
+
+/** Prompt do especialista: uma leitura dedicada SÓ à regra pós-abertura. */
+const POST_OPENING_SPECIALIST = `Você é um especialista em legislação de rotulagem de alimentos.
+Sua ÚNICA tarefa nesta leitura é encontrar a INFORMAÇÃO APÓS ABERTURA em cada produto fotografado.
+
+Ignore todos os outros campos. Concentre 100% da atenção nas letras pequenas, texto legal, tabela
+nutricional, verso, lateral, tampa, lacre, adesivos e instruções de conservação.
+
+Procure qualquer frase equivalente a (aceite variações, abreviações, falta de acento e quebra de linha):
+"Após aberto consumir em até X dias/horas/meses", "Consumir em até X dias após abertura",
+"Após abertura consumir em...", "Depois de aberto consumir em...", "Após descongelamento consumir em...",
+"Após aberto manter refrigerado e consumir em...", "Depois de aberto manter refrigerado por...",
+"Validade após abertura", "Válido por X dias após aberto", "Após aberto conservar refrigerado e consumir em...",
+"Consumir imediatamente após aberto", "Consumir logo após aberto", "Consumo imediato".
+
+Retorne SOMENTE JSON:
+{ "products": [ { "photo_indices": [number], "post_opening_value": number|null,
+  "post_opening_unit": "hours"|"days"|"months"|"immediate"|null,
+  "post_opening_text": string|null, "post_opening_raw": string|null,
+  "confidence": { "post_opening": number } } ] }
+
+- Agrupe as fotos do MESMO produto físico, igual à leitura principal.
+- "post_opening_raw": transcrição literal do trecho encontrado (ou de qualquer trecho sobre abertura /
+  descongelamento / refrigeração após aberto), mesmo que incompleto.
+- Consumo imediato → unit "immediate" e value 1, sem pedir quantidade.
+- Se realmente não existir nada impresso sobre abertura, retorne os campos como null e confidence 0.
+- Nunca invente valores.`;
 
 function clampConf(n: any): number {
   const v = Number(n);
@@ -140,6 +227,7 @@ function cleanProduct(p: any) {
       : (Number.isFinite(Number(p?.post_opening_value)) && Number(p?.post_opening_value) > 0 ? Number(p.post_opening_value) : null),
     post_opening_unit: ["hours", "days", "months", "immediate"].includes(p?.post_opening_unit) ? p.post_opening_unit : null,
     post_opening_text: typeof p?.post_opening_text === "string" ? p.post_opening_text.slice(0, 200) : null,
+    post_opening_raw: typeof p?.post_opening_raw === "string" ? p.post_opening_raw.slice(0, 400) : null,
     conservation: ["refrigerated", "frozen", "ambient", "hot"].includes(p?.conservation) ? p.conservation : null,
     confidence: {} as Record<string, number>,
     issues: Array.isArray(p?.issues)
@@ -151,7 +239,7 @@ function cleanProduct(p: any) {
       : [],
     missing: [] as string[],
   };
-  for (const f of ["name", "brand", "barcode", "weight", "expires_at", "manufactured_at", "batch", "sif", "category", "conservation"]) {
+  for (const f of ["name", "brand", "barcode", "weight", "expires_at", "manufactured_at", "batch", "sif", "category", "conservation", "post_opening"]) {
     out.confidence[f] = clampConf(conf[f]);
   }
   return out;
