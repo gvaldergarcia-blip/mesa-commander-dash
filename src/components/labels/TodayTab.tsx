@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Loader2,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -24,9 +25,11 @@ import { classifyExpiry } from "@/lib/labels/utils";
 import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 import { ConservationDonutCard } from "./ConservationDonutCard";
+import { useLabelRenewals } from "@/hooks/useLabelRenewals";
 
 interface Props {
   onQuickAction: (action: "new-label" | "new-receipt" | "shopping" | "labels") => void;
+  onOpenRenewals?: () => void;
   onOpenProducts?: (filter: "expired" | "critical" | "warning") => void;
   onOpenStockFalta?: () => void;
 }
@@ -69,11 +72,12 @@ function describe(e: OperationalEvent): string {
   }
 }
 
-export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Props) {
+export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta, onOpenRenewals }: Props) {
   const { events, isLoading } = useOperationalDiary({ limit: 150 });
   const { labels } = useLabels();
   const { missingProducts, statusMap } = useStockStatus();
   const { items: labeledProducts } = useLabeledProducts();
+  const { items: renewalItems, renewableCount } = useLabelRenewals();
 
   // Mesma regra da aba Produtos: só contamos etiquetas de produtos ainda
   // visíveis na operação (ativos e NÃO marcados como "Precisa repor"). Isso
@@ -198,6 +202,30 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Pr
             {missingProducts.length > 0 && (
               <AlertPill n={missingProducts.length} label="em falta" tone="destructive" onClick={() => onOpenStockFalta?.()} />
             )}
+          </div>
+        </Card>
+      )}
+
+      {/* Renovação de etiquetas de manipulação */}
+      {renewalItems.length > 0 && (
+        <Card className="p-4 md:p-5 border-primary/30 bg-primary/[0.04]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/15 border border-primary/30">
+                <RefreshCw className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Etiquetas para renovação</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {renewalItems.length} etiqueta{renewalItems.length === 1 ? "" : "s"} de manipulação vencida(s) ou vencendo ·{" "}
+                  {renewableCount} pode(m) ser renovada(s) automaticamente.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" className="gap-2 shrink-0" onClick={() => onOpenRenewals?.()}>
+              <RefreshCw className="h-4 w-4" />
+              Abrir renovação
+            </Button>
           </div>
         </Card>
       )}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat } from "lucide-react";
+import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -16,6 +16,8 @@ import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { TodayTab } from "@/components/labels/TodayTab";
+import { RenewalPanel } from "@/components/labels/RenewalPanel";
+import { useLabelRenewals } from "@/hooks/useLabelRenewals";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
 import { PrintFlow } from "@/components/labels/PrintFlow";
@@ -31,6 +33,7 @@ export default function EtiquetasPage() {
   const { labels, isLoading: labelsLoading } = useLabels();
   const { employees } = useLabelEmployees();
   const { missingProducts } = useStockStatus();
+  const { count: renewalCount } = useLabelRenewals();
 
   const [tab, setTab] = useState("dashboard");
 
@@ -43,6 +46,7 @@ export default function EtiquetasPage() {
       label: "Diário",
       items: [
         { value: "hoje", icon: Activity, label: "Hoje" },
+        { value: "renovacao", icon: RefreshCw, label: "Renovação", badge: renewalCount },
       ],
     },
     {
@@ -242,7 +246,13 @@ export default function EtiquetasPage() {
               setStockInitialSector(null);
               setTab("estoque");
             }}
+            onOpenRenewals={() => setTab("renovacao")}
           />
+        </TabsContent>
+
+        {/* ===== RENOVAÇÃO DE ETIQUETAS ===== */}
+        <TabsContent value="renovacao" className="mt-0">
+          <RenewalPanel />
         </TabsContent>
 
         {/* ===== RECEBIMENTO INTELIGENTE ===== */}
