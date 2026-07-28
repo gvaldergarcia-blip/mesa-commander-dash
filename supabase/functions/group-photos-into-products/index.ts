@@ -39,6 +39,7 @@ Retorne SOMENTE JSON válido, sem markdown:
       "photo_indices": [number],
       "name": string|null,
       "brand": string|null,
+      "supplier": string|null,
       "barcode": string|null,
       "weight": string|null,
       "expires_at": "YYYY-MM-DD"|null,
@@ -59,6 +60,12 @@ Retorne SOMENTE JSON válido, sem markdown:
 
 - Datas SEMPRE ISO YYYY-MM-DD (converta DD/MM/AAAA; ano 2 dígitos = 20AA).
 - "sif" apenas números.
+REGRA DE FORNECEDOR/FABRICANTE:
+- Procure em todas as fotos (verso, tabela, rodapé, texto legal) a razão social / nome fantasia de quem
+  produziu ou distribuiu o produto: "Fabricado por", "Produzido por", "Distribuído por", "Indústria",
+  "Ind. e Com.", "Importado por", ou o nome ao lado do CNPJ.
+- Retorne esse nome em "supplier" exatamente como impresso (sem CNPJ/endereço). Se não estiver legível, null.
+- "brand" continua sendo a MARCA comercial estampada na frente (pode ser diferente do fornecedor).
 REGRA PÓS-ABERTURA (validade após abertura/manipulação) — PRIORIDADE MÁXIMA:
 - ANTES de finalizar cada produto, VARRA TODAS as fotos do grupo (frente, verso, laterais, tampa,
   tabela nutricional, textos pequenos em caixa alta ou impressos a laser) procurando ESPECIFICAMENTE
@@ -111,6 +118,7 @@ function cleanProduct(p: any) {
     photo_indices: Array.isArray(p?.photo_indices) ? p.photo_indices.filter((n: any) => Number.isInteger(n) && n >= 0) : [],
     name: p?.name || null,
     brand: p?.brand || null,
+    supplier: p?.supplier || null,
     barcode: p?.barcode ? String(p.barcode).replace(/\D/g, "") || null : null,
     weight: p?.weight || null,
     expires_at: isoOk(p?.expires_at) ? p.expires_at : null,

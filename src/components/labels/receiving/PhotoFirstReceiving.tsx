@@ -146,7 +146,7 @@ function sameProduct(a: any, b: any) {
 }
 
 const MERGE_FIELDS = [
-  "name", "brand", "barcode", "weight", "expires_at", "manufactured_at",
+  "name", "brand", "supplier", "barcode", "weight", "expires_at", "manufactured_at",
   "batch", "sif", "category", "conservation",
   "post_opening_value", "post_opening_unit", "post_opening_text",
 ] as const;
@@ -367,7 +367,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         const base: ProductGroup = {
           id: `g-${Date.now()}-${idx}`,
           photo_ids: ids,
-          name: p.name, brand: p.brand, barcode: p.barcode, weight: p.weight,
+          name: p.name, brand: p.brand || p.supplier || null, barcode: p.barcode, weight: p.weight,
           expires_at: p.expires_at, batch: p.batch, sif: p.sif, category: p.category,
           conservation: p.conservation ?? "refrigerated",
           storage_location: "",
@@ -429,11 +429,22 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           }
         }
       } catch (e) { console.warn("[PhotoFirstReceiving] POP prefill", e); }
+      // Fornecedor lido pela IA: se bater com um cadastrado, seleciona sozinho.
+      try {
+        if (supplierId === "none" || !supplierId) {
+          const read = merged.map((p: any) => p.supplier).filter(Boolean).map((s: string) => nkey(s));
+          const hit = (suppliers as any[]).find((s) => read.some((r) => nkey(s.name) && (nkey(s.name) === r || r.includes(nkey(s.name)) || nkey(s.name).includes(r))));
+          if (hit) {
+            photoFirstStore.set({ supplierId: hit.id });
+            toast.info(`Fornecedor identificado pela IA: ${hit.name}`);
+          }
+        }
+      } catch (e) { console.warn("[PhotoFirstReceiving] supplier match", e); }
       setGroups(built);
     } catch (e: any) {
       toast.error(e.message || "Erro ao analisar as fotos");
     } finally { setScanning(false); }
-  }, [photos]);
+  }, [photos, suppliers, supplierId]);
 
   // Enquanto o usuário edita, NÃO recalculamos `missing_initial` — assim o campo
   // não some no meio da digitação. Só o status "pronto" (missing) é reavaliado.
@@ -558,7 +569,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       jobs.push({
         productName: l.product_name,
         template: newExpiry ? "manipulation" : "received",
-        banner: newExpiry ? "MANIPULADO" : null,
+        banner: null,
         manufactureDate: newExpiry ? openedAt : new Date(l.manufacture_date),
         expiryDate: newExpiry ?? originalExpiry,
         originalExpiryDate: newExpiry ? originalExpiry : null,
