@@ -66,9 +66,7 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     const all = mergeSectors([...fromActive, ...fromAll]);
     const hasNone = products.some((p) => !p.sector);
     const full = hasNone ? [...all, 'Sem setor'] : all;
-    const withProducts = new Set(products.map((p) => sectorOf(p)));
-    // Setor oculto reaparece sozinho se voltar a ter produtos ativos.
-    return full.filter((s) => !hidden.includes(s) || withProducts.has(s));
+    return full.filter((s) => !hidden.includes(s));
   }, [products, items, hidden]);
 
   const bySector = useMemo(() => {
