@@ -86,6 +86,9 @@ export interface PfState {
   hydrated: boolean;
   /** Está no meio de um upload/persistência remota. */
   syncing: boolean;
+  /** Último recebimento registrado nesta sessão (apenas local, nunca bloqueia
+   *  a entrada de novos produtos). Permite "Imprimir agora" logo após registrar. */
+  lastReceipt: { id: string; count: number; at: number; supplierId: string } | null;
 }
 
 let state: PfState = {
@@ -99,6 +102,7 @@ let state: PfState = {
   restaurantId: null,
   hydrated: false,
   syncing: false,
+  lastReceipt: null,
 };
 
 const listeners = new Set<() => void>();
@@ -234,7 +238,7 @@ export const photoFirstStore = {
     if (touchesData) schedulePersist();
   },
   subscribe(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; },
-  reset() {
+  reset(opts?: { keepLastReceipt?: boolean }) {
     for (const p of state.photos) {
       if (p.file) { try { URL.revokeObjectURL(p.previewUrl); } catch { /* noop */ } }
     }
@@ -245,6 +249,7 @@ export const photoFirstStore = {
       photos: [], groups: null, supplierId: "none", reference: "",
       scanning: false, finalizedReceiptId: null,
       draftId: null, restaurantId, hydrated: state.hydrated, syncing: false,
+      lastReceipt: opts?.keepLastReceipt ? state.lastReceipt : null,
     };
     emit();
     // Remove tudo do remoto — melhor esforço, não bloqueia a UI.
@@ -272,6 +277,7 @@ export const photoFirstStore = {
         photos: [], groups: null, supplierId: "none", reference: "",
         scanning: false, finalizedReceiptId: null,
         draftId: null, restaurantId: null, hydrated: false, syncing: false,
+        lastReceipt: null,
       };
       emit();
     }
