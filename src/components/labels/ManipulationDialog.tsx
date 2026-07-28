@@ -175,8 +175,10 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       if (!selectedProductId) return toast.error("Selecione o produto");
       if (!selectedLot) return toast.error("Selecione o lote de origem");
       if (!manipulationRule || !computedExpiry) {
-        return toast.error("Este produto não possui regra de validade após manipulação cadastrada.");
+        return toast.error("Informe a validade após manipulação para continuar.");
       }
+      if (lotMissingBatch && !manualOriginBatch.trim()) return toast.error("Informe o lote original");
+      if (lotMissingExpiry && !manualOriginExpiry) return toast.error("Informe a validade original");
     } else {
       if (!directName.trim()) return toast.error("Informe o nome do produto");
       if (!directOriginBatch.trim()) return toast.error("Informe o lote original");
@@ -196,11 +198,13 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
 
     const employee = activeEmployees.find((e) => e.id === employeeId);
     const originLabel = mode === "linked"
-      ? (selectedLot!.supplier_lot || selectedLot!.traceability_lot || selectedLot!.batch || "—")
+      ? (selectedLot!.supplier_lot || selectedLot!.traceability_lot || selectedLot!.batch || manualOriginBatch.trim() || "—")
       : directOriginBatch.trim();
     const originSupplier = mode === "linked" ? (selectedLot!.supplier_name || null) : null;
     const originExpiry = mode === "linked"
-      ? (selectedLot!.expiry_date ? new Date(selectedLot!.expiry_date) : null)
+      ? (selectedLot!.expiry_date
+          ? new Date(selectedLot!.expiry_date)
+          : (manualOriginExpiry ? new Date(`${manualOriginExpiry}T23:59:00`) : null))
       : new Date(`${directOriginExpiry}T23:59:00`);
     const finalProductName = mode === "linked" ? selectedProductName : directName.trim();
     const originNote = notes.trim() ? notes.trim() : null;
@@ -267,7 +271,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           : null;
         const weightLabel = full.weight != null && full.weight_unit
           ? `${String(full.weight).replace(".", ",")} ${full.weight_unit}`
-          : (directWeight.trim() || null);
+          : (directWeight.trim() || manualWeight.trim() || null);
         const consMap: Record<string, string> = {
           refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
         };
@@ -281,7 +285,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           batch,
           template: "manipulation",
           brand: originSupplier,
-          sif: full.sif ?? null,
+          sif: full.sif ?? (manualSif.trim() || null),
           notes: originNote ? `Origem: ${originSupplier || "—"} · Lote ${originLabel} · ${originNote}`
                             : `Origem: ${originSupplier || "—"} · Lote ${originLabel}`,
           conservationLabel: consMap[full.conservation_method || (conservationMethod as any) || "refrigerated"] || null,
