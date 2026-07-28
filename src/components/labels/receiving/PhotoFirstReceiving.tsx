@@ -1322,7 +1322,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             </Badge>
           )}
         </div>
-        {configured && !editing && (
+        {configured && !editing && !showForm && (
           <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(true)}>
             Editar
           </Button>
