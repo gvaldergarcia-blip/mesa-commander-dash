@@ -220,10 +220,24 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       }
       const products: any[] = [];
       for (let c = 0; c < chunks.length; c++) {
-        const { data, error } = await supabase.functions.invoke("group-photos-into-products", {
-          body: { photos: chunks[c] },
-        });
-        if (error) throw error;
+        let data: any = null;
+        let lastErr: any = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const res = await supabase.functions.invoke("group-photos-into-products", {
+            body: { photos: chunks[c] },
+          });
+          if (!res.error) { data = res.data; lastErr = null; break; }
+          lastErr = res.error;
+          // Mensagem legível vinda da função (429/503 temporários da IA).
+          let detail = "";
+          try { detail = (await (res.error as any)?.context?.json?.())?.error ?? ""; } catch { /* ignore */ }
+          if (detail) (lastErr as any).message = detail;
+          if (attempt < 2) {
+            toast.info("IA ocupada, tentando novamente...");
+            await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          }
+        }
+        if (lastErr) throw lastErr;
         const arr = (data?.products ?? []) as any[];
         // Re-mapear índices locais do chunk para índices globais
         const globalMap = chunkIdx[c];

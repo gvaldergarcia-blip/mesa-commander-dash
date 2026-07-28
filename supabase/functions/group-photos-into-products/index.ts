@@ -225,12 +225,14 @@ function reconcile(a: any, b: any | null) {
   return out;
 }
 
-async function readPass(apiKey: string, userContent: any[], variant: number) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function readPass(apiKey: string, userContent: any[], variant: number, modelOverride?: string) {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: variant === 0 ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
+      model: modelOverride ?? (variant === 0 ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash"),
       temperature: 0,
       messages: [
         { role: "system", content: SYSTEM },
@@ -253,6 +255,28 @@ async function readPass(apiKey: string, userContent: any[], variant: number) {
     parsed = JSON.parse(m[0]);
   }
   return Array.isArray(parsed?.products) ? parsed.products.map(cleanProduct) : [];
+}
+
+// Gateway pode devolver 429/503 temporário: tenta novamente com backoff e modelo alternativo.
+async function readPassResilient(apiKey: string, userContent: any[], variant: number) {
+  const models = variant === 0
+    ? ["google/gemini-2.5-pro", "google/gemini-2.5-flash"]
+    : ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"];
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const model = models[attempt >= 2 ? Math.min(1, models.length - 1) : 0];
+    try {
+      return await readPass(apiKey, userContent, variant, model);
+    } catch (e: any) {
+      lastErr = e;
+      const msg = String(e?.message || "");
+      const transient = /Gateway (408|409|425|429|5\d\d)/.test(msg);
+      if (!transient || attempt === 3) throw e;
+      console.warn(`Leitura ${variant} falhou (${model}), retry ${attempt + 1}: ${msg.slice(0, 120)}`);
+      await sleep(900 * Math.pow(2, attempt));
+    }
+  }
+  throw lastErr;
 }
 
 serve(async (req) => {
@@ -281,11 +305,10 @@ serve(async (req) => {
       userContent.push({ type: "image_url", image_url: { url: `data:${p.mime_type};base64,${p.base64}` } });
     });
 
-    // Duas leituras independentes em paralelo (consenso).
-    const [passA, passB] = await Promise.all([
-      readPass(apiKey, userContent, 0),
-      readPass(apiKey, userContent, 1).catch((e) => { console.warn("2ª leitura falhou", e); return null; }),
-    ]);
+    // Leitura principal (com retry/fallback) e 2ª leitura de auditoria (opcional).
+    const passA = await readPassResilient(apiKey, userContent, 0);
+    const passB = await readPassResilient(apiKey, userContent, 1)
+      .catch((e) => { console.warn("2ª leitura falhou", e); return null; });
 
     const products = passA.map((p: any) => reconcile(p, passB ? matchProduct(p, passB) : null));
     return new Response(JSON.stringify({ products, consensus: !!passB, threshold: CRITICAL_THRESHOLD }), {
@@ -293,7 +316,18 @@ serve(async (req) => {
     });
   } catch (e: any) {
     console.error("group-photos-into-products error", e);
-    return new Response(JSON.stringify({ error: e?.message || "Erro desconhecido" }), {
+    const msg = String(e?.message || "Erro desconhecido");
+    if (/Gateway 429/.test(msg)) {
+      return new Response(JSON.stringify({ error: "Muitas análises seguidas. Aguarde alguns segundos e toque em Reanalisar." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (/Gateway 5\d\d/.test(msg)) {
+      return new Response(JSON.stringify({ error: "A IA está temporariamente indisponível. Tente Reanalisar em instantes — suas fotos foram mantidas." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
