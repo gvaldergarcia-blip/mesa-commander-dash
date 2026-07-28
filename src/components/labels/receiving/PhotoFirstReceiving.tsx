@@ -43,6 +43,7 @@ const FIELD_LABEL: Record<string, string> = {
   name: "Nome",
   expires_at: "Validade",
   batch: "Definir lote",
+  post_opening_rule: "Informação após abertura",
   sif: "SIF",
   brand: "Marca",
   weight: "Peso",
@@ -128,21 +129,76 @@ function nameSimilar(a: string, b: string) {
   return inter / Math.max(1, Math.max(ta.size, tb.length)) >= 0.7;
 }
 
+const TOKEN_STOP = new Set(["A", "O", "AS", "OS", "DE", "DA", "DO", "DAS", "DOS", "E", "COM", "SEM", "TIPO", "PRODUTO"]);
+
+function textTokens(v: any) {
+  return String(v || "")
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !TOKEN_STOP.has(t));
+}
+
+function tokenScore(a: any, b: any) {
+  const ta = textTokens(a);
+  const tb = textTokens(b);
+  if (!ta.length || !tb.length) return 0;
+  const sa = new Set(ta);
+  const sb = new Set(tb);
+  const inter = [...sa].filter((t) => sb.has(t)).length;
+  const precision = inter / Math.max(1, Math.min(sa.size, sb.size));
+  const jaccard = inter / Math.max(1, new Set([...sa, ...sb]).size);
+  return Math.max(precision, jaccard);
+}
+
+function textSimilarity(a: any, b: any) {
+  const na = nkey(a);
+  const nb = nkey(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return Math.min(0.96, Math.min(na.length, nb.length) / Math.max(na.length, nb.length) + 0.18);
+  return Math.max(tokenScore(a, b), nameSimilar(na, nb) ? 0.78 : 0);
+}
+
+function compatibleWeight(a: any, b: any) {
+  const wa = parseWeightString(a);
+  const wb = parseWeightString(b);
+  if (!wa || !wb) return true;
+  return wa.unit === wb.unit && Math.abs(wa.value - wb.value) < 0.001;
+}
+
 function sameProduct(a: any, b: any) {
   const ba = nkey(a.barcode), bb = nkey(b.barcode);
   if (ba && bb) return ba === bb;
   const la = nkey(a.batch), lb = nkey(b.batch);
-  if (la && lb && la !== lb) return false; // lotes distintos = produtos distintos
   const ea = a.expires_at, eb = b.expires_at;
-  if (ea && eb && ea !== eb) return false;
-  const na = nkey(a.name), nb = nkey(b.name);
-  if (!na || !nb) return false;
-  if (!nameSimilar(na, nb)) return false;
-  const bra = nkey(a.brand), brb = nkey(b.brand);
-  if (bra && brb && !nameSimilar(bra, brb)) return false;
-  const wa = nkey(a.weight), wb = nkey(b.weight);
-  if (wa && wb && wa !== wb) return false;
-  return true;
+  const nameScore = textSimilarity(a.name, b.name);
+  if (nameScore < 0.62) return false;
+
+  const brandScore = Math.max(
+    textSimilarity(a.brand, b.brand),
+    textSimilarity(a.brand, b.supplier),
+    textSimilarity(a.supplier, b.brand),
+    textSimilarity(a.supplier, b.supplier),
+  );
+  const hasBrandA = !!(a.brand || a.supplier);
+  const hasBrandB = !!(b.brand || b.supplier);
+  if (hasBrandA && hasBrandB && brandScore > 0 && brandScore < 0.45 && nameScore < 0.92) return false;
+  if (!compatibleWeight(a.weight, b.weight)) return false;
+
+  const batchConflict = !!la && !!lb && la !== lb;
+  const expiryConflict = !!ea && !!eb && ea !== eb;
+  // Se lote E validade divergem, provavelmente são embalagens/lotes diferentes.
+  // Se só um deles diverge, tratamos como possível erro de OCR e fundimos para
+  // evitar cards duplicados do mesmo produto, mantendo o campo para conferência.
+  if (batchConflict && expiryConflict) return false;
+
+  const sameSif = !!a.sif && !!b.sif && nkey(a.sif) === nkey(b.sif);
+  const sameCategory = !!a.category && !!b.category && textSimilarity(a.category, b.category) >= 0.7;
+  return nameScore >= 0.82 || (nameScore >= 0.62 && (brandScore >= 0.55 || sameSif || sameCategory));
 }
 
 const MERGE_FIELDS = [
