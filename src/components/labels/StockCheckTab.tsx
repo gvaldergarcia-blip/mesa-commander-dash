@@ -66,9 +66,7 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     const all = mergeSectors([...fromActive, ...fromAll]);
     const hasNone = products.some((p) => !p.sector);
     const full = hasNone ? [...all, 'Sem setor'] : all;
-    const withProducts = new Set(products.map((p) => sectorOf(p)));
-    // Setor oculto reaparece sozinho se voltar a ter produtos ativos.
-    return full.filter((s) => !hidden.includes(s) || withProducts.has(s));
+    return full.filter((s) => !hidden.includes(s));
   }, [products, items, hidden]);
 
   const bySector = useMemo(() => {
@@ -164,19 +162,17 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                         ? 'sem produtos'
                         : `${list.length} ${list.length === 1 ? 'produto' : 'produtos'}`}
                     </span>
-                    {list.length === 0 && (
-                      <button
+                    <button
                         type="button"
                         aria-label={`Apagar card do setor ${s}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSectorToDelete(s);
                         }}
-                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    </button>
                     </div>
                   </div>
                   {list.length === 0 ? (
@@ -209,8 +205,9 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
             <AlertDialogHeader>
               <AlertDialogTitle>Apagar card do setor?</AlertDialogTitle>
               <AlertDialogDescription>
-                O card “{sectorToDelete}” deixa de aparecer no Estoque. Nenhum produto ou histórico é apagado — se um
-                novo recebimento usar esse setor, ele volta automaticamente.
+                O card “{sectorToDelete}” deixa de aparecer na conferência de Estoque. Nenhum produto, etiqueta ou
+                histórico é apagado — os itens continuam em “Produtos”. Você pode trazer o card de volta a qualquer
+                momento em “Restaurar setores”.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
