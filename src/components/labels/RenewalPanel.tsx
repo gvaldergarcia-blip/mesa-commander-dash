@@ -55,7 +55,7 @@ export function RenewalPanel() {
     },
   });
 
-  const buildPrint = (row: any, prev: RenewalItem): PrintLabelData => {
+  const buildPrint = (row: any, prev: RenewalItem, fallbackExpiry: Date): PrintLabelData => {
     const qrSvg = row?.unique_code
       ? renderToStaticMarkup(
           <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${row.unique_code}?op=1`} size={144} level="L" marginSize={1} />,
@@ -68,7 +68,7 @@ export function RenewalPanel() {
     return {
       productName: row?.product_name || prev.label.product_name,
       manufactureDate: new Date(row?.manufacture_date || Date.now()),
-      expiryDate: new Date(row?.expiry_date || prev.nextExpiry!),
+      expiryDate: new Date(row?.expiry_date || fallbackExpiry),
       responsible: row?.responsible || prev.label.responsible || "—",
       quantity: Number(row?.quantity || 1),
       batch: row?.batch || null,
@@ -95,11 +95,11 @@ export function RenewalPanel() {
     if (singleId) setBusyId(singleId);
     try {
       const results = await renewMany(list);
-      const jobs = results.map((r, i) => buildPrint(r.created, list[i]));
+      const jobs = results.map((r, i) => buildPrint(r.created, list[i], r.expiry));
       toast.success(
         results.length === 1
-          ? `Etiqueta renovada · Lote ${results[0].batch}`
-          : `${results.length} etiquetas renovadas`,
+          ? `Nova manipulação registrada · Lote ${results[0].batch} · validade ${fmt(results[0].expiry)}`
+          : `${results.length} novas manipulações registradas`,
       );
       if (jobs.length) {
         await new Promise<void>((res) => requestAnimationFrame(() => res()));
@@ -219,10 +219,16 @@ export function RenewalPanel() {
                     <div><span className="uppercase tracking-wider">Validade atual</span><div className="text-foreground font-medium">{fmt(l.expiry_date)}</div></div>
                     <div><span className="uppercase tracking-wider">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
                     {item.renewable && item.nextExpiry && (
-                      <div className="col-span-2">
-                        <span className="uppercase tracking-wider">Nova validade (regra: {item.ruleLabel})</span>
-                        <div className="text-emerald-600 dark:text-emerald-400 font-semibold">{fmt(item.nextExpiry)}</div>
-                      </div>
+                      <>
+                        <div>
+                          <span className="uppercase tracking-wider">Nova manipulação</span>
+                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">agora (data/hora da renovação)</div>
+                        </div>
+                        <div>
+                          <span className="uppercase tracking-wider">Nova validade (após abertura: {item.ruleLabel})</span>
+                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">{fmt(item.nextExpiry)}</div>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -234,7 +240,7 @@ export function RenewalPanel() {
                     className="gap-2 shrink-0"
                   >
                     {busyId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Renovar etiqueta
+                    Nova manipulação
                   </Button>
                 ) : (
                   <div className="shrink-0 flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30 max-w-[240px]">
