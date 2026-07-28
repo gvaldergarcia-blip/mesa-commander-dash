@@ -66,28 +66,36 @@ REGRA DE FORNECEDOR/FABRICANTE:
   "Ind. e Com.", "Importado por", ou o nome ao lado do CNPJ.
 - Retorne esse nome em "supplier" exatamente como impresso (sem CNPJ/endereço). Se não estiver legível, null.
 - "brand" continua sendo a MARCA comercial estampada na frente (pode ser diferente do fornecedor).
-REGRA PÓS-ABERTURA (validade após abertura/manipulação) — PRIORIDADE MÁXIMA:
-- ANTES de finalizar cada produto, VARRA TODAS as fotos do grupo (frente, verso, laterais, tampa,
-  tabela nutricional, textos pequenos em caixa alta ou impressos a laser) procurando ESPECIFICAMENTE
-  qualquer frase equivalente a:
-  · "Após aberto consumir em até X dias/horas"
-  · "Após abertura consumir em até X dias/horas"
-  · "Consumir em até X dias após a abertura"
-  · "Depois de aberto consumir em até X dias/horas"
-  · "Após aberto manter refrigerado e consumir em até X dias"
+REGRA PÓS-ABERTURA (informação do fabricante após abertura/descongelamento) — PRIORIDADE MÁXIMA ABSOLUTA:
+- Esta informação deve ser tratada como lote, validade original e conservação: é dado do FABRICANTE.
+- ANTES de finalizar cada produto, faça uma varredura dedicada em TODAS as fotos do grupo (frente, verso,
+  laterais, tampa, lacre, tabela nutricional, texto legal, modo de conservação, rodapé, letras pequenas,
+  caixa alta, impressão a laser, adesivos e qualquer região da embalagem).
+- Procure especificamente por frases equivalentes, com ou sem acento, quebradas em linhas diferentes:
+  · "Após aberto consumir em até X dias"
+  · "Após aberto consumir em até X horas"
+  · "Consumir em até X dias após abertura"
+  · "Consumir em até X horas após abertura"
+  · "Após abertura consumir em..."
+  · "Após aberto manter refrigerado e consumir em..."
+  · "Depois de aberto consumir em..."
+  · "Após descongelamento consumir em..."
+  · "Após descongelado consumir em até X horas/dias"
   · "Manter refrigerado após aberto e consumir em até X dias"
   · "Após abertura manter sob refrigeração por X dias"
-  · "Após descongelamento/descongelado consumir em até X horas"
   · "Válido por X dias após aberto"
-  · "Após aberto consumir imediatamente" / "Consumir imediatamente após aberto" / "Consumo imediato"
-- A frase pode estar abreviada ("Apos aberto cons. até 5 dias"), sem acentos, quebrada em duas linhas,
-  dentro do bloco de "Modo de conservação" ou junto de "Conservar entre 0°C e 4°C". Considere todas.
-- Se a frase existir e for legível, é OBRIGATÓRIO preencher os três campos — não a deixe como null.
-- Se encontrar, retorne o número em "post_opening_value", a unidade em "post_opening_unit"
+  · "Após aberto utilizar em..."
+  · "Consumir imediatamente após aberto"
+  · "Consumir logo após aberto"
+  · "Consumo imediato"
+- Também aceite abreviações comuns: "Apos aberto cons. até 5 dias", "após aberto consumir 5d",
+  "cons. em até 48h após aberto", "após aberto: 3 dias".
+- Se a frase existir e for legível, é OBRIGATÓRIO preencher os três campos — não deixe como null.
+- Se encontrar quantidade, retorne o número em "post_opening_value", a unidade em "post_opening_unit"
   ("hours", "days" ou "months") e o texto literal lido em "post_opening_text".
 - CONSUMO IMEDIATO: se o rótulo disser "consumir imediatamente após aberto", "consumir logo após aberto",
   "consumo imediato" ou equivalente, retorne "post_opening_unit": "immediate", "post_opening_value": 1
-  e o texto literal em "post_opening_text".
+  e o texto literal em "post_opening_text". Não solicite quantidade nesses casos.
 - Se NÃO houver essa informação impressa, retorne os três campos como null. Nunca deduza nem estime.
 
 - "hint" deve ser uma instrução curta em português dizendo o que refotografar (ex.: "Aproxime a foto do lote impresso a laser na lateral").`;
@@ -106,7 +114,8 @@ function isoOk(s: any) { return /^\d{4}-\d{2}-\d{2}$/.test(s || ""); }
 function eanValid(code: string): boolean {
   if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
   const digits = code.split("").map(Number);
-  const check = digits.pop()!;
+  const check = digits.pop();
+  if (check == null) return false;
   let sum = 0;
   digits.reverse().forEach((d, i) => { sum += d * (i % 2 === 0 ? 3 : 1); });
   return (10 - (sum % 10)) % 10 === check;
@@ -236,6 +245,21 @@ function reconcile(a: any, b: any | null) {
       status[f] = "low_confidence";
       pushIssue(f, "low_confidence", "Apenas uma das duas leituras encontrou este dado.");
       needs.push(f);
+    }
+  }
+
+  // Campos não críticos, mas importantes para automação: se a 1ª leitura não
+  // viu e a leitura independente viu, aproveitamos. Isso é essencial para a
+  // regra pós-abertura, que pode estar em texto pequeno e aparecer só em uma
+  // das leituras.
+  if (b) {
+    for (const f of ["supplier", "category", "conservation", "post_opening_text"] as const) {
+      if (!(out as any)[f] && (b as any)[f]) (out as any)[f] = (b as any)[f];
+    }
+    if (!out.post_opening_unit && b.post_opening_unit) {
+      out.post_opening_unit = b.post_opening_unit;
+      out.post_opening_value = b.post_opening_unit === "immediate" ? 1 : (b.post_opening_value ?? null);
+      out.post_opening_text = out.post_opening_text || b.post_opening_text || null;
     }
   }
 
