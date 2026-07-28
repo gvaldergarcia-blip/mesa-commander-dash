@@ -1291,7 +1291,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
   }, []);
   const immediate = group.pop_validity_unit === "immediate";
   const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
-  const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
+  const showForm = editing || group.pop_source === "manual" || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
   const computed = configured
     ? applyPopRule(now, group.pop_validity_value, group.pop_validity_unit)
     : null;
@@ -1411,6 +1411,20 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             “Após descongelamento consumir em até 48 horas” ou “Consumir em até 30 dias após abertura”.
             Caso não seja encontrada, preencha manualmente.
           </p>
+          <div className={cn(
+            "rounded-md border px-3 py-2 text-xs",
+            computed ? "border-primary/30 bg-primary/5" : "border-amber-500/30 bg-amber-500/5",
+          )}>
+            <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Resultado</span>
+            <span className="font-semibold text-foreground">
+              {computed
+                ? (immediate ? "Consumo imediato no momento da impressão" : fmtPopDate(computed))
+                : "Informe quantidade e unidade para calcular"}
+            </span>
+            <span className="block text-[10px] text-muted-foreground mt-0.5">
+              Data/hora atual + regra após abertura = validade da manipulação.
+            </span>
+          </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-amber-500/40 pl-2">
             Esta informação é a regra do fabricante após abertura/descongelamento — não é a validade da manipulação.
             Quando houver uma Manipulação, o sistema calculará: data/hora da manipulação + regra após abertura = nova validade.
