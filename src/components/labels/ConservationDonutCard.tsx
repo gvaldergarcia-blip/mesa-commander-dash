@@ -8,6 +8,7 @@ import { format, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useLabels, Label as LabelRow } from "@/hooks/useLabels";
 import { useStockStatus } from "@/hooks/useStockStatus";
+import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { cn } from "@/lib/utils";
 
@@ -31,20 +32,49 @@ function labelFor(key: string) {
 export function ConservationDonutCard() {
   const { labels } = useLabels();
   const { statusMap } = useStockStatus();
+  const { products } = useLabelProducts();
   const [selected, setSelected] = useState<string | null>(null);
+
+  const productById = useMemo(() => {
+    const m = new Map<string, (typeof products)[number]>();
+    products.forEach((p) => m.set(p.id, p));
+    return m;
+  }, [products]);
+
+  const isInternal = (l: LabelRow) => /^(PRD-|PI-)/.test(l.batch || "");
 
   // Lotes ativos: não baixados, não vencidos, com unidades restantes e
   // cujo produto não esteja marcado como "precisa repor" (falta).
+  // Inclui insumos recebidos E itens de Produção Interna (PRD-/PI-).
   const activeLots = useMemo(
     () =>
-      labels.filter((l) => {
-        if (l.status !== "active") return false;
-        if ((l.units_remaining ?? 0) <= 0) return false;
-        if (l.label_product_id && statusMap.get(l.label_product_id)?.status === "falta") return false;
-        return true;
-      }),
-    [labels, statusMap],
+      labels
+        .filter((l) => {
+          if (l.status !== "active") return false;
+          if ((l.units_remaining ?? 0) <= 0) return false;
+          // Produção interna nunca é ocultada por marcação de "precisa repor"
+          // do insumo — o lote produzido existe fisicamente na cozinha.
+          if (
+            !isInternal(l) &&
+            l.label_product_id &&
+            statusMap.get(l.label_product_id)?.status === "falta"
+          )
+            return false;
+          return true;
+        })
+        // Itens produzidos podem não ter conservação na etiqueta: herda do cadastro.
+        .map((l) => ({
+          ...l,
+          conservation_method:
+            l.conservation_method ||
+            (l.label_product_id
+              ? ((productById.get(l.label_product_id)?.conservation_method as any) ?? null)
+              : null),
+        })),
+    [labels, statusMap, productById],
   );
+
+  const internalCount = useMemo(() => activeLots.filter(isInternal).length, [activeLots]);
 
   const groups = useMemo(() => {
     const map = new Map<string, LabelRow[]>();
@@ -78,7 +108,14 @@ export function ConservationDonutCard() {
             Distribuição dos produtos atualmente ativos na cozinha.
           </p>
         </div>
-        <Badge variant="secondary" className="shrink-0 tabular-nums">{total} lotes</Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          {internalCount > 0 && (
+            <Badge variant="outline" className="tabular-nums text-[10px]">
+              {internalCount} produção interna
+            </Badge>
+          )}
+          <Badge variant="secondary" className="tabular-nums">{total} lotes</Badge>
+        </div>
       </div>
 
       {total === 0 ? (
@@ -164,6 +201,7 @@ export function ConservationDonutCard() {
               <thead>
                 <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b">
                   <th className="text-left py-2 pr-3">Produto</th>
+                  <th className="text-left py-2 pr-3">Origem</th>
                   <th className="text-left py-2 pr-3">Lote</th>
                   <th className="text-left py-2 pr-3">Setor</th>
                   <th className="text-left py-2 pr-3">Conservação</th>
@@ -181,6 +219,9 @@ export function ConservationDonutCard() {
                     return (
                       <tr key={l.id} className="border-b border-border/40">
                         <td className="py-2 pr-3 font-medium">{l.product_name}</td>
+                        <td className="py-2 pr-3 text-muted-foreground">
+                          {isInternal(l) ? "Produção interna" : "Recebimento"}
+                        </td>
                         <td className="py-2 pr-3 font-mono text-xs">{l.batch || "—"}</td>
                         <td className="py-2 pr-3 text-muted-foreground">{l.storage_location || "—"}</td>
                         <td className="py-2 pr-3 text-muted-foreground">{labelFor(l.conservation_method || "unknown")}</td>

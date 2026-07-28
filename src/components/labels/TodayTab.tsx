@@ -122,9 +122,11 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Pr
 
   const alerts = useMemo(() => {
     // Contamos PRODUTOS (não etiquetas) usando a mesma regra da aba Produtos.
+    // Produção Interna entra aqui normalmente (origin === "internal"), e não é
+    // ocultada por marcação de "precisa repor" do insumo.
     const visible = labeledProducts.filter((p) => {
       if (p.active_labels_count <= 0) return false;
-      if (p.product_id && statusMap.get(p.product_id)?.status === "falta") return false;
+      if (p.origin !== "internal" && p.product_id && statusMap.get(p.product_id)?.status === "falta") return false;
       return true;
     });
     return {
@@ -141,13 +143,17 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Pr
 
   const summary = useMemo(() => {
     const count = (t: KitchenEventType) => todayEvents.filter((e) => e.event_type === t).length;
+    const productions = labels.filter(
+      (l) => /^(PRD-|PI-)/.test(l.batch || "") && new Date(l.created_at) >= startOfToday,
+    ).length;
     return {
       receipts:    count("receipt"),
       issued:      count("label_issued"),
       discharged:  count("label_discharged"),
       checks:      count("stock_check"),
+      productions,
     };
-  }, [todayEvents]);
+  }, [todayEvents, labels]);
 
   return (
     <div className="space-y-5">
@@ -164,8 +170,9 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Pr
       </div>
 
       {/* Resumo do dia */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <SummaryCard icon={PackagePlus} label="Recebimentos hoje" value={summary.receipts} tone="emerald" />
+        <SummaryCard icon={ChefHat}     label="Produções internas" value={summary.productions} tone="primary" />
         <SummaryCard icon={Printer}     label="Etiquetas emitidas" value={summary.issued} tone="primary" />
         <SummaryCard icon={Trash2}      label="Baixas" value={summary.discharged} tone="orange" />
         <SummaryCard icon={ClipboardCheck} label="Checagens de estoque" value={summary.checks} tone="blue" />
