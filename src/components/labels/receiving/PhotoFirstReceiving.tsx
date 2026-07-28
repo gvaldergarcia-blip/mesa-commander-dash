@@ -986,7 +986,7 @@ function GroupCard({
           </div>
         </div>
 
-        {/* POP de Manipulação — cadastro único por produto */}
+        {/* Regra do fabricante após abertura — cadastro único por produto */}
         <PopEditor group={group} onPatch={onPatch} />
       </div>
     </div>
@@ -1006,20 +1006,22 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
   const [editing, setEditing] = useState(false);
   const configured = !!group.pop_enabled && !!group.pop_validity_value && !!group.pop_validity_unit;
   const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
-  const unitLabel = group.pop_validity_unit === "hours" ? "hora(s)" : "dia(s)";
+  const unitLabel = group.pop_validity_unit === "hours"
+    ? "hora(s)"
+    : group.pop_validity_unit === "months" ? "mês(es)" : "dia(s)";
   return (
     <div className="pt-3 mt-1 border-t border-border/50">
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-1.5">
           <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide">POP de Manipulação</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide">Informação após abertura</span>
           {configured ? (
             <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 gap-1">
-              <CheckCircle2 className="h-3 w-3" /> Configurado
+              <CheckCircle2 className="h-3 w-3" /> Identificada
             </Badge>
           ) : (
             <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1">
-              <AlertTriangle className="h-3 w-3" /> Não configurado
+              <AlertTriangle className="h-3 w-3" /> Não identificada
             </Badge>
           )}
           {group.pop_existing && (
@@ -1040,7 +1042,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
       {configured && !editing && (
         <p className="text-xs text-muted-foreground">
-          ✓ <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel} após manipulação
+          ✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}
           {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
           {!group.pop_existing && group.pop_source === "ai" && (
             <span className="block text-[10px] text-primary mt-0.5">
@@ -1054,7 +1056,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
         <div className="space-y-2">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Validade após manipulação</label>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Após abertura</label>
               <Input
                 type="number"
                 min={1}
@@ -1065,19 +1067,20 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
                   const n = v === "" ? null : Math.max(1, parseInt(v, 10) || 0) || null;
                   onPatch({ pop_validity_value: n, pop_enabled: true, pop_source: "manual" });
                 }}
-                placeholder="Ex.: 7 dias"
+                placeholder="Ex.: 5"
               />
             </div>
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Unidade</label>
               <Select
                 value={group.pop_validity_unit || ""}
-                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days", pop_enabled: true, pop_source: "manual" })}
+                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days" | "months", pop_enabled: true, pop_source: "manual" })}
               >
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hours">Horas</SelectItem>
                   <SelectItem value="days">Dias</SelectItem>
+                  <SelectItem value="months">Meses</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1090,13 +1093,15 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
               />
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Essa regra será utilizada automaticamente sempre que este produto for manipulado.
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            A IA tenta identificar automaticamente na embalagem informações como “Após aberto consumir em até 5 dias”,
+            “Após descongelamento consumir em até 48 horas” ou “Consumir em até 30 dias após abertura”.
+            Caso não seja encontrada, preencha manualmente.
           </p>
           <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-amber-500/40 pl-2">
-            A validade após manipulação deve ser definida pelo estabelecimento conforme seus Procedimentos Operacionais Padronizados (POPs),
-            Manual de Boas Práticas e orientações do Responsável Técnico, quando aplicável. O MesaClik apenas armazenará e aplicará
-            automaticamente essa configuração durante futuras manipulações.
+            Esta informação é a regra do fabricante após abertura/descongelamento — não é a validade da manipulação.
+            Quando houver uma Manipulação, o sistema calculará: data/hora da manipulação + regra após abertura = nova validade.
+            A validade original do fabricante nunca é usada nesse cálculo.
           </p>
           {editing && (
             <div className="flex justify-end">
