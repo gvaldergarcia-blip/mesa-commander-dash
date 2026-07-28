@@ -452,7 +452,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     reset(); onOpenChange(false);
   };
 
-  const finalize = async () => {
+  const finalize = async (printNow = false) => {
     if (!readyGroups.length) { toast.warning("Nenhum produto pronto."); return; }
     // 1) cria o recebimento com todos os produtos prontos
     const supplier_id = supplierId === "none" ? null : supplierId;
@@ -464,7 +464,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         const w = parseWeightString(g.weight);
         return {
           raw_name: g.name || "Produto",
-          quantity: 1,
+          quantity: Math.max(1, Number(g.label_count ?? 1)),
           unit: "un",
           weight: w?.value ?? null,
           weight_unit: w?.unit ?? null,
@@ -499,11 +499,16 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
     await bulkResolvePending({ receiptId: receipt.id, supplierId: supplier_id, items: bulkItems });
-    // 3) marca sessão como finalizada — a sessão fica preservada até o dono
-    //    clicar em "Concluir sessão". Assim, se cancelar a caixa de impressão
-    //    do navegador, ele volta para a lista de produtos lidos pela IA e pode
-    //    reimprimir a qualquer momento.
     setFinalizedReceiptId(receipt.id);
+    // 3) Por padrão NÃO imprimimos no recebimento. A etiqueta é impressa
+    //    somente na abertura da embalagem (módulo Manipulação), usando
+    //    data/hora da impressão + regra após abertura capturada aqui.
+    if (!printNow) {
+      toast.success(
+        `${bulkItems.length} produto(s) registrados. Imprima a etiqueta quando a embalagem for aberta.`,
+      );
+      return;
+    }
     try {
       const n = await printFromReceipt(receipt.id, supplier_id);
       if (n > 0) toast.success(`${n} etiqueta(s) enviadas para impressão. Cancele a impressão e clique em "Reimprimir" se precisar reenviar.`);
