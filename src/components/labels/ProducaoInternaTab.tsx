@@ -470,6 +470,7 @@ interface DialogProps {
 }
 
 function ProductionDialog({ open, onOpenChange, products, employees, onCreateProduct, onCreateLabel, onPrint }: DialogProps) {
+  const { updateProduct } = useLabelProducts();
   const [step, setStep] = useState<"select" | "new-product" | "form">("select");
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState<LabelProduct | null>(null);
@@ -510,16 +511,50 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     return list.filter((p) => p.name.toLowerCase().includes(s)).slice(0, 50);
   }, [products, search]);
 
-  const productValidity = (p: LabelProduct) => ({
-    value: p.production_validity_value ?? p.validity_days ?? 3,
-    unit: (p.production_validity_unit ?? "days") as string,
-  });
+  // A regra de validade da produção NUNCA é inventada: só existe se cadastrada.
+  const productValidity = (p: LabelProduct): { value: number; unit: string } | null => {
+    const value = p.production_validity_value;
+    const unit = p.production_validity_unit;
+    if (!value || value <= 0 || !unit) return null;
+    return { value, unit: unit as string };
+  };
+
+  const currentRule = product ? productValidity(product) : null;
 
   const previewExpiry = useMemo(() => {
-    if (!product) return null;
-    const { value, unit } = productValidity(product);
-    return addValidity(new Date(), value, unit);
-  }, [product]);
+    if (!product || !currentRule) return null;
+    return addValidity(new Date(), currentRule.value, currentRule.unit);
+  }, [product, currentRule?.value, currentRule?.unit]);
+
+  // Configuração da regra ausente (Cenário 2)
+  const [ruleValue, setRuleValue] = useState<number>(3);
+  const [ruleUnit, setRuleUnit] = useState<string>("days");
+  const [savingRule, setSavingRule] = useState(false);
+
+  const saveMissingRule = async () => {
+    if (!product) return;
+    const value = Math.max(1, Number(ruleValue) || 0);
+    if (!value) return toast.error("Informe a validade da produção");
+    setSavingRule(true);
+    try {
+      const updated = await updateProduct({
+        id: product.id,
+        input: {
+          name: product.name,
+          validity_days: ruleUnit === "days" ? value : ruleUnit === "months" ? value * 30 : 1,
+          origin: "produced",
+          production_validity_value: value,
+          production_validity_unit: ruleUnit as any,
+        } as any,
+      });
+      setProduct({ ...product, ...(updated as any), production_validity_value: value, production_validity_unit: ruleUnit as any });
+      toast.success("Regra de validade da produção salva");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar a regra");
+    } finally {
+      setSavingRule(false);
+    }
+  };
 
   const pickProduct = (p: LabelProduct) => {
     setProduct(p);
@@ -555,10 +590,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
   const confirmProduction = async () => {
     if (!product) return;
     if (!prod.employeeId) return toast.error("Selecione o responsável");
+    const rule = productValidity(product);
+    if (!rule) return toast.error("Cadastre a regra de validade da produção deste produto antes de imprimir");
     const qty = Math.max(1, Math.min(30, Number(prod.qty) || 1));
     const manufactureDate = new Date();
-    const { value, unit } = productValidity(product);
-    const expiryDate = addValidity(manufactureDate, value, unit);
+    const expiryDate = addValidity(manufactureDate, rule.value, rule.unit);
 
     const employee = employees.find((e) => e.id === prod.employeeId);
     // Lote interno automático (PRD-YYYYMMDD-NNN)
@@ -665,7 +701,10 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                         <div className="min-w-0">
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {p.category || "Sem categoria"} · validade {v.value} {VALIDITY_UNITS.find((u) => u.v === v.unit)?.l}
+                            {p.category || "Sem categoria"} ·{" "}
+                            {v
+                              ? `validade ${v.value} ${VALIDITY_UNITS.find((u) => u.v === v.unit)?.l}`
+                              : "sem regra de validade"}
                           </div>
                         </div>
                       </div>
@@ -714,9 +753,9 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 md:col-span-2">
                 <div>
-                  <Label>Validade da produção *</Label>
+                  <Label>Validade da produção (POP) *</Label>
                   <Input type="number" min={1} value={np.validity_value} onChange={(e) => setNp({ ...np, validity_value: Number(e.target.value) })} />
                 </div>
                 <div>
@@ -728,6 +767,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                     </SelectContent>
                   </Select>
                 </div>
+                <p className="col-span-2 text-[11px] text-muted-foreground leading-snug">
+                  Essa regra será utilizada automaticamente sempre que uma nova produção interna deste produto for
+                  registrada. Ela representa a validade definida pelo estabelecimento em seus POPs e Procedimentos
+                  Operacionais.
+                </p>
               </div>
               <div className="md:col-span-2">
                 <Label>Local / Setor</Label>
@@ -803,20 +847,57 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
               </div>
             </div>
 
-            <div className={cn("text-xs p-3 rounded-md bg-muted/40 border border-border/40 space-y-1")}>
-              <div>📅 Produção: <strong>agora</strong></div>
-              <div>
-                ⏳ Validade automática:{" "}
-                <strong>
-                  {previewExpiry ? format(previewExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}
-                </strong>
+            {currentRule ? (
+              <div className={cn("text-xs p-3 rounded-md bg-muted/40 border border-border/40 space-y-1")}>
+                <div>📅 Produção registrada na data/hora atual</div>
+                <div>
+                  ⏳ Validade prevista:{" "}
+                  <strong>
+                    {previewExpiry ? format(previewExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}
+                  </strong>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  Baseada na regra de validade da produção deste produto ({currentRule.value}{" "}
+                  {VALIDITY_UNITS.find((u) => u.v === currentRule.unit)?.l}).
+                </div>
+                <div>🏷️ Lote interno gerado automaticamente</div>
               </div>
-              <div>🏷️ Lote interno gerado automaticamente</div>
-            </div>
+            ) : (
+              <div className="text-xs p-3 rounded-md bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="space-y-1">
+                  <div className="font-semibold text-amber-800 dark:text-amber-300">
+                    Este produto ainda não possui uma regra de validade da produção.
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Informe a validade padrão utilizada pelo estabelecimento para este produto. O MesaClik nunca
+                    calcula validade sem uma regra definida por você.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Validade da produção *</Label>
+                    <Input type="number" min={1} value={ruleValue} onChange={(e) => setRuleValue(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label>Unidade</Label>
+                    <Select value={ruleUnit} onValueChange={setRuleUnit}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {VALIDITY_UNITS.map((u) => <SelectItem key={u.v} value={u.v}>{u.l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button size="sm" onClick={saveMissingRule} disabled={savingRule} className="gap-2">
+                  {savingRule ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Salvar regra de validade
+                </Button>
+              </div>
+            )}
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => close(false)}>Cancelar</Button>
-              <Button onClick={confirmProduction} disabled={saving} className="gap-2">
+              <Button onClick={confirmProduction} disabled={saving || !currentRule} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                 Registrar e imprimir
               </Button>
