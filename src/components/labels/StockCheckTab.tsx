@@ -205,8 +205,9 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
             <AlertDialogHeader>
               <AlertDialogTitle>Apagar card do setor?</AlertDialogTitle>
               <AlertDialogDescription>
-                O card “{sectorToDelete}” deixa de aparecer no Estoque. Nenhum produto ou histórico é apagado — se um
-                novo recebimento usar esse setor, ele volta automaticamente.
+                O card “{sectorToDelete}” deixa de aparecer na conferência de Estoque. Nenhum produto, etiqueta ou
+                histórico é apagado — os itens continuam em “Produtos”. Você pode trazer o card de volta a qualquer
+                momento em “Restaurar setores”.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
