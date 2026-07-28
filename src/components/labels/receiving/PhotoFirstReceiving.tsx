@@ -261,7 +261,15 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           pop_validity_unit: null,
           pop_notes: null,
           pop_existing: false,
+          // Regra pós-abertura lida pela IA no rótulo (quando existir).
+          pop_source: p.post_opening_value && p.post_opening_unit ? "ai" : null,
+          pop_ai_text: p.post_opening_text ?? null,
         };
+        if (p.post_opening_value && p.post_opening_unit) {
+          base.pop_enabled = true;
+          base.pop_validity_value = Number(p.post_opening_value);
+          base.pop_validity_unit = p.post_opening_unit;
+        }
         base.missing = recomputeMissing(base);
         base.missing_initial = [...base.missing];
         return base;
@@ -286,6 +294,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
               g.pop_validity_unit = (p.manipulation_validity_unit as any) ?? null;
               g.pop_notes = p.manipulation_notes ?? null;
               g.pop_existing = true;
+              // Uma regra já validada NUNCA é sobrescrita por uma leitura da IA.
+              g.pop_source = "operator";
             }
           }
         }

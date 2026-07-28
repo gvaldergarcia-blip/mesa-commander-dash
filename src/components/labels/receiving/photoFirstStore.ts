@@ -60,6 +60,10 @@ export interface PfGroup {
   pop_notes: string | null;
   /** Indica que o produto já possui POP salvo no cadastro (permite apenas edição opcional). */
   pop_existing: boolean;
+  /** Origem da regra de validade após abertura/manipulação. */
+  pop_source?: "ai" | "operator" | "manual" | null;
+  /** Texto literal lido no rótulo (quando a origem for a IA). */
+  pop_ai_text?: string | null;
 }
 
 export interface PfState {
