@@ -1478,6 +1478,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
               />
             </div>
           </div>
+          )}
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             A IA tenta identificar automaticamente na embalagem informações como “Após aberto consumir em até 5 dias”,
             “Após descongelamento consumir em até 48 horas” ou “Consumir em até 30 dias após abertura”.
@@ -1490,11 +1491,15 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Resultado</span>
             <span className="font-semibold text-foreground">
               {computed
-                ? (immediate ? "Consumo imediato no momento da impressão" : fmtPopDate(computed))
-                : "Informe quantidade e unidade para calcular"}
+                ? (immediate && !hasFixed ? "Consumo imediato no momento da impressão" : fmtPopDate(computed))
+                : mode === "date"
+                  ? "Informe a data e hora completa"
+                  : "Informe quantidade e unidade para calcular"}
             </span>
             <span className="block text-[10px] text-muted-foreground mt-0.5">
-              Data/hora atual + regra após abertura = validade da manipulação.
+              {hasFixed
+                ? "Data completa informada manualmente para a validade da manipulação."
+                : "Data/hora atual + regra após abertura = validade da manipulação."}
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-amber-500/40 pl-2">
