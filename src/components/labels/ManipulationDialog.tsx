@@ -10,7 +10,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Loader2, Truck, Calendar, Tag, ArrowRight, AlertTriangle, Clock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ChefHat, Loader2, Truck, Calendar, Tag, ArrowRight, AlertTriangle, Clock, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLabels } from "@/hooks/useLabels";
@@ -73,6 +75,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [employeeId, setEmployeeId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
+
+  // Preenchimento manual quando o dado necessário não existe no recebimento
+  const [manualValidityValue, setManualValidityValue] = useState<string>("");
+  const [manualValidityUnit, setManualValidityUnit] = useState<"hours" | "days">("hours");
+  const [manualOriginBatch, setManualOriginBatch] = useState<string>("");
+  const [manualOriginExpiry, setManualOriginExpiry] = useState<string>("");
+  const [manualWeight, setManualWeight] = useState<string>("");
+  const [manualSif, setManualSif] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +98,12 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     setLotId("");
     setLots([]);
     setNotes("");
+    setManualValidityValue("");
+    setManualValidityUnit("hours");
+    setManualOriginBatch("");
+    setManualOriginExpiry("");
+    setManualWeight("");
+    setManualSif("");
   }, [open, productId, productName]);
 
   // Busca lotes ativos sempre que o produto selecionado mudar no modo "linked"
@@ -124,12 +141,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   );
   const manipulationRule = useMemo(() => {
     if (mode !== "linked") return null;
-    if (!productConfig?.manipulation_enabled) return null;
-    const v = Number(productConfig.manipulation_validity_value || 0);
-    const u = productConfig.manipulation_validity_unit;
-    if (!v || (u !== "hours" && u !== "days")) return null;
-    return { value: v, unit: u as "hours" | "days" };
-  }, [mode, productConfig]);
+    if (productConfig?.manipulation_enabled) {
+      const v = Number(productConfig.manipulation_validity_value || 0);
+      const u = productConfig.manipulation_validity_unit;
+      if (v && (u === "hours" || u === "days")) return { value: v, unit: u as "hours" | "days", manual: false };
+    }
+    const mv = Number(String(manualValidityValue).replace(",", "."));
+    if (mv > 0) return { value: mv, unit: manualValidityUnit, manual: true };
+    return null;
+  }, [mode, productConfig, manualValidityValue, manualValidityUnit]);
   const computedExpiry = useMemo(() => {
     const base = new Date();
     if (!manipulationRule) return null;
@@ -138,7 +158,13 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       : manipulationRule.value * 86_400_000;
     return new Date(base.getTime() + ms);
   }, [manipulationRule]);
-  const missingConfig = mode === "linked" && !!selectedProductId && !manipulationRule;
+  const configuredRule = !!productConfig?.manipulation_enabled
+    && Number(productConfig?.manipulation_validity_value || 0) > 0;
+  const missingConfig = mode === "linked" && !!selectedProductId && !configuredRule;
+  // Dados que o recebimento pode não ter informado
+  const lotMissingBatch = mode === "linked" && !!selectedLot
+    && !(selectedLot.supplier_lot || selectedLot.traceability_lot || selectedLot.batch);
+  const lotMissingExpiry = mode === "linked" && !!selectedLot && !selectedLot.expiry_date;
 
   const confirm = async () => {
     if (!employeeId) return toast.error("Selecione o responsável");
