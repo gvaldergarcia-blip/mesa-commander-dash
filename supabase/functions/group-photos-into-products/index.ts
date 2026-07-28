@@ -305,11 +305,10 @@ serve(async (req) => {
       userContent.push({ type: "image_url", image_url: { url: `data:${p.mime_type};base64,${p.base64}` } });
     });
 
-    // Duas leituras independentes em paralelo (consenso).
-    const [passA, passB] = await Promise.all([
-      readPass(apiKey, userContent, 0),
-      readPass(apiKey, userContent, 1).catch((e) => { console.warn("2ª leitura falhou", e); return null; }),
-    ]);
+    // Leitura principal (com retry/fallback) e 2ª leitura de auditoria (opcional).
+    const passA = await readPassResilient(apiKey, userContent, 0);
+    const passB = await readPassResilient(apiKey, userContent, 1)
+      .catch((e) => { console.warn("2ª leitura falhou", e); return null; });
 
     const products = passA.map((p: any) => reconcile(p, passB ? matchProduct(p, passB) : null));
     return new Response(JSON.stringify({ products, consensus: !!passB, threshold: CRITICAL_THRESHOLD }), {
@@ -317,7 +316,18 @@ serve(async (req) => {
     });
   } catch (e: any) {
     console.error("group-photos-into-products error", e);
-    return new Response(JSON.stringify({ error: e?.message || "Erro desconhecido" }), {
+    const msg = String(e?.message || "Erro desconhecido");
+    if (/Gateway 429/.test(msg)) {
+      return new Response(JSON.stringify({ error: "Muitas análises seguidas. Aguarde alguns segundos e toque em Reanalisar." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (/Gateway 5\d\d/.test(msg)) {
+      return new Response(JSON.stringify({ error: "A IA está temporariamente indisponível. Tente Reanalisar em instantes — suas fotos foram mantidas." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
