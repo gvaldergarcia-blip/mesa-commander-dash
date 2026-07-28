@@ -209,12 +209,21 @@ const MERGE_FIELDS = [
 
 function mergeInto(base: any, extra: any) {
   const conf = { ...(base.confidence || {}) };
+  const conflicts = [...(base.issues || [])];
   for (const f of MERGE_FIELDS) {
     const cb = Number((base.confidence || {})[f] ?? 0);
     const ce = Number((extra.confidence || {})[f] ?? 0);
     if (base[f] == null || base[f] === "" || (extra[f] != null && extra[f] !== "" && ce > cb)) {
       if (extra[f] != null && extra[f] !== "") { base[f] = extra[f]; conf[f] = Math.max(cb, ce); }
     } else if (extra[f] != null) {
+      if (["batch", "expires_at"].includes(f) && nkey(base[f]) && nkey(extra[f]) && nkey(base[f]) !== nkey(extra[f])) {
+        conflicts.push({
+          field: f,
+          reason: "ambiguous",
+          hint: `Fotos unificadas do mesmo produto, mas a IA leu valores diferentes (${base[f]} / ${extra[f]}). Confira na embalagem.`,
+        });
+        base.needs_review = Array.from(new Set([...(base.needs_review || []), f]));
+      }
       conf[f] = Math.max(cb, ce);
     }
   }
@@ -222,8 +231,8 @@ function mergeInto(base: any, extra: any) {
   base.photo_indices = Array.from(new Set([...(base.photo_indices || []), ...(extra.photo_indices || [])]));
   // Só mantém pendências dos campos que continuam vazios após a fusão.
   const stillEmpty = (f: string) => base[f] == null || base[f] === "";
-  base.issues = [...(base.issues || []), ...(extra.issues || [])]
-    .filter((i: any) => stillEmpty(i.field))
+  base.issues = [...conflicts, ...(extra.issues || [])]
+    .filter((i: any) => stillEmpty(i.field) || ["batch", "expires_at"].includes(i.field))
     .filter((i: any, k: number, arr: any[]) => arr.findIndex((o) => o.field === i.field && o.reason === i.reason) === k);
   base.needs_review = Array.from(
     new Set([...(base.needs_review || []), ...(extra.needs_review || [])].filter(stillEmpty)),
@@ -933,6 +942,9 @@ function recomputeMissing(g: ProductGroup): string[] {
     // "não se aplica", removemos da obrigação. Por padrão, se veio SIF da IA
     // ou o usuário indicou is_meat=true, exigimos.
   } else if (!g.sif?.trim()) miss.push("sif");
+  const popImmediate = g.pop_validity_unit === "immediate";
+  const popConfigured = !!g.pop_enabled && !!g.pop_validity_unit && (popImmediate || !!g.pop_validity_value);
+  if (!popConfigured) miss.push("post_opening_rule");
   return miss;
 }
 
