@@ -360,10 +360,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                   <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+              <PopoverContent
+                className="p-0 w-[--radix-popover-trigger-width]"
+                align="start"
+                onWheel={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+              >
                 <Command>
                   <CommandInput placeholder="Digite o nome do produto…" />
-                  <CommandList>
+                  <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
                     <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
                     <CommandGroup>
                       {productsForSelect.map((p: any) => (
@@ -397,7 +402,16 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
               </div>
             ) : lots.length === 0 ? (
               <div className="text-xs text-muted-foreground border border-dashed rounded-lg p-3">
-                Nenhum lote ativo. Use <b>Manipulação direta</b> ou registre um recebimento antes.
+                <p>Nenhum lote ativo para este produto.</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-7 text-xs"
+                  onClick={() => { setMode("direct"); setDirectName(selectedProductName); }}
+                >
+                  Manipular mesmo assim (informar lote manualmente)
+                </Button>
               </div>
             ) : (
               <Select value={lotId} onValueChange={setLotId}>
@@ -517,6 +531,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
               <div className="font-semibold flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Dados ausentes no recebimento
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                O lote/validade não foi informado no recebimento. Preencha abaixo e a impressão segue normalmente.
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {lotMissingBatch && (
                   <div className="space-y-1">

@@ -1034,6 +1034,11 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
           {group.pop_existing && (
             <Badge variant="outline" className="text-[10px]">Já existente no cadastro</Badge>
           )}
+          {!group.pop_existing && group.pop_source === "ai" && configured && (
+            <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+              Identificada automaticamente
+            </Badge>
+          )}
         </div>
         {configured && !editing && (
           <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(true)}>
@@ -1046,6 +1051,11 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
         <p className="text-xs text-muted-foreground">
           ✓ <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel} após manipulação
           {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
+          {!group.pop_existing && group.pop_source === "ai" && (
+            <span className="block text-[10px] text-primary mt-0.5">
+              ✓ Regra pós-abertura identificada automaticamente{group.pop_ai_text ? ` — "${group.pop_ai_text}"` : ""}.
+            </span>
+          )}
         </p>
       )}
 
@@ -1062,16 +1072,16 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
                 onChange={(e) => {
                   const v = e.target.value.trim();
                   const n = v === "" ? null : Math.max(1, parseInt(v, 10) || 0) || null;
-                  onPatch({ pop_validity_value: n, pop_enabled: true });
+                  onPatch({ pop_validity_value: n, pop_enabled: true, pop_source: "manual" });
                 }}
-                placeholder="Ex: 3, 24, 72"
+                placeholder="Ex.: 7 dias"
               />
             </div>
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Unidade</label>
               <Select
                 value={group.pop_validity_unit || ""}
-                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days", pop_enabled: true })}
+                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days", pop_enabled: true, pop_source: "manual" })}
               >
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
@@ -1089,6 +1099,9 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
               />
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Essa regra será utilizada automaticamente sempre que este produto for manipulado.
+          </p>
           <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-amber-500/40 pl-2">
             A validade após manipulação deve ser definida pelo estabelecimento conforme seus Procedimentos Operacionais Padronizados (POPs),
             Manual de Boas Práticas e orientações do Responsável Técnico, quando aplicável. O MesaClik apenas armazenará e aplicará
