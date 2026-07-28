@@ -654,12 +654,12 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
               <>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4" />
-                  Recebimento criado. Se cancelou a impressão, clique em <span className="font-semibold">Reimprimir</span>.
+                  Recebimento registrado. As etiquetas devem ser impressas na abertura da embalagem — se precisar imprimir agora, use <span className="font-semibold">Imprimir agora</span>.
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
                     {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Reimprimir
+                    Imprimir agora
                   </Button>
                   <Button onClick={concludeSession} className="gap-2">
                     <CheckCircle2 className="h-4 w-4" /> Concluir sessão
@@ -671,13 +671,19 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                 <p className="text-xs text-muted-foreground">
                   <span className="font-semibold text-foreground">{readyGroups.length}</span> pronto(s)
                   {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
+                  <span className="block text-[10px]">
+                    A etiqueta é impressa apenas quando a embalagem for aberta.
+                  </span>
                 </p>
                 <div className="flex gap-2">
                   <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
-                  <Button onClick={finalize} disabled={!canFinalize} className="gap-2">
+                  <Button variant="outline" onClick={() => void finalize(true)} disabled={!canFinalize} className="gap-2">
+                    Registrar e imprimir agora
+                  </Button>
+                  <Button onClick={() => void finalize(false)} disabled={!canFinalize} className="gap-2">
                     {(isCreating || isBulkResolving) && <Loader2 className="h-4 w-4 animate-spin" />}
                     <CheckCircle2 className="h-4 w-4" />
-                    Gerar {readyGroups.length} etiqueta(s)
+                    Registrar {readyGroups.length} produto(s)
                   </Button>
                 </div>
               </>
