@@ -976,7 +976,32 @@ function GroupCard({
         </div>
 
         {/* Configurações complementares (sempre visíveis, mas resumidas) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-border/50">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-2 border-t border-border/50">
+          <div>
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Etiquetas</label>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0"
+                onClick={() => onPatch({ label_count: Math.max(1, Number(group.label_count ?? 1) - 1) })}
+              >
+                −
+              </Button>
+              <Input
+                type="number" min={1} inputMode="numeric" className="text-center"
+                value={group.label_count ?? 1}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  onPatch({ label_count: Number.isFinite(n) && n > 0 ? n : 1 });
+                }}
+              />
+              <Button
+                type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0"
+                onClick={() => onPatch({ label_count: Math.max(1, Number(group.label_count ?? 1) + 1) })}
+              >
+                +
+              </Button>
+            </div>
+          </div>
           <div>
             <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Local (setor)</label>
             <SectorCombobox value={group.storage_location} onChange={(v) => onPatch({ storage_location: v })} />
