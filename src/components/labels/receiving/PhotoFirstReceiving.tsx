@@ -367,7 +367,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         const base: ProductGroup = {
           id: `g-${Date.now()}-${idx}`,
           photo_ids: ids,
-          name: p.name, brand: p.brand, barcode: p.barcode, weight: p.weight,
+          name: p.name, brand: p.brand || p.supplier || null, barcode: p.barcode, weight: p.weight,
           expires_at: p.expires_at, batch: p.batch, sif: p.sif, category: p.category,
           conservation: p.conservation ?? "refrigerated",
           storage_location: "",
