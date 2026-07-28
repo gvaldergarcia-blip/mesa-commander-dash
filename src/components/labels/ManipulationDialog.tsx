@@ -253,7 +253,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           : null;
         const weightLabel = full.weight != null && full.weight_unit
           ? `${String(full.weight).replace(".", ",")} ${full.weight_unit}`
-          : (directWeight.trim() || manualWeight.trim() || null);
+          : (manualWeight.trim() || null);
         const consMap: Record<string, string> = {
           refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
         };
