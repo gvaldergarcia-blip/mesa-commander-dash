@@ -122,9 +122,18 @@ export function useLabelRenewals() {
   /** Registra uma nova Manipulação (novo lote MAN-) preservando o histórico. */
   const renewOne = useCallback(async (item: RenewalItem) => {
     if (!restaurantId) throw new Error("Restaurante não identificado");
-    if (!item.renewable || !item.nextExpiry) throw new Error("Etiqueta não pode ser renovada automaticamente");
+    if (!item.renewable) throw new Error("Etiqueta não pode ser renovada automaticamente");
     const l = item.label;
+
+    // A validade NUNCA é copiada da etiqueta anterior nem de um cálculo antigo:
+    // é sempre recalculada no instante exato da renovação usando a regra "Após abertura".
     const manufacture = new Date();
+    const ruleValue = Number(item.product?.manipulation_validity_value || 0);
+    const ruleUnit = item.product?.manipulation_validity_unit || "";
+    if (!(ruleValue > 0) || !["hours", "days", "months"].includes(ruleUnit)) {
+      throw new Error("Regra após abertura não configurada para este produto");
+    }
+    const expiry = addRule(manufacture, ruleValue, ruleUnit);
 
     let batch = `MAN-${Date.now().toString(36).toUpperCase()}`;
     try {
@@ -141,16 +150,26 @@ export function useLabelRenewals() {
         label_product_id: l.label_product_id,
         product_name: l.product_name,
         manufacture_date: manufacture.toISOString(),
-        expiry_date: item.nextExpiry.toISOString(),
+        expiry_date: expiry.toISOString(),
         quantity,
         batch,
         responsible: l.responsible,
         employee_id: l.employee_id,
         conservation_method: l.conservation_method,
-        notes: `[Renovação] Etiqueta anterior ${l.batch || "—"}`,
+        notes: `[Renovação] Nova manipulação em ${manufacture.toLocaleString("pt-BR")} · regra após abertura ${ruleText(ruleValue, ruleUnit)} · etiqueta anterior ${l.batch || "—"}`,
         cif: l.cif,
         allergens: l.allergens,
         ingredients: l.ingredients,
+        sif: l.sif,
+        storage_location: l.storage_location,
+        weight: l.weight,
+        weight_unit: l.weight_unit,
+        supplier_id: (l as any).supplier_id ?? null,
+        supplier_lot: (l as any).supplier_lot ?? null,
+        traceability_lot: (l as any).traceability_lot ?? null,
+        origin_traceability_lot:
+          (l as any).origin_traceability_lot ?? (l as any).traceability_lot ?? l.batch ?? null,
+        lot_source: (l as any).lot_source ?? null,
         origin_issuance_id: l.id,
       })
       .select("*")
@@ -163,7 +182,7 @@ export function useLabelRenewals() {
       .update({ status: "discharged", discharge_reason: "vencimento", resolved_at: manufacture.toISOString() })
       .eq("id", l.id);
 
-    return { previous: l, created: inserted, batch, manufacture, expiry: item.nextExpiry };
+    return { previous: l, created: inserted, batch, manufacture, expiry };
   }, [restaurantId]);
 
   const renewMany = useCallback(async (list: RenewalItem[]) => {
