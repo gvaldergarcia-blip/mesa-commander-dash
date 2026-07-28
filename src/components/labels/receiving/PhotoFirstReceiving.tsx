@@ -1330,7 +1330,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
         )}
       </div>
 
-      {configured && !editing && (
+        {configured && !editing && !showForm && (
         <p className="text-xs text-muted-foreground">
           {immediate ? (
             <>✓ Após abertura: <span className="font-semibold text-foreground">consumo imediato</span></>
