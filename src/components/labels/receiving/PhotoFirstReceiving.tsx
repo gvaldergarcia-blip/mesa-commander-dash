@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,6 +126,24 @@ function genInternalLot(existingGroups: ProductGroup[] | null): string {
 }
 
 interface Props { open: boolean; onOpenChange: (v: boolean) => void }
+
+/** Aplica a regra "após abertura" sobre um instante (normalmente agora).
+ *  `immediate` = consumir imediatamente (validade = mesmo instante). */
+function applyPopRule(base: Date, value: number | null | undefined, unit: string | null | undefined): Date | null {
+  if (!unit) return null;
+  const d = new Date(base.getTime());
+  if (unit === "immediate") return d;
+  const v = Number(value);
+  if (!Number.isFinite(v) || v <= 0) return null;
+  if (unit === "hours") d.setHours(d.getHours() + v);
+  else if (unit === "days") d.setDate(d.getDate() + v);
+  else if (unit === "months") d.setMonth(d.getMonth() + v);
+  else return null;
+  return d;
+}
+
+const fmtPopDate = (d: Date) =>
+  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
 export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { createReceipt, bulkResolvePending, isCreating, isBulkResolving } = useReceipts();
@@ -381,6 +399,27 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       .eq("status", "active");
     const issuances = (iss || []) as any[];
     if (!issuances.length) { toast.info("Nenhuma etiqueta ativa para imprimir."); return 0; }
+    // A impressão no Recebimento representa o MOMENTO DA ABERTURA da embalagem.
+    // Buscamos a regra "após abertura" salva no cadastro para gerar a etiqueta
+    // já como etiqueta de MANIPULAÇÃO (data/hora agora + regra = nova validade).
+    const productIds = Array.from(
+      new Set(issuances.map((l) => l.label_product_id).filter(Boolean)),
+    ) as string[];
+    const ruleById = new Map<string, { value: number | null; unit: string | null }>();
+    if (productIds.length) {
+      const { data: prods } = await (supabase as any)
+        .from("label_products")
+        .select("id, manipulation_enabled, manipulation_validity_value, manipulation_validity_unit")
+        .in("id", productIds);
+      for (const p of (prods || []) as any[]) {
+        if (p.manipulation_enabled && p.manipulation_validity_unit) {
+          ruleById.set(p.id, {
+            value: p.manipulation_validity_value ?? null,
+            unit: p.manipulation_validity_unit,
+          });
+        }
+      }
+    }
     let legal: { cnpj: string | null; cep: string | null; address: string | null } = {
       cnpj: null, cep: null, address: (restaurant as any)?.address_line ?? null,
     };
@@ -427,10 +466,19 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       const sector = l.storage_location ?? null;
       const nameKey = String(l.product_name || "").trim().toLowerCase();
       const brand = brandByName.get(nameKey) || supplierName;
+      // Momento da abertura = agora. Se houver regra pós-abertura, a etiqueta
+      // nasce como manipulação; senão mantém o layout de recebimento.
+      const rule = l.label_product_id ? ruleById.get(l.label_product_id) : undefined;
+      const originalExpiry = new Date(l.expiry_date);
+      const openedAt = new Date();
+      const newExpiry = rule ? applyPopRule(openedAt, rule.value, rule.unit) : null;
       jobs.push({
         productName: l.product_name,
-        manufactureDate: new Date(l.manufacture_date),
-        expiryDate: new Date(l.expiry_date),
+        template: newExpiry ? "manipulation" : "received",
+        banner: newExpiry ? "MANIPULADO" : null,
+        manufactureDate: newExpiry ? openedAt : new Date(l.manufacture_date),
+        expiryDate: newExpiry ?? originalExpiry,
+        originalExpiryDate: newExpiry ? originalExpiry : null,
         responsible: l.responsible || (sector ? respBySector.get(sector) : null) || "—",
         quantity: qty,
         notes: l.notes,
@@ -1070,9 +1118,19 @@ function FieldEditor({ label, value, onChange, type = "text" }: { label: string;
 
 function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Partial<ProductGroup>) => void }) {
   const [editing, setEditing] = useState(false);
+  // Recalcula a cada minuto para que a "validade calculada" mostrada seja
+  // sempre o resultado real caso a etiqueta seja impressa agora.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const immediate = group.pop_validity_unit === "immediate";
   const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
   const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
+  const computed = configured
+    ? applyPopRule(now, group.pop_validity_value, group.pop_validity_unit)
+    : null;
   const unitLabel = group.pop_validity_unit === "hours"
     ? "hora(s)"
     : group.pop_validity_unit === "months" ? "mês(es)" : "dia(s)";
@@ -1115,6 +1173,17 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             <>✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}</>
           )}
           {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
+          {computed && (
+            <span className="block mt-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px] text-foreground">
+              <span className="uppercase tracking-wide text-muted-foreground">Validade calculada </span>
+              <span className="font-semibold">
+                {immediate ? "consumo imediato após a impressão" : fmtPopDate(computed)}
+              </span>
+              <span className="block text-[10px] text-muted-foreground">
+                Data/hora da impressão (manipulação) + regra após abertura.
+              </span>
+            </span>
+          )}
           {!group.pop_existing && group.pop_source === "ai" && (
             <span className="block text-[10px] text-primary mt-0.5">
               ✓ Regra pós-abertura identificada automaticamente{group.pop_ai_text ? ` — "${group.pop_ai_text}"` : ""}.
