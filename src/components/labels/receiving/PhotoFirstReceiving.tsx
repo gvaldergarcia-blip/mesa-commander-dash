@@ -666,27 +666,26 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           </div>
         )}
 
+        {/* Último bloco registrado — não bloqueia a entrada de novos produtos */}
+        {lastReceipt && (
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4" />
+              {lastReceipt.count} produto(s) registrados e liberados da sessão. Já pode fotografar o próximo bloco.
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
+                {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Imprimir agora
+              </Button>
+              <Button size="sm" variant="ghost" onClick={dismissLastReceipt}>Ocultar</Button>
+            </div>
+          </div>
+        )}
+
         {/* Rodapé */}
         {groups && (
           <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background/95 backdrop-blur border-t flex items-center justify-between gap-3 flex-wrap">
-            {finalizedReceiptId ? (
-              <>
-                <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Recebimento registrado. As etiquetas devem ser impressas na abertura da embalagem — se precisar imprimir agora, use <span className="font-semibold">Imprimir agora</span>.
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
-                    {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Imprimir agora
-                  </Button>
-                  <Button onClick={concludeSession} className="gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Concluir sessão
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
                 <p className="text-xs text-muted-foreground">
                   <span className="font-semibold text-foreground">{readyGroups.length}</span> pronto(s)
                   {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
