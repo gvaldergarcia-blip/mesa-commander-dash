@@ -491,6 +491,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
               // Uma regra já validada NUNCA é sobrescrita por uma leitura da IA.
               g.pop_source = "operator";
             }
+            g.missing = recomputeMissing(g);
+            g.missing_initial = [...g.missing];
           }
         }
       } catch (e) { console.warn("[PhotoFirstReceiving] POP prefill", e); }
