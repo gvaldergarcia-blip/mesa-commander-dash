@@ -22,11 +22,11 @@ export interface LabelProduct {
   sif?: string | null;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
-  manipulation_validity_unit?: "hours" | "days" | "months" | null;
+  manipulation_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
   manipulation_notes?: string | null;
   origin?: "received" | "produced";
   production_validity_value?: number | null;
-  production_validity_unit?: "hours" | "days" | "months" | null;
+  production_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
   pop_notes?: string | null;
   created_at: string;
   updated_at: string;
@@ -50,11 +50,11 @@ export interface LabelProductInput {
   auto_reprint_enabled?: boolean;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
-  manipulation_validity_unit?: "hours" | "days" | "months" | null;
+  manipulation_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
   manipulation_notes?: string | null;
   origin?: "received" | "produced";
   production_validity_value?: number | null;
-  production_validity_unit?: "hours" | "days" | "months" | null;
+  production_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
   pop_notes?: string | null;
 }
 

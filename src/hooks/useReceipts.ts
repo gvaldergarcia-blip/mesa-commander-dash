@@ -274,7 +274,7 @@ export function useReceipts() {
         weight_unit?: string | null;
         manipulation_enabled?: boolean;
         manipulation_validity_value?: number | null;
-        manipulation_validity_unit?: "hours" | "days" | "months" | null;
+        manipulation_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
         manipulation_notes?: string | null;
       }>;
     }) => {
