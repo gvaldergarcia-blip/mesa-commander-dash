@@ -261,6 +261,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           pop_validity_unit: null,
           pop_notes: null,
           pop_existing: false,
+          // Quantidade de etiquetas — ajustável pelo operador após a análise da IA.
+          label_count: 1,
           // Regra pós-abertura lida pela IA no rótulo (quando existir).
           pop_source: p.post_opening_value && p.post_opening_unit ? "ai" : null,
           pop_ai_text: p.post_opening_text ?? null,
