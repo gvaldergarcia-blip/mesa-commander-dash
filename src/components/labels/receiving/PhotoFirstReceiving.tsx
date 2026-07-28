@@ -146,7 +146,7 @@ function sameProduct(a: any, b: any) {
 }
 
 const MERGE_FIELDS = [
-  "name", "brand", "barcode", "weight", "expires_at", "manufactured_at",
+  "name", "brand", "supplier", "barcode", "weight", "expires_at", "manufactured_at",
   "batch", "sif", "category", "conservation",
   "post_opening_value", "post_opening_unit", "post_opening_text",
 ] as const;
