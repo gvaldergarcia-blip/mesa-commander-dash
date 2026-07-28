@@ -309,6 +309,32 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           </DialogDescription>
         </DialogHeader>
 
+        {doneBatch ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+                <Check className="h-4 w-4" /> Manipulação registrada
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedProductName} · Lote <span className="font-mono">{doneBatch}</span>
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Deseja imprimir a etiqueta desta manipulação agora?
+            </p>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>Fechar sem imprimir</Button>
+              <Button
+                className="gap-2"
+                disabled={!printPayload}
+                onClick={() => { if (printPayload) printLabels(printPayload); }}
+              >
+                Imprimir etiqueta
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+        <>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Produto</Label>
@@ -532,6 +558,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             Registrar manipulação
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
