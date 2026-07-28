@@ -134,7 +134,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { activeEmployees } = useLabelEmployees();
   const registerPrints = useRegisterPrints();
   // Estado persistente entre aberturas/fechamentos do dialog e trocas de aba.
-  const { photos, groups, supplierId, reference, scanning, finalizedReceiptId } = usePhotoFirstState();
+  const { photos, groups, supplierId, reference, scanning, lastReceipt } = usePhotoFirstState();
   const setPhotos = (updater: Photo[] | ((prev: Photo[]) => Photo[])) =>
     photoFirstStore.set((s) => ({ photos: typeof updater === "function" ? (updater as any)(s.photos) : updater }));
   const setGroups = (updater: ProductGroup[] | null | ((prev: ProductGroup[] | null) => ProductGroup[] | null)) =>
@@ -449,11 +449,11 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   };
 
   const reprint = async () => {
-    if (!finalizedReceiptId) return;
+    if (!lastReceipt?.id) return;
     setReprinting(true);
     try {
-      const supplier_id = supplierId === "none" ? null : supplierId;
-      const n = await printFromReceipt(finalizedReceiptId, supplier_id);
+      const supplier_id = lastReceipt.supplierId && lastReceipt.supplierId !== "none" ? lastReceipt.supplierId : null;
+      const n = await printFromReceipt(lastReceipt.id, supplier_id);
       if (n > 0) toast.success(`${n} etiqueta(s) reenviadas para impressão.`);
     } catch (e: any) {
       console.error("[PhotoFirstReceiving] reprint", e);
@@ -461,10 +461,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     } finally { setReprinting(false); }
   };
 
-  const concludeSession = () => {
-    if (!confirm("Concluir esta sessão de recebimento? A prévia dos produtos será limpa. As etiquetas continuam disponíveis no Diário Operacional.")) return;
-    reset(); onOpenChange(false);
-  };
+  const dismissLastReceipt = () => photoFirstStore.set({ lastReceipt: null });
 
   const finalize = async (printNow = false) => {
     if (!readyGroups.length) { toast.warning("Nenhum produto pronto."); return; }
