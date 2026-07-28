@@ -47,6 +47,9 @@ Retorne SOMENTE JSON válido, sem markdown:
       "sif": string|null,
       "category": string|null,
       "conservation": "refrigerated"|"frozen"|"ambient"|"hot"|null,
+      "post_opening_value": number|null,
+      "post_opening_unit": "hours"|"days"|null,
+      "post_opening_text": string|null,
       "confidence": { "name": number, "brand": number, "barcode": number, "weight": number, "expires_at": number, "manufactured_at": number, "batch": number, "sif": number, "category": number, "conservation": number },
       "issues": [ { "field": string, "reason": "blur"|"glare"|"cropped"|"absent"|"unreadable"|"ambiguous", "hint": string } ],
       "missing": [string]
@@ -56,6 +59,14 @@ Retorne SOMENTE JSON válido, sem markdown:
 
 - Datas SEMPRE ISO YYYY-MM-DD (converta DD/MM/AAAA; ano 2 dígitos = 20AA).
 - "sif" apenas números.
+REGRA PÓS-ABERTURA (validade após abertura/manipulação):
+- Procure no rótulo textos como "Após aberto consumir em até 7 dias", "Consumir em até 48 horas",
+  "Após abertura manter refrigerado por 5 dias", "Depois de aberto consumir em até 72 horas",
+  "Após descongelado consumir em até 24 horas".
+- Se encontrar, retorne o número em "post_opening_value", a unidade em "post_opening_unit" ("hours" ou "days")
+  e o texto literal lido em "post_opening_text".
+- Se NÃO houver essa informação impressa, retorne os três campos como null. Nunca deduza nem estime.
+
 - "hint" deve ser uma instrução curta em português dizendo o que refotografar (ex.: "Aproxime a foto do lote impresso a laser na lateral").`;
 
 function clampConf(n: any): number {
@@ -91,6 +102,9 @@ function cleanProduct(p: any) {
     batch: p?.batch ? String(p.batch).trim() : null,
     sif: p?.sif ? String(p.sif).replace(/\D/g, "") || null : null,
     category: p?.category || null,
+    post_opening_value: Number.isFinite(Number(p?.post_opening_value)) && Number(p?.post_opening_value) > 0 ? Number(p.post_opening_value) : null,
+    post_opening_unit: ["hours", "days"].includes(p?.post_opening_unit) ? p.post_opening_unit : null,
+    post_opening_text: typeof p?.post_opening_text === "string" ? p.post_opening_text.slice(0, 200) : null,
     conservation: ["refrigerated", "frozen", "ambient", "hot"].includes(p?.conservation) ? p.conservation : null,
     confidence: {} as Record<string, number>,
     issues: Array.isArray(p?.issues)
