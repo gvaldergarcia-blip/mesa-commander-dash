@@ -510,11 +510,17 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
     await bulkResolvePending({ receiptId: receipt.id, supplierId: supplier_id, items: bulkItems });
-    setFinalizedReceiptId(receipt.id);
+    // Libera imediatamente o espaço para novos produtos: o bloco registrado sai
+    // da sessão (fotos + grupos + rascunho remoto), restando apenas um atalho
+    // local para imprimir agora, caso a embalagem já esteja sendo aberta.
+    photoFirstStore.set({
+      lastReceipt: { id: receipt.id, count: bulkItems.length, at: Date.now(), supplierId: supplierId },
+    });
     // 3) Por padrão NÃO imprimimos no recebimento. A etiqueta é impressa
     //    somente na abertura da embalagem (módulo Manipulação), usando
     //    data/hora da impressão + regra após abertura capturada aqui.
     if (!printNow) {
+      photoFirstStore.reset({ keepLastReceipt: true });
       toast.success(
         `${bulkItems.length} produto(s) registrados. Imprima a etiqueta quando a embalagem for aberta.`,
       );
@@ -527,6 +533,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     } catch (e: any) {
       console.error("[PhotoFirstReceiving] print", e);
       toast.warning("Etiquetas geradas, mas falhou ao imprimir automaticamente. Use \"Reimprimir\" abaixo ou abra o Diário Operacional.");
+    } finally {
+      photoFirstStore.reset({ keepLastReceipt: true });
     }
   };
 
