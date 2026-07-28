@@ -470,6 +470,7 @@ interface DialogProps {
 }
 
 function ProductionDialog({ open, onOpenChange, products, employees, onCreateProduct, onCreateLabel, onPrint }: DialogProps) {
+  const { updateProduct } = useLabelProducts();
   const [step, setStep] = useState<"select" | "new-product" | "form">("select");
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState<LabelProduct | null>(null);
