@@ -429,11 +429,22 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           }
         }
       } catch (e) { console.warn("[PhotoFirstReceiving] POP prefill", e); }
+      // Fornecedor lido pela IA: se bater com um cadastrado, seleciona sozinho.
+      try {
+        if (supplierId === "none" || !supplierId) {
+          const read = merged.map((p: any) => p.supplier).filter(Boolean).map((s: string) => nkey(s));
+          const hit = (suppliers as any[]).find((s) => read.some((r) => nkey(s.name) && (nkey(s.name) === r || r.includes(nkey(s.name)) || nkey(s.name).includes(r))));
+          if (hit) {
+            photoFirstStore.set({ supplierId: hit.id });
+            toast.info(`Fornecedor identificado pela IA: ${hit.name}`);
+          }
+        }
+      } catch (e) { console.warn("[PhotoFirstReceiving] supplier match", e); }
       setGroups(built);
     } catch (e: any) {
       toast.error(e.message || "Erro ao analisar as fotos");
     } finally { setScanning(false); }
-  }, [photos]);
+  }, [photos, suppliers, supplierId]);
 
   // Enquanto o usuário edita, NÃO recalculamos `missing_initial` — assim o campo
   // não some no meio da digitação. Só o status "pronto" (missing) é reavaliado.
@@ -558,7 +569,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       jobs.push({
         productName: l.product_name,
         template: newExpiry ? "manipulation" : "received",
-        banner: newExpiry ? "MANIPULADO" : null,
+        banner: null,
         manufactureDate: newExpiry ? openedAt : new Date(l.manufacture_date),
         expiryDate: newExpiry ?? originalExpiry,
         originalExpiryDate: newExpiry ? originalExpiry : null,
