@@ -228,11 +228,16 @@ function reconcile(a: any, b: any | null) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function readPass(apiKey: string, userContent: any[], variant: number, modelOverride?: string) {
+  // Timeout duro: se o modelo travar, abortamos e o retry usa outro modelo.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 55_000);
+  try {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
+    signal: ctrl.signal,
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: modelOverride ?? (variant === 0 ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash"),
+      model: modelOverride ?? "google/gemini-2.5-flash",
       temperature: 0,
       messages: [
         { role: "system", content: SYSTEM },
@@ -255,25 +260,30 @@ async function readPass(apiKey: string, userContent: any[], variant: number, mod
     parsed = JSON.parse(m[0]);
   }
   return Array.isArray(parsed?.products) ? parsed.products.map(cleanProduct) : [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Gateway pode devolver 429/503 temporário: tenta novamente com backoff e modelo alternativo.
 async function readPassResilient(apiKey: string, userContent: any[], variant: number) {
+  // Flash primeiro (rápido e estável). Pro só como plano B — ele levava 40-60s
+  // por chamada e fazia a análise "travar" no cliente.
   const models = variant === 0
-    ? ["google/gemini-2.5-pro", "google/gemini-2.5-flash"]
+    ? ["google/gemini-2.5-flash", "google/gemini-2.5-pro"]
     : ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"];
   let lastErr: any = null;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const model = models[attempt >= 2 ? Math.min(1, models.length - 1) : 0];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const model = models[Math.min(attempt, models.length - 1)];
     try {
       return await readPass(apiKey, userContent, variant, model);
     } catch (e: any) {
       lastErr = e;
       const msg = String(e?.message || "");
-      const transient = /Gateway (408|409|425|429|5\d\d)/.test(msg);
-      if (!transient || attempt === 3) throw e;
+      const transient = /Gateway (408|409|425|429|5\d\d)/.test(msg) || /abort/i.test(msg);
+      if (!transient || attempt === 2) throw e;
       console.warn(`Leitura ${variant} falhou (${model}), retry ${attempt + 1}: ${msg.slice(0, 120)}`);
-      await sleep(900 * Math.pow(2, attempt));
+      await sleep(700 * (attempt + 1));
     }
   }
   throw lastErr;
@@ -305,10 +315,15 @@ serve(async (req) => {
       userContent.push({ type: "image_url", image_url: { url: `data:${p.mime_type};base64,${p.base64}` } });
     });
 
-    // Leitura principal (com retry/fallback) e 2ª leitura de auditoria (opcional).
-    const passA = await readPassResilient(apiKey, userContent, 0);
-    const passB = await readPassResilient(apiKey, userContent, 1)
-      .catch((e) => { console.warn("2ª leitura falhou", e); return null; });
+    // As duas leituras rodam em PARALELO — antes eram sequenciais e somavam
+    // 60-70s por bloco, o que fazia a tela ficar "Agrupando..." sem fim.
+    const [passA, passB] = await Promise.all([
+      readPassResilient(apiKey, userContent, 0),
+      readPassResilient(apiKey, userContent, 1).catch((e) => {
+        console.warn("2ª leitura falhou", e);
+        return null;
+      }),
+    ]);
 
     const products = passA.map((p: any) => reconcile(p, passB ? matchProduct(p, passB) : null));
     return new Response(JSON.stringify({ products, consensus: !!passB, threshold: CRITICAL_THRESHOLD }), {
