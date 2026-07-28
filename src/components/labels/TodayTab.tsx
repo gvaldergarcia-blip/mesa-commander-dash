@@ -23,6 +23,7 @@ import { useLabeledProducts } from "@/hooks/useLabeledProducts";
 import { classifyExpiry } from "@/lib/labels/utils";
 import { printLabels } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
+import { ConservationDonutCard } from "./ConservationDonutCard";
 
 interface Props {
   onQuickAction: (action: "new-label" | "new-receipt" | "shopping" | "labels") => void;
@@ -193,6 +194,9 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta }: Pr
           </div>
         </Card>
       )}
+
+      {/* Distribuição por método de conservação */}
+      <ConservationDonutCard />
 
     </div>
   );

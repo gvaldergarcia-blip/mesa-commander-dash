@@ -10,7 +10,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Loader2, Truck, Calendar, Tag, ArrowRight, AlertTriangle, Clock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ChefHat, Loader2, Truck, Calendar, Tag, ArrowRight, AlertTriangle, Clock, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLabels } from "@/hooks/useLabels";
@@ -73,6 +75,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [employeeId, setEmployeeId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
+
+  // Preenchimento manual quando o dado necessário não existe no recebimento
+  const [manualValidityValue, setManualValidityValue] = useState<string>("");
+  const [manualValidityUnit, setManualValidityUnit] = useState<"hours" | "days">("hours");
+  const [manualOriginBatch, setManualOriginBatch] = useState<string>("");
+  const [manualOriginExpiry, setManualOriginExpiry] = useState<string>("");
+  const [manualWeight, setManualWeight] = useState<string>("");
+  const [manualSif, setManualSif] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +98,12 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     setLotId("");
     setLots([]);
     setNotes("");
+    setManualValidityValue("");
+    setManualValidityUnit("hours");
+    setManualOriginBatch("");
+    setManualOriginExpiry("");
+    setManualWeight("");
+    setManualSif("");
   }, [open, productId, productName]);
 
   // Busca lotes ativos sempre que o produto selecionado mudar no modo "linked"
@@ -124,12 +141,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   );
   const manipulationRule = useMemo(() => {
     if (mode !== "linked") return null;
-    if (!productConfig?.manipulation_enabled) return null;
-    const v = Number(productConfig.manipulation_validity_value || 0);
-    const u = productConfig.manipulation_validity_unit;
-    if (!v || (u !== "hours" && u !== "days")) return null;
-    return { value: v, unit: u as "hours" | "days" };
-  }, [mode, productConfig]);
+    if (productConfig?.manipulation_enabled) {
+      const v = Number(productConfig.manipulation_validity_value || 0);
+      const u = productConfig.manipulation_validity_unit;
+      if (v && (u === "hours" || u === "days")) return { value: v, unit: u as "hours" | "days", manual: false };
+    }
+    const mv = Number(String(manualValidityValue).replace(",", "."));
+    if (mv > 0) return { value: mv, unit: manualValidityUnit, manual: true };
+    return null;
+  }, [mode, productConfig, manualValidityValue, manualValidityUnit]);
   const computedExpiry = useMemo(() => {
     const base = new Date();
     if (!manipulationRule) return null;
@@ -138,7 +158,13 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       : manipulationRule.value * 86_400_000;
     return new Date(base.getTime() + ms);
   }, [manipulationRule]);
-  const missingConfig = mode === "linked" && !!selectedProductId && !manipulationRule;
+  const configuredRule = !!productConfig?.manipulation_enabled
+    && Number(productConfig?.manipulation_validity_value || 0) > 0;
+  const missingConfig = mode === "linked" && !!selectedProductId && !configuredRule;
+  // Dados que o recebimento pode não ter informado
+  const lotMissingBatch = mode === "linked" && !!selectedLot
+    && !(selectedLot.supplier_lot || selectedLot.traceability_lot || selectedLot.batch);
+  const lotMissingExpiry = mode === "linked" && !!selectedLot && !selectedLot.expiry_date;
 
   const confirm = async () => {
     if (!employeeId) return toast.error("Selecione o responsável");
@@ -149,8 +175,10 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       if (!selectedProductId) return toast.error("Selecione o produto");
       if (!selectedLot) return toast.error("Selecione o lote de origem");
       if (!manipulationRule || !computedExpiry) {
-        return toast.error("Este produto não possui regra de validade após manipulação cadastrada.");
+        return toast.error("Informe a validade após manipulação para continuar.");
       }
+      if (lotMissingBatch && !manualOriginBatch.trim()) return toast.error("Informe o lote original");
+      if (lotMissingExpiry && !manualOriginExpiry) return toast.error("Informe a validade original");
     } else {
       if (!directName.trim()) return toast.error("Informe o nome do produto");
       if (!directOriginBatch.trim()) return toast.error("Informe o lote original");
@@ -170,11 +198,13 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
 
     const employee = activeEmployees.find((e) => e.id === employeeId);
     const originLabel = mode === "linked"
-      ? (selectedLot!.supplier_lot || selectedLot!.traceability_lot || selectedLot!.batch || "—")
+      ? (selectedLot!.supplier_lot || selectedLot!.traceability_lot || selectedLot!.batch || manualOriginBatch.trim() || "—")
       : directOriginBatch.trim();
     const originSupplier = mode === "linked" ? (selectedLot!.supplier_name || null) : null;
     const originExpiry = mode === "linked"
-      ? (selectedLot!.expiry_date ? new Date(selectedLot!.expiry_date) : null)
+      ? (selectedLot!.expiry_date
+          ? new Date(selectedLot!.expiry_date)
+          : (manualOriginExpiry ? new Date(`${manualOriginExpiry}T23:59:00`) : null))
       : new Date(`${directOriginExpiry}T23:59:00`);
     const finalProductName = mode === "linked" ? selectedProductName : directName.trim();
     const originNote = notes.trim() ? notes.trim() : null;
@@ -241,7 +271,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           : null;
         const weightLabel = full.weight != null && full.weight_unit
           ? `${String(full.weight).replace(".", ",")} ${full.weight_unit}`
-          : (directWeight.trim() || null);
+          : (directWeight.trim() || manualWeight.trim() || null);
         const consMap: Record<string, string> = {
           refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
         };
@@ -255,7 +285,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           batch,
           template: "manipulation",
           brand: originSupplier,
-          sif: full.sif ?? null,
+          sif: full.sif ?? (manualSif.trim() || null),
           notes: originNote ? `Origem: ${originSupplier || "—"} · Lote ${originLabel} · ${originNote}`
                             : `Origem: ${originSupplier || "—"} · Lote ${originLabel}`,
           conservationLabel: consMap[full.conservation_method || (conservationMethod as any) || "refrigerated"] || null,
@@ -317,18 +347,46 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <>
           <div className="space-y-1.5">
             <Label>Produto</Label>
-            <Select value={selectedProductId} onValueChange={(v) => {
-              setSelectedProductId(v);
-              const p = productsForSelect.find((x: any) => x.product_id === v);
-              setSelectedProductName(p?.product_name ?? "");
-            }}>
-              <SelectTrigger><SelectValue placeholder="Selecionar produto…" /></SelectTrigger>
-              <SelectContent>
-                {productsForSelect.map((p: any) => (
-                  <SelectItem key={p.product_id} value={p.product_id}>{p.product_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={productOpen} onOpenChange={setProductOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className={selectedProductId ? "" : "text-muted-foreground"}>
+                    {selectedProductName || "Buscar produto…"}
+                  </span>
+                  <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                <Command>
+                  <CommandInput placeholder="Digite o nome do produto…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {productsForSelect.map((p: any) => (
+                        <CommandItem
+                          key={p.product_id}
+                          value={p.product_name}
+                          onSelect={() => {
+                            setSelectedProductId(p.product_id);
+                            setSelectedProductName(p.product_name ?? "");
+                            setProductOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${selectedProductId === p.product_id ? "opacity-100" : "opacity-0"}`}
+                          />
+                          {p.product_name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-1.5">
@@ -427,8 +485,65 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 <AlertTriangle className="h-3.5 w-3.5" /> Produto sem regra de validade cadastrada
               </div>
               <p className="text-muted-foreground">
-                Este produto não possui uma regra de validade após manipulação cadastrada. Defina no cadastro do produto conforme seus POPs.
+                Informe abaixo a validade após manipulação para poder imprimir agora (conforme seus POPs).
               </p>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Validade após manipulação</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={manualValidityValue}
+                    onChange={(e) => setManualValidityValue(e.target.value)}
+                    placeholder="Ex.: 24"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Unidade</Label>
+                  <Select value={manualValidityUnit} onValueChange={(v) => setManualValidityUnit(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hours">hora(s)</SelectItem>
+                      <SelectItem value="days">dia(s)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mode === "linked" && selectedLot && (lotMissingBatch || lotMissingExpiry) && (
+            <div className="rounded-lg border border-dashed p-3 space-y-3 text-xs">
+              <div className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Dados ausentes no recebimento
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {lotMissingBatch && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Lote original *</Label>
+                    <Input value={manualOriginBatch} onChange={(e) => setManualOriginBatch(e.target.value)} placeholder="Ex.: L2026-07" />
+                  </div>
+                )}
+                {lotMissingExpiry && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Validade original *</Label>
+                    <Input type="date" value={manualOriginExpiry} onChange={(e) => setManualOriginExpiry(e.target.value)} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {mode === "linked" && selectedLot && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[11px]">Peso (opcional)</Label>
+                <Input value={manualWeight} onChange={(e) => setManualWeight(e.target.value)} placeholder="500 g / 1 kg" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px]">SIF/SISP (opcional)</Label>
+                <Input value={manualSif} onChange={(e) => setManualSif(e.target.value)} placeholder="Se não veio no recebimento" />
+              </div>
             </div>
           )}
 
@@ -453,7 +568,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             disabled={
               saving || !employeeId ||
               (mode === "linked"
-                ? (!selectedLot || !manipulationRule)
+                ? (!selectedLot || !manipulationRule
+                    || (lotMissingBatch && !manualOriginBatch.trim())
+                    || (lotMissingExpiry && !manualOriginExpiry))
                 : (!directName.trim() || !directOriginBatch.trim() || !directOriginExpiry))
             }
             className="gap-2"

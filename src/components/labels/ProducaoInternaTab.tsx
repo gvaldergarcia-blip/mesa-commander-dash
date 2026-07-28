@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ChefHat, Plus, Search, Printer, Loader2, ArrowLeft, RefreshCw, User, Package, GitBranch, AlertTriangle } from "lucide-react";
+import { ChefHat, Plus, Search, Printer, Loader2, ArrowLeft, RefreshCw, User, Package, GitBranch, AlertTriangle, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -42,11 +42,12 @@ function toDateInput(d: Date) {
 
 export function ProducaoInternaTab() {
   const { products, createProduct } = useLabelProducts();
-  const { labels, createLabel } = useLabels();
+  const { labels, createLabel, refetch } = useLabels();
   const { activeEmployees } = useLabelEmployees();
   const { restaurant } = useRestaurant();
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<LabelRow | null>(null);
 
   const productions = useMemo(
     () => labels.filter((l) => LEGACY_BATCH_PREFIXES.some((p) => (l.batch || "").startsWith(p))),
@@ -196,16 +197,233 @@ export function ProducaoInternaTab() {
                       <div className="font-medium truncate">{l.employee_name || l.responsible || "—"}</div>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => reprint(l)}>
-                    <RefreshCw className="h-3.5 w-3.5" /> Reimprimir etiquetas
-                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="secondary" size="sm" className="gap-2" onClick={() => setEditing(l)}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => reprint(l)}>
+                      <RefreshCw className="h-3.5 w-3.5" /> Reimprimir
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
           </div>
         )}
       </div>
+
+      <EditProductionDialog
+        label={editing}
+        employees={activeEmployees}
+        onClose={() => setEditing(null)}
+        onSaved={async (updated, print) => {
+          await refetch();
+          setEditing(null);
+          if (print) reprint(updated);
+        }}
+      />
     </div>
+  );
+}
+
+/* ============================================================
+   Dialog — Editar produção existente + reimprimir com novos dados
+   ============================================================ */
+
+function toTimeInput(d: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function EditProductionDialog({
+  label,
+  employees,
+  onClose,
+  onSaved,
+}: {
+  label: LabelRow | null;
+  employees: ReturnType<typeof useLabelEmployees>["activeEmployees"];
+  onClose: () => void;
+  onSaved: (updated: LabelRow, print: boolean) => void | Promise<void>;
+}) {
+  const [form, setForm] = useState({
+    product_name: "",
+    manufacture: "",
+    manufactureTime: "00:00",
+    expiry: "",
+    expiryTime: "23:59",
+    quantity: 1,
+    weight: "",
+    weight_unit: "kg",
+    employeeId: "",
+    responsible: "",
+    conservation: "refrigerated",
+    storage_location: "",
+    notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!label) return;
+    const man = new Date(label.manufacture_date);
+    const exp = new Date(label.expiry_date);
+    setForm({
+      product_name: label.product_name || "",
+      manufacture: toDateInput(man),
+      manufactureTime: toTimeInput(man),
+      expiry: toDateInput(exp),
+      expiryTime: toTimeInput(exp),
+      quantity: label.quantity || 1,
+      weight: label.weight != null ? String(label.weight) : "",
+      weight_unit: label.weight_unit || "kg",
+      employeeId: label.employee_id || "",
+      responsible: label.responsible || "",
+      conservation: label.conservation_method || "refrigerated",
+      storage_location: label.storage_location || "",
+      notes: label.notes || "",
+    });
+  }, [label]);
+
+  const save = async (print: boolean) => {
+    if (!label) return;
+    if (!form.product_name.trim()) return toast.error("Informe o nome do produto");
+    const [mh, mm] = form.manufactureTime.split(":").map(Number);
+    const manufacture = new Date(`${form.manufacture}T00:00:00`);
+    manufacture.setHours(mh || 0, mm || 0, 0, 0);
+    const [eh, em] = form.expiryTime.split(":").map(Number);
+    const expiry = new Date(`${form.expiry}T00:00:00`);
+    expiry.setHours(eh || 23, em || 59, 0, 0);
+    if (expiry <= manufacture) return toast.error("Validade deve ser posterior à produção");
+
+    const employee = employees.find((e) => e.id === form.employeeId);
+    const weightNum = form.weight ? Number(String(form.weight).replace(",", ".")) : null;
+
+    setSaving(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("label_issuances")
+        .update({
+          product_name: form.product_name.trim(),
+          manufacture_date: manufacture.toISOString(),
+          expiry_date: expiry.toISOString(),
+          quantity: Math.max(1, Number(form.quantity) || 1),
+          weight: weightNum,
+          weight_unit: weightNum ? form.weight_unit : null,
+          employee_id: employee?.id || null,
+          responsible: employee?.name || form.responsible || null,
+          conservation_method: form.conservation,
+          storage_location: form.storage_location || null,
+          notes: form.notes || null,
+        })
+        .eq("id", label.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      toast.success("Produção atualizada");
+      await onSaved({ ...(label as any), ...(data as any), employee_name: employee?.name ?? null } as LabelRow, print);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao atualizar produção");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!label} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-5 w-5 text-primary" /> Editar produção
+          </DialogTitle>
+          <DialogDescription>
+            Corrija as informações e reimprima as etiquetas já com os novos dados.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label>Produto *</Label>
+            <Input value={form.product_name} onChange={(e) => setForm({ ...form, product_name: e.target.value })} />
+          </div>
+          <div>
+            <Label>Produção (data)</Label>
+            <Input type="date" value={form.manufacture} onChange={(e) => setForm({ ...form, manufacture: e.target.value })} />
+          </div>
+          <div>
+            <Label>Produção (hora)</Label>
+            <Input type="time" value={form.manufactureTime} onChange={(e) => setForm({ ...form, manufactureTime: e.target.value })} />
+          </div>
+          <div>
+            <Label>Validade (data) *</Label>
+            <Input type="date" value={form.expiry} onChange={(e) => setForm({ ...form, expiry: e.target.value })} />
+          </div>
+          <div>
+            <Label>Validade (hora)</Label>
+            <Input type="time" value={form.expiryTime} onChange={(e) => setForm({ ...form, expiryTime: e.target.value })} />
+          </div>
+          <div>
+            <Label>Quantidade</Label>
+            <Input type="number" min={1} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Peso</Label>
+              <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="2,5" />
+            </div>
+            <div>
+              <Label>Un.</Label>
+              <Select value={form.weight_unit} onValueChange={(v) => setForm({ ...form, weight_unit: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["kg", "g", "l", "ml"].map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label>Conservação</Label>
+            <Select value={form.conservation} onValueChange={(v) => setForm({ ...form, conservation: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CONSERVATION_OPTS.map((c) => <SelectItem key={c.v} value={c.v}>{c.l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Responsável</Label>
+            <Select value={form.employeeId} onValueChange={(v) => setForm({ ...form, employeeId: v })}>
+              <SelectTrigger><SelectValue placeholder={form.responsible || "Selecionar"} /></SelectTrigger>
+              <SelectContent>
+                {employees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    <span className="flex items-center gap-2"><User className="h-3.5 w-3.5" /> {e.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2">
+            <Label>Local / Setor</Label>
+            <SectorCombobox value={form.storage_location} onChange={(v) => setForm({ ...form, storage_location: v })} />
+          </div>
+          <div className="col-span-2">
+            <Label>Observações</Label>
+            <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => save(false)} disabled={saving} className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Salvar
+          </Button>
+          <Button onClick={() => save(true)} disabled={saving} className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            Salvar e reimprimir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
