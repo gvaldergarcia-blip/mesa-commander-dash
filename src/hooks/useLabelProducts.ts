@@ -24,6 +24,10 @@ export interface LabelProduct {
   manipulation_validity_value?: number | null;
   manipulation_validity_unit?: "hours" | "days" | "months" | null;
   manipulation_notes?: string | null;
+  origin?: "received" | "produced";
+  production_validity_value?: number | null;
+  production_validity_unit?: "hours" | "days" | "months" | null;
+  pop_notes?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +52,10 @@ export interface LabelProductInput {
   manipulation_validity_value?: number | null;
   manipulation_validity_unit?: "hours" | "days" | "months" | null;
   manipulation_notes?: string | null;
+  origin?: "received" | "produced";
+  production_validity_value?: number | null;
+  production_validity_unit?: "hours" | "days" | "months" | null;
+  pop_notes?: string | null;
 }
 
 export function useLabelProducts() {
@@ -95,6 +103,10 @@ export function useLabelProducts() {
           manipulation_validity_value: input.manipulation_validity_value ?? null,
           manipulation_validity_unit: input.manipulation_validity_unit ?? null,
           manipulation_notes: input.manipulation_notes?.trim() || null,
+          origin: input.origin ?? "received",
+          production_validity_value: input.production_validity_value ?? null,
+          production_validity_unit: input.production_validity_unit ?? null,
+          pop_notes: input.pop_notes?.trim() || null,
         })
         .select()
         .single();
@@ -132,6 +144,10 @@ export function useLabelProducts() {
           manipulation_validity_value: input.manipulation_validity_value ?? null,
           manipulation_validity_unit: input.manipulation_validity_unit ?? null,
           manipulation_notes: input.manipulation_notes?.trim() || null,
+          origin: input.origin ?? undefined,
+          production_validity_value: input.production_validity_value ?? undefined,
+          production_validity_unit: input.production_validity_unit ?? undefined,
+          pop_notes: input.pop_notes?.trim() ?? undefined,
         })
         .eq("id", id)
         .select()
@@ -160,6 +176,8 @@ export function useLabelProducts() {
 
   return {
     products: query.data || [],
+    producedProducts: (query.data || []).filter((p) => p.origin === "produced"),
+    receivedProducts: (query.data || []).filter((p) => p.origin !== "produced"),
     isLoading: query.isLoading,
     createProduct: createMutation.mutateAsync,
     updateProduct: updateMutation.mutateAsync,

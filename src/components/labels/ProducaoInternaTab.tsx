@@ -41,7 +41,7 @@ function toDateInput(d: Date) {
 }
 
 export function ProducaoInternaTab() {
-  const { products, createProduct } = useLabelProducts();
+  const { producedProducts, createProduct } = useLabelProducts();
   const { labels, createLabel, refetch } = useLabels();
   const { activeEmployees } = useLabelEmployees();
   const { restaurant } = useRestaurant();
@@ -116,7 +116,7 @@ export function ProducaoInternaTab() {
       <ProductionDialog
         open={open}
         onOpenChange={setOpen}
-        products={products}
+        products={producedProducts}
         employees={activeEmployees}
         onCreateProduct={createProduct}
         onCreateLabel={createLabel}
@@ -428,8 +428,22 @@ function EditProductionDialog({
 }
 
 /* ============================================================
-   Dialog — Fluxo de nova produção
+   Dialog — Fluxo de nova produção (Cadastro Mestre de Produzidos)
    ============================================================ */
+
+const VALIDITY_UNITS = [
+  { v: "hours", l: "horas" },
+  { v: "days", l: "dias" },
+  { v: "months", l: "meses" },
+];
+
+function addValidity(from: Date, value: number, unit: string) {
+  const d = new Date(from);
+  if (unit === "hours") d.setHours(d.getHours() + value);
+  else if (unit === "months") d.setMonth(d.getMonth() + value);
+  else d.setDate(d.getDate() + value);
+  return d;
+}
 
 interface DialogProps {
   open: boolean;
@@ -456,59 +470,32 @@ interface DialogProps {
 }
 
 function ProductionDialog({ open, onOpenChange, products, employees, onCreateProduct, onCreateLabel, onPrint }: DialogProps) {
-  const [step, setStep] = useState<"select" | "new-product" | "lots" | "form">("select");
+  const [step, setStep] = useState<"select" | "new-product" | "form">("select");
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState<LabelProduct | null>(null);
 
-  // Rastreabilidade: lote de origem escolhido
-  interface ActiveLot {
-    issuance_id: string;
-    batch: string | null;
-    supplier_lot: string | null;
-    traceability_lot: string | null;
-    supplier_id: string | null;
-    supplier_name: string | null;
-    receipt_id: string | null;
-    received_at: string | null;
-    expiry_date: string;
-    units_remaining: number;
-  }
-  const [activeLots, setActiveLots] = useState<ActiveLot[]>([]);
-  const [loadingLots, setLoadingLots] = useState(false);
-  const [originLot, setOriginLot] = useState<ActiveLot | null>(null);
-
-  // Novo produto
+  // Cadastro mestre de produto produzido
   const [np, setNp] = useState({
     name: "",
     category: "",
     unit: "un",
     conservation: "refrigerated",
     storage_location: "",
-    validity_days: 3,
+    validity_value: 3,
+    validity_unit: "days",
+    pop_notes: "",
   });
 
   // Produção
-  const [prod, setProd] = useState({
-    qty: 1,
-    unit: "un",
-    weight: "",
-    weight_unit: "kg",
-    expiry: toDateInput(new Date(Date.now() + 3 * 86400000)),
-    expiryTime: "23:59",
-    employeeId: "",
-    notes: "",
-  });
-
+  const [prod, setProd] = useState({ qty: 1, employeeId: "", notes: "" });
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setStep("select");
     setSearch("");
     setProduct(null);
-    setActiveLots([]);
-    setOriginLot(null);
-    setNp({ name: "", category: "", unit: "un", conservation: "refrigerated", storage_location: "", validity_days: 3 });
-    setProd({ qty: 1, unit: "un", weight: "", weight_unit: "kg", expiry: toDateInput(new Date(Date.now() + 3 * 86400000)), expiryTime: "23:59", employeeId: "", notes: "" });
+    setNp({ name: "", category: "", unit: "un", conservation: "refrigerated", storage_location: "", validity_value: 3, validity_unit: "days", pop_notes: "" });
+    setProd({ qty: 1, employeeId: "", notes: "" });
   };
 
   const close = (v: boolean) => {
@@ -519,55 +506,43 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
     const list = products.filter((p) => (p.status ?? "active") === "active");
-    if (!s) return list.slice(0, 30);
-    return list.filter((p) => p.name.toLowerCase().includes(s)).slice(0, 30);
+    if (!s) return list.slice(0, 50);
+    return list.filter((p) => p.name.toLowerCase().includes(s)).slice(0, 50);
   }, [products, search]);
 
-  const pickProduct = async (p: LabelProduct) => {
+  const productValidity = (p: LabelProduct) => ({
+    value: p.production_validity_value ?? p.validity_days ?? 3,
+    unit: (p.production_validity_unit ?? "days") as string,
+  });
+
+  const previewExpiry = useMemo(() => {
+    if (!product) return null;
+    const { value, unit } = productValidity(product);
+    return addValidity(new Date(), value, unit);
+  }, [product]);
+
+  const pickProduct = (p: LabelProduct) => {
     setProduct(p);
-    const validity = p.validity_days || 3;
-    const exp = new Date(Date.now() + validity * 86400000);
-    setProd((s) => ({
-      ...s,
-      unit: p.unit || "un",
-      expiry: toDateInput(exp),
-    }));
-    // Buscar lotes ativos para rastreabilidade
-    setLoadingLots(true);
-    setStep("lots");
-    try {
-      const { data, error } = await (supabase as any).rpc("label_active_lots_for_product", {
-        _product_id: p.id,
-      });
-      if (error) throw error;
-      const lots = (data || []) as ActiveLot[];
-      setActiveLots(lots);
-      if (lots.length === 1) {
-        setOriginLot(lots[0]);
-        setStep("form");
-      } else if (lots.length === 0) {
-        setOriginLot(null);
-      }
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao buscar lotes");
-      setActiveLots([]);
-    } finally {
-      setLoadingLots(false);
-    }
+    setStep("form");
   };
 
   const saveNewProduct = async () => {
     if (!np.name.trim()) return toast.error("Informe o nome do produto");
+    const value = Math.max(1, Number(np.validity_value) || 1);
     setSaving(true);
     try {
       const created = await onCreateProduct({
         name: np.name,
-        validity_days: Math.max(1, Number(np.validity_days) || 3),
+        validity_days: np.validity_unit === "days" ? value : np.validity_unit === "months" ? value * 30 : 1,
         conservation_method: np.conservation as any,
         unit: np.unit,
         category: np.category || null,
         storage_location: np.storage_location || null,
         status: "active",
+        origin: "produced",
+        production_validity_value: value,
+        production_validity_unit: np.validity_unit as any,
+        pop_notes: np.pop_notes || null,
       });
       pickProduct(created);
     } catch (e: any) {
@@ -582,25 +557,19 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     if (!prod.employeeId) return toast.error("Selecione o responsável");
     const qty = Math.max(1, Math.min(30, Number(prod.qty) || 1));
     const manufactureDate = new Date();
-    const [h, m] = prod.expiryTime.split(":").map(Number);
-    const expiryDate = new Date(`${prod.expiry}T00:00:00`);
-    expiryDate.setHours(h || 23, m || 59, 0, 0);
-    if (expiryDate <= manufactureDate) return toast.error("Validade deve ser posterior à produção");
+    const { value, unit } = productValidity(product);
+    const expiryDate = addValidity(manufactureDate, value, unit);
 
     const employee = employees.find((e) => e.id === prod.employeeId);
-    // Gera lote único de produção via RPC (PRD-YYYYMMDD-NNN)
+    // Lote interno automático (PRD-YYYYMMDD-NNN)
     let batch = `${BATCH_PREFIX}${Date.now().toString(36).toUpperCase()}`;
     try {
       const { data: gen } = await (supabase as any).rpc("label_generate_production_lot");
       if (typeof gen === "string" && gen) batch = gen;
     } catch { /* fallback local */ }
-    const weightNum = prod.weight ? Number(prod.weight.replace(",", ".")) : null;
 
     setSaving(true);
     try {
-      const originNote = originLot
-        ? ` · Origem: ${originLot.supplier_name || "MesaClik"} · Lote ${originLot.supplier_lot || originLot.traceability_lot || "—"}`
-        : "";
       const inserted = await onCreateLabel({
         label_product_id: product.id,
         product_name: product.name,
@@ -611,26 +580,10 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
         responsible: employee?.name || null,
         employee_id: employee?.id || null,
         conservation_method: (product.conservation_method as any) || "refrigerated",
-        notes: (prod.notes.trim() ? `[Produção Interna] ${prod.notes.trim()}` : "[Produção Interna]") + originNote,
+        notes: prod.notes.trim() ? `[Produção Interna] ${prod.notes.trim()}` : "[Produção Interna]",
         allergens: (product as any).allergens || null,
         ingredients: (product as any).ingredients || null,
-        origin_issuance_id: originLot?.issuance_id ?? null,
-        // supplier_* e origin_traceability_lot são preenchidos pelo trigger
       });
-
-      // Persist peso da produção (se informado)
-      if (weightNum && weightNum > 0) {
-        try {
-          await (supabase as any)
-            .from("label_issuances")
-            .update({ weight: weightNum, weight_unit: prod.weight_unit })
-            .eq("id", inserted.id);
-          (inserted as any).weight = weightNum;
-          (inserted as any).weight_unit = prod.weight_unit;
-        } catch {
-          /* peso é opcional; ignora falha */
-        }
-      }
 
       onPrint(inserted, {
         productName: product.name,
@@ -642,7 +595,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
         storageLocation: (product as any).storage_location || null,
         batch,
         notes: prod.notes.trim() || null,
-        quantityWeight: weightNum ? `${weightNum}${prod.weight_unit}` : null,
+        quantityWeight: null,
       });
 
       toast.success(`Produção registrada · ${qty} etiqueta(s)`);
@@ -661,15 +614,13 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
           <DialogTitle className="flex items-center gap-2">
             <ChefHat className="h-5 w-5 text-primary" />
             {step === "select" && "Escolha o produto"}
-            {step === "new-product" && "Novo produto"}
-            {step === "lots" && "Selecione o lote de origem"}
+            {step === "new-product" && "Novo produto produzido"}
             {step === "form" && "Registrar produção"}
           </DialogTitle>
           <DialogDescription>
-            {step === "select" && "Selecione um produto já cadastrado ou cadastre um novo."}
-            {step === "new-product" && "Estes dados ficam salvos para reutilização."}
-            {step === "lots" && "Rastreabilidade obrigatória: informe de qual lote recebido veio o insumo."}
-            {step === "form" && "Cada produção tem sua própria validade."}
+            {step === "select" && "Apenas produtos produzidos na cozinha. Insumos recebidos não aparecem aqui."}
+            {step === "new-product" && "Este produto passa a fazer parte permanentemente da sua lista de produção."}
+            {step === "form" && "Data, validade e lote são calculados automaticamente."}
           </DialogDescription>
         </DialogHeader>
 
@@ -679,7 +630,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 autoFocus
-                placeholder="Buscar produto (ex.: maionese, molho...)"
+                placeholder="Buscar produto (ex.: maionese, arroz, molho pesto...)"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 h-11"
@@ -698,31 +649,34 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
             <div className="max-h-[45vh] overflow-y-auto space-y-1">
               {filtered.length === 0 ? (
                 <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-lg">
-                  Nenhum produto cadastrado ainda.
+                  Nenhum produto produzido cadastrado ainda.
                 </div>
               ) : (
-                filtered.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => pickProduct(p)}
-                    className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition text-left"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">{p.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {p.category || "Sem categoria"} · {p.validity_days}d validade padrão
+                filtered.map((p) => {
+                  const v = productValidity(p);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => pickProduct(p)}
+                      className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border border-border/50 hover:border-primary hover:bg-primary/5 transition text-left"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ChefHat className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{p.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {p.category || "Sem categoria"} · validade {v.value} {VALIDITY_UNITS.find((u) => u.v === v.unit)?.l}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    {p.storage_location && (
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        {p.storage_location}
-                      </Badge>
-                    )}
-                  </button>
-                ))
+                      {p.storage_location && (
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">
+                          {p.storage_location}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
@@ -743,15 +697,6 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                 <Input value={np.category} onChange={(e) => setNp({ ...np, category: e.target.value })} placeholder="Molhos, Bases..." />
               </div>
               <div>
-                <Label>Unidade</Label>
-                <Select value={np.unit} onValueChange={(v) => setNp({ ...np, unit: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label>Conservação</Label>
                 <Select value={np.conservation} onValueChange={(v) => setNp({ ...np, conservation: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -761,12 +706,36 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                 </Select>
               </div>
               <div>
-                <Label>Validade padrão (dias)</Label>
-                <Input type="number" min={1} value={np.validity_days} onChange={(e) => setNp({ ...np, validity_days: Number(e.target.value) })} />
+                <Label>Unidade padrão</Label>
+                <Select value={np.unit} onValueChange={(v) => setNp({ ...np, unit: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Validade da produção *</Label>
+                  <Input type="number" min={1} value={np.validity_value} onChange={(e) => setNp({ ...np, validity_value: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <Label>Unidade</Label>
+                  <Select value={np.validity_unit} onValueChange={(v) => setNp({ ...np, validity_unit: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {VALIDITY_UNITS.map((u) => <SelectItem key={u.v} value={u.v}>{u.l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="md:col-span-2">
                 <Label>Local / Setor</Label>
                 <SectorCombobox value={np.storage_location} onChange={(v) => setNp({ ...np, storage_location: v })} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Observações do POP (opcional)</Label>
+                <Textarea rows={2} value={np.pop_notes} onChange={(e) => setNp({ ...np, pop_notes: e.target.value })} placeholder="Ex.: resfriar até 5°C em até 2h" />
               </div>
             </div>
             <DialogFooter>
@@ -779,117 +748,23 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
           </div>
         )}
 
-        {step === "lots" && product && (
-          <div className="space-y-3">
-            <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
-              <ArrowLeft className="h-4 w-4" /> Voltar
-            </Button>
-            <Card className="p-3 bg-primary/5 border-primary/20">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-primary" />
-                <div className="font-semibold">{product.name}</div>
-              </div>
-            </Card>
-
-            {loadingLots ? (
-              <div className="py-10 flex items-center justify-center text-sm text-muted-foreground gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Buscando lotes ativos...
-              </div>
-            ) : activeLots.length === 0 ? (
-              <div className="space-y-3">
-                <Card className="p-4 border-dashed border-destructive/40 bg-destructive/5 text-sm">
-                  <div className="flex items-center gap-2 font-semibold text-destructive">
-                    <AlertTriangle className="h-4 w-4" /> Nenhum lote ativo deste produto
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Ideal: registre primeiro o Recebimento do insumo. Você pode prosseguir sem rastreabilidade, mas a auditoria ficará incompleta.
-                  </p>
-                </Card>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setStep("select")}>Voltar</Button>
-                  <Button onClick={() => { setOriginLot(null); setStep("form"); }} variant="outline">
-                    Prosseguir sem lote de origem
-                  </Button>
-                </DialogFooter>
-              </div>
-            ) : (
-              <>
-                <div className="text-xs text-muted-foreground">
-                  {activeLots.length} lote(s) ativo(s). Escolha qual foi utilizado nesta produção.
-                </div>
-                <div className="max-h-[45vh] overflow-y-auto space-y-2">
-                  {activeLots.map((lot) => {
-                    const isGenerated = !lot.supplier_lot && !!lot.traceability_lot;
-                    return (
-                      <button
-                        key={lot.issuance_id}
-                        onClick={() => { setOriginLot(lot); setStep("form"); }}
-                        className="w-full text-left p-3 rounded-lg border border-border/60 hover:border-primary hover:bg-primary/5 transition"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm truncate">
-                              {lot.supplier_name || "Fornecedor não informado"}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              Lote:{" "}
-                              <strong className="text-foreground">
-                                {lot.supplier_lot || lot.traceability_lot || "—"}
-                              </strong>
-                              {isGenerated && <span className="ml-1 opacity-70">(MesaClik)</span>}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              Recebido: {lot.received_at ? format(new Date(lot.received_at), "dd/MM", { locale: ptBR }) : "—"}
-                              {" · "}
-                              Validade: {format(new Date(lot.expiry_date), "dd/MM", { locale: ptBR })}
-                            </div>
-                          </div>
-                          <Badge variant="secondary" className="shrink-0">{lot.units_remaining} un</Badge>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
         {step === "form" && product && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
-                <ArrowLeft className="h-4 w-4" /> Trocar produto
-              </Button>
-              {activeLots.length > 1 && (
-                <Button variant="ghost" size="sm" onClick={() => setStep("lots")} className="gap-2">
-                  <GitBranch className="h-3.5 w-3.5" /> Trocar lote
-                </Button>
-              )}
-            </div>
+            <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="gap-2 -ml-2">
+              <ArrowLeft className="h-4 w-4" /> Trocar produto
+            </Button>
+
             <Card className="p-3 bg-primary/5 border-primary/20">
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-primary" />
+                <ChefHat className="h-4 w-4 text-primary" />
                 <div className="font-semibold">{product.name}</div>
                 <Badge variant="outline" className="ml-auto text-[10px]">
                   {CONSERVATION_LABEL[product.conservation_method || ""] || "—"}
                 </Badge>
               </div>
-              {originLot ? (
-                <div className="mt-2 pt-2 border-t border-primary/10 text-[11px] text-muted-foreground space-y-0.5">
-                  <div className="flex items-center gap-1.5"><GitBranch className="h-3 w-3" /> <strong className="text-foreground">Origem rastreável</strong></div>
-                  <div>Fornecedor: <strong>{originLot.supplier_name || "—"}</strong></div>
-                  <div>
-                    Lote:{" "}
-                    <strong>{originLot.supplier_lot || originLot.traceability_lot || "—"}</strong>
-                    {!originLot.supplier_lot && originLot.traceability_lot && (
-                      <span className="ml-1 text-[10px] opacity-70">(MesaClik)</span>
-                    )}
-                  </div>
-                  <div>Disponível: <strong>{originLot.units_remaining} un</strong></div>
-                </div>
-              ) : (
-                <div className="mt-2 pt-2 border-t border-destructive/20 text-[11px] text-destructive flex items-center gap-1.5">
-                  <AlertTriangle className="h-3 w-3" /> Sem lote de origem — produção sem rastreabilidade
+              {product.pop_notes && (
+                <div className="mt-2 pt-2 border-t border-primary/10 text-[11px] text-muted-foreground">
+                  POP: {product.pop_notes}
                 </div>
               )}
             </Card>
@@ -904,47 +779,10 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                   onChange={(e) => setProd({ ...prod, qty: Number(e.target.value) })}
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Serão geradas {Math.max(1, Number(prod.qty) || 1)} etiqueta(s).
+                  Serão geradas {Math.max(1, Number(prod.qty) || 1)} etiqueta(s) · unidade {product.unit || "un"}.
                 </p>
               </div>
               <div>
-                <Label>Unidade</Label>
-                <Select value={prod.unit} onValueChange={(v) => setProd({ ...prod, unit: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Peso/volume total (opcional)</Label>
-                <Input
-                  placeholder="Ex.: 2,5"
-                  value={prod.weight}
-                  onChange={(e) => setProd({ ...prod, weight: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Unidade do peso</Label>
-                <Select value={prod.weight_unit} onValueChange={(v) => setProd({ ...prod, weight_unit: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["kg", "g", "l", "ml"].map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Validade (data) *</Label>
-                <Input type="date" value={prod.expiry} onChange={(e) => setProd({ ...prod, expiry: e.target.value })} />
-              </div>
-              <div>
-                <Label>Validade (hora)</Label>
-                <Input type="time" value={prod.expiryTime} onChange={(e) => setProd({ ...prod, expiryTime: e.target.value })} />
-              </div>
-
-              <div className="col-span-2">
                 <Label>Responsável *</Label>
                 <Select value={prod.employeeId} onValueChange={(v) => setProd({ ...prod, employeeId: v })}>
                   <SelectTrigger>
@@ -959,15 +797,21 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="col-span-2">
-                <Label>Observações</Label>
+                <Label>Observações (opcional)</Label>
                 <Textarea rows={2} value={prod.notes} onChange={(e) => setProd({ ...prod, notes: e.target.value })} placeholder="Ex.: receita nova, dobrou o alho..." />
               </div>
             </div>
 
-            <div className={cn("text-xs p-2 rounded-md bg-muted/40 border border-border/40")}>
-              📅 Produção agora · Validade em <strong>{format(new Date(`${prod.expiry}T${prod.expiryTime || "23:59"}:00`), "dd/MM/yyyy HH:mm", { locale: ptBR })}</strong>
+            <div className={cn("text-xs p-3 rounded-md bg-muted/40 border border-border/40 space-y-1")}>
+              <div>📅 Produção: <strong>agora</strong></div>
+              <div>
+                ⏳ Validade automática:{" "}
+                <strong>
+                  {previewExpiry ? format(previewExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}
+                </strong>
+              </div>
+              <div>🏷️ Lote interno gerado automaticamente</div>
             </div>
 
             <DialogFooter>
