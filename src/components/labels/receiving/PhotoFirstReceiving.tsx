@@ -101,6 +101,9 @@ function parseWeightString(s: string | null | undefined) {
   return { value: v, unit: m[2] };
 }
 function daysUntil(dateStr: string | null): number {
+  return _daysUntil(dateStr);
+}
+function _daysUntil(dateStr: string | null): number {
   if (!dateStr) return 1;
   const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return 1;
@@ -108,6 +111,82 @@ function daysUntil(dateStr: string | null): number {
   const t = new Date();
   const today = Date.UTC(t.getFullYear(), t.getMonth(), t.getDate());
   return Math.max(1, Math.round((target - today) / 86400000));
+}
+
+/* ===== Casamento inteligente entre blocos de fotos =====
+   As fotos são analisadas em chunks; o mesmo produto físico pode aparecer em
+   blocos diferentes e voltar duplicado. Aqui fundimos esses grupos. */
+const nkey = (v: any) =>
+  v == null ? "" : String(v).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+
+function nameSimilar(a: string, b: string) {
+  if (!a || !b) return false;
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  const ta = new Set(String(a).match(/.{1,3}/g) || []);
+  const tb = String(b).match(/.{1,3}/g) || [];
+  const inter = tb.filter((t) => ta.has(t)).length;
+  return inter / Math.max(1, Math.max(ta.size, tb.length)) >= 0.7;
+}
+
+function sameProduct(a: any, b: any) {
+  const ba = nkey(a.barcode), bb = nkey(b.barcode);
+  if (ba && bb) return ba === bb;
+  const la = nkey(a.batch), lb = nkey(b.batch);
+  if (la && lb && la !== lb) return false; // lotes distintos = produtos distintos
+  const ea = a.expires_at, eb = b.expires_at;
+  if (ea && eb && ea !== eb) return false;
+  const na = nkey(a.name), nb = nkey(b.name);
+  if (!na || !nb) return false;
+  if (!nameSimilar(na, nb)) return false;
+  const bra = nkey(a.brand), brb = nkey(b.brand);
+  if (bra && brb && !nameSimilar(bra, brb)) return false;
+  const wa = nkey(a.weight), wb = nkey(b.weight);
+  if (wa && wb && wa !== wb) return false;
+  return true;
+}
+
+const MERGE_FIELDS = [
+  "name", "brand", "barcode", "weight", "expires_at", "manufactured_at",
+  "batch", "sif", "category", "conservation",
+  "post_opening_value", "post_opening_unit", "post_opening_text",
+] as const;
+
+function mergeInto(base: any, extra: any) {
+  const conf = { ...(base.confidence || {}) };
+  for (const f of MERGE_FIELDS) {
+    const cb = Number((base.confidence || {})[f] ?? 0);
+    const ce = Number((extra.confidence || {})[f] ?? 0);
+    if (base[f] == null || base[f] === "" || (extra[f] != null && extra[f] !== "" && ce > cb)) {
+      if (extra[f] != null && extra[f] !== "") { base[f] = extra[f]; conf[f] = Math.max(cb, ce); }
+    } else if (extra[f] != null) {
+      conf[f] = Math.max(cb, ce);
+    }
+  }
+  base.confidence = conf;
+  base.photo_indices = Array.from(new Set([...(base.photo_indices || []), ...(extra.photo_indices || [])]));
+  // Só mantém pendências dos campos que continuam vazios após a fusão.
+  const stillEmpty = (f: string) => base[f] == null || base[f] === "";
+  base.issues = [...(base.issues || []), ...(extra.issues || [])]
+    .filter((i: any) => stillEmpty(i.field))
+    .filter((i: any, k: number, arr: any[]) => arr.findIndex((o) => o.field === i.field && o.reason === i.reason) === k);
+  base.needs_review = Array.from(
+    new Set([...(base.needs_review || []), ...(extra.needs_review || [])].filter(stillEmpty)),
+  );
+  base.missing = Array.from(
+    new Set([...(base.missing || []), ...(extra.missing || [])].filter(stillEmpty)),
+  );
+  base.field_status = { ...(extra.field_status || {}), ...(base.field_status || {}) };
+  return base;
+}
+
+function dedupeProducts(list: any[]): any[] {
+  const out: any[] = [];
+  for (const p of list) {
+    const hit = out.find((o) => sameProduct(o, p));
+    if (hit) mergeInto(hit, p);
+    else out.push({ ...p });
+  }
+  return out;
 }
 /** Gera um lote interno sequencial no formato `LT-YYYYMMDD-NNN`.
  *  A contagem é feita sobre os grupos da sessão atual para manter numeração
