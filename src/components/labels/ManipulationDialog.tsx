@@ -291,8 +291,11 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           template: "manipulation",
           brand: originSupplier,
           sif: full.sif ?? (manualSif.trim() || null),
-          notes: originNote ? `Origem: ${originSupplier || "—"} · Lote ${originLabel} · ${originNote}`
-                            : `Origem: ${originSupplier || "—"} · Lote ${originLabel}`,
+          notes: [
+            isImmediateRule ? "CONSUMO IMEDIATO APÓS ABERTURA" : null,
+            `Origem: ${originSupplier || "—"} · Lote ${originLabel}`,
+            originNote,
+          ].filter(Boolean).join(" · "),
           conservationLabel: consMap[full.conservation_method || (conservationMethod as any) || "refrigerated"] || null,
           storageLocation: full.storage_location ?? null,
           quantityWeight: weightLabel,
@@ -322,8 +325,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <ChefHat className="h-5 w-5 text-primary" /> Manipular produto
           </DialogTitle>
           <DialogDescription>
-            Selecione o produto recebido. Uma nova etiqueta será gerada com lote interno
-            <span className="font-mono"> MAN-…</span>.
+            Imprima a etiqueta no momento em que a embalagem for aberta. O sistema usa a
+            data/hora da impressão + a regra após abertura capturada no recebimento para
+            calcular a validade. Novo lote interno <span className="font-mono">MAN-…</span>.
           </DialogDescription>
         </DialogHeader>
 
