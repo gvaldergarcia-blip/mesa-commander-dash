@@ -1042,7 +1042,8 @@ function FieldEditor({ label, value, onChange, type = "text" }: { label: string;
 
 function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Partial<ProductGroup>) => void }) {
   const [editing, setEditing] = useState(false);
-  const configured = !!group.pop_enabled && !!group.pop_validity_value && !!group.pop_validity_unit;
+  const immediate = group.pop_validity_unit === "immediate";
+  const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
   const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
   const unitLabel = group.pop_validity_unit === "hours"
     ? "hora(s)"
@@ -1080,7 +1081,11 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
       {configured && !editing && (
         <p className="text-xs text-muted-foreground">
-          ✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}
+          {immediate ? (
+            <>✓ Após abertura: <span className="font-semibold text-foreground">consumo imediato</span></>
+          ) : (
+            <>✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}</>
+          )}
           {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
           {!group.pop_existing && group.pop_source === "ai" && (
             <span className="block text-[10px] text-primary mt-0.5">
@@ -1099,6 +1104,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
                 type="number"
                 min={1}
                 inputMode="numeric"
+                disabled={immediate}
                 value={group.pop_validity_value ?? ""}
                 onChange={(e) => {
                   const v = e.target.value.trim();
@@ -1112,13 +1118,21 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Unidade</label>
               <Select
                 value={group.pop_validity_unit || ""}
-                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days" | "months", pop_enabled: true, pop_source: "manual" })}
+                onValueChange={(v) =>
+                  onPatch({
+                    pop_validity_unit: v as "hours" | "days" | "months" | "immediate",
+                    pop_validity_value: v === "immediate" ? 1 : group.pop_validity_value,
+                    pop_enabled: true,
+                    pop_source: "manual",
+                  })
+                }
               >
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hours">Horas</SelectItem>
                   <SelectItem value="days">Dias</SelectItem>
                   <SelectItem value="months">Meses</SelectItem>
+                  <SelectItem value="immediate">Consumo imediato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
