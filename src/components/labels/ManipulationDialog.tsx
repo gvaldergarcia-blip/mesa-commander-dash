@@ -44,6 +44,11 @@ function fmtDateTime(d: Date): string {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** Janela usada quando a embalagem manda "consumir imediatamente após aberto".
+ *  A etiqueta é impressa com o aviso CONSUMO IMEDIATO; a validade técnica é
+ *  curta apenas para o controle interno de vencimento. */
+const IMMEDIATE_HOURS = 2;
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
