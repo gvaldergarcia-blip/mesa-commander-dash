@@ -39,6 +39,7 @@ Retorne SOMENTE JSON válido, sem markdown:
       "photo_indices": [number],
       "name": string|null,
       "brand": string|null,
+      "supplier": string|null,
       "barcode": string|null,
       "weight": string|null,
       "expires_at": "YYYY-MM-DD"|null,
