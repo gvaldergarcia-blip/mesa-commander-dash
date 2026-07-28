@@ -59,10 +59,23 @@ Retorne SOMENTE JSON válido, sem markdown:
 
 - Datas SEMPRE ISO YYYY-MM-DD (converta DD/MM/AAAA; ano 2 dígitos = 20AA).
 - "sif" apenas números.
-REGRA PÓS-ABERTURA (validade após abertura/manipulação):
-- Procure no rótulo textos como "Após aberto consumir em até 7 dias", "Consumir em até 48 horas",
-  "Após abertura manter refrigerado por 5 dias", "Depois de aberto consumir em até 72 horas",
-  "Após descongelado consumir em até 24 horas".
+REGRA PÓS-ABERTURA (validade após abertura/manipulação) — PRIORIDADE MÁXIMA:
+- ANTES de finalizar cada produto, VARRA TODAS as fotos do grupo (frente, verso, laterais, tampa,
+  tabela nutricional, textos pequenos em caixa alta ou impressos a laser) procurando ESPECIFICAMENTE
+  qualquer frase equivalente a:
+  · "Após aberto consumir em até X dias/horas"
+  · "Após abertura consumir em até X dias/horas"
+  · "Consumir em até X dias após a abertura"
+  · "Depois de aberto consumir em até X dias/horas"
+  · "Após aberto manter refrigerado e consumir em até X dias"
+  · "Manter refrigerado após aberto e consumir em até X dias"
+  · "Após abertura manter sob refrigeração por X dias"
+  · "Após descongelamento/descongelado consumir em até X horas"
+  · "Válido por X dias após aberto"
+  · "Após aberto consumir imediatamente" / "Consumir imediatamente após aberto" / "Consumo imediato"
+- A frase pode estar abreviada ("Apos aberto cons. até 5 dias"), sem acentos, quebrada em duas linhas,
+  dentro do bloco de "Modo de conservação" ou junto de "Conservar entre 0°C e 4°C". Considere todas.
+- Se a frase existir e for legível, é OBRIGATÓRIO preencher os três campos — não a deixe como null.
 - Se encontrar, retorne o número em "post_opening_value", a unidade em "post_opening_unit"
   ("hours", "days" ou "months") e o texto literal lido em "post_opening_text".
 - CONSUMO IMEDIATO: se o rótulo disser "consumir imediatamente após aberto", "consumir logo após aberto",
