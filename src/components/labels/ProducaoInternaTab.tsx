@@ -510,16 +510,50 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     return list.filter((p) => p.name.toLowerCase().includes(s)).slice(0, 50);
   }, [products, search]);
 
-  const productValidity = (p: LabelProduct) => ({
-    value: p.production_validity_value ?? p.validity_days ?? 3,
-    unit: (p.production_validity_unit ?? "days") as string,
-  });
+  // A regra de validade da produção NUNCA é inventada: só existe se cadastrada.
+  const productValidity = (p: LabelProduct): { value: number; unit: string } | null => {
+    const value = p.production_validity_value;
+    const unit = p.production_validity_unit;
+    if (!value || value <= 0 || !unit) return null;
+    return { value, unit: unit as string };
+  };
+
+  const currentRule = product ? productValidity(product) : null;
 
   const previewExpiry = useMemo(() => {
-    if (!product) return null;
-    const { value, unit } = productValidity(product);
-    return addValidity(new Date(), value, unit);
-  }, [product]);
+    if (!product || !currentRule) return null;
+    return addValidity(new Date(), currentRule.value, currentRule.unit);
+  }, [product, currentRule?.value, currentRule?.unit]);
+
+  // Configuração da regra ausente (Cenário 2)
+  const [ruleValue, setRuleValue] = useState<number>(3);
+  const [ruleUnit, setRuleUnit] = useState<string>("days");
+  const [savingRule, setSavingRule] = useState(false);
+
+  const saveMissingRule = async () => {
+    if (!product) return;
+    const value = Math.max(1, Number(ruleValue) || 0);
+    if (!value) return toast.error("Informe a validade da produção");
+    setSavingRule(true);
+    try {
+      const updated = await updateProduct({
+        id: product.id,
+        input: {
+          name: product.name,
+          validity_days: ruleUnit === "days" ? value : ruleUnit === "months" ? value * 30 : 1,
+          origin: "produced",
+          production_validity_value: value,
+          production_validity_unit: ruleUnit as any,
+        } as any,
+      });
+      setProduct({ ...product, ...(updated as any), production_validity_value: value, production_validity_unit: ruleUnit as any });
+      toast.success("Regra de validade da produção salva");
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao salvar a regra");
+    } finally {
+      setSavingRule(false);
+    }
+  };
 
   const pickProduct = (p: LabelProduct) => {
     setProduct(p);
@@ -555,10 +589,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
   const confirmProduction = async () => {
     if (!product) return;
     if (!prod.employeeId) return toast.error("Selecione o responsável");
+    const rule = productValidity(product);
+    if (!rule) return toast.error("Cadastre a regra de validade da produção deste produto antes de imprimir");
     const qty = Math.max(1, Math.min(30, Number(prod.qty) || 1));
     const manufactureDate = new Date();
-    const { value, unit } = productValidity(product);
-    const expiryDate = addValidity(manufactureDate, value, unit);
+    const expiryDate = addValidity(manufactureDate, rule.value, rule.unit);
 
     const employee = employees.find((e) => e.id === prod.employeeId);
     // Lote interno automático (PRD-YYYYMMDD-NNN)
