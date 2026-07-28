@@ -246,6 +246,7 @@ export default function EtiquetasPage() {
               setStockInitialSector(null);
               setTab("estoque");
             }}
+            onOpenRenewals={() => setTab("renovacao")}
           />
         </TabsContent>
 
