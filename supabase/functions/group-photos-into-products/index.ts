@@ -114,7 +114,8 @@ function isoOk(s: any) { return /^\d{4}-\d{2}-\d{2}$/.test(s || ""); }
 function eanValid(code: string): boolean {
   if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
   const digits = code.split("").map(Number);
-  const check = digits.pop()!;
+  const check = digits.pop();
+  if (check == null) return false;
   let sum = 0;
   digits.reverse().forEach((d, i) => { sum += d * (i % 2 === 0 ? 3 : 1); });
   return (10 - (sum % 10)) % 10 === check;
