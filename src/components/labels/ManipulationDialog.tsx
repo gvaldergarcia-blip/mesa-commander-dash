@@ -143,8 +143,11 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     if (productConfig?.manipulation_enabled) {
       const v = Number(productConfig.manipulation_validity_value || 0);
       const u = productConfig.manipulation_validity_unit;
+      if (u === "immediate") {
+        return { value: 1, unit: "immediate" as const, manual: false };
+      }
       if (v && (u === "hours" || u === "days" || u === "months")) {
-        return { value: v, unit: u as "hours" | "days" | "months", manual: false };
+        return { value: v, unit: u as "hours" | "days" | "months" | "immediate", manual: false };
       }
     }
     return null;
@@ -153,6 +156,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const computedExpiry = useMemo(() => {
     if (manipulationRule) {
       const base = new Date();
+      if (manipulationRule.unit === "immediate") {
+        return new Date(base.getTime() + IMMEDIATE_HOURS * 3600_000);
+      }
       if (manipulationRule.unit === "months") {
         const d = new Date(base);
         d.setMonth(d.getMonth() + manipulationRule.value);
@@ -169,8 +175,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     }
     return null;
   }, [manipulationRule, manualExpiryAt]);
-  const configuredRule = !!productConfig?.manipulation_enabled
-    && Number(productConfig?.manipulation_validity_value || 0) > 0;
+  const isImmediateRule = manipulationRule?.unit === "immediate";
+  const configuredRule = !!manipulationRule;
   const missingConfig = !!selectedProductId && !configuredRule;
   const manualOriginMode = !!selectedProductId && (forceManualOrigin || (!loadingLots && lots.length === 0));
   // Dados que o recebimento pode não ter informado
@@ -462,9 +468,15 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 <Clock className="h-3.5 w-3.5" /> Regra aplicada
               </div>
               <div>
-                ✓ {manipulationRule.value}{" "}
-                {manipulationRule.unit === "hours" ? "hora(s)" : manipulationRule.unit === "months" ? "mês(es)" : "dia(s)"} de uso
-                {" "}a partir de {fmtDateTime(new Date())}
+                {isImmediateRule ? (
+                  <>✓ Consumo imediato após abertura — impressa em {fmtDateTime(new Date())}</>
+                ) : (
+                  <>
+                    ✓ {manipulationRule.value}{" "}
+                    {manipulationRule.unit === "hours" ? "hora(s)" : manipulationRule.unit === "months" ? "mês(es)" : "dia(s)"} de uso
+                    {" "}a partir de {fmtDateTime(new Date())}
+                  </>
+                )}
               </div>
               <div className="text-muted-foreground">
                 Nova validade calculada: <span className="font-semibold text-foreground">{fmtDateTime(computedExpiry)}</span>
