@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle, Search, PackageCheck, PackageX, ArrowLeft, Scale, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, Search, PackageCheck, PackageX, ArrowLeft, Scale, AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useHiddenSectors } from '@/hooks/useHiddenSectors';
 import { useStockStatus } from '@/hooks/useStockStatus';
 import { useLabelEmployees } from '@/hooks/useLabelEmployees';
 import { useLabeledProducts, type LabeledProduct } from '@/hooks/useLabeledProducts';
@@ -26,6 +37,8 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
   const { items, isLoading } = useLabeledProducts();
   const { statusMap, setStatus, isMutating } = useStockStatus();
   const { activeEmployees } = useLabelEmployees();
+  const { hidden, hideSector, restoreAll } = useHiddenSectors();
+  const [sectorToDelete, setSectorToDelete] = useState<string | null>(null);
 
   const [selectedSector, setSelectedSector] = useState<string | null>(initialSector);
   const [search, setSearch] = useState('');
@@ -52,8 +65,11 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     const fromAll = items.map((p) => p.sector);
     const all = mergeSectors([...fromActive, ...fromAll]);
     const hasNone = products.some((p) => !p.sector);
-    return hasNone ? [...all, 'Sem setor'] : all;
-  }, [products, items]);
+    const full = hasNone ? [...all, 'Sem setor'] : all;
+    const withProducts = new Set(products.map((p) => sectorOf(p)));
+    // Setor oculto reaparece sozinho se voltar a ter produtos ativos.
+    return full.filter((s) => !hidden.includes(s) || withProducts.has(s));
+  }, [products, items, hidden]);
 
   const bySector = useMemo(() => {
     const map = new Map<string, LabeledProduct[]>();
@@ -86,12 +102,19 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
   if (!selectedSector) {
     return (
       <div className="space-y-5">
-        <div>
-          <h2 className="text-xl font-semibold">Conferência operacional</h2>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Escolha um setor para conferir. Você verá apenas os produtos daquele setor e responderá se cada um está
-            suficiente ou precisa ser reposto.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Conferência operacional</h2>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Escolha um setor para conferir. Você verá apenas os produtos daquele setor e responderá se cada um está
+              suficiente ou precisa ser reposto.
+            </p>
+          </div>
+          {hidden.length > 0 && (
+            <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={restoreAll}>
+              <RotateCcw className="h-3.5 w-3.5" /> Restaurar setores ({hidden.length})
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
@@ -113,11 +136,18 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
               const pending = list.length - missing - okCount;
               const hex = s === 'Sem setor' ? NO_SECTOR_HEX : getSectorHex(s);
               return (
-                <button
+                <div
                   key={s}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedSector(s)}
-                  className="group text-left p-5 rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedSector(s);
+                    }
+                  }}
+                  className="group relative cursor-pointer text-left p-5 rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40"
                   style={{
                     backgroundImage: `linear-gradient(135deg, ${withAlpha(hex, 0.14)} 0%, transparent 70%)`,
                     boxShadow: `0 8px 24px -18px ${withAlpha(hex, 0.5)}`,
@@ -125,6 +155,7 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold text-lg text-foreground truncate">{s}</h3>
+                    <div className="flex items-center gap-1.5 shrink-0">
                     <span
                       className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border"
                       style={{ backgroundColor: withAlpha(hex, 0.18), borderColor: withAlpha(hex, 0.5), color: hex }}
@@ -133,6 +164,20 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                         ? 'sem produtos'
                         : `${list.length} ${list.length === 1 ? 'produto' : 'produtos'}`}
                     </span>
+                    {list.length === 0 && (
+                      <button
+                        type="button"
+                        aria-label={`Apagar card do setor ${s}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSectorToDelete(s);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    </div>
                   </div>
                   {list.length === 0 ? (
                     <p className="mt-3 text-xs text-muted-foreground">
@@ -153,11 +198,35 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                     )}
                   </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
         )}
+
+        <AlertDialog open={!!sectorToDelete} onOpenChange={(o) => !o && setSectorToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Apagar card do setor?</AlertDialogTitle>
+              <AlertDialogDescription>
+                O card “{sectorToDelete}” deixa de aparecer no Estoque. Nenhum produto ou histórico é apagado — se um
+                novo recebimento usar esse setor, ele volta automaticamente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (sectorToDelete) hideSector(sectorToDelete);
+                  setSectorToDelete(null);
+                }}
+              >
+                Apagar card
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
