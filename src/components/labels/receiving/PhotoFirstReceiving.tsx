@@ -261,6 +261,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           pop_validity_unit: null,
           pop_notes: null,
           pop_existing: false,
+          // Quantidade de etiquetas — ajustável pelo operador após a análise da IA.
+          label_count: 1,
           // Regra pós-abertura lida pela IA no rótulo (quando existir).
           pop_source: p.post_opening_value && p.post_opening_unit ? "ai" : null,
           pop_ai_text: p.post_opening_text ?? null,
@@ -450,7 +452,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     reset(); onOpenChange(false);
   };
 
-  const finalize = async () => {
+  const finalize = async (printNow = false) => {
     if (!readyGroups.length) { toast.warning("Nenhum produto pronto."); return; }
     // 1) cria o recebimento com todos os produtos prontos
     const supplier_id = supplierId === "none" ? null : supplierId;
@@ -462,7 +464,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
         const w = parseWeightString(g.weight);
         return {
           raw_name: g.name || "Produto",
-          quantity: 1,
+          quantity: Math.max(1, Number(g.label_count ?? 1)),
           unit: "un",
           weight: w?.value ?? null,
           weight_unit: w?.unit ?? null,
@@ -497,11 +499,16 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
     await bulkResolvePending({ receiptId: receipt.id, supplierId: supplier_id, items: bulkItems });
-    // 3) marca sessão como finalizada — a sessão fica preservada até o dono
-    //    clicar em "Concluir sessão". Assim, se cancelar a caixa de impressão
-    //    do navegador, ele volta para a lista de produtos lidos pela IA e pode
-    //    reimprimir a qualquer momento.
     setFinalizedReceiptId(receipt.id);
+    // 3) Por padrão NÃO imprimimos no recebimento. A etiqueta é impressa
+    //    somente na abertura da embalagem (módulo Manipulação), usando
+    //    data/hora da impressão + regra após abertura capturada aqui.
+    if (!printNow) {
+      toast.success(
+        `${bulkItems.length} produto(s) registrados. Imprima a etiqueta quando a embalagem for aberta.`,
+      );
+      return;
+    }
     try {
       const n = await printFromReceipt(receipt.id, supplier_id);
       if (n > 0) toast.success(`${n} etiqueta(s) enviadas para impressão. Cancele a impressão e clique em "Reimprimir" se precisar reenviar.`);
@@ -647,12 +654,12 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
               <>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4" />
-                  Recebimento criado. Se cancelou a impressão, clique em <span className="font-semibold">Reimprimir</span>.
+                  Recebimento registrado. As etiquetas devem ser impressas na abertura da embalagem — se precisar imprimir agora, use <span className="font-semibold">Imprimir agora</span>.
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
                     {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Reimprimir
+                    Imprimir agora
                   </Button>
                   <Button onClick={concludeSession} className="gap-2">
                     <CheckCircle2 className="h-4 w-4" /> Concluir sessão
@@ -664,13 +671,19 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                 <p className="text-xs text-muted-foreground">
                   <span className="font-semibold text-foreground">{readyGroups.length}</span> pronto(s)
                   {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
+                  <span className="block text-[10px]">
+                    A etiqueta é impressa apenas quando a embalagem for aberta.
+                  </span>
                 </p>
                 <div className="flex gap-2">
                   <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
-                  <Button onClick={finalize} disabled={!canFinalize} className="gap-2">
+                  <Button variant="outline" onClick={() => void finalize(true)} disabled={!canFinalize} className="gap-2">
+                    Registrar e imprimir agora
+                  </Button>
+                  <Button onClick={() => void finalize(false)} disabled={!canFinalize} className="gap-2">
                     {(isCreating || isBulkResolving) && <Loader2 className="h-4 w-4 animate-spin" />}
                     <CheckCircle2 className="h-4 w-4" />
-                    Gerar {readyGroups.length} etiqueta(s)
+                    Registrar {readyGroups.length} produto(s)
                   </Button>
                 </div>
               </>
@@ -963,7 +976,32 @@ function GroupCard({
         </div>
 
         {/* Configurações complementares (sempre visíveis, mas resumidas) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-border/50">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-2 border-t border-border/50">
+          <div>
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Etiquetas</label>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0"
+                onClick={() => onPatch({ label_count: Math.max(1, Number(group.label_count ?? 1) - 1) })}
+              >
+                −
+              </Button>
+              <Input
+                type="number" min={1} inputMode="numeric" className="text-center"
+                value={group.label_count ?? 1}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  onPatch({ label_count: Number.isFinite(n) && n > 0 ? n : 1 });
+                }}
+              />
+              <Button
+                type="button" size="icon" variant="outline" className="h-9 w-9 shrink-0"
+                onClick={() => onPatch({ label_count: Math.max(1, Number(group.label_count ?? 1) + 1) })}
+              >
+                +
+              </Button>
+            </div>
+          </div>
           <div>
             <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Local (setor)</label>
             <SectorCombobox value={group.storage_location} onChange={(v) => onPatch({ storage_location: v })} />
@@ -1004,7 +1042,8 @@ function FieldEditor({ label, value, onChange, type = "text" }: { label: string;
 
 function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Partial<ProductGroup>) => void }) {
   const [editing, setEditing] = useState(false);
-  const configured = !!group.pop_enabled && !!group.pop_validity_value && !!group.pop_validity_unit;
+  const immediate = group.pop_validity_unit === "immediate";
+  const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
   const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
   const unitLabel = group.pop_validity_unit === "hours"
     ? "hora(s)"
@@ -1042,7 +1081,11 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
       {configured && !editing && (
         <p className="text-xs text-muted-foreground">
-          ✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}
+          {immediate ? (
+            <>✓ Após abertura: <span className="font-semibold text-foreground">consumo imediato</span></>
+          ) : (
+            <>✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}</>
+          )}
           {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
           {!group.pop_existing && group.pop_source === "ai" && (
             <span className="block text-[10px] text-primary mt-0.5">
@@ -1061,6 +1104,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
                 type="number"
                 min={1}
                 inputMode="numeric"
+                disabled={immediate}
                 value={group.pop_validity_value ?? ""}
                 onChange={(e) => {
                   const v = e.target.value.trim();
@@ -1074,13 +1118,21 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Unidade</label>
               <Select
                 value={group.pop_validity_unit || ""}
-                onValueChange={(v) => onPatch({ pop_validity_unit: v as "hours" | "days" | "months", pop_enabled: true, pop_source: "manual" })}
+                onValueChange={(v) =>
+                  onPatch({
+                    pop_validity_unit: v as "hours" | "days" | "months" | "immediate",
+                    pop_validity_value: v === "immediate" ? 1 : group.pop_validity_value,
+                    pop_enabled: true,
+                    pop_source: "manual",
+                  })
+                }
               >
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hours">Horas</SelectItem>
                   <SelectItem value="days">Dias</SelectItem>
                   <SelectItem value="months">Meses</SelectItem>
+                  <SelectItem value="immediate">Consumo imediato</SelectItem>
                 </SelectContent>
               </Select>
             </div>

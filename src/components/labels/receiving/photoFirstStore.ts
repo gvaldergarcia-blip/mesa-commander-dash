@@ -56,8 +56,11 @@ export interface PfGroup {
   /** Regra do fabricante após abertura (cadastrada uma única vez por produto). */
   pop_enabled: boolean;
   pop_validity_value: number | null;
-  pop_validity_unit: "hours" | "days" | "months" | null;
+  /** `immediate` = "consumir imediatamente após aberto". */
+  pop_validity_unit: "hours" | "days" | "months" | "immediate" | null;
   pop_notes: string | null;
+  /** Quantas etiquetas serão impressas para este produto (definido após a análise da IA). */
+  label_count?: number;
   /** Indica que o produto já possui POP salvo no cadastro (permite apenas edição opcional). */
   pop_existing: boolean;
   /** Origem da regra de validade após abertura/manipulação. */
