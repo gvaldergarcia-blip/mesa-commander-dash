@@ -1293,7 +1293,12 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
   const immediate = group.pop_validity_unit === "immediate";
   const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
   const showForm = editing || group.pop_source === "manual" || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
-  const computed = configured
+  const fixedDate = group.pop_fixed_date ? new Date(group.pop_fixed_date) : null;
+  const hasFixed = !!fixedDate && !isNaN(fixedDate.getTime());
+  const [mode, setMode] = useState<"rule" | "date">(hasFixed ? "date" : "rule");
+  const computed = hasFixed
+    ? fixedDate
+    : configured
     ? applyPopRule(now, group.pop_validity_value, group.pop_validity_unit)
     : null;
   const unitLabel = group.pop_validity_unit === "hours"
@@ -1362,6 +1367,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Após abertura</label>
+              {null}
               <Input
                 type="number"
                 min={1}
