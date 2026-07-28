@@ -138,7 +138,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     if (productConfig?.manipulation_enabled) {
       const v = Number(productConfig.manipulation_validity_value || 0);
       const u = productConfig.manipulation_validity_unit;
-      if (v && (u === "hours" || u === "days")) return { value: v, unit: u as "hours" | "days", manual: false };
+      if (v && (u === "hours" || u === "days" || u === "months")) {
+        return { value: v, unit: u as "hours" | "days" | "months", manual: false };
+      }
     }
     return null;
   }, [productConfig]);
@@ -146,6 +148,11 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const computedExpiry = useMemo(() => {
     if (manipulationRule) {
       const base = new Date();
+      if (manipulationRule.unit === "months") {
+        const d = new Date(base);
+        d.setMonth(d.getMonth() + manipulationRule.value);
+        return d;
+      }
       const ms = manipulationRule.unit === "hours"
         ? manipulationRule.value * 3600_000
         : manipulationRule.value * 86_400_000;
@@ -450,7 +457,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 <Clock className="h-3.5 w-3.5" /> Regra aplicada
               </div>
               <div>
-                ✓ {manipulationRule.value} {manipulationRule.unit === "hours" ? "hora(s)" : "dia(s)"} de uso
+                ✓ {manipulationRule.value}{" "}
+                {manipulationRule.unit === "hours" ? "hora(s)" : manipulationRule.unit === "months" ? "mês(es)" : "dia(s)"} de uso
                 {" "}a partir de {fmtDateTime(new Date())}
               </div>
               <div className="text-muted-foreground">
