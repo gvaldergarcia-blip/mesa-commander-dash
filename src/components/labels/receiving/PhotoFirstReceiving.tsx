@@ -1291,9 +1291,15 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
     return () => clearInterval(t);
   }, []);
   const immediate = group.pop_validity_unit === "immediate";
-  const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
+  const fixedDate = group.pop_fixed_date ? new Date(group.pop_fixed_date) : null;
+  const hasFixed = !!fixedDate && !isNaN(fixedDate.getTime());
+  const configured =
+    hasFixed || (!!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value));
   const showForm = editing || group.pop_source === "manual" || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
-  const computed = configured
+  const [mode, setMode] = useState<"rule" | "date">(hasFixed ? "date" : "rule");
+  const computed = hasFixed
+    ? fixedDate
+    : configured
     ? applyPopRule(now, group.pop_validity_value, group.pop_validity_unit)
     : null;
   const unitLabel = group.pop_validity_unit === "hours"
@@ -1332,7 +1338,9 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
         {configured && !editing && !showForm && (
         <p className="text-xs text-muted-foreground">
-          {immediate ? (
+          {hasFixed ? (
+            <>✓ Validade após abertura: <span className="font-semibold text-foreground">{fmtPopDate(fixedDate!)}</span> (data informada)</>
+          ) : immediate ? (
             <>✓ Após abertura: <span className="font-semibold text-foreground">consumo imediato</span></>
           ) : (
             <>✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}</>
@@ -1359,6 +1367,69 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
       {showForm && (
         <div className="space-y-2">
+          <div className="inline-flex rounded-md border border-border p-0.5 gap-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "rule" ? "secondary" : "ghost"}
+              className="h-7 text-xs"
+              onClick={() => {
+                setMode("rule");
+                onPatch({ pop_fixed_date: null });
+              }}
+            >
+              Por regra (ex.: 5 dias)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "date" ? "secondary" : "ghost"}
+              className="h-7 text-xs"
+              onClick={() => setMode("date")}
+            >
+              Data completa
+            </Button>
+          </div>
+
+          {mode === "date" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Validade após abertura (data e hora)
+                </label>
+                <Input
+                  type="datetime-local"
+                  value={group.pop_fixed_date || ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) {
+                      onPatch({ pop_fixed_date: null, pop_source: "manual" });
+                      return;
+                    }
+                    const d = new Date(v);
+                    const hours = Math.max(1, Math.round((d.getTime() - Date.now()) / 3_600_000));
+                    onPatch({
+                      pop_fixed_date: v,
+                      pop_enabled: true,
+                      pop_source: "manual",
+                      pop_validity_unit: "hours",
+                      pop_validity_value: hours,
+                    });
+                  }}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Observações (opcional)</label>
+                <Input
+                  value={group.pop_notes || ""}
+                  onChange={(e) => onPatch({ pop_notes: e.target.value, pop_enabled: true })}
+                  placeholder="Ex: Após abertura manter refrigerado."
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === "rule" && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Após abertura</label>
@@ -1407,6 +1478,7 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
               />
             </div>
           </div>
+          )}
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             A IA tenta identificar automaticamente na embalagem informações como “Após aberto consumir em até 5 dias”,
             “Após descongelamento consumir em até 48 horas” ou “Consumir em até 30 dias após abertura”.
@@ -1419,11 +1491,15 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Resultado</span>
             <span className="font-semibold text-foreground">
               {computed
-                ? (immediate ? "Consumo imediato no momento da impressão" : fmtPopDate(computed))
-                : "Informe quantidade e unidade para calcular"}
+                ? (immediate && !hasFixed ? "Consumo imediato no momento da impressão" : fmtPopDate(computed))
+                : mode === "date"
+                  ? "Informe a data e hora completa"
+                  : "Informe quantidade e unidade para calcular"}
             </span>
             <span className="block text-[10px] text-muted-foreground mt-0.5">
-              Data/hora atual + regra após abertura = validade da manipulação.
+              {hasFixed
+                ? "Data completa informada manualmente para a validade da manipulação."
+                : "Data/hora atual + regra após abertura = validade da manipulação."}
             </span>
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed border-l-2 border-amber-500/40 pl-2">

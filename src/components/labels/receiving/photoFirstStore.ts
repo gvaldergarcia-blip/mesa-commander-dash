@@ -67,6 +67,8 @@ export interface PfGroup {
   pop_source?: "ai" | "operator" | "manual" | null;
   /** Texto literal lido no rótulo (quando a origem for a IA). */
   pop_ai_text?: string | null;
+  /** Data/hora completa informada manualmente (ISO local: yyyy-MM-ddTHH:mm). */
+  pop_fixed_date?: string | null;
 }
 
 export interface PfState {
