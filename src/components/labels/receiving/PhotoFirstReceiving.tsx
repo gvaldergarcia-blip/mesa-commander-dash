@@ -704,8 +704,6 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                     Registrar {readyGroups.length} produto(s)
                   </Button>
                 </div>
-              </>
-            )}
           </div>
         )}
       </DialogContent>
