@@ -134,7 +134,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { activeEmployees } = useLabelEmployees();
   const registerPrints = useRegisterPrints();
   // Estado persistente entre aberturas/fechamentos do dialog e trocas de aba.
-  const { photos, groups, supplierId, reference, scanning, finalizedReceiptId } = usePhotoFirstState();
+  const { photos, groups, supplierId, reference, scanning, lastReceipt } = usePhotoFirstState();
   const setPhotos = (updater: Photo[] | ((prev: Photo[]) => Photo[])) =>
     photoFirstStore.set((s) => ({ photos: typeof updater === "function" ? (updater as any)(s.photos) : updater }));
   const setGroups = (updater: ProductGroup[] | null | ((prev: ProductGroup[] | null) => ProductGroup[] | null)) =>
@@ -449,11 +449,11 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   };
 
   const reprint = async () => {
-    if (!finalizedReceiptId) return;
+    if (!lastReceipt?.id) return;
     setReprinting(true);
     try {
-      const supplier_id = supplierId === "none" ? null : supplierId;
-      const n = await printFromReceipt(finalizedReceiptId, supplier_id);
+      const supplier_id = lastReceipt.supplierId && lastReceipt.supplierId !== "none" ? lastReceipt.supplierId : null;
+      const n = await printFromReceipt(lastReceipt.id, supplier_id);
       if (n > 0) toast.success(`${n} etiqueta(s) reenviadas para impressão.`);
     } catch (e: any) {
       console.error("[PhotoFirstReceiving] reprint", e);
@@ -461,10 +461,7 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     } finally { setReprinting(false); }
   };
 
-  const concludeSession = () => {
-    if (!confirm("Concluir esta sessão de recebimento? A prévia dos produtos será limpa. As etiquetas continuam disponíveis no Diário Operacional.")) return;
-    reset(); onOpenChange(false);
-  };
+  const dismissLastReceipt = () => photoFirstStore.set({ lastReceipt: null });
 
   const finalize = async (printNow = false) => {
     if (!readyGroups.length) { toast.warning("Nenhum produto pronto."); return; }
@@ -513,11 +510,17 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     }).filter((x) => x.itemId);
     if (!bulkItems.length) { toast.error("Falha ao vincular itens do recebimento."); return; }
     await bulkResolvePending({ receiptId: receipt.id, supplierId: supplier_id, items: bulkItems });
-    setFinalizedReceiptId(receipt.id);
+    // Libera imediatamente o espaço para novos produtos: o bloco registrado sai
+    // da sessão (fotos + grupos + rascunho remoto), restando apenas um atalho
+    // local para imprimir agora, caso a embalagem já esteja sendo aberta.
+    photoFirstStore.set({
+      lastReceipt: { id: receipt.id, count: bulkItems.length, at: Date.now(), supplierId: supplierId },
+    });
     // 3) Por padrão NÃO imprimimos no recebimento. A etiqueta é impressa
     //    somente na abertura da embalagem (módulo Manipulação), usando
     //    data/hora da impressão + regra após abertura capturada aqui.
     if (!printNow) {
+      photoFirstStore.reset({ keepLastReceipt: true });
       toast.success(
         `${bulkItems.length} produto(s) registrados. Imprima a etiqueta quando a embalagem for aberta.`,
       );
@@ -530,6 +533,8 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
     } catch (e: any) {
       console.error("[PhotoFirstReceiving] print", e);
       toast.warning("Etiquetas geradas, mas falhou ao imprimir automaticamente. Use \"Reimprimir\" abaixo ou abra o Diário Operacional.");
+    } finally {
+      photoFirstStore.reset({ keepLastReceipt: true });
     }
   };
 
@@ -661,27 +666,26 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           </div>
         )}
 
+        {/* Último bloco registrado — não bloqueia a entrada de novos produtos */}
+        {lastReceipt && (
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="h-4 w-4" />
+              {lastReceipt.count} produto(s) registrados e liberados da sessão. Já pode fotografar o próximo bloco.
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
+                {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Imprimir agora
+              </Button>
+              <Button size="sm" variant="ghost" onClick={dismissLastReceipt}>Ocultar</Button>
+            </div>
+          </div>
+        )}
+
         {/* Rodapé */}
         {groups && (
           <div className="sticky bottom-0 -mx-6 -mb-6 px-6 py-3 bg-background/95 backdrop-blur border-t flex items-center justify-between gap-3 flex-wrap">
-            {finalizedReceiptId ? (
-              <>
-                <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Recebimento registrado. As etiquetas devem ser impressas na abertura da embalagem — se precisar imprimir agora, use <span className="font-semibold">Imprimir agora</span>.
-                </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={reprint} disabled={reprinting} className="gap-2">
-                    {reprinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Imprimir agora
-                  </Button>
-                  <Button onClick={concludeSession} className="gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Concluir sessão
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
                 <p className="text-xs text-muted-foreground">
                   <span className="font-semibold text-foreground">{readyGroups.length}</span> pronto(s)
                   {pendingGroups.length > 0 && <> · <span className="text-amber-600">{pendingGroups.length} aguardando confirmação</span></>}
@@ -700,8 +704,6 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
                     Registrar {readyGroups.length} produto(s)
                   </Button>
                 </div>
-              </>
-            )}
           </div>
         )}
       </DialogContent>
