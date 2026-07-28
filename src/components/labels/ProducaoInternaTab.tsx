@@ -842,20 +842,57 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
               </div>
             </div>
 
-            <div className={cn("text-xs p-3 rounded-md bg-muted/40 border border-border/40 space-y-1")}>
-              <div>📅 Produção: <strong>agora</strong></div>
-              <div>
-                ⏳ Validade automática:{" "}
-                <strong>
-                  {previewExpiry ? format(previewExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}
-                </strong>
+            {currentRule ? (
+              <div className={cn("text-xs p-3 rounded-md bg-muted/40 border border-border/40 space-y-1")}>
+                <div>📅 Produção registrada na data/hora atual</div>
+                <div>
+                  ⏳ Validade prevista:{" "}
+                  <strong>
+                    {previewExpiry ? format(previewExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR }) : "—"}
+                  </strong>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  Baseada na regra de validade da produção deste produto ({currentRule.value}{" "}
+                  {VALIDITY_UNITS.find((u) => u.v === currentRule.unit)?.l}).
+                </div>
+                <div>🏷️ Lote interno gerado automaticamente</div>
               </div>
-              <div>🏷️ Lote interno gerado automaticamente</div>
-            </div>
+            ) : (
+              <div className="text-xs p-3 rounded-md bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="space-y-1">
+                  <div className="font-semibold text-amber-800 dark:text-amber-300">
+                    Este produto ainda não possui uma regra de validade da produção.
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Informe a validade padrão utilizada pelo estabelecimento para este produto. O MesaClik nunca
+                    calcula validade sem uma regra definida por você.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Validade da produção *</Label>
+                    <Input type="number" min={1} value={ruleValue} onChange={(e) => setRuleValue(Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label>Unidade</Label>
+                    <Select value={ruleUnit} onValueChange={setRuleUnit}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {VALIDITY_UNITS.map((u) => <SelectItem key={u.v} value={u.v}>{u.l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button size="sm" onClick={saveMissingRule} disabled={savingRule} className="gap-2">
+                  {savingRule ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Salvar regra de validade
+                </Button>
+              </div>
+            )}
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => close(false)}>Cancelar</Button>
-              <Button onClick={confirmProduction} disabled={saving} className="gap-2">
+              <Button onClick={confirmProduction} disabled={saving || !currentRule} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                 Registrar e imprimir
               </Button>
