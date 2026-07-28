@@ -299,34 +299,12 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <ChefHat className="h-5 w-5 text-primary" /> Manipular produto
           </DialogTitle>
           <DialogDescription>
-            Escolha a origem. Uma nova etiqueta será gerada com lote interno
+            Selecione o produto recebido. Uma nova etiqueta será gerada com lote interno
             <span className="font-mono"> MAN-…</span>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Seletor de modo */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setMode("linked")}
-              className={`p-3 rounded-lg border text-left text-xs ${mode === "linked" ? "border-primary bg-primary/10" : "border-border bg-muted/30"}`}
-            >
-              <div className="font-semibold text-sm mb-0.5">Produto recebido</div>
-              <div className="text-muted-foreground">Rastreabilidade total (recomendado)</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("direct")}
-              className={`p-3 rounded-lg border text-left text-xs ${mode === "direct" ? "border-primary bg-primary/10" : "border-border bg-muted/30"}`}
-            >
-              <div className="font-semibold text-sm mb-0.5">Manipulação direta</div>
-              <div className="text-muted-foreground">Sem recebimento prévio</div>
-            </button>
-          </div>
-
-          {mode === "linked" ? (
-            <>
           <div className="space-y-1.5">
             <Label>Produto</Label>
             <Popover open={productOpen} onOpenChange={setProductOpen}>
