@@ -127,6 +127,24 @@ function genInternalLot(existingGroups: ProductGroup[] | null): string {
 
 interface Props { open: boolean; onOpenChange: (v: boolean) => void }
 
+/** Aplica a regra "após abertura" sobre um instante (normalmente agora).
+ *  `immediate` = consumir imediatamente (validade = mesmo instante). */
+function applyPopRule(base: Date, value: number | null | undefined, unit: string | null | undefined): Date | null {
+  if (!unit) return null;
+  const d = new Date(base.getTime());
+  if (unit === "immediate") return d;
+  const v = Number(value);
+  if (!Number.isFinite(v) || v <= 0) return null;
+  if (unit === "hours") d.setHours(d.getHours() + v);
+  else if (unit === "days") d.setDate(d.getDate() + v);
+  else if (unit === "months") d.setMonth(d.getMonth() + v);
+  else return null;
+  return d;
+}
+
+const fmtPopDate = (d: Date) =>
+  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
 export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
   const { createReceipt, bulkResolvePending, isCreating, isBulkResolving } = useReceipts();
   const { suppliers = [] } = useLabelSuppliers() as any;
