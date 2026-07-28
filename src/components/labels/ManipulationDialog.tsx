@@ -347,18 +347,46 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <>
           <div className="space-y-1.5">
             <Label>Produto</Label>
-            <Select value={selectedProductId} onValueChange={(v) => {
-              setSelectedProductId(v);
-              const p = productsForSelect.find((x: any) => x.product_id === v);
-              setSelectedProductName(p?.product_name ?? "");
-            }}>
-              <SelectTrigger><SelectValue placeholder="Selecionar produto…" /></SelectTrigger>
-              <SelectContent>
-                {productsForSelect.map((p: any) => (
-                  <SelectItem key={p.product_id} value={p.product_id}>{p.product_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={productOpen} onOpenChange={setProductOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className={selectedProductId ? "" : "text-muted-foreground"}>
+                    {selectedProductName || "Buscar produto…"}
+                  </span>
+                  <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                <Command>
+                  <CommandInput placeholder="Digite o nome do produto…" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {productsForSelect.map((p: any) => (
+                        <CommandItem
+                          key={p.product_id}
+                          value={p.product_name}
+                          onSelect={() => {
+                            setSelectedProductId(p.product_id);
+                            setSelectedProductName(p.product_name ?? "");
+                            setProductOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${selectedProductId === p.product_id ? "opacity-100" : "opacity-0"}`}
+                          />
+                          {p.product_name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-1.5">
