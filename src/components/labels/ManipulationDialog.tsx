@@ -79,6 +79,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const [manualOriginExpiry, setManualOriginExpiry] = useState<string>("");
   const [manualWeight, setManualWeight] = useState<string>("");
   const [manualSif, setManualSif] = useState<string>("");
+  // Após registrar, guardamos o payload da etiqueta para o operador decidir imprimir.
+  const [printPayload, setPrintPayload] = useState<any | null>(null);
+  const [doneBatch, setDoneBatch] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +97,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     setManualOriginExpiry("");
     setManualWeight("");
     setManualSif("");
+    setPrintPayload(null);
+    setDoneBatch("");
   }, [open, productId, productName]);
 
   // Busca lotes ativos sempre que o produto selecionado mudar
@@ -133,7 +138,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
     if (productConfig?.manipulation_enabled) {
       const v = Number(productConfig.manipulation_validity_value || 0);
       const u = productConfig.manipulation_validity_unit;
-      if (v && (u === "hours" || u === "days")) return { value: v, unit: u as "hours" | "days", manual: false };
+      if (v && (u === "hours" || u === "days" || u === "months")) {
+        return { value: v, unit: u as "hours" | "days" | "months", manual: false };
+      }
     }
     return null;
   }, [productConfig]);
@@ -141,6 +148,11 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
   const computedExpiry = useMemo(() => {
     if (manipulationRule) {
       const base = new Date();
+      if (manipulationRule.unit === "months") {
+        const d = new Date(base);
+        d.setMonth(d.getMonth() + manipulationRule.value);
+        return d;
+      }
       const ms = manipulationRule.unit === "hours"
         ? manipulationRule.value * 3600_000
         : manipulationRule.value * 86_400_000;
@@ -257,7 +269,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         const consMap: Record<string, string> = {
           refrigerated: "REFRIGERADO", frozen: "CONGELADO", ambient: "AMBIENTE", hot: "QUENTE",
         };
-        printLabels({
+        setPrintPayload({
           productName: finalProductName,
           manufactureDate: manufacture,
           expiryDate: expiry,
@@ -283,7 +295,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
       } catch (e) {
         console.error("[ManipulationDialog] print", e);
       }
-      onOpenChange(false);
+      setDoneBatch(batch);
     } catch (e: any) {
       toast.error(e.message || "Erro ao registrar manipulação");
     } finally {
@@ -304,6 +316,32 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
           </DialogDescription>
         </DialogHeader>
 
+        {doneBatch ? (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+                <Check className="h-4 w-4" /> Manipulação registrada
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedProductName} · Lote <span className="font-mono">{doneBatch}</span>
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Deseja imprimir a etiqueta desta manipulação agora?
+            </p>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>Fechar sem imprimir</Button>
+              <Button
+                className="gap-2"
+                disabled={!printPayload}
+                onClick={() => { if (printPayload) printLabels(printPayload); }}
+              >
+                Imprimir etiqueta
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+        <>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Produto</Label>
@@ -419,7 +457,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 <Clock className="h-3.5 w-3.5" /> Regra aplicada
               </div>
               <div>
-                ✓ {manipulationRule.value} {manipulationRule.unit === "hours" ? "hora(s)" : "dia(s)"} de uso
+                ✓ {manipulationRule.value}{" "}
+                {manipulationRule.unit === "hours" ? "hora(s)" : manipulationRule.unit === "months" ? "mês(es)" : "dia(s)"} de uso
                 {" "}a partir de {fmtDateTime(new Date())}
               </div>
               <div className="text-muted-foreground">
@@ -527,6 +566,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             Registrar manipulação
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

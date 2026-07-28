@@ -22,7 +22,7 @@ export interface LabelProduct {
   sif?: string | null;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
-  manipulation_validity_unit?: "hours" | "days" | null;
+  manipulation_validity_unit?: "hours" | "days" | "months" | null;
   manipulation_notes?: string | null;
   created_at: string;
   updated_at: string;
@@ -46,7 +46,7 @@ export interface LabelProductInput {
   auto_reprint_enabled?: boolean;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
-  manipulation_validity_unit?: "hours" | "days" | null;
+  manipulation_validity_unit?: "hours" | "days" | "months" | null;
   manipulation_notes?: string | null;
 }
 
