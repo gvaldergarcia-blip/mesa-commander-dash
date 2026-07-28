@@ -753,9 +753,9 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 md:col-span-2">
                 <div>
-                  <Label>Validade da produção *</Label>
+                  <Label>Validade da produção (POP) *</Label>
                   <Input type="number" min={1} value={np.validity_value} onChange={(e) => setNp({ ...np, validity_value: Number(e.target.value) })} />
                 </div>
                 <div>
@@ -767,6 +767,11 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                     </SelectContent>
                   </Select>
                 </div>
+                <p className="col-span-2 text-[11px] text-muted-foreground leading-snug">
+                  Essa regra será utilizada automaticamente sempre que uma nova produção interna deste produto for
+                  registrada. Ela representa a validade definida pelo estabelecimento em seus POPs e Procedimentos
+                  Operacionais.
+                </p>
               </div>
               <div className="md:col-span-2">
                 <Label>Local / Setor</Label>
