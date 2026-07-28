@@ -413,17 +413,25 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             </Select>
           </div>
 
-          {mode === "linked" && manipulationRule && computedExpiry && (
+          {manipulationRule && computedExpiry && (
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1 text-xs">
               <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
                 <Clock className="h-3.5 w-3.5" /> Regra aplicada
               </div>
-              <div>✓ {manipulationRule.value} {manipulationRule.unit === "hours" ? "hora(s)" : "dia(s)"} após manipulação</div>
+              <div>
+                ✓ {manipulationRule.value} {manipulationRule.unit === "hours" ? "hora(s)" : "dia(s)"} de uso
+                {" "}a partir de {fmtDateTime(new Date())}
+              </div>
               <div className="text-muted-foreground">
                 Nova validade calculada: <span className="font-semibold text-foreground">{fmtDateTime(computedExpiry)}</span>
               </div>
+              {selectedLot?.expiry_date && (
+                <div className="text-[10px] text-muted-foreground">
+                  Val. original do fabricante: {new Date(selectedLot.expiry_date).toLocaleDateString("pt-BR")} (apenas rastreabilidade)
+                </div>
+              )}
               <p className="text-[10px] text-muted-foreground pt-1 border-t border-emerald-500/20 mt-1">
-                Regra definida pelo estabelecimento no cadastro do produto. O MesaClik apenas aplica automaticamente.
+                Regra identificada no recebimento/cadastro do produto. A validade é calculada sempre a partir da data e hora da manipulação.
               </p>
             </div>
           )}
@@ -433,34 +441,25 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 <AlertTriangle className="h-3.5 w-3.5" /> Produto sem regra de validade cadastrada
               </div>
               <p className="text-muted-foreground">
-                Informe abaixo a validade após manipulação para poder imprimir agora (conforme seus POPs).
+                Informe a data e hora exata em que este produto deixa de poder ser usado (conforme seus POPs).
               </p>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Validade após manipulação</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={manualValidityValue}
-                    onChange={(e) => setManualValidityValue(e.target.value)}
-                    placeholder="Ex.: 24"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Unidade</Label>
-                  <Select value={manualValidityUnit} onValueChange={(v) => setManualValidityUnit(v as any)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hours">hora(s)</SelectItem>
-                      <SelectItem value="days">dia(s)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1 pt-1">
+                <Label className="text-[11px]">Validade (data e hora do fim do uso) *</Label>
+                <Input
+                  type="datetime-local"
+                  value={manualExpiryAt}
+                  onChange={(e) => setManualExpiryAt(e.target.value)}
+                />
+                {computedExpiry && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Manipulação: {fmtDateTime(new Date())} · Validade: {fmtDateTime(computedExpiry)}
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {mode === "linked" && selectedLot && (lotMissingBatch || lotMissingExpiry) && (
+          {selectedLot && (lotMissingBatch || lotMissingExpiry) && (
             <div className="rounded-lg border border-dashed p-3 space-y-3 text-xs">
               <div className="font-semibold flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Dados ausentes no recebimento
@@ -477,7 +476,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 )}
                 {lotMissingExpiry && (
                   <div className="space-y-1">
-                    <Label className="text-[11px]">Validade original *</Label>
+                    <Label className="text-[11px]">Validade original (opcional)</Label>
                     <Input type="date" value={manualOriginExpiry} onChange={(e) => setManualOriginExpiry(e.target.value)} />
                   </div>
                 )}
@@ -485,7 +484,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             </div>
           )}
 
-          {mode === "linked" && selectedLot && (
+          {!!selectedProductId && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-[11px]">Peso (opcional)</Label>
@@ -502,7 +501,7 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             <Label>Observação (opcional)</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex.: porcionado, higienizado…" />
           </div>
-          {mode === "linked" && selectedLot && (
+          {selectedLot && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs flex items-center gap-2">
               <span className="font-mono">{selectedLot.supplier_lot || selectedLot.traceability_lot}</span>
               <ArrowRight className="h-3.5 w-3.5 text-primary" />
@@ -518,11 +517,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             onClick={confirm}
             disabled={
               saving || !employeeId ||
-              (mode === "linked"
-                ? (!selectedLot || !manipulationRule
-                    || (lotMissingBatch && !manualOriginBatch.trim())
-                    || (lotMissingExpiry && !manualOriginExpiry))
-                : (!directName.trim() || !directOriginBatch.trim() || !directOriginExpiry))
+              !selectedProductId || !computedExpiry ||
+              (!manualOriginMode && !selectedLot) ||
+              (lotMissingBatch && !manualOriginBatch.trim())
             }
             className="gap-2"
           >
