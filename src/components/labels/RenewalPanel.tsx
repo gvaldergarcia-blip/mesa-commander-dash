@@ -219,10 +219,16 @@ export function RenewalPanel() {
                     <div><span className="uppercase tracking-wider">Validade atual</span><div className="text-foreground font-medium">{fmt(l.expiry_date)}</div></div>
                     <div><span className="uppercase tracking-wider">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
                     {item.renewable && item.nextExpiry && (
-                      <div className="col-span-2">
-                        <span className="uppercase tracking-wider">Nova validade (regra: {item.ruleLabel})</span>
-                        <div className="text-emerald-600 dark:text-emerald-400 font-semibold">{fmt(item.nextExpiry)}</div>
-                      </div>
+                      <>
+                        <div>
+                          <span className="uppercase tracking-wider">Nova manipulação</span>
+                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">agora (data/hora da renovação)</div>
+                        </div>
+                        <div>
+                          <span className="uppercase tracking-wider">Nova validade (após abertura: {item.ruleLabel})</span>
+                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">{fmt(item.nextExpiry)}</div>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -234,7 +240,7 @@ export function RenewalPanel() {
                     className="gap-2 shrink-0"
                   >
                     {busyId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Renovar etiqueta
+                    Nova manipulação
                   </Button>
                 ) : (
                   <div className="shrink-0 flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30 max-w-[240px]">
