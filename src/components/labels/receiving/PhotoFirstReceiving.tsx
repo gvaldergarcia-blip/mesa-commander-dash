@@ -381,6 +381,27 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       .eq("status", "active");
     const issuances = (iss || []) as any[];
     if (!issuances.length) { toast.info("Nenhuma etiqueta ativa para imprimir."); return 0; }
+    // A impressão no Recebimento representa o MOMENTO DA ABERTURA da embalagem.
+    // Buscamos a regra "após abertura" salva no cadastro para gerar a etiqueta
+    // já como etiqueta de MANIPULAÇÃO (data/hora agora + regra = nova validade).
+    const productIds = Array.from(
+      new Set(issuances.map((l) => l.label_product_id).filter(Boolean)),
+    ) as string[];
+    const ruleById = new Map<string, { value: number | null; unit: string | null }>();
+    if (productIds.length) {
+      const { data: prods } = await (supabase as any)
+        .from("label_products")
+        .select("id, manipulation_enabled, manipulation_validity_value, manipulation_validity_unit")
+        .in("id", productIds);
+      for (const p of (prods || []) as any[]) {
+        if (p.manipulation_enabled && p.manipulation_validity_unit) {
+          ruleById.set(p.id, {
+            value: p.manipulation_validity_value ?? null,
+            unit: p.manipulation_validity_unit,
+          });
+        }
+      }
+    }
     let legal: { cnpj: string | null; cep: string | null; address: string | null } = {
       cnpj: null, cep: null, address: (restaurant as any)?.address_line ?? null,
     };
@@ -427,10 +448,19 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       const sector = l.storage_location ?? null;
       const nameKey = String(l.product_name || "").trim().toLowerCase();
       const brand = brandByName.get(nameKey) || supplierName;
+      // Momento da abertura = agora. Se houver regra pós-abertura, a etiqueta
+      // nasce como manipulação; senão mantém o layout de recebimento.
+      const rule = l.label_product_id ? ruleById.get(l.label_product_id) : undefined;
+      const originalExpiry = new Date(l.expiry_date);
+      const openedAt = new Date();
+      const newExpiry = rule ? applyPopRule(openedAt, rule.value, rule.unit) : null;
       jobs.push({
         productName: l.product_name,
-        manufactureDate: new Date(l.manufacture_date),
-        expiryDate: new Date(l.expiry_date),
+        template: newExpiry ? "manipulation" : "received",
+        banner: newExpiry ? "MANIPULADO" : null,
+        manufactureDate: newExpiry ? openedAt : new Date(l.manufacture_date),
+        expiryDate: newExpiry ?? originalExpiry,
+        originalExpiryDate: newExpiry ? originalExpiry : null,
         responsible: l.responsible || (sector ? respBySector.get(sector) : null) || "—",
         quantity: qty,
         notes: l.notes,
