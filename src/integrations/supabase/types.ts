@@ -1781,6 +1781,10 @@ export type Database = {
           manipulation_validity_value: number | null
           name: string
           notes: string | null
+          origin: string
+          pop_notes: string | null
+          production_validity_unit: string | null
+          production_validity_value: number | null
           restaurant_id: string
           sif: string | null
           status: string
@@ -1808,6 +1812,10 @@ export type Database = {
           manipulation_validity_value?: number | null
           name: string
           notes?: string | null
+          origin?: string
+          pop_notes?: string | null
+          production_validity_unit?: string | null
+          production_validity_value?: number | null
           restaurant_id: string
           sif?: string | null
           status?: string
@@ -1835,6 +1843,10 @@ export type Database = {
           manipulation_validity_value?: number | null
           name?: string
           notes?: string | null
+          origin?: string
+          pop_notes?: string | null
+          production_validity_unit?: string | null
+          production_validity_value?: number | null
           restaurant_id?: string
           sif?: string | null
           status?: string
