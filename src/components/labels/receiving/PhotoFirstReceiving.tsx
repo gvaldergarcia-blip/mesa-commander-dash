@@ -210,6 +210,7 @@ const MERGE_FIELDS = [
 function mergeInto(base: any, extra: any) {
   const conf = { ...(base.confidence || {}) };
   const conflicts = [...(base.issues || [])];
+  const reviewFields = new Set<string>(base.needs_review || []);
   for (const f of MERGE_FIELDS) {
     const cb = Number((base.confidence || {})[f] ?? 0);
     const ce = Number((extra.confidence || {})[f] ?? 0);
@@ -222,7 +223,7 @@ function mergeInto(base: any, extra: any) {
           reason: "ambiguous",
           hint: `Fotos unificadas do mesmo produto, mas a IA leu valores diferentes (${base[f]} / ${extra[f]}). Confira na embalagem.`,
         });
-        base.needs_review = Array.from(new Set([...(base.needs_review || []), f]));
+        reviewFields.add(f);
       }
       conf[f] = Math.max(cb, ce);
     }
@@ -235,7 +236,7 @@ function mergeInto(base: any, extra: any) {
     .filter((i: any) => stillEmpty(i.field) || ["batch", "expires_at"].includes(i.field))
     .filter((i: any, k: number, arr: any[]) => arr.findIndex((o) => o.field === i.field && o.reason === i.reason) === k);
   base.needs_review = Array.from(
-    new Set([...(base.needs_review || []), ...(extra.needs_review || [])].filter(stillEmpty)),
+    new Set([...reviewFields, ...(extra.needs_review || [])].filter((f) => stillEmpty(f) || ["batch", "expires_at"].includes(f))),
   );
   base.missing = Array.from(
     new Set([...(base.missing || []), ...(extra.missing || [])].filter(stillEmpty)),
