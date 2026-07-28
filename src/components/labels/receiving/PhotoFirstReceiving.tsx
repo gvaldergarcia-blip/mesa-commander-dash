@@ -357,7 +357,11 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           products.push({ ...p, photo_indices: gidxs });
         }
       }
-      const built: ProductGroup[] = products.map((p, idx) => {
+      const merged = dedupeProducts(products);
+      if (merged.length < products.length) {
+        toast.info(`${products.length - merged.length} foto(s) do mesmo produto foram unificadas.`);
+      }
+      const built: ProductGroup[] = merged.map((p, idx) => {
         const idxs: number[] = Array.isArray(p.photo_indices) ? p.photo_indices : [];
         const ids = idxs.map((i) => photos[i]?.id).filter(Boolean) as string[];
         const base: ProductGroup = {
