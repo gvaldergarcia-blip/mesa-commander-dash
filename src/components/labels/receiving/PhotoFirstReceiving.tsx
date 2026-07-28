@@ -1118,9 +1118,19 @@ function FieldEditor({ label, value, onChange, type = "text" }: { label: string;
 
 function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Partial<ProductGroup>) => void }) {
   const [editing, setEditing] = useState(false);
+  // Recalcula a cada minuto para que a "validade calculada" mostrada seja
+  // sempre o resultado real caso a etiqueta seja impressa agora.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const immediate = group.pop_validity_unit === "immediate";
   const configured = !!group.pop_enabled && !!group.pop_validity_unit && (immediate || !!group.pop_validity_value);
   const showForm = editing || (!configured && !group.pop_existing) || (group.pop_enabled && !configured);
+  const computed = configured
+    ? applyPopRule(now, group.pop_validity_value, group.pop_validity_unit)
+    : null;
   const unitLabel = group.pop_validity_unit === "hours"
     ? "hora(s)"
     : group.pop_validity_unit === "months" ? "mês(es)" : "dia(s)";
@@ -1163,6 +1173,17 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
             <>✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}</>
           )}
           {group.pop_notes ? <> — <span className="italic">{group.pop_notes}</span></> : null}
+          {computed && (
+            <span className="block mt-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px] text-foreground">
+              <span className="uppercase tracking-wide text-muted-foreground">Validade calculada </span>
+              <span className="font-semibold">
+                {immediate ? "consumo imediato após a impressão" : fmtPopDate(computed)}
+              </span>
+              <span className="block text-[10px] text-muted-foreground">
+                Data/hora da impressão (manipulação) + regra após abertura.
+              </span>
+            </span>
+          )}
           {!group.pop_existing && group.pop_source === "ai" && (
             <span className="block text-[10px] text-primary mt-0.5">
               ✓ Regra pós-abertura identificada automaticamente{group.pop_ai_text ? ` — "${group.pop_ai_text}"` : ""}.
