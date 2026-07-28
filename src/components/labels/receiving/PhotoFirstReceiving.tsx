@@ -1338,7 +1338,9 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
         {configured && !editing && !showForm && (
         <p className="text-xs text-muted-foreground">
-          {immediate ? (
+          {hasFixed ? (
+            <>✓ Validade após abertura: <span className="font-semibold text-foreground">{fmtPopDate(fixedDate!)}</span> (data informada)</>
+          ) : immediate ? (
             <>✓ Após abertura: <span className="font-semibold text-foreground">consumo imediato</span></>
           ) : (
             <>✓ Após abertura: <span className="font-semibold text-foreground">{group.pop_validity_value}</span> {unitLabel}</>
@@ -1365,10 +1367,72 @@ function PopEditor({ group, onPatch }: { group: ProductGroup; onPatch: (u: Parti
 
       {showForm && (
         <div className="space-y-2">
+          <div className="inline-flex rounded-md border border-border p-0.5 gap-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "rule" ? "secondary" : "ghost"}
+              className="h-7 text-xs"
+              onClick={() => {
+                setMode("rule");
+                onPatch({ pop_fixed_date: null });
+              }}
+            >
+              Por regra (ex.: 5 dias)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "date" ? "secondary" : "ghost"}
+              className="h-7 text-xs"
+              onClick={() => setMode("date")}
+            >
+              Data completa
+            </Button>
+          </div>
+
+          {mode === "date" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Validade após abertura (data e hora)
+                </label>
+                <Input
+                  type="datetime-local"
+                  value={group.pop_fixed_date || ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) {
+                      onPatch({ pop_fixed_date: null, pop_source: "manual" });
+                      return;
+                    }
+                    const d = new Date(v);
+                    const hours = Math.max(1, Math.round((d.getTime() - Date.now()) / 3_600_000));
+                    onPatch({
+                      pop_fixed_date: v,
+                      pop_enabled: true,
+                      pop_source: "manual",
+                      pop_validity_unit: "hours",
+                      pop_validity_value: hours,
+                    });
+                  }}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Observações (opcional)</label>
+                <Input
+                  value={group.pop_notes || ""}
+                  onChange={(e) => onPatch({ pop_notes: e.target.value, pop_enabled: true })}
+                  placeholder="Ex: Após abertura manter refrigerado."
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === "rule" && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Após abertura</label>
-              {null}
               <Input
                 type="number"
                 min={1}
