@@ -485,8 +485,65 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
                 <AlertTriangle className="h-3.5 w-3.5" /> Produto sem regra de validade cadastrada
               </div>
               <p className="text-muted-foreground">
-                Este produto não possui uma regra de validade após manipulação cadastrada. Defina no cadastro do produto conforme seus POPs.
+                Informe abaixo a validade após manipulação para poder imprimir agora (conforme seus POPs).
               </p>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Validade após manipulação</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={manualValidityValue}
+                    onChange={(e) => setManualValidityValue(e.target.value)}
+                    placeholder="Ex.: 24"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Unidade</Label>
+                  <Select value={manualValidityUnit} onValueChange={(v) => setManualValidityUnit(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hours">hora(s)</SelectItem>
+                      <SelectItem value="days">dia(s)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {mode === "linked" && selectedLot && (lotMissingBatch || lotMissingExpiry) && (
+            <div className="rounded-lg border border-dashed p-3 space-y-3 text-xs">
+              <div className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Dados ausentes no recebimento
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {lotMissingBatch && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Lote original *</Label>
+                    <Input value={manualOriginBatch} onChange={(e) => setManualOriginBatch(e.target.value)} placeholder="Ex.: L2026-07" />
+                  </div>
+                )}
+                {lotMissingExpiry && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Validade original *</Label>
+                    <Input type="date" value={manualOriginExpiry} onChange={(e) => setManualOriginExpiry(e.target.value)} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {mode === "linked" && selectedLot && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[11px]">Peso (opcional)</Label>
+                <Input value={manualWeight} onChange={(e) => setManualWeight(e.target.value)} placeholder="500 g / 1 kg" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px]">SIF/SISP (opcional)</Label>
+                <Input value={manualSif} onChange={(e) => setManualSif(e.target.value)} placeholder="Se não veio no recebimento" />
+              </div>
             </div>
           )}
 
@@ -511,7 +568,9 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
             disabled={
               saving || !employeeId ||
               (mode === "linked"
-                ? (!selectedLot || !manipulationRule)
+                ? (!selectedLot || !manipulationRule
+                    || (lotMissingBatch && !manualOriginBatch.trim())
+                    || (lotMissingExpiry && !manualOriginExpiry))
                 : (!directName.trim() || !directOriginBatch.trim() || !directOriginExpiry))
             }
             className="gap-2"
