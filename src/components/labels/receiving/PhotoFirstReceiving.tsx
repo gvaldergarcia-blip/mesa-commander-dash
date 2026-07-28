@@ -37,7 +37,7 @@ const CONSERVATION_LABEL: Record<string, string> = {
 };
 
 type Conservation = "refrigerated" | "frozen" | "ambient" | "hot";
-const MAX_PHOTOS = 40;
+const MAX_PHOTOS = 300;
 const REQUIRED_FIELDS = ["name", "expires_at", "batch", "sif"] as const;
 const FIELD_LABEL: Record<string, string> = {
   name: "Nome",

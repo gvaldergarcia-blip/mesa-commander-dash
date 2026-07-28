@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useReceipts } from "@/hooks/useReceipts";
 import { cn } from "@/lib/utils";
 
-const MAX_PHOTOS_PER_PRODUCT = 10;
+const MAX_PHOTOS_PER_PRODUCT = 60;
 
 type Conservation = "refrigerated" | "frozen" | "ambient" | "hot";
 type RowStatus = "idle" | "scanning" | "needs_info" | "ready";
