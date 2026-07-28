@@ -162,19 +162,17 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                         ? 'sem produtos'
                         : `${list.length} ${list.length === 1 ? 'produto' : 'produtos'}`}
                     </span>
-                    {list.length === 0 && (
-                      <button
+                    <button
                         type="button"
                         aria-label={`Apagar card do setor ${s}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSectorToDelete(s);
                         }}
-                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    </button>
                     </div>
                   </div>
                   {list.length === 0 ? (
