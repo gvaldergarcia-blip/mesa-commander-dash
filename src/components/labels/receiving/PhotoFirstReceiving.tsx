@@ -211,15 +211,14 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
       );
       // Envia em chunks de até 8 fotos por chamada para respeitar o limite de memória
       // da edge function (16+ fotos grandes estouram). Depois consolida os grupos.
-      const CHUNK = 8;
+      const CHUNK = 4;
       const chunks: Array<{ base64: string; mime_type: string }[]> = [];
       const chunkIdx: number[][] = [];
       for (let i = 0; i < payload.length; i += CHUNK) {
         chunks.push(payload.slice(i, i + CHUNK));
         chunkIdx.push(photos.slice(i, i + CHUNK).map((_, j) => i + j));
       }
-      const products: any[] = [];
-      for (let c = 0; c < chunks.length; c++) {
+      const runChunk = async (c: number) => {
         let data: any = null;
         let lastErr: any = null;
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -238,7 +237,20 @@ export function PhotoFirstReceiving({ open, onOpenChange }: Props) {
           }
         }
         if (lastErr) throw lastErr;
-        const arr = (data?.products ?? []) as any[];
+        return (data?.products ?? []) as any[];
+      };
+      // Blocos em paralelo (até 3 por vez) — sequencial ficava lento demais
+      // e dava a impressão de que o sistema tinha travado.
+      const results: any[][] = new Array(chunks.length);
+      const POOL = 3;
+      for (let start = 0; start < chunks.length; start += POOL) {
+        const slice = chunks.slice(start, start + POOL).map((_, k) => start + k);
+        const done = await Promise.all(slice.map((c) => runChunk(c)));
+        done.forEach((arr, k) => { results[slice[k]] = arr; });
+      }
+      const products: any[] = [];
+      for (let c = 0; c < chunks.length; c++) {
+        const arr = results[c] ?? [];
         // Re-mapear índices locais do chunk para índices globais
         const globalMap = chunkIdx[c];
         for (const p of arr) {
