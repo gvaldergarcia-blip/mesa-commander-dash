@@ -701,7 +701,10 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                         <div className="min-w-0">
                           <div className="font-medium truncate">{p.name}</div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {p.category || "Sem categoria"} · validade {v.value} {VALIDITY_UNITS.find((u) => u.v === v.unit)?.l}
+                            {p.category || "Sem categoria"} ·{" "}
+                            {v
+                              ? `validade ${v.value} ${VALIDITY_UNITS.find((u) => u.v === v.unit)?.l}`
+                              : "sem regra de validade"}
                           </div>
                         </div>
                       </div>
