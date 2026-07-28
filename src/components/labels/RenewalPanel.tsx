@@ -55,7 +55,7 @@ export function RenewalPanel() {
     },
   });
 
-  const buildPrint = (row: any, prev: RenewalItem): PrintLabelData => {
+  const buildPrint = (row: any, prev: RenewalItem, fallbackExpiry: Date): PrintLabelData => {
     const qrSvg = row?.unique_code
       ? renderToStaticMarkup(
           <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${row.unique_code}?op=1`} size={144} level="L" marginSize={1} />,
@@ -68,7 +68,7 @@ export function RenewalPanel() {
     return {
       productName: row?.product_name || prev.label.product_name,
       manufactureDate: new Date(row?.manufacture_date || Date.now()),
-      expiryDate: new Date(row?.expiry_date || prev.nextExpiry!),
+      expiryDate: new Date(row?.expiry_date || fallbackExpiry),
       responsible: row?.responsible || prev.label.responsible || "—",
       quantity: Number(row?.quantity || 1),
       batch: row?.batch || null,
@@ -95,11 +95,11 @@ export function RenewalPanel() {
     if (singleId) setBusyId(singleId);
     try {
       const results = await renewMany(list);
-      const jobs = results.map((r, i) => buildPrint(r.created, list[i]));
+      const jobs = results.map((r, i) => buildPrint(r.created, list[i], r.expiry));
       toast.success(
         results.length === 1
-          ? `Etiqueta renovada · Lote ${results[0].batch}`
-          : `${results.length} etiquetas renovadas`,
+          ? `Nova manipulação registrada · Lote ${results[0].batch} · validade ${fmt(results[0].expiry)}`
+          : `${results.length} novas manipulações registradas`,
       );
       if (jobs.length) {
         await new Promise<void>((res) => requestAnimationFrame(() => res()));
