@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw } from "lucide-react";
+import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw, Zap } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -12,7 +12,8 @@ import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
 import { StockReportsTab } from "@/components/labels/StockReportsTab";
 import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
-import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
+import { FastPrintTab } from "@/components/labels/FastPrintTab";
+import { ProductRegistryTab } from "@/components/labels/ProductRegistryTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { TodayTab } from "@/components/labels/TodayTab";
@@ -35,13 +36,19 @@ export default function EtiquetasPage() {
   const { missingProducts } = useStockStatus();
   const { count: renewalCount } = useLabelRenewals();
 
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState("imprimir");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
     label: string;
     items: { value: string; icon: any; label: string; badge?: number }[];
   }[] = [
+    {
+      label: "Operação diária",
+      items: [
+        { value: "imprimir", icon: Zap, label: "Imprimir etiqueta" },
+      ],
+    },
     {
       label: "Diário",
       items: [
@@ -52,7 +59,6 @@ export default function EtiquetasPage() {
     {
       label: "Entradas",
       items: [
-        { value: "recebimento", icon: PackagePlus, label: "Recebimento" },
         { value: "producao", icon: ChefHat, label: "Produção Interna" },
       ],
     },
@@ -65,7 +71,8 @@ export default function EtiquetasPage() {
     {
       label: "Cadastros",
       items: [
-        { value: "produtos", icon: Package, label: "Produtos" },
+        { value: "cadastro", icon: Package, label: "Produtos" },
+        { value: "produtos", icon: List, label: "Etiquetas ativas" },
         { value: "funcionarios", icon: Users, label: "Funcionários" },
         { value: "dashboard", icon: LayoutDashboard, label: "Relatórios" },
         { value: "sms", icon: MessageSquare, label: "SMS" },
