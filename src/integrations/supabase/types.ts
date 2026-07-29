@@ -1766,12 +1766,15 @@ export type Database = {
           allergens: string | null
           auto_discharge_after_hours: number | null
           auto_reprint_enabled: boolean
+          brand: string | null
           category: string | null
           cif: string | null
           conservation_method: string
           created_at: string
+          default_employee_id: string | null
           default_observation: string | null
           default_supplier_id: string | null
+          default_weight: string | null
           group_id: string | null
           id: string
           ingredients: string | null
@@ -1789,6 +1792,7 @@ export type Database = {
           sif: string | null
           status: string
           storage_location: string | null
+          supplier_name: string | null
           unit: string
           updated_at: string
           validity_days: number
@@ -1797,12 +1801,15 @@ export type Database = {
           allergens?: string | null
           auto_discharge_after_hours?: number | null
           auto_reprint_enabled?: boolean
+          brand?: string | null
           category?: string | null
           cif?: string | null
           conservation_method?: string
           created_at?: string
+          default_employee_id?: string | null
           default_observation?: string | null
           default_supplier_id?: string | null
+          default_weight?: string | null
           group_id?: string | null
           id?: string
           ingredients?: string | null
@@ -1820,6 +1827,7 @@ export type Database = {
           sif?: string | null
           status?: string
           storage_location?: string | null
+          supplier_name?: string | null
           unit?: string
           updated_at?: string
           validity_days: number
@@ -1828,12 +1836,15 @@ export type Database = {
           allergens?: string | null
           auto_discharge_after_hours?: number | null
           auto_reprint_enabled?: boolean
+          brand?: string | null
           category?: string | null
           cif?: string | null
           conservation_method?: string
           created_at?: string
+          default_employee_id?: string | null
           default_observation?: string | null
           default_supplier_id?: string | null
+          default_weight?: string | null
           group_id?: string | null
           id?: string
           ingredients?: string | null
@@ -1851,6 +1862,7 @@ export type Database = {
           sif?: string | null
           status?: string
           storage_location?: string | null
+          supplier_name?: string | null
           unit?: string
           updated_at?: string
           validity_days?: number
