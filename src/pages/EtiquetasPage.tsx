@@ -295,21 +295,6 @@ export default function EtiquetasPage() {
           />
         </TabsContent>
 
-        {/* ===== IMPRIMIR ===== */}
-        <TabsContent value="imprimir">
-          <Card className="p-4 md:p-8 bg-card/30">
-            <CardContent className="p-0">
-              <PrintFlow
-                initialProductId={printInitialProduct}
-                onFinished={() => {
-                  setPrintInitialProduct(null);
-                  setTab("dashboard");
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* ===== ESTOQUE (marcação rápida) ===== */}
         <TabsContent value="estoque" className="space-y-4">
           <div>
