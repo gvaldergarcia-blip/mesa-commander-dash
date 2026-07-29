@@ -21,7 +21,6 @@ import { RenewalPanel } from "@/components/labels/RenewalPanel";
 import { useLabelRenewals } from "@/hooks/useLabelRenewals";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
-import { PrintFlow } from "@/components/labels/PrintFlow";
 import { LabeledProductsTab } from "@/components/labels/LabeledProductsTab";
 import { ProducaoInternaTab } from "@/components/labels/ProducaoInternaTab";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
@@ -241,7 +240,7 @@ export default function EtiquetasPage() {
           <TodayTab
             onQuickAction={(action) => {
               if (action === "new-label") setTab("imprimir");
-              else if (action === "new-receipt") setTab("recebimento");
+              else if (action === "new-receipt") setTab("imprimir");
               else if (action === "shopping") setTab("compras");
               else if (action === "labels") setTab("imprimir");
             }}
