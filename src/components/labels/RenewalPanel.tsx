@@ -55,7 +55,7 @@ export function RenewalPanel() {
     },
   });
 
-  const buildPrint = (row: any, prev: RenewalItem, fallbackExpiry: Date): PrintLabelData => {
+  const buildPrint = (row: any, prev: RenewalItem, fallbackExpiry: Date, noteOverride?: string | null): PrintLabelData => {
     const qrSvg = row?.unique_code
       ? renderToStaticMarkup(
           <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${row.unique_code}?op=1`} size={144} level="L" marginSize={1} />,
@@ -80,7 +80,7 @@ export function RenewalPanel() {
       cif: row?.cif ?? prev.label.cif ?? null,
       allergens: row?.allergens ?? null,
       ingredients: row?.ingredients ?? null,
-      notes: `Renovação · lote anterior ${prev.label.batch || "—"}`,
+      notes: noteOverride !== undefined ? noteOverride : `Renovação · lote anterior ${prev.label.batch || "—"}`,
       conservationLabel: cons ? CONSERVATION_LABEL[cons as keyof typeof CONSERVATION_LABEL] || null : null,
       storageLocation: row?.storage_location ?? prev.label.storage_location ?? null,
       quantityWeight: weightLabel,
@@ -118,30 +118,8 @@ export function RenewalPanel() {
   /** Reimprime a etiqueta atual, sem criar novo registro nem alterar validades. */
   const reprint = (item: RenewalItem) => {
     const l: any = item.label;
-    printLabelsMany([buildPrint({ ...l, notes: l.notes }, item, new Date(l.expiry_date))]);
+    printLabelsMany([buildPrint(l, item, new Date(l.expiry_date), l.notes ?? null)]);
     toast.success("Etiqueta enviada para reimpressão");
-  };
-
-  const runLegacy = async (list: RenewalItem[], singleId?: string) => {
-    if (!list.length) return;
-    if (singleId) setBusyId(singleId);
-    try {
-      const results = await renewMany(list);
-      const jobs = results.map((r, i) => buildPrint(r.created, list[i], r.expiry));
-      toast.success(
-        results.length === 1
-          ? `Nova manipulação registrada · Lote ${results[0].batch} · validade ${fmt(results[0].expiry)}`
-          : `${results.length} novas manipulações registradas`,
-      );
-      if (jobs.length) {
-        await new Promise<void>((res) => requestAnimationFrame(() => res()));
-        printLabelsMany(jobs);
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Erro ao renovar etiquetas");
-    } finally {
-      setBusyId(null);
-    }
   };
 
   const counts = useMemo(() => ({
