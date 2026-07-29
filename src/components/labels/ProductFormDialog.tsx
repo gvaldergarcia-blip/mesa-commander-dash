@@ -26,6 +26,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [brand, setBrand] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [sif, setSif] = useState("");
+  const [inspectionType, setInspectionType] = useState<string>("none");
   const [defaultWeight, setDefaultWeight] = useState("");
   const [defaultEmployeeId, setDefaultEmployeeId] = useState<string>("none");
   const [originalExpiry, setOriginalExpiry] = useState<string>("");
@@ -49,6 +50,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setBrand(product?.brand ?? "");
       setSupplierName(product?.supplier_name ?? "");
       setSif(product?.sif ?? "");
+      setInspectionType(((product as any)?.inspection_type as string) ?? "none");
       setDefaultWeight(product?.default_weight ?? "");
       setDefaultEmployeeId(product?.default_employee_id ?? "none");
       if (product?.validity_days) {
@@ -105,6 +107,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       brand: brand.trim() || null,
       supplier_name: supplierName.trim() || null,
       sif: sif.trim() || null,
+      inspection_type: inspectionType === "none" ? null : (inspectionType as any),
       default_weight: defaultWeight.trim() || null,
       default_employee_id: defaultEmployeeId === "none" ? null : defaultEmployeeId,
       allergens: allergens.length ? allergens.join(", ") : null,
