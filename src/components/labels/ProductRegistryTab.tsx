@@ -74,7 +74,7 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
               <div className="text-[11px] text-muted-foreground leading-relaxed">
                 {CONSERVATION_LABEL[(p.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL]}
                 {p.storage_location ? ` · ${p.storage_location}` : ""}
-                {p.sif ? ` · SIF ${p.sif}` : ""}
+                {p.sif ? ` · ${p.inspection_type === "SISP" ? "SISP" : p.inspection_type === "IMPORTADO" ? "REG." : "SIF"} ${p.sif}` : ""}
                 <br />
                 {p.manipulation_enabled && p.manipulation_validity_value
                   ? `Após abertura: ${p.manipulation_validity_value} ${
