@@ -148,10 +148,15 @@ export function RenewalPanel() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {[0, 6, 12, 24, 48].map((h) => (
-                  <SelectItem key={h} value={String(h)}>
-                    {h === 0 ? "Somente hoje" : `Próximas ${h}h`}
-                  </SelectItem>
+                {[
+                  { h: 0, label: "Somente hoje" },
+                  { h: 12, label: "Próximas 12h" },
+                  { h: 24, label: "Próximas 24h" },
+                  { h: 48, label: "Próximos 2 dias" },
+                  { h: 168, label: "Próximos 7 dias" },
+                  { h: 720, label: "Próximos 30 dias" },
+                ].map((o) => (
+                  <SelectItem key={o.h} value={String(o.h)}>{o.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -238,18 +243,28 @@ export function RenewalPanel() {
                 </div>
 
                 {item.renewable ? (
-                  <Button
-                    onClick={() => run([item], l.id)}
-                    disabled={renewing}
-                    className="gap-2 shrink-0"
-                  >
-                    {busyId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Nova manipulação
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                    <Button
+                      onClick={() => run([item], l.id)}
+                      disabled={renewing}
+                      className="gap-2"
+                    >
+                      {busyId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      Nova manipulação
+                    </Button>
+                    <Button variant="outline" className="gap-2" onClick={() => reprint(item)}>
+                      <Printer className="h-4 w-4" /> Reimprimir
+                    </Button>
+                  </div>
                 ) : (
-                  <div className="shrink-0 flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30 max-w-[240px]">
-                    <Lock className="h-3.5 w-3.5 shrink-0" />
-                    <span>{item.blockReason}</span>
+                  <div className="shrink-0 flex flex-col gap-2 max-w-[240px]">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30">
+                      <Lock className="h-3.5 w-3.5 shrink-0" />
+                      <span>{item.blockReason}</span>
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => reprint(item)}>
+                      <Printer className="h-4 w-4" /> Reimprimir
+                    </Button>
                   </div>
                 )}
               </Card>
