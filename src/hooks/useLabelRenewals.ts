@@ -5,9 +5,6 @@ import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { useLabels, type Label } from "@/hooks/useLabels";
 import { useLabelProducts, type LabelProduct } from "@/hooks/useLabelProducts";
 
-/** Prefixos de lote que identificam uma etiqueta de Manipulação. */
-const MANIPULATION_PREFIX = /^MAN-/i;
-
 const LOOKAHEAD_KEY = "mesaclik:label-renewal-lookahead-hours";
 export const DEFAULT_LOOKAHEAD_HOURS = 12;
 
@@ -78,7 +75,6 @@ export function useLabelRenewals() {
     const out: RenewalItem[] = [];
     for (const l of labels) {
       if (l.status === "discharged") continue;
-      if (!MANIPULATION_PREFIX.test(l.batch || "")) continue;
       const exp = new Date(l.expiry_date).getTime();
       if (!Number.isFinite(exp)) continue;
       if (exp > horizon) continue;
@@ -86,26 +82,41 @@ export function useLabelRenewals() {
       if ((l.units_remaining ?? 0) <= 0) continue;
 
       const product = l.label_product_id ? productById.get(l.label_product_id) ?? null : null;
-      const value = Number(product?.manipulation_validity_value || 0);
-      const unit = product?.manipulation_validity_unit || null;
+      // Regra ativa: "após abertura/manipulação" quando habilitada; senão a validade padrão do cadastro.
+      const hasManipRule =
+        !!product?.manipulation_enabled && Number(product?.manipulation_validity_value || 0) > 0;
+      const value = hasManipRule
+        ? Number(product!.manipulation_validity_value)
+        : Number(product?.validity_days || 0);
+      const unit = hasManipRule
+        ? product!.manipulation_validity_unit || "days"
+        : product?.validity_days
+          ? "days"
+          : null;
 
       let renewable = false;
       let blockReason: string | null = null;
       let nextExpiry: Date | null = null;
       let ruleLabel: string | null = null;
 
+      const originalExp = (l as any).original_expiry_date
+        ? new Date((l as any).original_expiry_date)
+        : null;
+
       if (!product) {
         blockReason = "Produto sem cadastro vinculado";
-      } else if (!product.manipulation_enabled) {
-        blockReason = "Renovação não habilitada no cadastro";
-      } else if (unit === "immediate") {
+      } else if (product.manipulation_validity_unit === "immediate" && product.manipulation_enabled) {
         blockReason = "Fabricante exige consumo imediato após aberto";
+      } else if (originalExp && originalExp.getTime() <= now) {
+        blockReason = "Validade original do fabricante já venceu";
       } else if (value > 0 && (unit === "hours" || unit === "days" || unit === "months")) {
         renewable = true;
         nextExpiry = addRule(new Date(), value, unit);
+        // A nova validade de manipulação nunca ultrapassa a validade original do fabricante.
+        if (originalExp && originalExp < nextExpiry) nextExpiry = originalExp;
         ruleLabel = ruleText(value, unit);
       } else {
-        blockReason = "Regra após abertura não configurada";
+        blockReason = "Regra de validade não configurada no cadastro do produto";
       }
 
       const msLeft = exp - now;
@@ -128,12 +139,19 @@ export function useLabelRenewals() {
     // A validade NUNCA é copiada da etiqueta anterior nem de um cálculo antigo:
     // é sempre recalculada no instante exato da renovação usando a regra "Após abertura".
     const manufacture = new Date();
-    const ruleValue = Number(item.product?.manipulation_validity_value || 0);
-    const ruleUnit = item.product?.manipulation_validity_unit || "";
+    const p = item.product;
+    const hasManipRule = !!p?.manipulation_enabled && Number(p?.manipulation_validity_value || 0) > 0;
+    const ruleValue = hasManipRule ? Number(p!.manipulation_validity_value) : Number(p?.validity_days || 0);
+    const ruleUnit = hasManipRule ? (p!.manipulation_validity_unit || "days") : "days";
     if (!(ruleValue > 0) || !["hours", "days", "months"].includes(ruleUnit)) {
-      throw new Error("Regra após abertura não configurada para este produto");
+      throw new Error("Regra de validade não configurada para este produto");
     }
-    const expiry = addRule(manufacture, ruleValue, ruleUnit);
+    let expiry = addRule(manufacture, ruleValue, ruleUnit);
+    const originalExp = (l as any).original_expiry_date ? new Date((l as any).original_expiry_date) : null;
+    if (originalExp && originalExp.getTime() <= manufacture.getTime()) {
+      throw new Error("Validade original do fabricante já venceu — não é possível renovar");
+    }
+    if (originalExp && originalExp < expiry) expiry = originalExp;
 
     let batch = `MAN-${Date.now().toString(36).toUpperCase()}`;
     try {
