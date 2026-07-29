@@ -262,9 +262,22 @@ export default function EtiquetasPage() {
           <RenewalPanel />
         </TabsContent>
 
-        {/* ===== RECEBIMENTO INTELIGENTE ===== */}
-        <TabsContent value="recebimento">
-          <ReceivingTab />
+        {/* ===== IMPRESSÃO RÁPIDA ===== */}
+        <TabsContent value="imprimir" className="mt-0">
+          <FastPrintTab
+            initialProductId={printInitialProduct}
+            onManageProducts={() => setTab("cadastro")}
+          />
+        </TabsContent>
+
+        {/* ===== CADASTRO DE PRODUTOS ===== */}
+        <TabsContent value="cadastro" className="mt-0">
+          <ProductRegistryTab
+            onPrintProduct={(pid) => {
+              setPrintInitialProduct(pid);
+              setTab("imprimir");
+            }}
+          />
         </TabsContent>
 
         {/* ===== PRODUÇÃO INTERNA ===== */}
