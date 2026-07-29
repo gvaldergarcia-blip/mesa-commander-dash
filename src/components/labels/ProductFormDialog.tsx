@@ -26,6 +26,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [brand, setBrand] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [sif, setSif] = useState("");
+  const [inspectionType, setInspectionType] = useState<string>("none");
   const [defaultWeight, setDefaultWeight] = useState("");
   const [defaultEmployeeId, setDefaultEmployeeId] = useState<string>("none");
   const [originalExpiry, setOriginalExpiry] = useState<string>("");
@@ -49,6 +50,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setBrand(product?.brand ?? "");
       setSupplierName(product?.supplier_name ?? "");
       setSif(product?.sif ?? "");
+      setInspectionType(((product as any)?.inspection_type as string) ?? "none");
       setDefaultWeight(product?.default_weight ?? "");
       setDefaultEmployeeId(product?.default_employee_id ?? "none");
       if (product?.validity_days) {
@@ -105,6 +107,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       brand: brand.trim() || null,
       supplier_name: supplierName.trim() || null,
       sif: sif.trim() || null,
+      inspection_type: inspectionType === "none" ? null : (inspectionType as any),
       default_weight: defaultWeight.trim() || null,
       default_employee_id: defaultEmployeeId === "none" ? null : defaultEmployeeId,
       allergens: allergens.length ? allergens.join(", ") : null,
@@ -165,9 +168,30 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="prod-sif">SIF (quando aplicável)</Label>
-              <Input id="prod-sif" value={sif} onChange={(e) => setSif(e.target.value)} placeholder="Ex: 1234" maxLength={30} />
+              <Label>Tipo de inspeção</Label>
+              <Select value={inspectionType} onValueChange={setInspectionType}>
+                <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Não informado</SelectItem>
+                  <SelectItem value="SIF">SIF</SelectItem>
+                  <SelectItem value="SISP">SISP</SelectItem>
+                  <SelectItem value="IMPORTADO">Produto importado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="prod-sif">Número da inspeção</Label>
+              <Input
+                id="prod-sif"
+                value={sif}
+                onChange={(e) => setSif(e.target.value)}
+                placeholder={inspectionType === "SISP" ? "Ex: 0169" : "Ex: 157"}
+                maxLength={30}
+                disabled={inspectionType === "none"}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="prod-weight">Peso padrão (opcional)</Label>
               <Input id="prod-weight" value={defaultWeight} onChange={(e) => setDefaultWeight(e.target.value)} placeholder="Ex: 500g, 1kg" maxLength={20} />

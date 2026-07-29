@@ -16,6 +16,8 @@ export interface PrintLabelData {
   template?: "received" | "manipulation" | "production";
   cif?: string | null;
   sif?: string | null;
+  /** Tipo de registro de inspeção: SIF, SISP ou IMPORTADO. Define o rótulo impresso. */
+  inspectionType?: "SIF" | "SISP" | "IMPORTADO" | null;
   allergens?: string | null;
   ingredients?: string | null;
   conservationLabel?: string | null;
@@ -112,8 +114,12 @@ function buildLabelHtml(data: PrintLabelData): string {
   // Produção Interna nunca deve exibir marca/fornecedor — é um alimento produzido internamente.
   if (data.brand && template !== "production")
     identityLines.push(`<div class="id-row"><span class="k">MARCA/FORN:</span> <span class="v">${escapeHtml(data.brand.toUpperCase())}</span></div>`);
-  if (data.sif)
-    identityLines.push(`<div class="id-row"><span class="k">SIF:</span> <span class="v">${escapeHtml(data.sif)}</span></div>`);
+  if (data.inspectionType === "IMPORTADO")
+    identityLines.push(`<div class="id-row"><span class="k">PRODUTO IMPORTADO</span></div>`);
+  if (data.sif) {
+    const insLabel = data.inspectionType === "SISP" ? "SISP" : data.inspectionType === "IMPORTADO" ? "REG." : "SIF";
+    identityLines.push(`<div class="id-row"><span class="k">${insLabel}:</span> <span class="v">${escapeHtml(data.sif)}</span></div>`);
+  }
   if (data.cif)
     identityLines.push(`<div class="id-row"><span class="k">CIF:</span> <span class="v">${escapeHtml(data.cif)}</span></div>`);
   const identityBlock = identityLines.length ? `<div class="identity">${identityLines.join("")}</div>` : "";

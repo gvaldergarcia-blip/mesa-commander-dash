@@ -25,6 +25,7 @@ export interface LabelProduct {
   default_weight?: string | null;
   default_employee_id?: string | null;
   manipulation_enabled?: boolean;
+  inspection_type?: "SIF" | "SISP" | "IMPORTADO" | null;
   manipulation_validity_value?: number | null;
   manipulation_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
   manipulation_notes?: string | null;
@@ -56,6 +57,7 @@ export interface LabelProductInput {
   default_weight?: string | null;
   default_employee_id?: string | null;
   auto_reprint_enabled?: boolean;
+  inspection_type?: "SIF" | "SISP" | "IMPORTADO" | null;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
   manipulation_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
@@ -111,6 +113,7 @@ export function useLabelProducts() {
           default_weight: input.default_weight?.trim() || null,
           default_employee_id: input.default_employee_id || null,
           auto_reprint_enabled: input.auto_reprint_enabled ?? true,
+          inspection_type: input.inspection_type ?? null,
           manipulation_enabled: input.manipulation_enabled ?? false,
           manipulation_validity_value: input.manipulation_validity_value ?? null,
           manipulation_validity_unit: input.manipulation_validity_unit ?? null,
@@ -156,6 +159,7 @@ export function useLabelProducts() {
           default_weight: input.default_weight?.trim() || null,
           default_employee_id: input.default_employee_id || null,
           auto_reprint_enabled: input.auto_reprint_enabled ?? undefined,
+          inspection_type: input.inspection_type ?? null,
           manipulation_enabled: input.manipulation_enabled ?? undefined,
           manipulation_validity_value: input.manipulation_validity_value ?? null,
           manipulation_validity_unit: input.manipulation_validity_unit ?? null,

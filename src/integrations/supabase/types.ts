@@ -1778,6 +1778,7 @@ export type Database = {
           group_id: string | null
           id: string
           ingredients: string | null
+          inspection_type: string | null
           manipulation_enabled: boolean
           manipulation_notes: string | null
           manipulation_validity_unit: string | null
@@ -1813,6 +1814,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           ingredients?: string | null
+          inspection_type?: string | null
           manipulation_enabled?: boolean
           manipulation_notes?: string | null
           manipulation_validity_unit?: string | null
@@ -1848,6 +1850,7 @@ export type Database = {
           group_id?: string | null
           id?: string
           ingredients?: string | null
+          inspection_type?: string | null
           manipulation_enabled?: boolean
           manipulation_notes?: string | null
           manipulation_validity_unit?: string | null
