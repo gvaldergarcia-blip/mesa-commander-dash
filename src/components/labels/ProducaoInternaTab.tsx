@@ -485,6 +485,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     validity_value: 3,
     validity_unit: "days",
     pop_notes: "",
+    default_employee_id: "",
   });
 
   // Produção
@@ -495,7 +496,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
     setStep("select");
     setSearch("");
     setProduct(null);
-    setNp({ name: "", category: "", unit: "un", conservation: "refrigerated", storage_location: "", validity_value: 3, validity_unit: "days", pop_notes: "" });
+    setNp({ name: "", category: "", unit: "un", conservation: "refrigerated", storage_location: "", validity_value: 3, validity_unit: "days", pop_notes: "", default_employee_id: "" });
     setProd({ qty: 1, employeeId: "", notes: "" });
   };
 
@@ -558,6 +559,8 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
 
   const pickProduct = (p: LabelProduct) => {
     setProduct(p);
+    // Responsável padrão do cadastro já vem preenchido — menos cliques.
+    setProd((s) => ({ ...s, employeeId: p.default_employee_id || s.employeeId }));
     setStep("form");
   };
 
@@ -575,6 +578,7 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
         storage_location: np.storage_location || null,
         status: "active",
         origin: "produced",
+        default_employee_id: np.default_employee_id || null,
         production_validity_value: value,
         production_validity_unit: np.validity_unit as any,
         pop_notes: np.pop_notes || null,
@@ -776,6 +780,22 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
               <div className="md:col-span-2">
                 <Label>Local / Setor</Label>
                 <SectorCombobox value={np.storage_location} onChange={(v) => setNp({ ...np, storage_location: v })} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Responsável padrão (opcional)</Label>
+                <Select value={np.default_employee_id} onValueChange={(v) => setNp({ ...np, default_employee_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        <span className="flex items-center gap-2"><User className="h-3.5 w-3.5" /> {e.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Já vem preenchido nas próximas produções — basta imprimir.
+                </p>
               </div>
               <div className="md:col-span-2">
                 <Label>Observações do POP (opcional)</Label>
