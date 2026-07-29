@@ -21,8 +21,12 @@ export interface Label {
   unique_code: string;
   label_product_id: string | null;
   product_name: string;
+  /** DATA DA MANIPULAÇÃO (abertura). Base do cálculo da validade de manipulação. */
   manufacture_date: string;
+  /** VALIDADE DE MANIPULAÇÃO (pós-abertura). Única validade usada pela Renovação. */
   expiry_date: string;
+  /** VALIDADE ORIGINAL do fabricante — informativa, definida no recebimento e NUNCA recalculada. */
+  original_expiry_date?: string | null;
   quantity: number;
   units_used: number;
   units_remaining: number;
@@ -51,6 +55,8 @@ export interface LabelCreateInput {
   product_name: string;
   manufacture_date: Date;
   expiry_date: Date;
+  /** Validade original do fabricante (opcional) — nunca recalculada depois. */
+  original_expiry_date?: Date | null;
   quantity: number;
   batch?: string | null;
   responsible?: string | null;
@@ -131,6 +137,7 @@ export function useLabels() {
           product_name: input.product_name,
           manufacture_date: input.manufacture_date.toISOString(),
           expiry_date: input.expiry_date.toISOString(),
+          original_expiry_date: input.original_expiry_date ? input.original_expiry_date.toISOString() : null,
           quantity: input.quantity,
           batch: input.batch ?? null,
           responsible: input.responsible ?? null,
