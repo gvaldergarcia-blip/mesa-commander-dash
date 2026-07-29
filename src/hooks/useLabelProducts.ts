@@ -20,6 +20,10 @@ export interface LabelProduct {
   ingredients?: string | null;
   storage_location?: string | null;
   sif?: string | null;
+  brand?: string | null;
+  supplier_name?: string | null;
+  default_weight?: string | null;
+  default_employee_id?: string | null;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
   manipulation_validity_unit?: "hours" | "days" | "months" | "immediate" | null;
@@ -47,6 +51,10 @@ export interface LabelProductInput {
   ingredients?: string | null;
   storage_location?: string | null;
   sif?: string | null;
+  brand?: string | null;
+  supplier_name?: string | null;
+  default_weight?: string | null;
+  default_employee_id?: string | null;
   auto_reprint_enabled?: boolean;
   manipulation_enabled?: boolean;
   manipulation_validity_value?: number | null;
@@ -98,6 +106,10 @@ export function useLabelProducts() {
           ingredients: input.ingredients?.trim() || null,
           storage_location: input.storage_location?.trim() || null,
           sif: input.sif?.trim() || null,
+          brand: input.brand?.trim() || null,
+          supplier_name: input.supplier_name?.trim() || null,
+          default_weight: input.default_weight?.trim() || null,
+          default_employee_id: input.default_employee_id || null,
           auto_reprint_enabled: input.auto_reprint_enabled ?? true,
           manipulation_enabled: input.manipulation_enabled ?? false,
           manipulation_validity_value: input.manipulation_validity_value ?? null,
@@ -139,6 +151,10 @@ export function useLabelProducts() {
           ingredients: input.ingredients?.trim() || null,
           storage_location: input.storage_location?.trim() || null,
           sif: input.sif?.trim() || null,
+          brand: input.brand?.trim() || null,
+          supplier_name: input.supplier_name?.trim() || null,
+          default_weight: input.default_weight?.trim() || null,
+          default_employee_id: input.default_employee_id || null,
           auto_reprint_enabled: input.auto_reprint_enabled ?? undefined,
           manipulation_enabled: input.manipulation_enabled ?? undefined,
           manipulation_validity_value: input.manipulation_validity_value ?? null,
