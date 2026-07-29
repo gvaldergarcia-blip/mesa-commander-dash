@@ -95,7 +95,10 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     const all = mergeSectors([...fromActive, ...fromAll]);
     const hasNone = products.some((p) => !p.sector);
     const full = hasNone ? [...all, 'Sem setor'] : all;
-    return full.filter((s) => !hidden.includes(s));
+    // Um setor só pode ficar oculto se estiver realmente vazio: todo produto
+    // cadastrado e apto ao uso precisa aparecer no Estoque.
+    const withProducts = new Set(products.map((p) => sectorOf(p)));
+    return full.filter((s) => withProducts.has(s) || !hidden.includes(s));
   }, [products, items, registry, hidden]);
 
   const bySector = useMemo(() => {
