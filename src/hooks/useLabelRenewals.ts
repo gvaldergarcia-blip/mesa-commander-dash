@@ -151,6 +151,8 @@ export function useLabelRenewals() {
         product_name: l.product_name,
         manufacture_date: manufacture.toISOString(),
         expiry_date: expiry.toISOString(),
+        // A VALIDADE ORIGINAL DO FABRICANTE É APENAS COPIADA — nunca recalculada nem substituída.
+        original_expiry_date: (l as any).original_expiry_date ?? null,
         quantity,
         batch,
         responsible: l.responsible,

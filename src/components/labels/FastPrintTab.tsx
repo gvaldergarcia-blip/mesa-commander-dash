@@ -124,6 +124,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
         product_name: product.name,
         manufacture_date: manufacture,
         expiry_date: computedExpiry,
+        original_expiry_date: originalExpiry ? new Date(`${originalExpiry}T23:59:00`) : null,
         quantity: count,
         batch: batch.trim() || null,
         responsible: employee.name,

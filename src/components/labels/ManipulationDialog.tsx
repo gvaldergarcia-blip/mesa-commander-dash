@@ -222,6 +222,8 @@ export function ManipulationDialog({ open, onOpenChange, productId, productName,
         product_name: finalProductName,
         manufacture_date: manufacture,
         expiry_date: expiry,
+        // Validade original do fabricante é apenas herdada — nunca recalculada.
+        original_expiry_date: originExpiry,
         quantity: 1,
         batch,
         responsible: employee?.name || null,

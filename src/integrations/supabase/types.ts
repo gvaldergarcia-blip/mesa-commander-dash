@@ -1554,6 +1554,7 @@ export type Database = {
           notes: string | null
           origin_issuance_id: string | null
           origin_traceability_lot: string | null
+          original_expiry_date: string | null
           printed_labels: number
           product_name: string
           quantity: number
@@ -1590,6 +1591,7 @@ export type Database = {
           notes?: string | null
           origin_issuance_id?: string | null
           origin_traceability_lot?: string | null
+          original_expiry_date?: string | null
           printed_labels?: number
           product_name: string
           quantity?: number
@@ -1626,6 +1628,7 @@ export type Database = {
           notes?: string | null
           origin_issuance_id?: string | null
           origin_traceability_lot?: string | null
+          original_expiry_date?: string | null
           printed_labels?: number
           product_name?: string
           quantity?: number

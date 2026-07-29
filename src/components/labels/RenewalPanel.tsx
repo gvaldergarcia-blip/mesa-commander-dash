@@ -69,6 +69,9 @@ export function RenewalPanel() {
       productName: row?.product_name || prev.label.product_name,
       manufactureDate: new Date(row?.manufacture_date || Date.now()),
       expiryDate: new Date(row?.expiry_date || fallbackExpiry),
+      originalExpiryDate: (row?.original_expiry_date ?? (prev.label as any).original_expiry_date)
+        ? new Date(row?.original_expiry_date ?? (prev.label as any).original_expiry_date)
+        : null,
       responsible: row?.responsible || prev.label.responsible || "—",
       quantity: Number(row?.quantity || 1),
       batch: row?.batch || null,
@@ -216,16 +219,17 @@ export function RenewalPanel() {
                     <div><span className="uppercase tracking-wider">Local</span><div className="text-foreground font-medium flex items-center gap-1"><MapPin className="h-3 w-3" />{l.storage_location || "—"}</div></div>
                     <div><span className="uppercase tracking-wider">Quantidade</span><div className="text-foreground font-medium">{l.units_remaining ?? l.quantity}{l.weight != null && l.weight_unit ? ` · ${String(l.weight).replace(".", ",")} ${l.weight_unit}` : ""}</div></div>
                     <div><span className="uppercase tracking-wider">Manipulado</span><div className="text-foreground font-medium">{fmt(l.manufacture_date)}</div></div>
-                    <div><span className="uppercase tracking-wider">Validade atual</span><div className="text-foreground font-medium">{fmt(l.expiry_date)}</div></div>
+                    <div><span className="uppercase tracking-wider">Validade de manipulação</span><div className="text-foreground font-medium">{fmt(l.expiry_date)}</div></div>
+                    <div><span className="uppercase tracking-wider">Validade original (fabricante)</span><div className="text-foreground font-medium">{(l as any).original_expiry_date ? fmt((l as any).original_expiry_date) : "—"}<span className="ml-1 text-[10px] text-muted-foreground">não muda</span></div></div>
                     <div><span className="uppercase tracking-wider">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
                     {item.renewable && item.nextExpiry && (
                       <>
                         <div>
-                          <span className="uppercase tracking-wider">Nova manipulação</span>
+                          <span className="uppercase tracking-wider">Nova data de manipulação</span>
                           <div className="text-emerald-600 dark:text-emerald-400 font-semibold">agora (data/hora da renovação)</div>
                         </div>
                         <div>
-                          <span className="uppercase tracking-wider">Nova validade (após abertura: {item.ruleLabel})</span>
+                          <span className="uppercase tracking-wider">Nova validade de manipulação (regra: {item.ruleLabel})</span>
                           <div className="text-emerald-600 dark:text-emerald-400 font-semibold">{fmt(item.nextExpiry)}</div>
                         </div>
                       </>
