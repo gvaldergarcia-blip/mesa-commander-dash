@@ -16,6 +16,7 @@ import { useHiddenSectors } from '@/hooks/useHiddenSectors';
 import { useStockStatus } from '@/hooks/useStockStatus';
 import { useLabelEmployees } from '@/hooks/useLabelEmployees';
 import { useLabeledProducts, type LabeledProduct } from '@/hooks/useLabeledProducts';
+import { useLabelProducts } from '@/hooks/useLabelProducts';
 import { getSectorHex, mergeSectors, NO_SECTOR_HEX } from '@/lib/labels/sectors';
 import { withAlpha } from '@/lib/labels/categories';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ interface StockCheckTabProps {
 
 export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {}) {
   const { items, isLoading } = useLabeledProducts();
+  const { products: registry } = useLabelProducts();
   const { statusMap, setStatus, isMutating } = useStockStatus();
   const { activeEmployees } = useLabelEmployees();
   const { hidden, hideSector, restoreAll } = useHiddenSectors();
@@ -49,25 +51,52 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
     if (initialSector) setSelectedSector(initialSector);
   }, [initialSector]);
 
-  // Só produtos com id e com etiquetas ativas AINDA NÃO VENCIDAS.
-  // Regra: se vence — mesmo sem baixa manual — sai do Estoque automaticamente.
-  // Continua visível em "Produtos" com o aviso "VENCIDO".
-  const products = useMemo(
-    () => items.filter((p) => p.product_id && p.active_non_expired_labels_count > 0),
-    [items],
-  );
+  // Estoque = TODO produto cadastrado (ativo) + produtos com etiquetas ativas.
+  // Assim que um produto é cadastrado ele já aparece no card do seu setor,
+  // sem qualquer sincronização manual.
+  const products = useMemo(() => {
+    const labeled = items.filter((p) => p.product_id && p.active_non_expired_labels_count > 0);
+    const seen = new Set(labeled.map((p) => p.product_id));
+    const extras: LabeledProduct[] = registry
+      .filter((r) => (r.status ?? 'active') === 'active' && !seen.has(r.id))
+      .map((r) => ({
+        product_id: r.id,
+        product_name: r.name,
+        sector: r.storage_location ?? null,
+        category: r.category ?? null,
+        status: 'ok',
+        origin: r.origin === 'produced' ? 'internal' : 'received',
+        labels_count: 0,
+        active_labels_count: 0,
+        active_non_expired_labels_count: 0,
+        active_units: 0,
+        active_units_non_expired: 0,
+        discharged_labels_count: 0,
+        active_label_ids: [],
+        last_discharge_at: null,
+        last_discharge_reason: null,
+        receipts_count: 0,
+        last_receipt_at: null,
+        last_label_at: null,
+        last_supplier: null,
+        last_expiry: null,
+        raw: r,
+        receipts: [],
+      }));
+    return [...labeled, ...extras].sort((a, b) => a.product_name.localeCompare(b.product_name));
+  }, [items, registry]);
 
   // Setores mostrados NA TELA de conferência: preserva setores que já
   // existiram no restaurante (mesmo que agora estejam vazios por baixa /
   // vencimento), pois o setor físico continua na cozinha.
   const sectors = useMemo(() => {
     const fromActive = products.map((p) => p.sector);
-    const fromAll = items.map((p) => p.sector);
+    const fromAll = [...items.map((p) => p.sector), ...registry.map((r) => r.storage_location ?? null)];
     const all = mergeSectors([...fromActive, ...fromAll]);
     const hasNone = products.some((p) => !p.sector);
     const full = hasNone ? [...all, 'Sem setor'] : all;
     return full.filter((s) => !hidden.includes(s));
-  }, [products, items, hidden]);
+  }, [products, items, registry, hidden]);
 
   const bySector = useMemo(() => {
     const map = new Map<string, LabeledProduct[]>();
