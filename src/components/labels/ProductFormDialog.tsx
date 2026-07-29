@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LabelProduct, LabelProductInput } from "@/hooks/useLabelProducts";
 import { PRODUCT_CATEGORIES, ALLERGEN_OPTIONS } from "@/lib/labels/categories";
 import { SectorCombobox } from "@/components/labels/SectorCombobox";
+import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { cn } from "@/lib/utils";
 import { ChefHat, AlertTriangle } from "lucide-react";
 
@@ -21,6 +22,12 @@ interface Props {
 
 export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSubmitting }: Props) {
   const [name, setName] = useState("");
+  const { activeEmployees } = useLabelEmployees();
+  const [brand, setBrand] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [sif, setSif] = useState("");
+  const [defaultWeight, setDefaultWeight] = useState("");
+  const [defaultEmployeeId, setDefaultEmployeeId] = useState<string>("none");
   const [validityDays, setValidityDays] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [conservation, setConservation] = useState<string>("refrigerated");
@@ -39,6 +46,11 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   useEffect(() => {
     if (open) {
       setName(product?.name ?? "");
+      setBrand(product?.brand ?? "");
+      setSupplierName(product?.supplier_name ?? "");
+      setSif(product?.sif ?? "");
+      setDefaultWeight(product?.default_weight ?? "");
+      setDefaultEmployeeId(product?.default_employee_id ?? "none");
       setValidityDays(product?.validity_days?.toString() ?? "");
       setNotes(product?.notes ?? "");
       setConservation(product?.conservation_method ?? "refrigerated");
@@ -79,6 +91,11 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       status: status as any,
       category: category === "none" ? null : category,
       cif: null,
+      brand: brand.trim() || null,
+      supplier_name: supplierName.trim() || null,
+      sif: sif.trim() || null,
+      default_weight: defaultWeight.trim() || null,
+      default_employee_id: defaultEmployeeId === "none" ? null : defaultEmployeeId,
       allergens: allergens.length ? allergens.join(", ") : null,
       ingredients: ingredients.trim() || null,
       storage_location: storageLocation.trim() || null,
@@ -124,6 +141,38 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
               placeholder="Ex: 5"
               required
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="prod-brand">Marca / Fabricante</Label>
+              <Input id="prod-brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Ex: Friboi" maxLength={60} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prod-supplier">Fornecedor</Label>
+              <Input id="prod-supplier" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Ex: Distribuidora X" maxLength={60} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="prod-sif">SIF (quando aplicável)</Label>
+              <Input id="prod-sif" value={sif} onChange={(e) => setSif(e.target.value)} placeholder="Ex: 1234" maxLength={30} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="prod-weight">Peso padrão (opcional)</Label>
+              <Input id="prod-weight" value={defaultWeight} onChange={(e) => setDefaultWeight(e.target.value)} placeholder="Ex: 500g, 1kg" maxLength={20} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Responsável padrão (opcional)</Label>
+            <Select value={defaultEmployeeId} onValueChange={setDefaultEmployeeId}>
+              <SelectTrigger><SelectValue placeholder="Sem responsável padrão" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem responsável padrão</SelectItem>
+                {activeEmployees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
