@@ -782,6 +782,22 @@ function ProductionDialog({ open, onOpenChange, products, employees, onCreatePro
                 <SectorCombobox value={np.storage_location} onChange={(v) => setNp({ ...np, storage_location: v })} />
               </div>
               <div className="md:col-span-2">
+                <Label>Responsável padrão (opcional)</Label>
+                <Select value={np.default_employee_id} onValueChange={(v) => setNp({ ...np, default_employee_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        <span className="flex items-center gap-2"><User className="h-3.5 w-3.5" /> {e.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Já vem preenchido nas próximas produções — basta imprimir.
+                </p>
+              </div>
+              <div className="md:col-span-2">
                 <Label>Observações do POP (opcional)</Label>
                 <Textarea rows={2} value={np.pop_notes} onChange={(e) => setNp({ ...np, pop_notes: e.target.value })} placeholder="Ex.: resfriar até 5°C em até 2h" />
               </div>
