@@ -148,6 +148,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
         notes: product.default_observation || product.notes || null,
         cif: product.cif || null,
         sif: product.sif || null,
+        inspectionType: (product as any).inspection_type || null,
         allergens: product.allergens || null,
         ingredients: product.ingredients || null,
         conservationLabel:
@@ -254,7 +255,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
                 <div className="text-[10px] uppercase text-muted-foreground font-bold">Produto</div>
                 <div className="text-lg font-bold leading-tight">{product.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {[product.brand, product.supplier_name, product.sif ? `SIF ${product.sif}` : null]
+                  {[product.brand, product.supplier_name, product.sif ? `${(product as any).inspection_type === "SISP" ? "SISP" : (product as any).inspection_type === "IMPORTADO" ? "REG." : "SIF"} ${product.sif}` : null]
                     .filter(Boolean)
                     .join(" · ") || "—"}
                 </div>
