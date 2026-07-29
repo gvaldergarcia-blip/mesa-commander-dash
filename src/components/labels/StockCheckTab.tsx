@@ -148,9 +148,9 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
           <div className="text-center py-16 text-muted-foreground">Carregando…</div>
         ) : products.length === 0 ? (
           <div className="text-center py-16 border border-dashed rounded-2xl text-muted-foreground">
-            <p className="font-medium text-foreground/80">Nenhum produto etiquetado ainda</p>
+            <p className="font-medium text-foreground/80">Nenhum produto cadastrado ainda</p>
             <p className="text-xs mt-1">
-              Um produto passa a aparecer aqui quando sua primeira etiqueta é impressa pelo Recebimento.
+              Cadastre um produto em “Produtos” e ele aparece aqui automaticamente, no card do seu setor.
             </p>
           </div>
         ) : (
