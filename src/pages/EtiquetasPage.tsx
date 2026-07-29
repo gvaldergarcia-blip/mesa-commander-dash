@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw } from "lucide-react";
+import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw, Zap } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -12,7 +12,8 @@ import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
 import { StockReportsTab } from "@/components/labels/StockReportsTab";
 import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
-import { ReceivingTab } from "@/components/labels/receiving/ReceivingTab";
+import { FastPrintTab } from "@/components/labels/FastPrintTab";
+import { ProductRegistryTab } from "@/components/labels/ProductRegistryTab";
 import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
 import { TodayTab } from "@/components/labels/TodayTab";
@@ -20,7 +21,6 @@ import { RenewalPanel } from "@/components/labels/RenewalPanel";
 import { useLabelRenewals } from "@/hooks/useLabelRenewals";
 import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
 import { LabelsList } from "@/components/labels/LabelsList";
-import { PrintFlow } from "@/components/labels/PrintFlow";
 import { LabeledProductsTab } from "@/components/labels/LabeledProductsTab";
 import { ProducaoInternaTab } from "@/components/labels/ProducaoInternaTab";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
@@ -35,13 +35,19 @@ export default function EtiquetasPage() {
   const { missingProducts } = useStockStatus();
   const { count: renewalCount } = useLabelRenewals();
 
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState("imprimir");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
     label: string;
     items: { value: string; icon: any; label: string; badge?: number }[];
   }[] = [
+    {
+      label: "Operação diária",
+      items: [
+        { value: "imprimir", icon: Zap, label: "Imprimir etiqueta" },
+      ],
+    },
     {
       label: "Diário",
       items: [
@@ -52,7 +58,6 @@ export default function EtiquetasPage() {
     {
       label: "Entradas",
       items: [
-        { value: "recebimento", icon: PackagePlus, label: "Recebimento" },
         { value: "producao", icon: ChefHat, label: "Produção Interna" },
       ],
     },
@@ -65,7 +70,8 @@ export default function EtiquetasPage() {
     {
       label: "Cadastros",
       items: [
-        { value: "produtos", icon: Package, label: "Produtos" },
+        { value: "cadastro", icon: Package, label: "Produtos" },
+        { value: "produtos", icon: List, label: "Etiquetas ativas" },
         { value: "funcionarios", icon: Users, label: "Funcionários" },
         { value: "dashboard", icon: LayoutDashboard, label: "Relatórios" },
         { value: "sms", icon: MessageSquare, label: "SMS" },
@@ -234,7 +240,7 @@ export default function EtiquetasPage() {
           <TodayTab
             onQuickAction={(action) => {
               if (action === "new-label") setTab("imprimir");
-              else if (action === "new-receipt") setTab("recebimento");
+              else if (action === "new-receipt") setTab("imprimir");
               else if (action === "shopping") setTab("compras");
               else if (action === "labels") setTab("imprimir");
             }}
@@ -255,9 +261,22 @@ export default function EtiquetasPage() {
           <RenewalPanel />
         </TabsContent>
 
-        {/* ===== RECEBIMENTO INTELIGENTE ===== */}
-        <TabsContent value="recebimento">
-          <ReceivingTab />
+        {/* ===== IMPRESSÃO RÁPIDA ===== */}
+        <TabsContent value="imprimir" className="mt-0">
+          <FastPrintTab
+            initialProductId={printInitialProduct}
+            onManageProducts={() => setTab("cadastro")}
+          />
+        </TabsContent>
+
+        {/* ===== CADASTRO DE PRODUTOS ===== */}
+        <TabsContent value="cadastro" className="mt-0">
+          <ProductRegistryTab
+            onPrintProduct={(pid) => {
+              setPrintInitialProduct(pid);
+              setTab("imprimir");
+            }}
+          />
         </TabsContent>
 
         {/* ===== PRODUÇÃO INTERNA ===== */}
@@ -273,21 +292,6 @@ export default function EtiquetasPage() {
               setTab("estoque");
             }}
           />
-        </TabsContent>
-
-        {/* ===== IMPRIMIR ===== */}
-        <TabsContent value="imprimir">
-          <Card className="p-4 md:p-8 bg-card/30">
-            <CardContent className="p-0">
-              <PrintFlow
-                initialProductId={printInitialProduct}
-                onFinished={() => {
-                  setPrintInitialProduct(null);
-                  setTab("dashboard");
-                }}
-              />
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ===== ESTOQUE (marcação rápida) ===== */}
