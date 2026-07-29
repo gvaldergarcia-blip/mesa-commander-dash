@@ -28,7 +28,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
   const [sif, setSif] = useState("");
   const [defaultWeight, setDefaultWeight] = useState("");
   const [defaultEmployeeId, setDefaultEmployeeId] = useState<string>("none");
-  const [validityDays, setValidityDays] = useState<string>("");
+  const [originalExpiry, setOriginalExpiry] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [conservation, setConservation] = useState<string>("refrigerated");
   const [unit, setUnit] = useState<string>("un");
@@ -51,7 +51,14 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
       setSif(product?.sif ?? "");
       setDefaultWeight(product?.default_weight ?? "");
       setDefaultEmployeeId(product?.default_employee_id ?? "none");
-      setValidityDays(product?.validity_days?.toString() ?? "");
+      if (product?.validity_days) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + product.validity_days);
+        setOriginalExpiry(d.toISOString().slice(0, 10));
+      } else {
+        setOriginalExpiry("");
+      }
       setNotes(product?.notes ?? "");
       setConservation(product?.conservation_method ?? "refrigerated");
       setUnit(product?.unit ?? "un");
@@ -78,8 +85,12 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const days = parseInt(validityDays, 10);
-    if (!name.trim() || isNaN(days) || days <= 0) return;
+    if (!name.trim() || !originalExpiry) return;
+    const target = new Date(`${originalExpiry}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.max(1, Math.round((target.getTime() - today.getTime()) / 86400000));
+    if (isNaN(days)) return;
     const trimmed = name.trim();
     const normalizedName = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
     await onSubmit({
@@ -130,17 +141,17 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prod-days">Validade (em dias) *</Label>
+            <Label htmlFor="prod-original-expiry">Validade original *</Label>
             <Input
-              id="prod-days"
-              type="number"
-              min={1}
-              max={3650}
-              value={validityDays}
-              onChange={(e) => setValidityDays(e.target.value)}
-              placeholder="Ex: 5"
+              id="prod-original-expiry"
+              type="date"
+              value={originalExpiry}
+              onChange={(e) => setOriginalExpiry(e.target.value)}
               required
             />
+            <p className="text-[11px] text-muted-foreground">
+              Informe a data completa impressa na embalagem (ex.: 25/09/2028).
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
