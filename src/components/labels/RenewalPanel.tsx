@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,18 @@ import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { printLabelsMany, type PrintLabelData } from "./LabelPrintSheet";
 import { useLabelRenewals, type RenewalItem } from "@/hooks/useLabelRenewals";
 
-const fmt = (d: Date | string) => format(new Date(d), "dd/MM/yyyy HH:mm", { locale: ptBR });
+const fmt = (d: Date | string | null | undefined) => {
+  if (!d) return "—";
+  const date = d instanceof Date ? d : new Date(d);
+  if (!date || Number.isNaN(date.getTime())) return "—";
+  return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+};
+
+const safeDate = (v: any, fallback: Date) => {
+  if (!v) return fallback;
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? fallback : d;
+};
 
 function timeLabel(item: RenewalItem): { text: string; tone: string } {
   const h = Math.round(Math.abs(item.msLeft) / 3600_000);
@@ -36,10 +47,9 @@ function timeLabel(item: RenewalItem): { text: string; tone: string } {
 
 export function RenewalPanel() {
   const {
-    items, renewableItems, isLoading, renewing, renewMany, lookaheadHours, setLookaheadHours,
+    items, isLoading, lookaheadHours, setLookaheadHours,
   } = useLabelRenewals();
   const { restaurant } = useRestaurant();
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const { data: legal } = useQuery({
     queryKey: ["restaurant-legal", restaurant?.id],
@@ -55,7 +65,7 @@ export function RenewalPanel() {
     },
   });
 
-  const buildPrint = (row: any, prev: RenewalItem, fallbackExpiry: Date, noteOverride?: string | null): PrintLabelData => {
+  const buildPrint = (row: any, prev: RenewalItem, manufacture: Date, expiry: Date, noteOverride?: string | null): PrintLabelData => {
     const qrSvg = row?.unique_code
       ? renderToStaticMarkup(
           <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${row.unique_code}?op=1`} size={144} level="L" marginSize={1} />,
@@ -67,11 +77,14 @@ export function RenewalPanel() {
     const cons = row?.conservation_method || prev.label.conservation_method;
     return {
       productName: row?.product_name || prev.label.product_name,
-      manufactureDate: new Date(row?.manufacture_date || Date.now()),
-      expiryDate: new Date(row?.expiry_date || fallbackExpiry),
-      originalExpiryDate: (row?.original_expiry_date ?? (prev.label as any).original_expiry_date)
-        ? new Date(row?.original_expiry_date ?? (prev.label as any).original_expiry_date)
-        : null,
+      manufactureDate: manufacture,
+      expiryDate: expiry,
+      originalExpiryDate: (() => {
+        const raw = row?.original_expiry_date ?? (prev.label as any).original_expiry_date;
+        if (!raw) return null;
+        const d = new Date(raw);
+        return Number.isNaN(d.getTime()) ? null : d;
+      })(),
       responsible: row?.responsible || prev.label.responsible || "—",
       quantity: Number(row?.quantity || 1),
       batch: row?.batch || null,
@@ -93,33 +106,19 @@ export function RenewalPanel() {
     };
   };
 
-  const run = async (list: RenewalItem[], singleId?: string) => {
-    if (!list.length) return;
-    if (singleId) setBusyId(singleId);
-    try {
-      const results = await renewMany(list);
-      const jobs = results.map((r, i) => buildPrint(r.created, list[i], r.expiry));
-      toast.success(
-        results.length === 1
-          ? `Nova manipulação registrada · Lote ${results[0].batch} · validade ${fmt(results[0].expiry)}`
-          : `${results.length} novas manipulações registradas`,
-      );
-      if (jobs.length) {
-        await new Promise<void>((res) => requestAnimationFrame(() => res()));
-        printLabelsMany(jobs);
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Erro ao renovar etiquetas");
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  /** Reimprime a etiqueta atual, sem criar novo registro nem alterar validades. */
+  /**
+   * Reimprime a etiqueta com nova data de manipulação (agora) e nova validade
+   * calculada pela regra após abertura do próprio produto. Não cria registro novo.
+   */
   const reprint = (item: RenewalItem) => {
     const l: any = item.label;
-    printLabelsMany([buildPrint(l, item, new Date(l.expiry_date), l.notes ?? null)]);
-    toast.success("Etiqueta enviada para reimpressão");
+    const manufacture = new Date();
+    const expiry = safeDate(item.nextExpiry, safeDate(l.expiry_date, manufacture));
+    const note = item.ruleLabel
+      ? `Manipulação ${fmt(manufacture)} · regra após abertura ${item.ruleLabel}`
+      : l.notes ?? null;
+    printLabelsMany([buildPrint(l, item, manufacture, expiry, note)]);
+    toast.success(`Etiqueta enviada · validade ${fmt(expiry)}`);
   };
 
   const counts = useMemo(() => ({
@@ -167,14 +166,6 @@ export function RenewalPanel() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              onClick={() => run(renewableItems)}
-              disabled={renewing || renewableItems.length === 0}
-              className="gap-2 shadow-sm"
-            >
-              {renewing && !busyId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-              Renovar todas ({renewableItems.length})
-            </Button>
           </div>
         </div>
 
@@ -249,31 +240,17 @@ export function RenewalPanel() {
                   </div>
                 </div>
 
-                {item.renewable ? (
-                  <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                    <Button
-                      onClick={() => run([item], l.id)}
-                      disabled={renewing}
-                      className="gap-2"
-                    >
-                      {busyId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                      Nova manipulação
-                    </Button>
-                    <Button variant="outline" className="gap-2" onClick={() => reprint(item)}>
-                      <Printer className="h-4 w-4" /> Reimprimir
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="shrink-0 flex flex-col gap-2 max-w-[240px]">
+                <div className="shrink-0 flex flex-col gap-2 max-w-[260px]">
+                  {!item.renewable && item.blockReason && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30">
                       <Lock className="h-3.5 w-3.5 shrink-0" />
                       <span>{item.blockReason}</span>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => reprint(item)}>
-                      <Printer className="h-4 w-4" /> Reimprimir
-                    </Button>
-                  </div>
-                )}
+                  )}
+                  <Button className="gap-2" onClick={() => reprint(item)}>
+                    <Printer className="h-4 w-4" /> Reimprimir
+                  </Button>
+                </div>
               </Card>
             );
           })}
