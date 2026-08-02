@@ -40,7 +40,12 @@ export interface PrintLabelData {
   checklistQrLabel?: string | null;
 }
 
-const fmtDateTime = (d: Date) => format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
+const fmtDateTime = (value: Date | string | null | undefined) => {
+  if (!value) return "—";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+};
 
 const escapeHtml = (s: string) =>
   s
@@ -101,7 +106,7 @@ function buildLabelHtml(data: PrintLabelData): string {
         ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`
     : template === "manipulation"
     ? `
-        <div class="d-row"><span class="k">VAL. ORIGINAL:</span><span class="v">${escapeHtml(fmtDateTime(data.originalExpiryDate!))}</span></div>
+        <div class="d-row"><span class="k">VAL. ORIGINAL:</span><span class="v">${escapeHtml(fmtDateTime(data.originalExpiryDate))}</span></div>
         <div class="d-row"><span class="k">MANIPULAÇÃO:</span><span class="v">${escapeHtml(fmtDateTime(data.manufactureDate))}</span></div>
         <div class="d-row"><span class="k">VALIDADE:</span><span class="v">${escapeHtml(fmtDateTime(data.expiryDate))}</span></div>
         ${data.batch ? `<div class="d-row"><span class="k">LOTE:</span><span class="v">${escapeHtml(data.batch)}</span></div>` : ""}`
