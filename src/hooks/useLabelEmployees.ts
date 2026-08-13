@@ -14,6 +14,8 @@ export interface LabelEmployee {
   status: "active" | "inactive";
   created_at: string;
   sms_daily_enabled?: boolean;
+  notifications_enabled?: boolean;
+  notification_types?: string[];
   sms_daily_hour?: number;
   sms_immediate_alerts?: boolean;
   sms_include_checklists?: boolean;
@@ -27,6 +29,8 @@ export interface LabelEmployeeInput {
   sectors?: string[];
   status?: "active" | "inactive";
   sms_daily_enabled?: boolean;
+  notifications_enabled?: boolean;
+  notification_types?: string[];
   sms_daily_hour?: number;
   sms_immediate_alerts?: boolean;
   sms_include_checklists?: boolean;
@@ -69,6 +73,7 @@ export function useLabelEmployees() {
         sms_include_checklists: input.sms_include_checklists ?? false,
       });
       if (error) throw error;
+    },
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["label_employees", restaurantId] });
