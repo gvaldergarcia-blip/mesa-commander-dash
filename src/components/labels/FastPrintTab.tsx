@@ -75,16 +75,6 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
     setSelectedEnded(endedCycles.map((c) => c.productId || c.productName));
   }, [endedCycles.length]);
 
-  const genNewLot = async () => {
-    try {
-      const { data } = await (supabase as any).rpc("label_generate_receipt_lot");
-      if (typeof data === "string" && data) return data;
-    } catch { /* fallback local */ }
-    const d = new Date();
-    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-    return `LT-${ymd}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-  };
-
   /** Inicia um NOVO CICLO: novo lote gerado + novo valor original obrigatório. */
   const startNewCycle = async (c: EndedCycleProduct) => {
     const p = activeProducts.find((x) => x.id === c.productId) || activeProducts.find((x) => x.name === c.productName);
@@ -94,9 +84,10 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
     }
     selectProduct(p);
     setNewCycle(c);
-    setBatch(await genNewLot());
+    setBatch("");
     setOriginalExpiry("");
-    toast.info("Novo ciclo: informe o novo valor original (validade do fabricante).");
+    toast.info("Novo ciclo: informe o lote e o novo valor original (validade do fabricante).");
+    setTimeout(() => batchRef.current?.focus(), 50);
   };
 
   const selectProduct = (p: LabelProduct) => {
