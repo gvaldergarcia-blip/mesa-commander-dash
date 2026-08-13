@@ -43,6 +43,7 @@ import { PlanSettings } from "@/components/settings/PlanSettings";
 import { LoyaltySettings } from "@/components/settings/LoyaltySettings";
 import { AmbientPhotosManager } from "@/components/settings/AmbientPhotosManager";
 import { WhatsAppBotSettings } from "@/components/settings/WhatsAppBotSettings";
+import { WhatsAppNotificationsSettings } from "@/components/settings/WhatsAppNotificationsSettings";
 
 const cuisineTypes = [...CUISINE_TYPES];
 
@@ -421,6 +422,10 @@ function SettingsContent() {
           <TabsTrigger value="whatsapp_bot" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
             <span className="hidden sm:inline">Bot WhatsApp</span>
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp_notify" className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Notificações</span>
           </TabsTrigger>
         </TabsList>
 
@@ -943,6 +948,10 @@ function SettingsContent() {
 
         <TabsContent value="whatsapp_bot">
           <WhatsAppBotSettings />
+        </TabsContent>
+
+        <TabsContent value="whatsapp_notify">
+          <WhatsAppNotificationsSettings />
         </TabsContent>
       </Tabs>
     </div>

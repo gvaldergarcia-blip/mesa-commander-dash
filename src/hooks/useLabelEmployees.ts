@@ -14,6 +14,8 @@ export interface LabelEmployee {
   status: "active" | "inactive";
   created_at: string;
   sms_daily_enabled?: boolean;
+  notifications_enabled?: boolean;
+  notification_types?: string[];
   sms_daily_hour?: number;
   sms_immediate_alerts?: boolean;
   sms_include_checklists?: boolean;
@@ -27,10 +29,14 @@ export interface LabelEmployeeInput {
   sectors?: string[];
   status?: "active" | "inactive";
   sms_daily_enabled?: boolean;
+  notifications_enabled?: boolean;
+  notification_types?: string[];
   sms_daily_hour?: number;
   sms_immediate_alerts?: boolean;
   sms_include_checklists?: boolean;
 }
+
+// notifications_enabled / notification_types controlam o canal WhatsApp (Z-API)
 
 export function useLabelEmployees() {
   const restaurantId = useRestaurantId();
@@ -65,6 +71,8 @@ export function useLabelEmployees() {
         sms_daily_hour: input.sms_daily_hour ?? 8,
         sms_immediate_alerts: input.sms_immediate_alerts ?? true,
         sms_include_checklists: input.sms_include_checklists ?? false,
+        notifications_enabled: input.notifications_enabled ?? true,
+        notification_types: input.notification_types ?? [],
       });
       if (error) throw error;
     },
@@ -90,6 +98,8 @@ export function useLabelEmployees() {
           sms_daily_hour: input.sms_daily_hour ?? 8,
           sms_immediate_alerts: input.sms_immediate_alerts ?? true,
           sms_include_checklists: input.sms_include_checklists ?? false,
+          notifications_enabled: input.notifications_enabled ?? true,
+          notification_types: input.notification_types ?? [],
         })
         .eq("id", id);
       if (error) throw error;

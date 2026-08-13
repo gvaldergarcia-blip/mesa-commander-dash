@@ -14,6 +14,7 @@ import { mergeSectors } from "@/lib/labels/sectors";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { Switch } from "@/components/ui/switch";
 import { Bell, MessageSquare } from "lucide-react";
+import { NOTIFICATION_CATEGORIES } from "@/hooks/useWhatsAppNotifications";
 
 interface Props {
   open: boolean;
@@ -38,6 +39,8 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
   const [smsImmediate, setSmsImmediate] = useState(true);
   const [smsChecklists, setSmsChecklists] = useState(false);
   const [testingReport, setTestingReport] = useState(false);
+  const [waEnabled, setWaEnabled] = useState(true);
+  const [waTypes, setWaTypes] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -51,6 +54,8 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       setSmsHour(employee?.sms_daily_hour ?? 8);
       setSmsImmediate(employee?.sms_immediate_alerts ?? true);
       setSmsChecklists(employee?.sms_include_checklists ?? false);
+      setWaEnabled(employee?.notifications_enabled ?? true);
+      setWaTypes(employee?.notification_types ?? []);
     }
   }, [open, employee]);
 
@@ -71,6 +76,8 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
       sms_daily_hour: smsHour,
       sms_immediate_alerts: smsImmediate,
       sms_include_checklists: smsChecklists,
+      notifications_enabled: waEnabled,
+      notification_types: waTypes,
     });
     onOpenChange(false);
   };
@@ -290,6 +297,47 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, onSubmit, isS
             </UButton>
             {!employee?.id && (
               <p className="text-[11px] text-muted-foreground text-center">Salve o cadastro para testar o envio.</p>
+            )}
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Notificações WhatsApp</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Receber notificações por WhatsApp</Label>
+                <p className="text-xs text-muted-foreground">Usa o número de WhatsApp informado acima.</p>
+              </div>
+              <Switch checked={waEnabled} onCheckedChange={setWaEnabled} />
+            </div>
+
+            {waEnabled && (
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-muted-foreground">
+                  Selecione os tipos de aviso. Sem seleção, recebe todos os eventos ativos do restaurante.
+                </p>
+                {NOTIFICATION_CATEGORIES.map((cat) => (
+                  <div key={cat.category} className="space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{cat.category}</span>
+                    {cat.items.map((item) => (
+                      <label key={item.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={waTypes.includes(item.key)}
+                          onCheckedChange={(c) =>
+                            setWaTypes((prev) =>
+                              c ? [...prev, item.key] : prev.filter((t) => t !== item.key),
+                            )
+                          }
+                        />
+                        {item.label}
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           <DialogFooter>
