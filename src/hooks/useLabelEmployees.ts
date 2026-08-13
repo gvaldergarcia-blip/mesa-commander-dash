@@ -32,6 +32,8 @@ export interface LabelEmployeeInput {
   sms_include_checklists?: boolean;
 }
 
+// notifications_enabled / notification_types controlam o canal WhatsApp (Z-API)
+
 export function useLabelEmployees() {
   const restaurantId = useRestaurantId();
   const qc = useQueryClient();
