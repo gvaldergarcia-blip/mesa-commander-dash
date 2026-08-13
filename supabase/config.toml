@@ -152,3 +152,12 @@ verify_jwt = false
 
 [functions.schedule-label-sms-reports]
 verify_jwt = false
+
+[functions.notify-whatsapp]
+verify_jwt = false
+
+[functions.dispatch-whatsapp-events]
+verify_jwt = false
+
+[functions.zapi-webhook]
+verify_jwt = false
