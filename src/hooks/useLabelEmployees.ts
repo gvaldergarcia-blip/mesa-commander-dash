@@ -71,9 +71,10 @@ export function useLabelEmployees() {
         sms_daily_hour: input.sms_daily_hour ?? 8,
         sms_immediate_alerts: input.sms_immediate_alerts ?? true,
         sms_include_checklists: input.sms_include_checklists ?? false,
+        notifications_enabled: input.notifications_enabled ?? true,
+        notification_types: input.notification_types ?? [],
       });
       if (error) throw error;
-    },
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["label_employees", restaurantId] });
@@ -97,6 +98,8 @@ export function useLabelEmployees() {
           sms_daily_hour: input.sms_daily_hour ?? 8,
           sms_immediate_alerts: input.sms_immediate_alerts ?? true,
           sms_include_checklists: input.sms_include_checklists ?? false,
+          notifications_enabled: input.notifications_enabled ?? true,
+          notification_types: input.notification_types ?? [],
         })
         .eq("id", id);
       if (error) throw error;
