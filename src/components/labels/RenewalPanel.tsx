@@ -80,14 +80,18 @@ export function RenewalPanel() {
       manufactureDate: manufacture,
       expiryDate: expiry,
       originalExpiryDate: (() => {
-        const raw = row?.original_expiry_date ?? (prev.label as any).original_expiry_date;
+        const raw =
+          row?.original_expiry_date ??
+          (prev.label as any).original_expiry_date ??
+          (prev.originalExpiry ? prev.originalExpiry.toISOString() : null);
         if (!raw) return null;
         const d = new Date(raw);
         return Number.isNaN(d.getTime()) ? null : d;
       })(),
       responsible: row?.responsible || prev.label.responsible || "—",
       quantity: Number(row?.quantity || 1),
-      batch: row?.batch || null,
+      // MESMO CICLO: o lote original nunca muda na renovação.
+      batch: prev.cycleLot ?? row?.batch ?? null,
       template: "manipulation",
       sif: row?.sif ?? prev.label.sif ?? null,
       cif: row?.cif ?? prev.label.cif ?? null,
@@ -112,6 +116,10 @@ export function RenewalPanel() {
    */
   const reprint = (item: RenewalItem) => {
     const l: any = item.label;
+    if (item.cycleEnded) {
+      toast.error("Validade original atingida — inicie um novo ciclo em Imprimir etiqueta");
+      return;
+    }
     const manufacture = new Date();
     const expiry = safeDate(item.nextExpiry, safeDate(l.expiry_date, manufacture));
     const note = item.ruleLabel
@@ -223,7 +231,8 @@ export function RenewalPanel() {
                     <div><span className="uppercase tracking-wider">Quantidade</span><div className="text-foreground font-medium">{l.units_remaining ?? l.quantity}{l.weight != null && l.weight_unit ? ` · ${String(l.weight).replace(".", ",")} ${l.weight_unit}` : ""}</div></div>
                     <div><span className="uppercase tracking-wider">Manipulado</span><div className="text-foreground font-medium">{fmt(l.manufacture_date)}</div></div>
                     <div><span className="uppercase tracking-wider">Validade de manipulação</span><div className="text-foreground font-medium">{fmt(l.expiry_date)}</div></div>
-                    <div><span className="uppercase tracking-wider">Validade original (fabricante)</span><div className="text-foreground font-medium">{(l as any).original_expiry_date ? fmt((l as any).original_expiry_date) : "—"}<span className="ml-1 text-[10px] text-muted-foreground">não muda</span></div></div>
+                    <div><span className="uppercase tracking-wider">Valor original (fabricante)</span><div className="text-foreground font-medium">{item.originalExpiry ? fmt(item.originalExpiry) : "—"}<span className="ml-1 text-[10px] text-muted-foreground">não muda</span></div></div>
+                    <div><span className="uppercase tracking-wider">Lote do ciclo</span><div className="text-foreground font-mono font-medium">{item.cycleLot || "—"}<span className="ml-1 text-[10px] font-sans text-muted-foreground">não muda</span></div></div>
                     <div><span className="uppercase tracking-wider">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
                     {item.renewable && item.nextExpiry && (
                       <>
@@ -247,9 +256,15 @@ export function RenewalPanel() {
                       <span>{item.blockReason}</span>
                     </div>
                   )}
-                  <Button className="gap-2" onClick={() => reprint(item)}>
-                    <Printer className="h-4 w-4" /> Reimprimir
-                  </Button>
+                  {item.cycleEnded ? (
+                    <div className="text-xs rounded-lg border border-destructive/40 bg-destructive/5 text-destructive px-3 py-2">
+                      ⚠ Validade original atingida — novo ciclo necessário em <strong>Imprimir etiqueta</strong>.
+                    </div>
+                  ) : (
+                    <Button className="gap-2" onClick={() => reprint(item)}>
+                      <Printer className="h-4 w-4" /> Reimprimir
+                    </Button>
+                  )}
                 </div>
               </Card>
             );

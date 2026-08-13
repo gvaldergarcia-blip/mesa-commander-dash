@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Search, Loader2, Zap, Check, Package } from "lucide-react";
+import { Printer, Search, Loader2, Zap, Check, Package, AlertTriangle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QRCodeSVG } from "qrcode.react";
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { toast } from "sonner";
 import { getSiteBaseUrl } from "@/config/site-url";
+import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewals";
 
 /**
  * Impressão Rápida — o coração do MesaClik.
@@ -31,6 +33,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
   const { activeEmployees } = useLabelEmployees();
   const { createLabel } = useLabels();
   const { restaurant } = useRestaurant();
+  const { endedCycles } = useLabelRenewals();
 
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState<LabelProduct | null>(null);
@@ -39,6 +42,9 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
   const [qty, setQty] = useState(1);
   const [employeeId, setEmployeeId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  /** Ciclo anterior encerrado que está sendo reetiquetado (novo valor original + novo lote). */
+  const [newCycle, setNewCycle] = useState<EndedCycleProduct | null>(null);
+  const [selectedEnded, setSelectedEnded] = useState<string[]>([]);
   const batchRef = useRef<HTMLInputElement>(null);
 
   const activeProducts = useMemo(
@@ -64,11 +70,41 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
       .slice(0, 24);
   }, [activeProducts, search]);
 
+  // Produtos com validade original atingida vêm pré-selecionados.
+  useEffect(() => {
+    setSelectedEnded(endedCycles.map((c) => c.productId || c.productName));
+  }, [endedCycles.length]);
+
+  const genNewLot = async () => {
+    try {
+      const { data } = await (supabase as any).rpc("label_generate_receipt_lot");
+      if (typeof data === "string" && data) return data;
+    } catch { /* fallback local */ }
+    const d = new Date();
+    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    return `LT-${ymd}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  };
+
+  /** Inicia um NOVO CICLO: novo lote gerado + novo valor original obrigatório. */
+  const startNewCycle = async (c: EndedCycleProduct) => {
+    const p = activeProducts.find((x) => x.id === c.productId) || activeProducts.find((x) => x.name === c.productName);
+    if (!p) {
+      toast.error("Produto não encontrado no cadastro");
+      return;
+    }
+    selectProduct(p);
+    setNewCycle(c);
+    setBatch(await genNewLot());
+    setOriginalExpiry("");
+    toast.info("Novo ciclo: informe o novo valor original (validade do fabricante).");
+  };
+
   const selectProduct = (p: LabelProduct) => {
     setProduct(p);
     setBatch("");
     setOriginalExpiry("");
     setQty(1);
+    setNewCycle(null);
     setEmployeeId(p.default_employee_id || employeeId || activeEmployees[0]?.id || "");
     setTimeout(() => batchRef.current?.focus(), 50);
   };
@@ -111,7 +147,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
   }, [product, originalExpiry, now]);
 
   const employee = activeEmployees.find((e) => e.id === employeeId) || null;
-  const canPrint = !!product && !!computedExpiry && !!employee && !submitting;
+  const canPrint = !!product && !!computedExpiry && !!employee && !submitting && (!newCycle || !!originalExpiry);
 
   const handlePrint = async () => {
     if (!product || !computedExpiry || !employee) return;
@@ -167,6 +203,15 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
         quantity: count,
       });
       toast.success(`${count} etiqueta(s) de ${product.name} enviadas para impressão`);
+      // Novo ciclo: encerra o ciclo anterior preservando o histórico.
+      if (newCycle?.labelIds?.length) {
+        await (supabase as any)
+          .from("label_issuances")
+          .update({ status: "discharged", discharge_reason: "vencimento", resolved_at: manufacture.toISOString() })
+          .in("id", newCycle.labelIds);
+        toast.success("Ciclo anterior encerrado e mantido no histórico");
+      }
+      setNewCycle(null);
       setBatch("");
       setOriginalExpiry("");
       setQty(1);
@@ -191,6 +236,47 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
           <Package className="h-4 w-4" /> Cadastro
         </Button>
       </div>
+
+      {endedCycles.length > 0 && (
+        <Card className="p-4 border-destructive/40 bg-destructive/[0.05] space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div>
+              <div className="font-bold text-destructive">Produtos com validade original atingida</div>
+              <p className="text-xs text-muted-foreground">
+                Estes produtos encerraram o ciclo original e precisam iniciar um <strong>novo ciclo</strong> de
+                etiquetagem (novo lote + novo valor original). O histórico anterior é preservado.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            {endedCycles.map((c) => {
+              const key = c.productId || c.productName;
+              const checked = selectedEnded.includes(key);
+              return (
+                <div key={key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) =>
+                      setSelectedEnded((prev) => (v ? [...prev, key] : prev.filter((k) => k !== key)))
+                    }
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{c.productName}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Ciclo anterior · lote {c.previousLot || "—"} · valor original{" "}
+                      {c.previousOriginalExpiry ? format(c.previousOriginalExpiry, "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="destructive" disabled={!checked} onClick={() => startNewCycle(c)}>
+                    Novo ciclo
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
         {/* Lista de produtos */}
@@ -263,7 +349,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="fp-batch">Lote</Label>
+                <Label htmlFor="fp-batch">Lote {newCycle && <span className="text-destructive text-[11px]">(novo ciclo)</span>}</Label>
                 <Input
                   id="fp-batch"
                   ref={batchRef}
@@ -276,7 +362,9 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="fp-orig">Validade original</Label>
+                <Label htmlFor="fp-orig">
+                  Valor original {newCycle && <span className="text-destructive text-[11px]">obrigatório no novo ciclo</span>}
+                </Label>
                 <Input
                   id="fp-orig"
                   type="date"
