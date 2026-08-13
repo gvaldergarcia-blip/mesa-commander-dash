@@ -1490,6 +1490,8 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          notification_types: string[]
+          notifications_enabled: boolean
           pin: string | null
           restaurant_id: string
           role: string | null
@@ -1506,6 +1508,8 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          notification_types?: string[]
+          notifications_enabled?: boolean
           pin?: string | null
           restaurant_id: string
           role?: string | null
@@ -1522,6 +1526,8 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          notification_types?: string[]
+          notifications_enabled?: boolean
           pin?: string | null
           restaurant_id?: string
           role?: string | null
@@ -2113,36 +2119,51 @@ export type Database = {
       }
       label_sms_logs: {
         Row: {
+          channel: string
+          dedupe_key: string | null
           employee_id: string | null
           error: string | null
+          event_type: string | null
           id: string
           kind: string
           message: string
+          payload: Json
           phone: string
+          provider_message_id: string | null
           restaurant_id: string
           sent_at: string
           status: string
           triggered_label_id: string | null
         }
         Insert: {
+          channel?: string
+          dedupe_key?: string | null
           employee_id?: string | null
           error?: string | null
+          event_type?: string | null
           id?: string
           kind?: string
           message: string
+          payload?: Json
           phone: string
+          provider_message_id?: string | null
           restaurant_id: string
           sent_at?: string
           status?: string
           triggered_label_id?: string | null
         }
         Update: {
+          channel?: string
+          dedupe_key?: string | null
           employee_id?: string | null
           error?: string | null
+          event_type?: string | null
           id?: string
           kind?: string
           message?: string
+          payload?: Json
           phone?: string
+          provider_message_id?: string | null
           restaurant_id?: string
           sent_at?: string
           status?: string
@@ -4877,6 +4898,59 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_inbound_messages: {
+        Row: {
+          authorized: boolean
+          body: string | null
+          created_at: string
+          employee_id: string | null
+          handled: boolean
+          id: string
+          phone: string
+          provider_message_id: string | null
+          raw: Json
+          received_at: string
+          reply: string | null
+          restaurant_id: string | null
+        }
+        Insert: {
+          authorized?: boolean
+          body?: string | null
+          created_at?: string
+          employee_id?: string | null
+          handled?: boolean
+          id?: string
+          phone: string
+          provider_message_id?: string | null
+          raw?: Json
+          received_at?: string
+          reply?: string | null
+          restaurant_id?: string | null
+        }
+        Update: {
+          authorized?: boolean
+          body?: string | null
+          created_at?: string
+          employee_id?: string | null
+          handled?: boolean
+          id?: string
+          phone?: string
+          provider_message_id?: string | null
+          raw?: Json
+          received_at?: string
+          reply?: string | null
+          restaurant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_inbound_messages_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "label_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           ai_tool_trace: Json | null
@@ -4951,6 +5025,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_notification_settings: {
+        Row: {
+          connection_status: string
+          created_at: string
+          dedupe_window_hours: number
+          enabled: boolean
+          events: Json
+          last_checked_at: string | null
+          last_error: string | null
+          quiet_hours_end: number
+          quiet_hours_start: number
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          connection_status?: string
+          created_at?: string
+          dedupe_window_hours?: number
+          enabled?: boolean
+          events?: Json
+          last_checked_at?: string | null
+          last_error?: string | null
+          quiet_hours_end?: number
+          quiet_hours_start?: number
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          connection_status?: string
+          created_at?: string
+          dedupe_window_hours?: number
+          enabled?: boolean
+          events?: Json
+          last_checked_at?: string | null
+          last_error?: string | null
+          quiet_hours_end?: number
+          quiet_hours_start?: number
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
