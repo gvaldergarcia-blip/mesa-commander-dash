@@ -349,7 +349,7 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="fp-batch">Lote</Label>
+                <Label htmlFor="fp-batch">Lote {newCycle && <span className="text-destructive text-[11px]">(novo ciclo)</span>}</Label>
                 <Input
                   id="fp-batch"
                   ref={batchRef}
@@ -362,7 +362,9 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="fp-orig">Validade original</Label>
+                <Label htmlFor="fp-orig">
+                  Valor original {newCycle && <span className="text-destructive text-[11px]">obrigatório no novo ciclo</span>}
+                </Label>
                 <Input
                   id="fp-orig"
                   type="date"
