@@ -80,14 +80,18 @@ export function RenewalPanel() {
       manufactureDate: manufacture,
       expiryDate: expiry,
       originalExpiryDate: (() => {
-        const raw = row?.original_expiry_date ?? (prev.label as any).original_expiry_date;
+        const raw =
+          row?.original_expiry_date ??
+          (prev.label as any).original_expiry_date ??
+          (prev.originalExpiry ? prev.originalExpiry.toISOString() : null);
         if (!raw) return null;
         const d = new Date(raw);
         return Number.isNaN(d.getTime()) ? null : d;
       })(),
       responsible: row?.responsible || prev.label.responsible || "—",
       quantity: Number(row?.quantity || 1),
-      batch: row?.batch || null,
+      // MESMO CICLO: o lote original nunca muda na renovação.
+      batch: prev.cycleLot ?? row?.batch ?? null,
       template: "manipulation",
       sif: row?.sif ?? prev.label.sif ?? null,
       cif: row?.cif ?? prev.label.cif ?? null,
@@ -112,6 +116,10 @@ export function RenewalPanel() {
    */
   const reprint = (item: RenewalItem) => {
     const l: any = item.label;
+    if (item.cycleEnded) {
+      toast.error("Validade original atingida — inicie um novo ciclo em Imprimir etiqueta");
+      return;
+    }
     const manufacture = new Date();
     const expiry = safeDate(item.nextExpiry, safeDate(l.expiry_date, manufacture));
     const note = item.ruleLabel
