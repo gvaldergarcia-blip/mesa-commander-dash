@@ -237,6 +237,47 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
         </Button>
       </div>
 
+      {endedCycles.length > 0 && (
+        <Card className="p-4 border-destructive/40 bg-destructive/[0.05] space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div>
+              <div className="font-bold text-destructive">Produtos com validade original atingida</div>
+              <p className="text-xs text-muted-foreground">
+                Estes produtos encerraram o ciclo original e precisam iniciar um <strong>novo ciclo</strong> de
+                etiquetagem (novo lote + novo valor original). O histórico anterior é preservado.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            {endedCycles.map((c) => {
+              const key = c.productId || c.productName;
+              const checked = selectedEnded.includes(key);
+              return (
+                <div key={key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) =>
+                      setSelectedEnded((prev) => (v ? [...prev, key] : prev.filter((k) => k !== key)))
+                    }
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{c.productName}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Ciclo anterior · lote {c.previousLot || "—"} · valor original{" "}
+                      {c.previousOriginalExpiry ? format(c.previousOriginalExpiry, "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="destructive" disabled={!checked} onClick={() => startNewCycle(c)}>
+                    Novo ciclo
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
         {/* Lista de produtos */}
         <Card className="p-3 md:p-4 bg-card/40 space-y-3">
