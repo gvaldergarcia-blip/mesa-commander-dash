@@ -146,7 +146,7 @@ serve(async (req) => {
       if (dedupeKey) {
         const windowHours = Number(settings?.dedupe_window_hours ?? 12);
         const since = new Date(Date.now() - windowHours * 3600 * 1000).toISOString();
-        const { data: dup } = await sb
+        const dupQuery = sb
           .from("label_sms_logs")
           .select("id")
           .eq("restaurant_id", restaurantId)
@@ -154,6 +154,8 @@ serve(async (req) => {
           .eq("channel", "whatsapp")
           .gte("sent_at", since)
           .limit(1);
+        if (r.id) await dupQuery.eq("employee_id", r.id);
+        const { data: dup } = await dupQuery;
         if ((dup || []).length) {
           results.push({ phone: r.phone, skipped: "duplicate" });
           continue;
