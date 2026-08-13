@@ -23,6 +23,23 @@ export interface RenewalItem {
   /** Nova validade que será aplicada se renovada agora. */
   nextExpiry: Date | null;
   ruleLabel: string | null;
+  /** Validade ORIGINAL do fabricante deste ciclo (resolvida, nunca recalculada). */
+  originalExpiry: Date | null;
+  /** Lote original do ciclo (imutável durante a renovação). */
+  cycleLot: string | null;
+  /** Identificador do ciclo (lote raiz de rastreabilidade). */
+  cycleId: string | null;
+  /** A validade original foi atingida — exige NOVO ciclo, não renovação. */
+  cycleEnded: boolean;
+}
+
+/** Produto cujo ciclo original venceu e precisa ser reetiquetado (novo ciclo). */
+export interface EndedCycleProduct {
+  productId: string | null;
+  productName: string;
+  previousLot: string | null;
+  previousOriginalExpiry: Date | null;
+  labelIds: string[];
 }
 
 function addRule(base: Date, value: number, unit: string): Date {
@@ -72,6 +89,25 @@ export function useLabelRenewals() {
       now + lookaheadHours * 3600_000,
     );
 
+    // Fallback de "valor original": etiquetas antigas podem não ter gravado
+    // original_expiry_date. Recuperamos pelo mesmo ciclo (produto + lote).
+    const originalByCycle = new Map<string, string>();
+    for (const l of labels) {
+      const raw = (l as any).original_expiry_date;
+      if (!raw) continue;
+      const key = `${l.label_product_id || l.product_name}::${(l as any).origin_traceability_lot || l.batch || ""}`;
+      if (!originalByCycle.has(key)) originalByCycle.set(key, raw);
+    }
+    const resolveOriginal = (l: Label): Date | null => {
+      const raw =
+        (l as any).original_expiry_date ??
+        originalByCycle.get(`${l.label_product_id || l.product_name}::${(l as any).origin_traceability_lot || l.batch || ""}`) ??
+        null;
+      if (!raw) return null;
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
     const out: RenewalItem[] = [];
     for (const l of labels) {
       if (l.status === "discharged") continue;
@@ -99,16 +135,15 @@ export function useLabelRenewals() {
       let nextExpiry: Date | null = null;
       let ruleLabel: string | null = null;
 
-      const originalExp = (l as any).original_expiry_date
-        ? new Date((l as any).original_expiry_date)
-        : null;
+      const originalExp = resolveOriginal(l);
+      const cycleEnded = !!originalExp && originalExp.getTime() <= now;
 
       if (!product) {
         blockReason = "Produto sem cadastro vinculado";
       } else if (product.manipulation_validity_unit === "immediate" && product.manipulation_enabled) {
         blockReason = "Fabricante exige consumo imediato após aberto";
-      } else if (originalExp && originalExp.getTime() <= now) {
-        blockReason = "Validade original do fabricante já venceu";
+      } else if (cycleEnded) {
+        blockReason = "Validade original atingida — inicie um novo ciclo em Imprimir etiqueta";
       } else if (value > 0 && (unit === "hours" || unit === "days" || unit === "months")) {
         renewable = true;
         nextExpiry = addRule(new Date(), value, unit);
@@ -123,12 +158,53 @@ export function useLabelRenewals() {
       const urgency: RenewalUrgency =
         msLeft < 0 ? "expired" : exp <= endOfToday.getTime() ? "today" : "soon";
 
-      out.push({ label: l, product, urgency, msLeft, renewable, blockReason, nextExpiry, ruleLabel });
+      out.push({
+        label: l,
+        product,
+        urgency,
+        msLeft,
+        renewable,
+        blockReason,
+        nextExpiry,
+        ruleLabel,
+        originalExpiry: originalExp,
+        cycleLot: l.batch ?? null,
+        cycleId: (l as any).origin_traceability_lot ?? (l as any).traceability_lot ?? l.batch ?? null,
+        cycleEnded,
+      });
     }
     return out.sort((a, b) => a.msLeft - b.msLeft);
   }, [labels, productById, lookaheadHours]);
 
   const renewableItems = useMemo(() => items.filter((i) => i.renewable), [items]);
+
+  /** Produtos cujo VALOR ORIGINAL já foi atingido — precisam de novo ciclo (novo lote + novo valor original). */
+  const endedCycles = useMemo<EndedCycleProduct[]>(() => {
+    const now = Date.now();
+    const map = new Map<string, EndedCycleProduct>();
+    for (const l of labels) {
+      if (l.status === "discharged") continue;
+      if ((l.units_remaining ?? 0) <= 0) continue;
+      const raw = (l as any).original_expiry_date;
+      if (!raw) continue;
+      const orig = new Date(raw);
+      if (Number.isNaN(orig.getTime()) || orig.getTime() > now) continue;
+      const key = `${l.label_product_id || l.product_name}`;
+      const cur = map.get(key);
+      if (cur) {
+        cur.labelIds.push(l.id);
+        continue;
+      }
+      map.set(key, {
+        productId: l.label_product_id ?? null,
+        productName: l.product_name,
+        previousLot: l.batch ?? null,
+        previousOriginalExpiry: orig,
+        labelIds: [l.id],
+      });
+    }
+    return Array.from(map.values());
+  }, [labels]);
 
   /** Registra uma nova Manipulação (novo lote MAN-) preservando o histórico. */
   const renewOne = useCallback(async (item: RenewalItem) => {
@@ -153,11 +229,8 @@ export function useLabelRenewals() {
     }
     if (originalExp && originalExp < expiry) expiry = originalExp;
 
-    let batch = `MAN-${Date.now().toString(36).toUpperCase()}`;
-    try {
-      const { data: gen } = await (supabase as any).rpc("label_generate_manipulation_lot");
-      if (typeof gen === "string" && gen) batch = gen;
-    } catch { /* fallback local */ }
+    // RENOVAÇÃO = MESMO CICLO. O lote original NUNCA muda.
+    const batch = l.batch ?? null;
 
     const quantity = Math.max(1, Number(l.units_remaining ?? l.quantity ?? 1));
 
@@ -170,7 +243,8 @@ export function useLabelRenewals() {
         manufacture_date: manufacture.toISOString(),
         expiry_date: expiry.toISOString(),
         // A VALIDADE ORIGINAL DO FABRICANTE É APENAS COPIADA — nunca recalculada nem substituída.
-        original_expiry_date: (l as any).original_expiry_date ?? null,
+        original_expiry_date:
+          (l as any).original_expiry_date ?? (item.originalExpiry ? item.originalExpiry.toISOString() : null),
         quantity,
         batch,
         responsible: l.responsible,
@@ -223,6 +297,7 @@ export function useLabelRenewals() {
 
   return {
     items,
+    endedCycles,
     renewableItems,
     count: items.length,
     renewableCount: renewableItems.length,
