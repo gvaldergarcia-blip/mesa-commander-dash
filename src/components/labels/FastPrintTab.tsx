@@ -98,6 +98,10 @@ export function FastPrintTab({
     setReceiptQty(Object.fromEntries(receiptContext.items.map((i) => [i.key, Math.max(1, Math.round(i.quantity || 1))])));
   }, [receiptContext?.receiptId]);
 
+  useEffect(() => {
+    if (!employeeId && activeEmployees.length) setEmployeeId(activeEmployees[0].id);
+  }, [activeEmployees.length, employeeId]);
+
   /** Imprime etiquetas de PRODUTO LACRADO do recebimento: RECEBIDO EM + VAL. ORIGINAL.
    *  Nunca cria manipulação nem usa regra de pós-abertura. */
   const handlePrintReceipt = async () => {
