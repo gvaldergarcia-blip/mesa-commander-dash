@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Search, Loader2, Zap, Check, Package, AlertTriangle } from "lucide-react";
+import { Printer, Search, Loader2, Zap, Check, Package, AlertTriangle, Truck, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,19 +16,31 @@ import { useLabelProducts, LabelProduct } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { supabase } from "@/integrations/supabase/client";
-import { printLabels } from "./LabelPrintSheet";
+import { printLabels, printLabelsMany, type PrintLabelData } from "./LabelPrintSheet";
 import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { toast } from "sonner";
 import { getSiteBaseUrl } from "@/config/site-url";
 import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewals";
+import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 
 /**
  * Impressão Rápida — o coração do MesaClik.
  * Selecionar produto → Lote → Validade original → Quantidade → Imprimir.
  * Todo o resto vem do cadastro permanente do produto.
  */
-export function FastPrintTab({ initialProductId, onManageProducts }: { initialProductId?: string | null; onManageProducts?: () => void }) {
+export function FastPrintTab({
+  initialProductId,
+  onManageProducts,
+  receiptContext,
+  onClearReceiptContext,
+}: {
+  initialProductId?: string | null;
+  onManageProducts?: () => void;
+  /** Quando presente, a impressão vem de um RECEBIMENTO: etiqueta de produto LACRADO. */
+  receiptContext?: ReceiptPrintContext | null;
+  onClearReceiptContext?: () => void;
+}) {
   const { products, isLoading } = useLabelProducts();
   const { activeEmployees } = useLabelEmployees();
   const { createLabel } = useLabels();
@@ -46,6 +58,10 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
   const [newCycle, setNewCycle] = useState<EndedCycleProduct | null>(null);
   const [selectedEnded, setSelectedEnded] = useState<string[]>([]);
   const batchRef = useRef<HTMLInputElement>(null);
+  /** Itens do recebimento selecionados para impressão (pré-selecionados conforme a NF). */
+  const [selectedReceiptItems, setSelectedReceiptItems] = useState<string[]>([]);
+  const [receiptQty, setReceiptQty] = useState<Record<string, number>>({});
+  const [printingReceipt, setPrintingReceipt] = useState(false);
 
   const activeProducts = useMemo(
     () => products.filter((p) => (p.status ?? "active") === "active"),
@@ -74,6 +90,101 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
   useEffect(() => {
     setSelectedEnded(endedCycles.map((c) => c.productId || c.productName));
   }, [endedCycles.length]);
+
+  // Recebimento: todos os produtos da NF já vêm marcados para impressão.
+  useEffect(() => {
+    if (!receiptContext) return;
+    setSelectedReceiptItems(receiptContext.items.map((i) => i.key));
+    setReceiptQty(Object.fromEntries(receiptContext.items.map((i) => [i.key, Math.max(1, Math.round(i.quantity || 1))])));
+  }, [receiptContext?.receiptId]);
+
+  useEffect(() => {
+    if (!employeeId && activeEmployees.length) setEmployeeId(activeEmployees[0].id);
+  }, [activeEmployees.length, employeeId]);
+
+  /** Imprime etiquetas de PRODUTO LACRADO do recebimento: RECEBIDO EM + VAL. ORIGINAL.
+   *  Nunca cria manipulação nem usa regra de pós-abertura. */
+  const handlePrintReceipt = async () => {
+    if (!receiptContext) return;
+    const items = receiptContext.items.filter((i) => selectedReceiptItems.includes(i.key));
+    if (!items.length) {
+      toast.error("Selecione ao menos um produto");
+      return;
+    }
+    const emp = activeEmployees.find((e) => e.id === employeeId) || activeEmployees[0] || null;
+    if (!emp) {
+      toast.error("Cadastre um responsável para imprimir");
+      return;
+    }
+    setPrintingReceipt(true);
+    const receivedAt = new Date();
+    try {
+      const sheets: PrintLabelData[] = [];
+      for (const item of items) {
+        const p = item.productId ? activeProducts.find((x) => x.id === item.productId) || null : null;
+        const original = item.originalExpiry ? new Date(`${item.originalExpiry}T23:59:00`) : null;
+        if (!original || isNaN(original.getTime())) {
+          toast.error(`Informe a validade original de ${item.productName}`);
+          setPrintingReceipt(false);
+          return;
+        }
+        const count = Math.max(1, Math.min(50, receiptQty[item.key] || 1));
+        const inserted = await createLabel({
+          label_product_id: p?.id ?? null,
+          product_name: p?.name || item.productName,
+          manufacture_date: receivedAt,
+          expiry_date: original,
+          original_expiry_date: original,
+          quantity: count,
+          batch: item.batch,
+          responsible: emp.name,
+          employee_id: emp.id,
+          conservation_method: (p?.conservation_method || "refrigerated") as any,
+          notes: p?.default_observation || p?.notes || null,
+          cif: p?.cif || null,
+          allergens: p?.allergens || null,
+          ingredients: p?.ingredients || null,
+          supplier_lot: item.batch,
+        });
+        const qrSvg = renderToStaticMarkup(
+          <QRCodeSVG value={`${getSiteBaseUrl()}/etiquetas/scan/${inserted.unique_code}?op=1`} size={144} level="L" marginSize={1} />
+        );
+        sheets.push({
+          productName: p?.name || item.productName,
+          manufactureDate: receivedAt,
+          expiryDate: original,
+          template: "received",
+          responsible: emp.name,
+          notes: p?.default_observation || p?.notes || null,
+          cif: p?.cif || null,
+          sif: p?.sif || null,
+          inspectionType: (p as any)?.inspection_type || null,
+          allergens: p?.allergens || null,
+          ingredients: p?.ingredients || null,
+          conservationLabel:
+            CONSERVATION_LABEL[(p?.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL] || null,
+          storageLocation: p?.storage_location || null,
+          batch: item.batch,
+          quantityWeight: p?.default_weight || null,
+          brand: [p?.brand, p?.supplier_name || receiptContext.supplierName].filter(Boolean).join(" / ") || null,
+          restaurantName: restaurant?.name || null,
+          restaurantLogoUrl: restaurant?.logo_url || null,
+          restaurantCnpj: restaurantLegal?.cnpj || null,
+          restaurantCep: restaurantLegal?.cep || null,
+          checklistQrSvg: qrSvg,
+          checklistQrLabel: `#${inserted.unique_code}`,
+          quantity: count,
+        });
+      }
+      printLabelsMany(sheets);
+      toast.success(`${sheets.length} produto(s) enviados para impressão (lacrado)`);
+      onClearReceiptContext?.();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao imprimir etiquetas do recebimento");
+    } finally {
+      setPrintingReceipt(false);
+    }
+  };
 
   /** Inicia um NOVO CICLO: novo lote gerado + novo valor original obrigatório. */
   const startNewCycle = async (c: EndedCycleProduct) => {
@@ -227,6 +338,75 @@ export function FastPrintTab({ initialProductId, onManageProducts }: { initialPr
           <Package className="h-4 w-4" /> Cadastro
         </Button>
       </div>
+
+      {receiptContext && (
+        <Card className="p-4 border-primary/40 bg-primary/[0.06] space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <Truck className="h-5 w-5 text-primary shrink-0" />
+              <div>
+                <div className="font-bold">
+                  Etiquetas do recebimento
+                  {receiptContext.reference ? ` · NF ${receiptContext.reference}` : ""}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Produto <strong>lacrado</strong>: a etiqueta usa a validade original do fabricante. Sem manipulação e sem pós-abertura.
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClearReceiptContext}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="grid gap-2">
+            {receiptContext.items.map((i) => {
+              const checked = selectedReceiptItems.includes(i.key);
+              return (
+                <div key={i.key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) =>
+                      setSelectedReceiptItems((prev) => (v ? [...prev, i.key] : prev.filter((k) => k !== i.key)))
+                    }
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{i.productName}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {i.quantity} {i.unit || "un"} · lote {i.batch || "—"} · val. original{" "}
+                      {i.originalExpiry ? format(new Date(`${i.originalExpiry}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : "informar"}
+                    </div>
+                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={receiptQty[i.key] ?? 1}
+                    onChange={(e) =>
+                      setReceiptQty((prev) => ({ ...prev, [i.key]: Math.max(1, Math.min(50, Number(e.target.value) || 1)) }))
+                    }
+                    className="h-10 w-20"
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-2">
+            <Label>Responsável</Label>
+            <Select value={employeeId} onValueChange={setEmployeeId}>
+              <SelectTrigger className="h-11"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {activeEmployees.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handlePrintReceipt} disabled={printingReceipt} size="lg" className="w-full h-12 font-bold gap-2">
+            {printingReceipt ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
+            IMPRIMIR ETIQUETAS LACRADAS
+          </Button>
+        </Card>
+      )}
 
       {endedCycles.length > 0 && (
         <Card className="p-4 border-destructive/40 bg-destructive/[0.05] space-y-3">

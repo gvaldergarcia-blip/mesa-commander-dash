@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw, Zap } from "lucide-react";
+import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -23,6 +23,8 @@ import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labe
 import { LabelsList } from "@/components/labels/LabelsList";
 import { LabeledProductsTab } from "@/components/labels/LabeledProductsTab";
 import { ProducaoInternaTab } from "@/components/labels/ProducaoInternaTab";
+import { ReceiptEntryTab } from "@/components/labels/receiving/ReceiptEntryTab";
+import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -58,6 +60,7 @@ export default function EtiquetasPage() {
     {
       label: "Entradas",
       items: [
+        { value: "recebimento", icon: Truck, label: "Recebimento" },
         { value: "producao", icon: ChefHat, label: "Produção Interna" },
       ],
     },
@@ -84,6 +87,7 @@ export default function EtiquetasPage() {
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
+  const [receiptContext, setReceiptContext] = useState<ReceiptPrintContext | null>(null);
   const [stockInitialSector, setStockInitialSector] = useState<string | null>(null);
   const [productsStatusFilter, setProductsStatusFilter] = useState<"all" | "ok" | "critical" | "expired" | "warning">("all");
 
@@ -266,6 +270,18 @@ export default function EtiquetasPage() {
           <FastPrintTab
             initialProductId={printInitialProduct}
             onManageProducts={() => setTab("cadastro")}
+            receiptContext={receiptContext}
+            onClearReceiptContext={() => setReceiptContext(null)}
+          />
+        </TabsContent>
+
+        {/* ===== RECEBIMENTO (entrada no estoque) ===== */}
+        <TabsContent value="recebimento" className="mt-0">
+          <ReceiptEntryTab
+            onPrintReceipt={(ctx) => {
+              setReceiptContext(ctx);
+              setTab("imprimir");
+            }}
           />
         </TabsContent>
 
