@@ -61,6 +61,8 @@ export function FastPrintTab({
   /** Itens do recebimento selecionados para impressão (pré-selecionados conforme a NF). */
   const [selectedReceiptItems, setSelectedReceiptItems] = useState<string[]>([]);
   const [receiptQty, setReceiptQty] = useState<Record<string, number>>({});
+  /** Peso por item do recebimento — pré-preenchido pela NF e editável antes de imprimir. */
+  const [receiptWeight, setReceiptWeight] = useState<Record<string, string>>({});
   const [printingReceipt, setPrintingReceipt] = useState(false);
 
   const activeProducts = useMemo(
@@ -96,6 +98,11 @@ export function FastPrintTab({
     if (!receiptContext) return;
     setSelectedReceiptItems(receiptContext.items.map((i) => i.key));
     setReceiptQty(Object.fromEntries(receiptContext.items.map((i) => [i.key, Math.max(1, Math.round(i.quantity || 1))])));
+    setReceiptWeight(
+      Object.fromEntries(
+        receiptContext.items.map((i) => [i.key, i.weight ? `${i.weight} ${i.weightUnit || "kg"}` : ""]),
+      ),
+    );
   }, [receiptContext?.receiptId]);
 
   useEffect(() => {
@@ -165,7 +172,7 @@ export function FastPrintTab({
             CONSERVATION_LABEL[(p?.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL] || null,
           storageLocation: p?.storage_location || null,
           batch: item.batch,
-          quantityWeight: p?.default_weight || null,
+          quantityWeight: (receiptWeight[item.key] || "").trim() || p?.default_weight || null,
           brand: [p?.brand, p?.supplier_name || receiptContext.supplierName].filter(Boolean).join(" / ") || null,
           restaurantName: restaurant?.name || null,
           restaurantLogoUrl: restaurant?.logo_url || null,
@@ -372,10 +379,17 @@ export function FastPrintTab({
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold truncate">{i.productName}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {i.quantity} {i.unit || "un"} · lote {i.batch || "—"} · val. original{" "}
+                      <strong className="text-foreground">{i.quantity} {i.unit || "un"}</strong> · lote {i.batch || "—"} · val. original{" "}
                       {i.originalExpiry ? format(new Date(`${i.originalExpiry}T12:00:00`), "dd/MM/yyyy", { locale: ptBR }) : "informar"}
                     </div>
                   </div>
+                  <Input
+                    value={receiptWeight[i.key] ?? ""}
+                    onChange={(e) => setReceiptWeight((prev) => ({ ...prev, [i.key]: e.target.value }))}
+                    placeholder="Peso"
+                    className="h-10 w-24"
+                    title="Peso da embalagem (vem da NF, editável)"
+                  />
                   <Input
                     type="number"
                     min={1}
