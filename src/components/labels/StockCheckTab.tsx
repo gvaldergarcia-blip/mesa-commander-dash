@@ -14,11 +14,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useHiddenSectors } from '@/hooks/useHiddenSectors';
 import { useStockStatus } from '@/hooks/useStockStatus';
+import { useStockBalance } from '@/hooks/useStockBalance';
 import { useLabelEmployees } from '@/hooks/useLabelEmployees';
 import { useLabeledProducts, type LabeledProduct } from '@/hooks/useLabeledProducts';
 import { useLabelProducts } from '@/hooks/useLabelProducts';
 import { getSectorHex, mergeSectors, NO_SECTOR_HEX } from '@/lib/labels/sectors';
 import { withAlpha } from '@/lib/labels/categories';
+import { formatBase } from '@/lib/labels/stockUnits';
 import { cn } from '@/lib/utils';
 
 function isWeightProduct(p: LabeledProduct): boolean {
@@ -38,6 +40,7 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
   const { items, isLoading } = useLabeledProducts();
   const { products: registry } = useLabelProducts();
   const { statusMap, setStatus, isMutating } = useStockStatus();
+  const { balances } = useStockBalance();
   const { activeEmployees } = useLabelEmployees();
   const { hidden, hideSector, restoreAll } = useHiddenSectors();
   const [sectorToDelete, setSectorToDelete] = useState<string | null>(null);
@@ -213,17 +216,14 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                     </p>
                   ) : (
                   <div className="mt-3 flex items-center gap-3 text-xs">
-                    <span className="inline-flex items-center gap-1 text-emerald-500">
-                      <PackageCheck className="h-3.5 w-3.5" /> {okCount} ok
+                    <span className="inline-flex items-center gap-1 text-foreground font-semibold">
+                      <PackageCheck className="h-3.5 w-3.5 text-primary" />
+                      {list.filter((p) => p.product_id && (balances.get(p.product_id)?.value ?? 0) > 0).length} com saldo
                     </span>
-                    <span className="inline-flex items-center gap-1 text-destructive">
-                      <PackageX className="h-3.5 w-3.5" /> {missing} falta
+                    <span className="inline-flex items-center gap-1 text-muted-foreground">
+                      <PackageX className="h-3.5 w-3.5" />
+                      {list.filter((p) => p.product_id && (balances.get(p.product_id)?.value ?? 0) <= 0).length} sem estoque
                     </span>
-                    {pending > 0 && (
-                      <span className="inline-flex items-center gap-1 text-muted-foreground">
-                        • {pending} pendente{pending === 1 ? '' : 's'}
-                      </span>
-                    )}
                   </div>
                   )}
                 </div>
@@ -342,6 +342,30 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0 flex-1">
                     <h4 className="font-semibold truncate">{p.product_name}</h4>
+                    {/* Dado principal do Estoque Digital: QUANTO TEMOS EXATAMENTE. */}
+                    {(() => {
+                      const bal = p.product_id ? balances.get(p.product_id) : undefined;
+                      const value = bal?.value ?? 0;
+                      return (
+                        <div className="mt-1">
+                          <div
+                            className={cn(
+                              'text-2xl font-black tracking-tight',
+                              value <= 0 ? 'text-muted-foreground' : 'text-foreground',
+                            )}
+                          >
+                            {bal ? bal.label : 'sem entrada'}
+                          </div>
+                          {value <= 0 ? (
+                            <p className="text-[11px] text-destructive font-medium">Sem estoque</p>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground">
+                              Entrou {formatBase(bal!.entered, bal!.base)} · usado {formatBase(bal!.exited, bal!.base)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {st && (
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {st.marked_by_name || 'Equipe'} · {new Date(st.marked_at).toLocaleString('pt-BR', {
