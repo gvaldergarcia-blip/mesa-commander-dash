@@ -1943,6 +1943,7 @@ export type Database = {
           lot_source: string | null
           missing_fields: string[]
           needs_info: boolean
+          original_expiry_date: string | null
           price_cents: number | null
           product_id: string | null
           quantity: number
@@ -1962,6 +1963,7 @@ export type Database = {
           lot_source?: string | null
           missing_fields?: string[]
           needs_info?: boolean
+          original_expiry_date?: string | null
           price_cents?: number | null
           product_id?: string | null
           quantity?: number
@@ -1981,6 +1983,7 @@ export type Database = {
           lot_source?: string | null
           missing_fields?: string[]
           needs_info?: boolean
+          original_expiry_date?: string | null
           price_cents?: number | null
           product_id?: string | null
           quantity?: number
@@ -2012,6 +2015,7 @@ export type Database = {
       }
       label_receipts: {
         Row: {
+          computed_at: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -2023,10 +2027,12 @@ export type Database = {
           source: string
           status: string
           supplier_id: string | null
+          temperature_c: number | null
           traceability_lot: string | null
           updated_at: string
         }
         Insert: {
+          computed_at?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2038,10 +2044,12 @@ export type Database = {
           source?: string
           status?: string
           supplier_id?: string | null
+          temperature_c?: number | null
           traceability_lot?: string | null
           updated_at?: string
         }
         Update: {
+          computed_at?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2053,6 +2061,7 @@ export type Database = {
           source?: string
           status?: string
           supplier_id?: string | null
+          temperature_c?: number | null
           traceability_lot?: string | null
           updated_at?: string
         }
