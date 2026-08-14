@@ -7,6 +7,9 @@ export interface ReceiptPrintItem {
   productName: string;
   quantity: number;
   unit: string | null;
+  /** Peso conferido no recebimento (vem da NF quando disponível, editável). */
+  weight: number | null;
+  weightUnit: string | null;
   batch: string | null;
   /** yyyy-MM-dd */
   originalExpiry: string | null;

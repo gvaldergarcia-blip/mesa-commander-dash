@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { useLabelProducts, LabelProduct } from "@/hooks/useLabelProducts";
 import type { ReceiptPrintContext, ReceiptPrintItem } from "@/lib/labels/receiptContext";
+import { formatQty } from "@/lib/labels/stockUnits";
 
 interface Row {
   key: string;
@@ -20,6 +21,8 @@ interface Row {
   productId: string | null;
   quantity: string;
   unit: string;
+  weight: string;
+  weightUnit: string;
   batch: string;
   originalExpiry: string;
 }
@@ -30,6 +33,8 @@ const newRow = (): Row => ({
   productId: null,
   quantity: "1",
   unit: "un",
+  weight: "",
+  weightUnit: "kg",
   batch: "",
   originalExpiry: "",
 });
@@ -49,6 +54,12 @@ function matchProduct(rawName: string, products: LabelProduct[]): LabelProduct |
   }
   return best?.p ?? null;
 }
+
+/** Converte texto do operador (vírgula decimal) em número, ou null. */
+const num = (v: string): number | null => {
+  const n = Number(String(v ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
 
 /**
  * RECEBIMENTO — ponto de entrada do estoque.
@@ -106,6 +117,9 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
             productId: match?.id ?? null,
             quantity: String(i.quantity ?? 1),
             unit: String(i.unit || "un"),
+            // Peso vem da NF quando existir — e continua editável pelo operador.
+            weight: i.weight != null && Number(i.weight) > 0 ? String(i.weight) : "",
+            weightUnit: String(i.weight_unit || "kg"),
             batch: "",
             originalExpiry: "",
           };
@@ -154,6 +168,8 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
       product_id: r.productId,
       quantity: Number(r.quantity.replace(",", ".")) || 1,
       unit: r.unit || "un",
+      weight: num(r.weight),
+      weight_unit: num(r.weight) != null ? r.weightUnit || "kg" : null,
       supplier_lot: r.batch.trim() || null,
       original_expiry_date: r.originalExpiry || null,
       needs_info: false,
@@ -173,7 +189,11 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
         quantity: Number(r.quantity.replace(",", ".")) || 1,
         unit: r.unit || "un",
         occurred_at: new Date().toISOString(),
-        notes: [reference.trim() ? `NF ${reference.trim()}` : null, r.batch.trim() ? `Lote ${r.batch.trim()}` : null]
+        notes: [
+          reference.trim() ? `NF ${reference.trim()}` : null,
+          r.batch.trim() ? `Lote ${r.batch.trim()}` : null,
+          num(r.weight) ? `Peso ${num(r.weight)} ${r.weightUnit || "kg"}` : null,
+        ]
           .filter(Boolean)
           .join(" · ") || null,
       })),
@@ -188,6 +208,8 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
       productName: r.name.trim(),
       quantity: Number(r.quantity.replace(",", ".")) || 1,
       unit: r.unit || "un",
+      weight: num(r.weight),
+      weightUnit: num(r.weight) ? r.weightUnit || "kg" : null,
       batch: r.batch.trim() || null,
       originalExpiry: r.originalExpiry || null,
     }));
@@ -299,11 +321,27 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Produtos recebidos</h3>
           <Badge variant="outline" className="text-[10px]">{validRows.length} item(ns)</Badge>
         </div>
+
+        {/* Resumo quantitativo da NF — o que efetivamente entrou no estoque. */}
+        {validRows.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pb-1">
+            {validRows.map((r) => (
+              <span
+                key={`sum-${r.key}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/[0.07] px-2.5 py-1 text-[11px]"
+              >
+                <span className="truncate max-w-[160px]">{r.name.trim()}</span>
+                <strong className="text-primary">{formatQty(Number(r.quantity.replace(",", ".")) || 0, r.unit)}</strong>
+                {num(r.weight) && <span className="text-muted-foreground">· {num(r.weight)} {r.weightUnit}</span>}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="space-y-2">
           {rows.map((r) => {
             const matched = r.productId ? activeProducts.find((p) => p.id === r.productId) : null;
             return (
-              <div key={r.key} className="grid grid-cols-1 md:grid-cols-[1fr_90px_80px_140px_150px_40px] gap-2 items-end rounded-xl border border-border/60 p-3">
+              <div key={r.key} className="grid grid-cols-1 md:grid-cols-[1fr_90px_80px_110px_80px_130px_150px_40px] gap-2 items-end rounded-xl border border-border/60 p-3">
                 <div className="space-y-1">
                   <Label className="text-[11px]">Produto</Label>
                   <Input
@@ -316,8 +354,11 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
                     placeholder="Nome do produto"
                     className="h-10"
                   />
-                  <div className="text-[10px] text-muted-foreground truncate">
-                    {matched ? `Cadastro: ${matched.name}` : "Sem vínculo com o cadastro"}
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground truncate">
+                    <strong className="text-xs text-foreground">
+                      {formatQty(Number(r.quantity.replace(",", ".")) || 0, r.unit)}
+                    </strong>
+                    <span className="truncate">{matched ? `Cadastro: ${matched.name}` : "Sem vínculo com o cadastro"}</span>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -327,6 +368,20 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
                 <div className="space-y-1">
                   <Label className="text-[11px]">Un.</Label>
                   <Input value={r.unit} onChange={(e) => patch(r.key, { unit: e.target.value })} className="h-10" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Peso</Label>
+                  <Input
+                    value={r.weight}
+                    onChange={(e) => patch(r.key, { weight: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="0,000"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Un. peso</Label>
+                  <Input value={r.weightUnit} onChange={(e) => patch(r.key, { weightUnit: e.target.value })} className="h-10" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px]">Lote</Label>
