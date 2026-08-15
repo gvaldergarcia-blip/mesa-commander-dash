@@ -26,6 +26,8 @@ const LOSS_REASONS = [
   { value: "outros", label: "Outros" },
 ] as const;
 
+const USAGE_UNIT_OPTIONS = ["g", "kg", "un"];
+
 const conservationIcon = (c: string | null) => {
   switch (c) {
     case "frozen": return Snowflake;
@@ -52,7 +54,7 @@ export default function EtiquetaScan() {
   const [usedUnit, setUsedUnit] = useState<string | null>(null);
 
   /** A operação escolhe como o consumo foi medido no momento da baixa. */
-  const unitOptions: string[] = ["g", "kg", "un"];
+  const unitOptions = USAGE_UNIT_OPTIONS;
 
   useEffect(() => {
     if (!balance) return;
