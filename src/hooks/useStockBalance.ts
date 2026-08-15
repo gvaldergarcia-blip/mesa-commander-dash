@@ -4,9 +4,9 @@ import { useRestaurantId } from '@/contexts/RestaurantContext';
 import { toBase, formatBase, type StockBase } from '@/lib/labels/stockUnits';
 
 /** Eventos que ADICIONAM saldo (o estoque nasce no Recebimento). */
-const ENTRY_EVENTS = ['receipt', 'production', 'transfer'];
-/** Eventos que REDUZEM saldo (baixa por uso via QR Code acontece em fluxo separado). */
-const EXIT_EVENTS = ['consumption', 'loss', 'discharge'];
+export const ENTRY_EVENTS = ['receipt', 'production', 'transfer', 'adjustment'];
+/** Eventos que REDUZEM saldo (baixa por uso / perda via QR Code da etiqueta). */
+export const EXIT_EVENTS = ['consumption', 'loss', 'discharge', 'waste'];
 
 export interface StockBalance {
   productId: string;
@@ -17,6 +17,7 @@ export interface StockBalance {
   exited: number;
   label: string;
   lastEntryAt: string | null;
+  lastMovementAt: string | null;
 }
 
 /**
@@ -33,7 +34,7 @@ export function useStockBalance() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('label_stock_movements')
-        .select('product_id, event_type, quantity, unit, occurred_at')
+        .select('product_id, event_type, quantity, unit, occurred_at, notes, receipt_id')
         .eq('restaurant_id', restaurantId)
         .not('product_id', 'is', null)
         .order('occurred_at', { ascending: false })
@@ -48,7 +49,8 @@ export function useStockBalance() {
         const { base, value } = toBase(Number(m.quantity) || 0, m.unit);
         const cur =
           map.get(m.product_id) ??
-          { productId: m.product_id, base, value: 0, entered: 0, exited: 0, label: '', lastEntryAt: null };
+          { productId: m.product_id, base, value: 0, entered: 0, exited: 0, label: '', lastEntryAt: null, lastMovementAt: null };
+        if (!cur.lastMovementAt) cur.lastMovementAt = m.occurred_at;
         // Mantém a base do primeiro movimento; converte se divergir de forma incompatível.
         const v = cur.base === base ? value : Number(m.quantity) || 0;
         if (isEntry) {
