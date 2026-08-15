@@ -5583,6 +5583,7 @@ export type Database = {
           units_remaining: number
         }[]
       }
+      label_balance_by_code: { Args: { _code: string }; Returns: Json }
       label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_finalize_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_generate_manipulation_lot: { Args: never; Returns: string }
