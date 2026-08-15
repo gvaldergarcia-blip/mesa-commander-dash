@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { formatBase, toBase, type StockBase } from "@/lib/labels/stockUnits";
 
 type Action = "verify" | "use" | "loss" | "error";
 type Reason = "use" | "loss" | "error";
@@ -46,6 +47,8 @@ export default function EtiquetaScan() {
   const [lossReason, setLossReason] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [unitsToDischarge, setUnitsToDischarge] = useState<number>(1);
+  const [balance, setBalance] = useState<{ base: StockBase; value: number; unit: string } | null>(null);
+  const [usedQty, setUsedQty] = useState<string>("");
 
   const load = async () => {
     if (!code) return;
@@ -54,6 +57,14 @@ export default function EtiquetaScan() {
     if (error) toast.error(error.message);
     setLabel(data);
     setLoading(false);
+    try {
+      const { data: b } = await (supabase as any).rpc("label_balance_by_code", { _code: code });
+      if (b?.found) {
+        setBalance({ base: b.base as StockBase, value: Number(b.balance_base) || 0, unit: b.entry_unit || "un" });
+      } else {
+        setBalance(null);
+      }
+    } catch (_) { setBalance(null); }
   };
 
   useEffect(() => { load(); }, [code]);
@@ -115,6 +126,26 @@ export default function EtiquetaScan() {
       toast.success(
         `${REASON_LABEL[reason]} registrada (${data.units_used} unidade${data.units_used === 1 ? "" : "s"})`,
       );
+      // Estoque digital quantitativo: registra a quantidade realmente consumida.
+      const qty = Number(String(usedQty).replace(",", "."));
+      if (balance && qty > 0) {
+        const { data: usage } = await (supabase as any).rpc("label_register_usage", {
+          _code: code,
+          _quantity: qty,
+          _unit: balance.unit,
+          _reason: reason === "use" ? "use" : "loss",
+          _employee_id: null,
+          _notes: composedNotes || null,
+        });
+        if (usage?.success) {
+          toast.success(
+            `Estoque atualizado: ${formatBase(Number(usage.balance_after_base) || 0, usage.base)} restantes`,
+          );
+        } else if (usage?.error === "insufficient_stock") {
+          toast.error("Quantidade maior que o saldo disponível — nada foi descontado do estoque.");
+        }
+      }
+
       // Notificação SMS/WhatsApp (fire-and-forget)
       try {
         await (supabase as any).functions.invoke("send-label-discharge-alert", {
@@ -134,6 +165,7 @@ export default function EtiquetaScan() {
       setNotes("");
       setLossReason("");
       setUnitsToDischarge(1);
+      setUsedQty("");
       await load();
     } catch (e: any) {
       toast.error(e.message || "Erro");
