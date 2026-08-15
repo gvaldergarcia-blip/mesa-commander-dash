@@ -49,6 +49,34 @@ export default function EtiquetaScan() {
   const [unitsToDischarge, setUnitsToDischarge] = useState<number>(1);
   const [balance, setBalance] = useState<{ base: StockBase; value: number; unit: string } | null>(null);
   const [usedQty, setUsedQty] = useState<string>("");
+  const [usedUnit, setUsedUnit] = useState<string | null>(null);
+
+  /** Unidades permitidas conforme a base de controle do produto. */
+  const unitOptions: string[] = !balance
+    ? []
+    : balance.base === "g"
+      ? ["kg", "g"]
+      : balance.base === "ml"
+        ? ["L", "ml"]
+        : ["un"];
+
+  useEffect(() => {
+    if (!balance) return;
+    setUsedUnit((u) => {
+      if (u && unitOptions.includes(u)) return u;
+      const entry = unitOptions.find((o) => o.toLowerCase() === (balance.unit || "").toLowerCase());
+      return entry ?? unitOptions[0];
+    });
+  }, [balance?.base, balance?.unit]);
+
+  const effUnit = usedUnit ?? balance?.unit ?? "un";
+  const qtyNum = Number(String(usedQty).replace(",", "."));
+  const qtyValid = Number.isFinite(qtyNum) && qtyNum > 0;
+  const usedBase = balance && qtyValid ? toBase(qtyNum, effUnit).value : 0;
+  const afterBase = balance ? balance.value - usedBase : 0;
+  const overBalance = !!balance && qtyValid && usedBase > balance.value + 1e-9;
+  /** Baixa por uso exige quantidade quando o produto tem controle quantitativo. */
+  const missingUseQty = reason === "use" && !!balance && !qtyValid;
 
   const load = async () => {
     if (!code) return;
@@ -98,12 +126,89 @@ export default function EtiquetaScan() {
     }
   };
 
+  /** BAIXA POR USO — movimentação quantitativa, NÃO exclusão da etiqueta. */
+  const handleRegisterUse = async () => {
+    if (!code || !balance) return;
+    if (!qtyValid) {
+      toast.error("Informe a quantidade utilizada");
+      return;
+    }
+    if (overBalance) {
+      toast.error(`Quantidade superior ao saldo disponível (${formatBase(balance.value, balance.base)})`);
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const { data: usage, error } = await (supabase as any).rpc("label_register_usage", {
+        _code: code,
+        _quantity: qtyNum,
+        _unit: effUnit,
+        _reason: "use",
+        _employee_id: null,
+        _notes: notes.trim() || null,
+      });
+      if (error) throw new Error(error.message);
+      if (!usage?.success) {
+        if (usage?.error === "insufficient_stock") {
+          toast.error(
+            `Quantidade superior ao saldo disponível (${formatBase(Number(usage.balance_base) || 0, usage.base)})`,
+          );
+        } else {
+          throw new Error(usage?.error || "Erro ao registrar o uso");
+        }
+        return;
+      }
+
+      const after = Number(usage.balance_after_base) || 0;
+      toast.success(`Uso registrado. Saldo: ${formatBase(after, usage.base)}`);
+
+      // Saldo zerado: a embalagem está esgotada — fecha a etiqueta mantendo todo o histórico.
+      if (after <= 0.0000001) {
+        try {
+          await (supabase as any).rpc("discharge_label_by_code", {
+            _code: code,
+            _reason: "use",
+            _employee_id: null,
+            _notes: notes.trim() || "Saldo esgotado",
+            _units: Math.max(1, Number(label?.units_remaining ?? label?.quantity ?? 1)),
+          });
+        } catch (_) { /* histórico preservado mesmo se falhar */ }
+      }
+
+      try {
+        await (supabase as any).functions.invoke("send-label-discharge-alert", {
+          body: {
+            restaurant_id: label?.restaurant_id,
+            product_id: usage?.product_id,
+            product_name: usage?.product_name || label?.product_name,
+            reason: "use",
+            quantity: qtyNum,
+            unit: effUnit,
+            fully_discharged: after <= 0.0000001,
+          },
+        });
+      } catch (_) { /* ignore */ }
+
+      setUsedQty("");
+      setNotes("");
+      setReason(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao registrar o uso");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDischarge = async () => {
     if (!reason || !code) return;
+    if (reason === "use" && balance) return handleRegisterUse();
     if (reason === "loss" && !lossReason) {
       toast.error("Selecione o motivo da perda");
       return;
     }
+    if (submitting) return;
     setSubmitting(true);
     try {
       const composedNotes =
