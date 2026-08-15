@@ -53,7 +53,7 @@ export default function EtiquetaScan() {
 
   /** Unidades permitidas conforme a base de controle do produto. */
   const unitOptions: string[] = !balance
-    ? ["g", "kg"]
+    ? ["un", "g", "kg"]
     : balance.base === "g"
       ? ["kg", "g"]
       : balance.base === "ml"
@@ -69,7 +69,7 @@ export default function EtiquetaScan() {
     });
   }, [balance?.base, balance?.unit]);
 
-  const effUnit = usedUnit ?? balance?.unit ?? "g";
+  const effUnit = usedUnit ?? balance?.unit ?? "un";
   const qtyNum = Number(String(usedQty).replace(",", "."));
   const qtyValid = Number.isFinite(qtyNum) && qtyNum > 0;
   const usedBase = balance && qtyValid ? toBase(qtyNum, effUnit).value : 0;
@@ -546,17 +546,6 @@ export default function EtiquetaScan() {
                 </div>
               )}
 
-              {reason && (
-                <Textarea
-                  placeholder="Observação (opcional)"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  maxLength={200}
-                  className="mt-3 bg-[#161626] border-[#2D2D44] text-white placeholder:text-[#4A5568]"
-                />
-              )}
-
               {/* ===== ESTOQUE DIGITAL — BAIXA POR USO QUANTITATIVA ===== */}
               {reason === "use" && (
                 <div className="mt-3 rounded-2xl border border-[#48BB78]/40 bg-[#161626] p-4 shadow-[0_0_0_1px_rgba(72,187,120,0.06)]">
@@ -583,7 +572,7 @@ export default function EtiquetaScan() {
                       type="text"
                       inputMode="decimal"
                       autoFocus
-                      placeholder="0,000"
+                      placeholder={effUnit === "un" ? "0" : "0,000"}
                       value={usedQty}
                       onChange={(e) => setUsedQty(e.target.value.replace(/[^0-9.,]/g, ""))}
                       className="flex-1 h-14 bg-[#0F0F1A] border border-[#2D2D44] focus:border-[#48BB78] outline-none rounded-xl px-4 text-white font-black text-2xl tracking-tight"
@@ -645,6 +634,17 @@ export default function EtiquetaScan() {
                     </p>
                   )}
                 </div>
+              )}
+
+              {reason && (
+                <Textarea
+                  placeholder="Observação (opcional)"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  maxLength={200}
+                  className="mt-3 bg-[#161626] border-[#2D2D44] text-white placeholder:text-[#4A5568]"
+                />
               )}
 
               {/* Perda / erro: quantidade opcional enquanto o fluxo não é quantitativo */}
