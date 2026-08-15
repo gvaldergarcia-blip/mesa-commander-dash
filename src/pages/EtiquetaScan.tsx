@@ -26,6 +26,8 @@ const LOSS_REASONS = [
   { value: "outros", label: "Outros" },
 ] as const;
 
+const USAGE_UNIT_OPTIONS = ["g", "kg", "un"];
+
 const conservationIcon = (c: string | null) => {
   switch (c) {
     case "frozen": return Snowflake;
@@ -51,14 +53,8 @@ export default function EtiquetaScan() {
   const [usedQty, setUsedQty] = useState<string>("");
   const [usedUnit, setUsedUnit] = useState<string | null>(null);
 
-  /** Unidades permitidas conforme a base de controle do produto. */
-  const unitOptions: string[] = !balance
-    ? ["un", "g", "kg"]
-    : balance.base === "g"
-      ? ["kg", "g"]
-      : balance.base === "ml"
-        ? ["L", "ml"]
-        : ["un"];
+  /** A operação escolhe como o consumo foi medido no momento da baixa. */
+  const unitOptions = USAGE_UNIT_OPTIONS;
 
   useEffect(() => {
     if (!balance) return;
@@ -564,8 +560,8 @@ export default function EtiquetaScan() {
                     </>
                   )}
 
-                  <div className="mt-4 text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1.5">
-                    Quantidade utilizada *
+                   <div className="mt-4 text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1.5">
+                     Quanto foi consumido? *
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -577,26 +573,22 @@ export default function EtiquetaScan() {
                       onChange={(e) => setUsedQty(e.target.value.replace(/[^0-9.,]/g, ""))}
                       className="flex-1 h-14 bg-[#0F0F1A] border border-[#2D2D44] focus:border-[#48BB78] outline-none rounded-xl px-4 text-white font-black text-2xl tracking-tight"
                     />
-                    {unitOptions.length > 1 ? (
-                      <div className="flex h-14 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] p-1 gap-1">
-                        {unitOptions.map((u) => (
-                          <button
-                            key={u}
-                            type="button"
-                            onClick={() => setUsedUnit(u)}
-                            className={`px-4 rounded-lg text-sm font-bold transition-colors ${
-                              effUnit === u ? "bg-[#48BB78] text-[#0F0F1A]" : "text-[#718096] hover:text-white"
-                            }`}
-                          >
-                            {u}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="h-14 px-5 inline-flex items-center rounded-xl bg-[#2D2D44] text-white font-bold text-sm">
-                        {effUnit}
-                      </span>
-                    )}
+                    <div className="grid h-14 shrink-0 grid-cols-3 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] p-1 gap-1" aria-label="Unidade da quantidade consumida">
+                      {unitOptions.map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setUsedUnit(u)}
+                          aria-pressed={effUnit === u}
+                          title={u === "g" ? "Gramas" : u === "kg" ? "Quilos" : "Unidades"}
+                          className={`min-w-10 px-2 rounded-lg text-sm font-bold transition-colors ${
+                            effUnit === u ? "bg-[#48BB78] text-[#0F0F1A]" : "text-[#718096] hover:text-white"
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {balance && overBalance ? (
