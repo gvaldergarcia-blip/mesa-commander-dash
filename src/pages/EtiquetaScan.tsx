@@ -452,6 +452,63 @@ export default function EtiquetaScan() {
                 />
               )}
 
+              {/* ESTOQUE DIGITAL — quanto saiu de fato */}
+              {reason && balance && (
+                <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-4">
+                  <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1">
+                    Quanto foi usado?
+                  </div>
+                  <div className="text-xs text-[#A0AEC0] mb-3">
+                    Saldo em estoque: <strong className="text-white">{formatBase(balance.value, balance.base)}</strong>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      placeholder="0"
+                      value={usedQty}
+                      onChange={(e) => setUsedQty(e.target.value)}
+                      className="flex-1 h-12 bg-[#0F0F1A] border border-[#2D2D44] rounded-xl px-3 text-white font-bold text-lg"
+                    />
+                    <span className="h-12 px-4 inline-flex items-center rounded-xl bg-[#2D2D44] text-white font-semibold uppercase text-sm">
+                      {balance.unit}
+                    </span>
+                  </div>
+
+                  {(() => {
+                    const qty = Number(String(usedQty).replace(",", "."));
+                    if (!usedQty || !Number.isFinite(qty) || qty <= 0) {
+                      return (
+                        <p className="mt-2 text-[11px] text-[#718096]">
+                          Deixe em branco se esta baixa não altera a quantidade em estoque.
+                        </p>
+                      );
+                    }
+                    const { value: used } = toBase(qty, balance.unit);
+                    const after = balance.value - used;
+                    const over = after < 0;
+                    return (
+                      <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] px-3 py-2">
+                        <div className="text-[11px] text-[#718096]">
+                          Antes
+                          <div className="text-sm font-bold text-white">{formatBase(balance.value, balance.base)}</div>
+                        </div>
+                        <ChevronDown className="h-4 w-4 -rotate-90 text-[#4A5568]" />
+                        <div className="text-[11px] text-[#718096] text-right">
+                          Depois
+                          <div className={`text-sm font-bold ${over ? "text-[#E53E3E]" : "text-[#48BB78]"}`}>
+                            {over ? "saldo insuficiente" : formatBase(after, balance.base)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {reason && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
                 <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-3">
                   <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-2">
@@ -511,7 +568,14 @@ export default function EtiquetaScan() {
               <div className="max-w-md mx-auto">
                 <button
                   onClick={handleDischarge}
-                  disabled={!reason || submitting || (reason === "loss" && !lossReason)}
+                  disabled={
+                    !reason ||
+                    submitting ||
+                    (reason === "loss" && !lossReason) ||
+                    (!!balance &&
+                      Number(String(usedQty).replace(",", ".")) > 0 &&
+                      toBase(Number(String(usedQty).replace(",", ".")), balance.unit).value > balance.value)
+                  }
                   className="w-full h-14 rounded-2xl bg-[#E53E3E] hover:bg-[#c53030] disabled:bg-[#2D2D44] disabled:text-[#4A5568] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors"
                 >
                   {submitting ? (
