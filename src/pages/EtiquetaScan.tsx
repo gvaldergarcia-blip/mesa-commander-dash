@@ -557,64 +557,126 @@ export default function EtiquetaScan() {
                 />
               )}
 
-              {/* ESTOQUE DIGITAL — quanto saiu de fato */}
-              {reason && balance && (
+              {/* ===== ESTOQUE DIGITAL — BAIXA POR USO QUANTITATIVA ===== */}
+              {reason === "use" && balance && (
+                <div className="mt-3 rounded-2xl border border-[#48BB78]/40 bg-[#161626] p-4 shadow-[0_0_0_1px_rgba(72,187,120,0.06)]">
+                  <div className="text-[10px] uppercase tracking-widest text-[#48BB78] font-bold mb-3">
+                    Baixa por uso
+                  </div>
+
+                  <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold">
+                    Saldo atual
+                  </div>
+                  <div className="text-3xl font-black tracking-tight text-white leading-none mt-0.5">
+                    {formatBase(balance.value, balance.base)}
+                  </div>
+
+                  <div className="mt-4 text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1.5">
+                    Quantidade utilizada *
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      autoFocus
+                      placeholder="0,000"
+                      value={usedQty}
+                      onChange={(e) => setUsedQty(e.target.value.replace(/[^0-9.,]/g, ""))}
+                      className="flex-1 h-14 bg-[#0F0F1A] border border-[#2D2D44] focus:border-[#48BB78] outline-none rounded-xl px-4 text-white font-black text-2xl tracking-tight"
+                    />
+                    {unitOptions.length > 1 ? (
+                      <div className="flex h-14 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] p-1 gap-1">
+                        {unitOptions.map((u) => (
+                          <button
+                            key={u}
+                            type="button"
+                            onClick={() => setUsedUnit(u)}
+                            className={`px-4 rounded-lg text-sm font-bold transition-colors ${
+                              effUnit === u ? "bg-[#48BB78] text-[#0F0F1A]" : "text-[#718096] hover:text-white"
+                            }`}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="h-14 px-5 inline-flex items-center rounded-xl bg-[#2D2D44] text-white font-bold text-sm">
+                        {effUnit}
+                      </span>
+                    )}
+                  </div>
+
+                  {overBalance ? (
+                    <div className="mt-3 rounded-xl border border-[#E53E3E]/40 bg-[#E53E3E]/10 px-3 py-2.5">
+                      <div className="text-sm font-bold text-[#E53E3E]">Quantidade superior ao saldo disponível.</div>
+                      <div className="text-[11px] text-[#FEB2B2] mt-0.5">
+                        Saldo disponível: <strong>{formatBase(balance.value, balance.base)}</strong>
+                      </div>
+                    </div>
+                  ) : qtyValid ? (
+                    <div className="mt-3 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] px-3 py-3">
+                      <div className="flex items-center justify-between text-[11px] text-[#718096]">
+                        <span>Uso</span>
+                        <span className="text-[#E53E3E] font-bold">
+                          −{formatBase(usedBase, balance.base)}
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-[#2D2D44]">
+                        <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold">
+                          Saldo após o uso
+                        </div>
+                        <div className="text-3xl font-black tracking-tight text-[#48BB78] leading-none mt-0.5">
+                          {formatBase(afterBase, balance.base)}
+                        </div>
+                        {afterBase <= 0.0000001 && (
+                          <div className="text-[11px] text-[#ED8936] mt-1 font-semibold">
+                            Embalagem esgotada — histórico e rastreabilidade preservados.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-[#718096]">
+                      Informe quanto foi utilizado para atualizar o Estoque Digital.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Perda / erro: quantidade opcional enquanto o fluxo não é quantitativo */}
+              {reason !== "use" && reason && balance && (
                 <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-4">
                   <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1">
-                    Quanto foi usado?
+                    Quantidade (opcional)
                   </div>
                   <div className="text-xs text-[#A0AEC0] mb-3">
                     Saldo em estoque: <strong className="text-white">{formatBase(balance.value, balance.base)}</strong>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <input
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      min={0}
-                      step="any"
                       placeholder="0"
                       value={usedQty}
-                      onChange={(e) => setUsedQty(e.target.value)}
-                      className="flex-1 h-12 bg-[#0F0F1A] border border-[#2D2D44] rounded-xl px-3 text-white font-bold text-lg"
+                      onChange={(e) => setUsedQty(e.target.value.replace(/[^0-9.,]/g, ""))}
+                      className="flex-1 h-12 bg-[#0F0F1A] border border-[#2D2D44] rounded-xl px-3 text-white font-bold text-lg outline-none"
                     />
-                    <span className="h-12 px-4 inline-flex items-center rounded-xl bg-[#2D2D44] text-white font-semibold uppercase text-sm">
-                      {balance.unit}
+                    <span className="h-12 px-4 inline-flex items-center rounded-xl bg-[#2D2D44] text-white font-semibold text-sm">
+                      {effUnit}
                     </span>
                   </div>
-
-                  {(() => {
-                    const qty = Number(String(usedQty).replace(",", "."));
-                    if (!usedQty || !Number.isFinite(qty) || qty <= 0) {
-                      return (
-                        <p className="mt-2 text-[11px] text-[#718096]">
-                          Deixe em branco se esta baixa não altera a quantidade em estoque.
-                        </p>
-                      );
-                    }
-                    const { value: used } = toBase(qty, balance.unit);
-                    const after = balance.value - used;
-                    const over = after < 0;
-                    return (
-                      <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] px-3 py-2">
-                        <div className="text-[11px] text-[#718096]">
-                          Antes
-                          <div className="text-sm font-bold text-white">{formatBase(balance.value, balance.base)}</div>
-                        </div>
-                        <ChevronDown className="h-4 w-4 -rotate-90 text-[#4A5568]" />
-                        <div className="text-[11px] text-[#718096] text-right">
-                          Depois
-                          <div className={`text-sm font-bold ${over ? "text-[#E53E3E]" : "text-[#48BB78]"}`}>
-                            {over ? "saldo insuficiente" : formatBase(after, balance.base)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {qtyValid && (
+                    <div className="mt-2 text-[11px] text-[#718096]">
+                      Saldo após:{" "}
+                      <strong className={overBalance ? "text-[#E53E3E]" : "text-white"}>
+                        {overBalance ? "saldo insuficiente" : formatBase(afterBase, balance.base)}
+                      </strong>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {reason && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
+              {reason && !(reason === "use" && balance) && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
                 <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-3">
                   <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-2">
                     Quantas unidades? (restam {label.units_remaining ?? label.quantity})
@@ -677,14 +739,26 @@ export default function EtiquetaScan() {
                     !reason ||
                     submitting ||
                     (reason === "loss" && !lossReason) ||
-                    (!!balance &&
-                      Number(String(usedQty).replace(",", ".")) > 0 &&
-                      toBase(Number(String(usedQty).replace(",", ".")), balance.unit).value > balance.value)
+                    missingUseQty ||
+                    overBalance
                   }
-                  className="w-full h-14 rounded-2xl bg-[#E53E3E] hover:bg-[#c53030] disabled:bg-[#2D2D44] disabled:text-[#4A5568] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors"
+                  className={`w-full h-14 rounded-2xl disabled:bg-[#2D2D44] disabled:text-[#4A5568] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors ${
+                    reason === "use" && balance
+                      ? "bg-[#48BB78] hover:bg-[#3da066] text-[#0F0F1A]"
+                      : "bg-[#E53E3E] hover:bg-[#c53030]"
+                  }`}
                 >
                   {submitting ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Registrando...
+                    </>
+                  ) : reason === "use" && balance ? (
+                    <>
+                      <Utensils className="h-5 w-5" />
+                      Confirmar uso
+                      {qtyValid && !overBalance ? ` (${formatBase(usedBase, balance.base)})` : ""}
+                    </>
                   ) : (
                     <>
                       <Trash2 className="h-5 w-5" />
