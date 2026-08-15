@@ -5583,6 +5583,7 @@ export type Database = {
           units_remaining: number
         }[]
       }
+      label_balance_by_code: { Args: { _code: string }; Returns: Json }
       label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_finalize_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_generate_manipulation_lot: { Args: never; Returns: string }
@@ -5604,7 +5605,29 @@ export type Database = {
         Args: { _receipt_id: string }
         Returns: Json
       }
+      label_product_balance: {
+        Args: { _product_id: string; _restaurant_id: string }
+        Returns: number
+      }
       label_register_prints: { Args: { _prints: Json }; Returns: Json }
+      label_register_usage: {
+        Args: {
+          _code: string
+          _employee_id?: string
+          _notes?: string
+          _quantity: number
+          _reason?: string
+          _unit: string
+        }
+        Returns: Json
+      }
+      label_stock_to_base: {
+        Args: { _qty: number; _unit: string }
+        Returns: {
+          base: string
+          value: number
+        }[]
+      }
       log_kitchen_event: {
         Args: {
           p_employee_id?: string

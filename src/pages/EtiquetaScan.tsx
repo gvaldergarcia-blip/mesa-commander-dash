@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { formatBase, toBase, type StockBase } from "@/lib/labels/stockUnits";
 
 type Action = "verify" | "use" | "loss" | "error";
 type Reason = "use" | "loss" | "error";
@@ -46,6 +47,8 @@ export default function EtiquetaScan() {
   const [lossReason, setLossReason] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [unitsToDischarge, setUnitsToDischarge] = useState<number>(1);
+  const [balance, setBalance] = useState<{ base: StockBase; value: number; unit: string } | null>(null);
+  const [usedQty, setUsedQty] = useState<string>("");
 
   const load = async () => {
     if (!code) return;
@@ -54,6 +57,14 @@ export default function EtiquetaScan() {
     if (error) toast.error(error.message);
     setLabel(data);
     setLoading(false);
+    try {
+      const { data: b } = await (supabase as any).rpc("label_balance_by_code", { _code: code });
+      if (b?.found) {
+        setBalance({ base: b.base as StockBase, value: Number(b.balance_base) || 0, unit: b.entry_unit || "un" });
+      } else {
+        setBalance(null);
+      }
+    } catch (_) { setBalance(null); }
   };
 
   useEffect(() => { load(); }, [code]);
@@ -115,6 +126,26 @@ export default function EtiquetaScan() {
       toast.success(
         `${REASON_LABEL[reason]} registrada (${data.units_used} unidade${data.units_used === 1 ? "" : "s"})`,
       );
+      // Estoque digital quantitativo: registra a quantidade realmente consumida.
+      const qty = Number(String(usedQty).replace(",", "."));
+      if (balance && qty > 0) {
+        const { data: usage } = await (supabase as any).rpc("label_register_usage", {
+          _code: code,
+          _quantity: qty,
+          _unit: balance.unit,
+          _reason: reason === "use" ? "use" : "loss",
+          _employee_id: null,
+          _notes: composedNotes || null,
+        });
+        if (usage?.success) {
+          toast.success(
+            `Estoque atualizado: ${formatBase(Number(usage.balance_after_base) || 0, usage.base)} restantes`,
+          );
+        } else if (usage?.error === "insufficient_stock") {
+          toast.error("Quantidade maior que o saldo disponível — nada foi descontado do estoque.");
+        }
+      }
+
       // Notificação SMS/WhatsApp (fire-and-forget)
       try {
         await (supabase as any).functions.invoke("send-label-discharge-alert", {
@@ -134,6 +165,7 @@ export default function EtiquetaScan() {
       setNotes("");
       setLossReason("");
       setUnitsToDischarge(1);
+      setUsedQty("");
       await load();
     } catch (e: any) {
       toast.error(e.message || "Erro");
@@ -420,6 +452,63 @@ export default function EtiquetaScan() {
                 />
               )}
 
+              {/* ESTOQUE DIGITAL — quanto saiu de fato */}
+              {reason && balance && (
+                <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-4">
+                  <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1">
+                    Quanto foi usado?
+                  </div>
+                  <div className="text-xs text-[#A0AEC0] mb-3">
+                    Saldo em estoque: <strong className="text-white">{formatBase(balance.value, balance.base)}</strong>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      placeholder="0"
+                      value={usedQty}
+                      onChange={(e) => setUsedQty(e.target.value)}
+                      className="flex-1 h-12 bg-[#0F0F1A] border border-[#2D2D44] rounded-xl px-3 text-white font-bold text-lg"
+                    />
+                    <span className="h-12 px-4 inline-flex items-center rounded-xl bg-[#2D2D44] text-white font-semibold uppercase text-sm">
+                      {balance.unit}
+                    </span>
+                  </div>
+
+                  {(() => {
+                    const qty = Number(String(usedQty).replace(",", "."));
+                    if (!usedQty || !Number.isFinite(qty) || qty <= 0) {
+                      return (
+                        <p className="mt-2 text-[11px] text-[#718096]">
+                          Deixe em branco se esta baixa não altera a quantidade em estoque.
+                        </p>
+                      );
+                    }
+                    const { value: used } = toBase(qty, balance.unit);
+                    const after = balance.value - used;
+                    const over = after < 0;
+                    return (
+                      <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] px-3 py-2">
+                        <div className="text-[11px] text-[#718096]">
+                          Antes
+                          <div className="text-sm font-bold text-white">{formatBase(balance.value, balance.base)}</div>
+                        </div>
+                        <ChevronDown className="h-4 w-4 -rotate-90 text-[#4A5568]" />
+                        <div className="text-[11px] text-[#718096] text-right">
+                          Depois
+                          <div className={`text-sm font-bold ${over ? "text-[#E53E3E]" : "text-[#48BB78]"}`}>
+                            {over ? "saldo insuficiente" : formatBase(after, balance.base)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {reason && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
                 <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-3">
                   <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-2">
@@ -479,7 +568,14 @@ export default function EtiquetaScan() {
               <div className="max-w-md mx-auto">
                 <button
                   onClick={handleDischarge}
-                  disabled={!reason || submitting || (reason === "loss" && !lossReason)}
+                  disabled={
+                    !reason ||
+                    submitting ||
+                    (reason === "loss" && !lossReason) ||
+                    (!!balance &&
+                      Number(String(usedQty).replace(",", ".")) > 0 &&
+                      toBase(Number(String(usedQty).replace(",", ".")), balance.unit).value > balance.value)
+                  }
                   className="w-full h-14 rounded-2xl bg-[#E53E3E] hover:bg-[#c53030] disabled:bg-[#2D2D44] disabled:text-[#4A5568] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors"
                 >
                   {submitting ? (
