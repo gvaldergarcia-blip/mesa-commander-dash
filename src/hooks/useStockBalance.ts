@@ -53,6 +53,7 @@ export function useStockBalance() {
         if (!cur.lastMovementAt) cur.lastMovementAt = m.occurred_at;
         // Mantém a base do primeiro movimento; converte se divergir de forma incompatível.
         const v = cur.base === base ? value : Number(m.quantity) || 0;
+        if (!cur.lastMovementAt) cur.lastMovementAt = m.occurred_at;
         if (isEntry) {
           cur.entered += v;
           cur.value += v;
