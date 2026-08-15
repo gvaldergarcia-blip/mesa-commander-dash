@@ -53,7 +53,7 @@ export default function EtiquetaScan() {
 
   /** Unidades permitidas conforme a base de controle do produto. */
   const unitOptions: string[] = !balance
-    ? []
+    ? ["g", "kg"]
     : balance.base === "g"
       ? ["kg", "g"]
       : balance.base === "ml"
@@ -69,14 +69,14 @@ export default function EtiquetaScan() {
     });
   }, [balance?.base, balance?.unit]);
 
-  const effUnit = usedUnit ?? balance?.unit ?? "un";
+  const effUnit = usedUnit ?? balance?.unit ?? "g";
   const qtyNum = Number(String(usedQty).replace(",", "."));
   const qtyValid = Number.isFinite(qtyNum) && qtyNum > 0;
   const usedBase = balance && qtyValid ? toBase(qtyNum, effUnit).value : 0;
   const afterBase = balance ? balance.value - usedBase : 0;
   const overBalance = !!balance && qtyValid && usedBase > balance.value + 1e-9;
-  /** Baixa por uso exige quantidade quando o produto tem controle quantitativo. */
-  const missingUseQty = reason === "use" && !!balance && !qtyValid;
+  /** Toda baixa por uso exige a quantidade exata consumida. */
+  const missingUseQty = reason === "use" && !qtyValid;
 
   const load = async () => {
     if (!code) return;
@@ -128,12 +128,12 @@ export default function EtiquetaScan() {
 
   /** BAIXA POR USO — movimentação quantitativa, NÃO exclusão da etiqueta. */
   const handleRegisterUse = async () => {
-    if (!code || !balance) return;
+    if (!code) return;
     if (!qtyValid) {
       toast.error("Informe a quantidade utilizada");
       return;
     }
-    if (overBalance) {
+    if (balance && overBalance) {
       toast.error(`Quantidade superior ao saldo disponível (${formatBase(balance.value, balance.base)})`);
       return;
     }
@@ -203,7 +203,7 @@ export default function EtiquetaScan() {
 
   const handleDischarge = async () => {
     if (!reason || !code) return;
-    if (reason === "use" && balance) return handleRegisterUse();
+    if (reason === "use") return handleRegisterUse();
     if (reason === "loss" && !lossReason) {
       toast.error("Selecione o motivo da perda");
       return;
@@ -238,7 +238,7 @@ export default function EtiquetaScan() {
           _code: code,
           _quantity: qty,
           _unit: balance.unit,
-          _reason: reason === "use" ? "use" : "loss",
+          _reason: "loss",
           _employee_id: null,
           _notes: composedNotes || null,
         });
@@ -558,18 +558,22 @@ export default function EtiquetaScan() {
               )}
 
               {/* ===== ESTOQUE DIGITAL — BAIXA POR USO QUANTITATIVA ===== */}
-              {reason === "use" && balance && (
+              {reason === "use" && (
                 <div className="mt-3 rounded-2xl border border-[#48BB78]/40 bg-[#161626] p-4 shadow-[0_0_0_1px_rgba(72,187,120,0.06)]">
                   <div className="text-[10px] uppercase tracking-widest text-[#48BB78] font-bold mb-3">
                     Baixa por uso
                   </div>
 
-                  <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold">
-                    Saldo atual
-                  </div>
-                  <div className="text-3xl font-black tracking-tight text-white leading-none mt-0.5">
-                    {formatBase(balance.value, balance.base)}
-                  </div>
+                  {balance && (
+                    <>
+                      <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold">
+                        Saldo atual
+                      </div>
+                      <div className="text-3xl font-black tracking-tight text-white leading-none mt-0.5">
+                        {formatBase(balance.value, balance.base)}
+                      </div>
+                    </>
+                  )}
 
                   <div className="mt-4 text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-1.5">
                     Quantidade utilizada *
@@ -606,14 +610,14 @@ export default function EtiquetaScan() {
                     )}
                   </div>
 
-                  {overBalance ? (
+                  {balance && overBalance ? (
                     <div className="mt-3 rounded-xl border border-[#E53E3E]/40 bg-[#E53E3E]/10 px-3 py-2.5">
                       <div className="text-sm font-bold text-[#E53E3E]">Quantidade superior ao saldo disponível.</div>
                       <div className="text-[11px] text-[#FEB2B2] mt-0.5">
                         Saldo disponível: <strong>{formatBase(balance.value, balance.base)}</strong>
                       </div>
                     </div>
-                  ) : qtyValid ? (
+                  ) : balance && qtyValid ? (
                     <div className="mt-3 rounded-xl bg-[#0F0F1A] border border-[#2D2D44] px-3 py-3">
                       <div className="flex items-center justify-between text-[11px] text-[#718096]">
                         <span>Uso</span>
@@ -676,7 +680,7 @@ export default function EtiquetaScan() {
                 </div>
               )}
 
-              {reason && !(reason === "use" && balance) && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
+              {reason && reason !== "use" && (label.units_remaining ?? label.quantity ?? 1) > 1 && (
                 <div className="mt-3 rounded-2xl border border-[#2D2D44] bg-[#161626] p-3">
                   <div className="text-[10px] uppercase tracking-widest text-[#718096] font-semibold mb-2">
                     Quantas unidades? (restam {label.units_remaining ?? label.quantity})
@@ -743,7 +747,7 @@ export default function EtiquetaScan() {
                     overBalance
                   }
                   className={`w-full h-14 rounded-2xl disabled:bg-[#2D2D44] disabled:text-[#4A5568] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors ${
-                    reason === "use" && balance
+                    reason === "use"
                       ? "bg-[#48BB78] hover:bg-[#3da066] text-[#0F0F1A]"
                       : "bg-[#E53E3E] hover:bg-[#c53030]"
                   }`}
@@ -753,11 +757,13 @@ export default function EtiquetaScan() {
                       <Loader2 className="h-5 w-5 animate-spin" />
                       Registrando...
                     </>
-                  ) : reason === "use" && balance ? (
+                  ) : reason === "use" ? (
                     <>
                       <Utensils className="h-5 w-5" />
                       Confirmar uso
-                      {qtyValid && !overBalance ? ` (${formatBase(usedBase, balance.base)})` : ""}
+                      {qtyValid && !overBalance
+                        ? ` (${balance ? formatBase(usedBase, balance.base) : `${usedQty.replace(".", ",")} ${effUnit}`})`
+                        : ""}
                     </>
                   ) : (
                     <>
