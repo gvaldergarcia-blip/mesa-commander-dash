@@ -238,7 +238,7 @@ export default function EtiquetaScan() {
           _code: code,
           _quantity: qty,
           _unit: balance.unit,
-          _reason: reason === "use" ? "use" : "loss",
+          _reason: "loss",
           _employee_id: null,
           _notes: composedNotes || null,
         });
