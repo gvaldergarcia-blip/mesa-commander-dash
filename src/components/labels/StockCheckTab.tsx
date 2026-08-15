@@ -22,7 +22,7 @@ import { useLabeledProducts, type LabeledProduct } from '@/hooks/useLabeledProdu
 import { useLabelProducts } from '@/hooks/useLabelProducts';
 import { getSectorHex, mergeSectors, NO_SECTOR_HEX } from '@/lib/labels/sectors';
 import { withAlpha } from '@/lib/labels/categories';
-import { formatBase, formatQty, toBase } from '@/lib/labels/stockUnits';
+import { formatBase, formatQty } from '@/lib/labels/stockUnits';
 import { ENTRY_EVENTS } from '@/hooks/useStockBalance';
 import { cn } from '@/lib/utils';
 
