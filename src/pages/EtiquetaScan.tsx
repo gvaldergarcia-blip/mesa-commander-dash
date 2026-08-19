@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -56,16 +56,28 @@ export default function EtiquetaScan() {
   /** A operação escolhe como o consumo foi medido no momento da baixa. */
   const unitOptions = USAGE_UNIT_OPTIONS;
 
-  useEffect(() => {
-    if (!balance) return;
-    setUsedUnit((u) => {
-      if (u && unitOptions.includes(u)) return u;
-      const entry = unitOptions.find((o) => o.toLowerCase() === (balance.unit || "").toLowerCase());
-      return entry ?? unitOptions[0];
-    });
-  }, [balance?.base, balance?.unit]);
+  /** Unidade sugerida: peso do produto (g/kg) quando existir, senão unidade. */
+  const suggestedUnit = useMemo(() => {
+    const candidates = [
+      balance?.unit,
+      balance?.base,
+      label?.weight_unit,
+      label?.unit,
+    ];
+    for (const c of candidates) {
+      const v = String(c || "").toLowerCase().trim();
+      if (v === "g" || v === "kg" || v === "un") return v;
+      if (v === "gr" || v === "grama" || v === "gramas") return "g";
+      if (v === "quilo" || v === "quilos") return "kg";
+    }
+    return "un";
+  }, [balance?.unit, balance?.base, label?.weight_unit, label?.unit]);
 
-  const effUnit = usedUnit ?? balance?.unit ?? "un";
+  useEffect(() => {
+    setUsedUnit((u) => (u && unitOptions.includes(u) ? u : suggestedUnit));
+  }, [suggestedUnit]);
+
+  const effUnit = usedUnit ?? suggestedUnit;
   const qtyNum = Number(String(usedQty).replace(",", "."));
   const qtyValid = Number.isFinite(qtyNum) && qtyNum > 0;
   const usedBase = balance && qtyValid ? toBase(qtyNum, effUnit).value : 0;

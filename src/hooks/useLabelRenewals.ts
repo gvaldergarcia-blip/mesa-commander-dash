@@ -137,6 +137,9 @@ export function useLabelRenewals() {
 
       const originalExp = resolveOriginal(l);
       const cycleEnded = !!originalExp && originalExp.getTime() <= now;
+      // Validade ORIGINAL vencida = fim do ciclo. Não é renovação: exige novo
+      // ciclo em "Imprimir etiqueta". Some da tela de Renovação.
+      if (cycleEnded) continue;
 
       if (!product) {
         blockReason = "Produto sem cadastro vinculado";
