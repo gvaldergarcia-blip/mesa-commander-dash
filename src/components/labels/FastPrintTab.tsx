@@ -24,6 +24,20 @@ import { getSiteBaseUrl } from "@/config/site-url";
 import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewals";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 
+/** Unidades disponíveis para a quantidade da etiqueta. */
+const AMOUNT_UNITS = ["un", "g", "kg", "ml", "L"];
+
+/** Lê o peso padrão do cadastro ("500 g", "1,5kg") em valor + unidade. */
+function parseDefaultWeight(v?: string | null): { amount: string; unit: string } | null {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const m = s.replace(",", ".").match(/^([\d.]+)\s*([a-zA-ZçÇ]*)$/);
+  if (!m) return null;
+  const raw = (m[2] || "un").toLowerCase();
+  const unit = raw === "l" ? "L" : AMOUNT_UNITS.find((u) => u.toLowerCase() === raw) || "un";
+  return { amount: m[1], unit };
+}
+
 /**
  * Impressão Rápida — o coração do MesaClik.
  * Selecionar produto → Lote → Validade original → Quantidade → Imprimir.
