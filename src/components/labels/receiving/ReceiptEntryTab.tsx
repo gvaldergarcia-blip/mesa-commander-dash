@@ -66,7 +66,13 @@ const num = (v: string): number | null => {
  * NF → itens → temperatura (opcional) → [Só computar] ou [Imprimir e computar].
  * Não realiza baixa, consumo ou perda: isso acontece depois, via QR Code da etiqueta.
  */
-export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: ReceiptPrintContext) => void }) {
+export function ReceiptEntryTab({
+  onPrintReceipt,
+  onManageProducts,
+}: {
+  onPrintReceipt: (ctx: ReceiptPrintContext) => void;
+  onManageProducts?: () => void;
+}) {
   const restaurantId = useRestaurantId();
   const qc = useQueryClient();
   const { products } = useLabelProducts();
@@ -86,6 +92,8 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
   );
 
   const validRows = rows.filter((r) => r.name.trim().length > 1);
+  /** Produtos da nota que ainda não existem no cadastro — bloqueiam o computar. */
+  const unregistered = validRows.filter((r) => !r.productId);
 
   const patch = (key: string, data: Partial<Row>) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...data } : r)));
@@ -126,6 +134,12 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
         }),
       );
       toast.success(`${items.length} produto(s) lidos da nota fiscal`);
+      const missing = items.filter((i) => !matchProduct(String(i.raw_name || ""), activeProducts));
+      if (missing.length) {
+        toast.warning(
+          `${missing.length} produto(s) da nota não estão cadastrados. Cadastre antes de computar.`,
+        );
+      }
     } catch (e: any) {
       toast.error(e.message || "Não foi possível ler a nota fiscal");
     } finally {
@@ -142,6 +156,12 @@ export function ReceiptEntryTab({ onPrintReceipt }: { onPrintReceipt: (ctx: Rece
     }
     if (!validRows.length) {
       toast.error("Adicione pelo menos um produto");
+      return null;
+    }
+    if (unregistered.length) {
+      toast.error(
+        `Cadastre primeiro: ${unregistered.map((r) => r.name.trim()).join(", ")}`,
+      );
       return null;
     }
     const temp = temperature.trim() ? Number(temperature.replace(",", ".")) : null;
