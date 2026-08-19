@@ -278,6 +278,7 @@ export default function EtiquetasPage() {
         {/* ===== RECEBIMENTO (entrada no estoque) ===== */}
         <TabsContent value="recebimento" className="mt-0">
           <ReceiptEntryTab
+            onManageProducts={() => setTab("cadastro")}
             onPrintReceipt={(ctx) => {
               setReceiptContext(ctx);
               setTab("imprimir");

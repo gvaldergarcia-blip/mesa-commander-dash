@@ -24,6 +24,20 @@ import { getSiteBaseUrl } from "@/config/site-url";
 import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewals";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 
+/** Unidades disponíveis para a quantidade da etiqueta. */
+const AMOUNT_UNITS = ["un", "g", "kg", "ml", "L"];
+
+/** Lê o peso padrão do cadastro ("500 g", "1,5kg") em valor + unidade. */
+function parseDefaultWeight(v?: string | null): { amount: string; unit: string } | null {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const m = s.replace(",", ".").match(/^([\d.]+)\s*([a-zA-ZçÇ]*)$/);
+  if (!m) return null;
+  const raw = (m[2] || "un").toLowerCase();
+  const unit = raw === "l" ? "L" : AMOUNT_UNITS.find((u) => u.toLowerCase() === raw) || "un";
+  return { amount: m[1], unit };
+}
+
 /**
  * Impressão Rápida — o coração do MesaClik.
  * Selecionar produto → Lote → Validade original → Quantidade → Imprimir.
@@ -52,6 +66,9 @@ export function FastPrintTab({
   const [batch, setBatch] = useState("");
   const [originalExpiry, setOriginalExpiry] = useState("");
   const [qty, setQty] = useState(1);
+  /** Quantidade do produto (peso/unidades) — vem do cadastro e é editável antes de imprimir. */
+  const [amount, setAmount] = useState("");
+  const [amountUnit, setAmountUnit] = useState("un");
   const [employeeId, setEmployeeId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   /** Ciclo anterior encerrado que está sendo reetiquetado (novo valor original + novo lote). */
@@ -213,6 +230,9 @@ export function FastPrintTab({
     setBatch("");
     setOriginalExpiry("");
     setQty(1);
+    const parsed = parseDefaultWeight(p.default_weight);
+    setAmount(parsed?.amount ?? "1");
+    setAmountUnit(parsed?.unit ?? (p.unit || "un"));
     setNewCycle(null);
     setEmployeeId(p.default_employee_id || employeeId || activeEmployees[0]?.id || "");
     setTimeout(() => batchRef.current?.focus(), 50);
@@ -301,7 +321,7 @@ export function FastPrintTab({
           CONSERVATION_LABEL[(product.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL] || null,
         storageLocation: product.storage_location || null,
         batch: batch.trim() || null,
-        quantityWeight: product.default_weight || null,
+        quantityWeight: amount.trim() ? `${amount.trim()} ${amountUnit}` : product.default_weight || null,
         brand: [product.brand, product.supplier_name].filter(Boolean).join(" / ") || null,
         restaurantName: restaurant?.name || null,
         restaurantLogoUrl: restaurant?.logo_url || null,
@@ -557,6 +577,31 @@ export function FastPrintTab({
                   onChange={(e) => setOriginalExpiry(e.target.value)}
                   className="h-12 text-base"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="fp-amount">Quantidade (peso ou unidades)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="fp-amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0"
+                    className="h-12 text-base flex-1"
+                  />
+                  <Select value={amountUnit} onValueChange={setAmountUnit}>
+                    <SelectTrigger className="h-12 w-24"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {AMOUNT_UNITS.map((u) => (
+                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Preenchido pelo cadastro do produto — ajuste se necessário.
+                </p>
               </div>
 
               <div className="space-y-1">
