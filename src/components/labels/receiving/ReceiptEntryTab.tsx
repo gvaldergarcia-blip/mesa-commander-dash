@@ -337,6 +337,22 @@ export function ReceiptEntryTab({
 
       {/* Itens */}
       <Card className="p-3 md:p-4 space-y-2 bg-card/40">
+        {unregistered.length > 0 && (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/[0.06] p-3 space-y-2">
+            <div className="text-sm font-bold text-destructive">
+              {unregistered.length} produto(s) não cadastrado(s)
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cadastre estes produtos antes de computar a entrada:{" "}
+              <strong className="text-foreground">{unregistered.map((r) => r.name.trim()).join(", ")}</strong>
+            </p>
+            {onManageProducts && (
+              <Button size="sm" variant="destructive" onClick={onManageProducts}>
+                Cadastrar produtos
+              </Button>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Produtos recebidos</h3>
           <Badge variant="outline" className="text-[10px]">{validRows.length} item(ns)</Badge>
@@ -427,11 +443,11 @@ export function ReceiptEntryTab({
 
       {/* Ações */}
       <Card className="p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
-        <Button variant="outline" size="lg" className="flex-1 h-14 font-bold gap-2" onClick={onlyCompute} disabled={busy || !validRows.length}>
+        <Button variant="outline" size="lg" className="flex-1 h-14 font-bold gap-2" onClick={onlyCompute} disabled={busy || !validRows.length || unregistered.length > 0}>
           {saving === "compute" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           SÓ COMPUTAR
         </Button>
-        <Button size="lg" className="flex-1 h-14 font-bold gap-2" onClick={computeAndPrint} disabled={busy || !validRows.length}>
+        <Button size="lg" className="flex-1 h-14 font-bold gap-2" onClick={computeAndPrint} disabled={busy || !validRows.length || unregistered.length > 0}>
           {saving === "print" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
           IMPRIMIR E COMPUTAR
         </Button>
