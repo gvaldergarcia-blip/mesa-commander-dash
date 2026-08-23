@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   RefreshCw, Loader2, CheckCircle2, AlertTriangle, Clock, MapPin, Package, Lock, Printer,
+  ArrowRight, CalendarDays,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,9 +49,23 @@ function timeLabel(item: RenewalItem): { text: string; tone: string } {
 
 export function RenewalPanel() {
   const {
-    items, isLoading, lookaheadHours, setLookaheadHours,
+    items, isLoading, lookaheadHours, setLookaheadHours, renewOne,
   } = useLabelRenewals();
   const { restaurant } = useRestaurant();
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [printingId, setPrintingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQuantities((current) => {
+      const next = { ...current };
+      items.forEach((item) => {
+        if (next[item.label.id] == null) {
+          next[item.label.id] = Math.max(1, Number(item.label.units_remaining ?? item.label.quantity ?? 1));
+        }
+      });
+      return next;
+    });
+  }, [items]);
 
   const { data: legal } = useQuery({
     queryKey: ["restaurant-legal", restaurant?.id],
@@ -114,19 +130,34 @@ export function RenewalPanel() {
    * Reimprime a etiqueta com nova data de manipulação (agora) e nova validade
    * calculada pela regra após abertura do próprio produto. Não cria registro novo.
    */
-  const reprint = (item: RenewalItem) => {
+  const reprint = async (item: RenewalItem) => {
     const l: any = item.label;
     if (item.cycleEnded) {
       toast.error("Validade original atingida — inicie um novo ciclo em Imprimir etiqueta");
       return;
     }
-    const manufacture = new Date();
-    const expiry = safeDate(item.nextExpiry, safeDate(l.expiry_date, manufacture));
-    const note = item.ruleLabel
-      ? `Manipulação ${fmt(manufacture)} · regra após abertura ${item.ruleLabel}`
-      : l.notes ?? null;
-    printLabelsMany([buildPrint(l, item, manufacture, expiry, note)]);
-    toast.success(`Etiqueta enviada · validade ${fmt(expiry)}`);
+    const quantity = Math.max(1, Math.min(50, Math.floor(quantities[l.id] || 1)));
+    setPrintingId(l.id);
+    try {
+      const result = await renewOne(item, quantity);
+      const note = item.ruleLabel
+        ? `Manipulação ${fmt(result.manufacture)} · regra após abertura ${item.ruleLabel}`
+        : l.notes ?? null;
+      printLabelsMany([
+        buildPrint(
+          { ...result.created, quantity },
+          item,
+          result.manufacture,
+          result.expiry,
+          note,
+        ),
+      ]);
+      toast.success(`${quantity} etiqueta(s) renovada(s) · validade ${fmt(result.expiry)}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Não foi possível renovar a etiqueta");
+    } finally {
+      setPrintingId(null);
+    }
   };
 
   const counts = useMemo(() => ({
@@ -213,7 +244,7 @@ export function RenewalPanel() {
                       : "border-border/60",
                 )}
               >
-                <div className="h-10 w-10 rounded-xl bg-background border border-border/60 flex items-center justify-center shrink-0">
+                <div className="h-10 w-10 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </div>
 
@@ -226,30 +257,33 @@ export function RenewalPanel() {
                       {t.text}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-[11px] text-muted-foreground">
-                    <div><span className="uppercase tracking-wider">Local</span><div className="text-foreground font-medium flex items-center gap-1"><MapPin className="h-3 w-3" />{l.storage_location || "—"}</div></div>
-                    <div><span className="uppercase tracking-wider">Quantidade</span><div className="text-foreground font-medium">{l.units_remaining ?? l.quantity}{l.weight != null && l.weight_unit ? ` · ${String(l.weight).replace(".", ",")} ${l.weight_unit}` : ""}</div></div>
-                    <div><span className="uppercase tracking-wider">Manipulado</span><div className="text-foreground font-medium">{fmt(l.manufacture_date)}</div></div>
-                    <div><span className="uppercase tracking-wider">Validade de manipulação</span><div className="text-foreground font-medium">{fmt(l.expiry_date)}</div></div>
-                    <div><span className="uppercase tracking-wider">Valor original (fabricante)</span><div className="text-foreground font-medium">{item.originalExpiry ? fmt(item.originalExpiry) : "—"}<span className="ml-1 text-[10px] text-muted-foreground">não muda</span></div></div>
-                    <div><span className="uppercase tracking-wider">Lote do ciclo</span><div className="text-foreground font-mono font-medium">{item.cycleLot || "—"}<span className="ml-1 text-[10px] font-sans text-muted-foreground">não muda</span></div></div>
-                    <div><span className="uppercase tracking-wider">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
-                    {item.renewable && item.nextExpiry && (
-                      <>
-                        <div>
-                          <span className="uppercase tracking-wider">Nova data de manipulação</span>
-                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">agora (data/hora da renovação)</div>
-                        </div>
-                        <div>
-                          <span className="uppercase tracking-wider">Nova validade de manipulação (regra: {item.ruleLabel})</span>
-                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">{fmt(item.nextExpiry)}</div>
-                        </div>
-                      </>
-                    )}
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-2 mt-3 text-xs">
+                    <div><span className="text-muted-foreground">Local</span><div className="text-foreground font-medium flex items-center gap-1"><MapPin className="h-3 w-3" />{l.storage_location || "—"}</div></div>
+                    <div><span className="text-muted-foreground">Lote do ciclo</span><div className="text-foreground font-mono font-medium">{item.cycleLot || "—"}</div></div>
+                    <div><span className="text-muted-foreground">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-border/70 bg-background/50 p-3">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                      <CalendarDays className="h-3.5 w-3.5" /> Comparação de validades
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                      <div>
+                        <div className="text-[10px] uppercase text-muted-foreground">Original do fabricante</div>
+                        <div className="font-bold text-foreground">{item.originalExpiry ? fmt(item.originalExpiry) : "Não informada"}</div>
+                        <div className="text-[10px] text-muted-foreground">limite máximo do produto</div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-[10px] uppercase text-muted-foreground">Pós-abertura · {item.ruleLabel || "sem regra"}</div>
+                        <div className="font-bold text-emerald-600 dark:text-emerald-400">{item.nextExpiry ? fmt(item.nextExpiry) : "Não calculada"}</div>
+                        <div className="text-[10px] text-muted-foreground">nova validade ao renovar agora</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="shrink-0 flex flex-col gap-2 max-w-[260px]">
+                <div className="shrink-0 flex flex-col gap-2 w-full md:w-[210px]">
                   {!item.renewable && item.blockReason && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30">
                       <Lock className="h-3.5 w-3.5 shrink-0" />
@@ -261,9 +295,31 @@ export function RenewalPanel() {
                       ⚠ Validade original atingida — novo ciclo necessário em <strong>Imprimir etiqueta</strong>.
                     </div>
                   ) : (
-                    <Button className="gap-2" onClick={() => reprint(item)}>
-                      <Printer className="h-4 w-4" /> Reimprimir
-                    </Button>
+                    <>
+                      <label className="text-xs font-medium text-muted-foreground" htmlFor={`renew-qty-${l.id}`}>
+                        Quantidade de etiquetas
+                      </label>
+                      <Input
+                        id={`renew-qty-${l.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={50}
+                        value={quantities[l.id] ?? 1}
+                        onChange={(event) => setQuantities((current) => ({
+                          ...current,
+                          [l.id]: Math.max(1, Math.min(50, Math.floor(Number(event.target.value) || 1))),
+                        }))}
+                        className="h-10 font-semibold"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Sugestão baseada nas {l.units_remaining ?? l.quantity} impressas anteriormente. Você pode editar.
+                      </p>
+                      <Button className="gap-2" disabled={printingId === l.id || !item.renewable} onClick={() => reprint(item)}>
+                        {printingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                        Renovar e imprimir
+                      </Button>
+                    </>
                   )}
                 </div>
               </Card>
