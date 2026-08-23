@@ -199,44 +199,40 @@ export default function EtiquetasPage() {
             </nav>
           </aside>
 
-          {/* ===== NAV MOBILE (select) ===== */}
-          <div className="md:hidden">
-            <Select value={tab} onValueChange={setTab}>
-              <SelectTrigger className="h-11">
-                <SelectValue>
-                  <span className="flex items-center gap-2">
-                    <currentItem.icon className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">{currentItem.label}</span>
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {NAV_SECTIONS.map((section) => (
-                  <div key={section.label}>
-                    <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-                      {section.label}
-                    </div>
-                    {section.items.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <SelectItem key={item.value} value={item.value}>
-                          <span className="flex items-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            {item.label}
-                            {item.badge && item.badge > 0 ? (
-                              <span className="ml-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold inline-flex items-center justify-center">
-                                {item.badge}
-                              </span>
-                            ) : null}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* ===== NAV MOBILE (pills roláveis — resposta imediata, sem dropdown) ===== */}
+          <div className="md:hidden -mx-3 px-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none [-webkit-overflow-scrolling:touch]">
+              {ALL_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active = tab === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setTab(item.value)}
+                    className={cn(
+                      "shrink-0 inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full text-[13px] font-semibold border transition-colors",
+                      active
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card/50 text-muted-foreground border-border/60 active:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap">{item.label}</span>
+                    {item.badge && item.badge > 0 ? (
+                      <span className={cn(
+                        "h-4 min-w-4 px-1 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
+                        active ? "bg-primary-foreground text-primary" : "bg-destructive text-destructive-foreground"
+                      )}>
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
 
           {/* ===== CONTEÚDO ===== */}
           <div className="min-w-0 space-y-5">
