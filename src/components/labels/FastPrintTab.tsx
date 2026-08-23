@@ -642,7 +642,7 @@ export function FastPrintTab({
                 </div>
               )}
 
-              <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="w-full h-14 text-base font-bold">
+              <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="w-full h-14 text-base font-bold shadow-lg">
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
                 IMPRIMIR
               </Button>
