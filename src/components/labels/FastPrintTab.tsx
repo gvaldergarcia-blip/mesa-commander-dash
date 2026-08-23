@@ -537,7 +537,10 @@ export function FastPrintTab({
         </Card>
 
         {/* Painel de impressão */}
-        <Card className="p-4 bg-card/40 space-y-4 h-fit lg:sticky lg:top-4">
+        <Card className={cn(
+          "p-4 bg-card/40 space-y-4 h-fit lg:sticky lg:top-4 lg:order-2",
+          product ? "order-1" : "order-3 lg:order-2"
+        )}>
           {!product ? (
             <div className="text-center py-14 text-sm text-muted-foreground">
               Selecione um produto para imprimir.
