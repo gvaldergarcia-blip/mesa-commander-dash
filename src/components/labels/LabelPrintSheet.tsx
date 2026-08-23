@@ -156,6 +156,21 @@ function buildLabelHtml(data: PrintLabelData): string {
         </div>`;
 }
 
+/** Detecta ambiente onde a impressão inline (window.print da própria página) é instável:
+ *  celulares (Chrome Android / iOS Safari) e execução dentro de iframe (preview/embed). */
+function needsStandalonePrintWindow() {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isMobileUa = /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(ua);
+  const isTouchSmall =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 900px)").matches &&
+    navigator.maxTouchPoints > 0;
+  let inIframe = false;
+  try { inIframe = window.self !== window.top; } catch { inIframe = true; }
+  return isMobileUa || isTouchSmall || inIframe;
+}
+
 /**
  * Imprime várias etiquetas de produtos diferentes em UM único job de impressão.
  * Cada item respeita o próprio `quantity`.
@@ -170,6 +185,7 @@ export function printLabelsMany(items: PrintLabelData[]) {
     })
     .join("");
   const html = `<main class="label-print-sheet">${labelsHtml}</main>`;
+
 
   const styleText = `
   @media screen { .label-print-runtime { display: none !important; } }
