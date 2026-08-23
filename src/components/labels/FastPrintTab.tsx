@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Search, Loader2, Zap, Check, Package, AlertTriangle, Truck, X } from "lucide-react";
+import { Printer, Search, Loader2, Zap, Check, Package, AlertTriangle, Truck, X, Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { getSiteBaseUrl } from "@/config/site-url";
 import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewals";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
+import { ProductFormDialog } from "./ProductFormDialog";
 
 /** Unidades disponíveis para a quantidade da etiqueta. */
 const AMOUNT_UNITS = ["un", "g", "kg", "ml", "L"];
@@ -55,7 +56,7 @@ export function FastPrintTab({
   receiptContext?: ReceiptPrintContext | null;
   onClearReceiptContext?: () => void;
 }) {
-  const { products, isLoading } = useLabelProducts();
+  const { products, isLoading, createProduct, isMutating } = useLabelProducts();
   const { activeEmployees } = useLabelEmployees();
   const { createLabel } = useLabels();
   const { restaurant } = useRestaurant();
@@ -81,6 +82,8 @@ export function FastPrintTab({
   /** Peso por item do recebimento — pré-preenchido pela NF e editável antes de imprimir. */
   const [receiptWeight, setReceiptWeight] = useState<Record<string, string>>({});
   const [printingReceipt, setPrintingReceipt] = useState(false);
+  /** Cadastro rápido a partir da busca quando o produto ainda não existe. */
+  const [quickOpen, setQuickOpen] = useState(false);
 
   const activeProducts = useMemo(
     () => products.filter((p) => (p.status ?? "active") === "active"),
@@ -497,11 +500,25 @@ export function FastPrintTab({
               className="pl-9 h-12 text-base"
             />
           </div>
+          {search.trim() && filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setQuickOpen(true)}
+              className="w-full text-left text-xs text-muted-foreground hover:text-primary underline underline-offset-2"
+            >
+              Não achou "{search.trim()}"? Cadastre em segundos e imprima.
+            </button>
+          )}
           {isLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-10 text-sm text-muted-foreground">
-              Nenhum produto encontrado. Cadastre o produto uma única vez em <strong>Produtos</strong>.
+            <div className="text-center py-10 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Nenhum produto encontrado{search.trim() ? <> para <strong>"{search.trim()}"</strong></> : null}.
+              </p>
+              <Button onClick={() => setQuickOpen(true)} className="h-11">
+                <Plus className="h-4 w-4" /> Cadastrar e imprimir agora
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[48vh] lg:max-h-[62vh] overflow-y-auto overscroll-contain pr-1">
@@ -654,6 +671,23 @@ export function FastPrintTab({
           )}
         </Card>
       </div>
+
+      <ProductFormDialog
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        product={null}
+        initialName={search.trim()}
+        submitLabel="Cadastrar e usar"
+        isSubmitting={isMutating}
+        onSubmit={async (input) => {
+          const created = await createProduct(input);
+          if (created) {
+            setSearch("");
+            selectProduct(created as LabelProduct);
+            toast.success("Produto cadastrado. Informe o lote e imprima.");
+          }
+        }}
+      />
     </div>
   );
 }
