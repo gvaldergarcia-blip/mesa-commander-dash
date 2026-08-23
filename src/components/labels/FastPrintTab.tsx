@@ -485,11 +485,11 @@ export function FastPrintTab({
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
         {/* Lista de produtos */}
-        <Card className="p-3 md:p-4 bg-card/40 space-y-3">
+        <Card className="p-3 md:p-4 bg-card/40 space-y-3 order-2 lg:order-1">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              autoFocus
+              autoFocus={typeof window !== "undefined" && !("ontouchstart" in window)}
               placeholder="Buscar produto (nome, marca, fornecedor)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -503,7 +503,8 @@ export function FastPrintTab({
               Nenhum produto encontrado. Cadastre o produto uma única vez em <strong>Produtos</strong>.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[62vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[48vh] lg:max-h-[62vh] overflow-y-auto overscroll-contain pr-1">
+
               {filtered.map((p) => {
                 const active = product?.id === p.id;
                 return (
