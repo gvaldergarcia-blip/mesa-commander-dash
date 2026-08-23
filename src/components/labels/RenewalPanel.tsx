@@ -60,7 +60,7 @@ export function RenewalPanel() {
       const next = { ...current };
       items.forEach((item) => {
         if (next[item.label.id] == null) {
-          next[item.label.id] = Math.max(1, Number(item.label.units_remaining ?? item.label.quantity ?? 1));
+          next[item.label.id] = Math.max(1, Number(item.label.quantity ?? 1));
         }
       });
       return next;
@@ -313,7 +313,7 @@ export function RenewalPanel() {
                         className="h-10 font-semibold"
                       />
                       <p className="text-[10px] text-muted-foreground">
-                        Sugestão baseada nas {l.units_remaining ?? l.quantity} impressas anteriormente. Você pode editar.
+                        Preenchido com as {l.quantity} impressas anteriormente. Você pode editar.
                       </p>
                       <Button className="gap-2" disabled={printingId === l.id || !item.renewable} onClick={() => reprint(item)}>
                         {printingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}

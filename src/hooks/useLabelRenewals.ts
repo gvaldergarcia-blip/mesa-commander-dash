@@ -293,13 +293,16 @@ export function useLabelRenewals() {
     if (error) throw error;
 
     // O registro anterior NUNCA é apagado — apenas encerrado, mantendo o histórico.
-    await (supabase as any)
+    const { error: closeError } = await (supabase as any)
       .from("label_issuances")
       .update({ status: "discharged", discharge_reason: "vencimento", resolved_at: manufacture.toISOString() })
       .eq("id", l.id);
+    if (closeError) throw closeError;
+
+    await qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
 
     return { previous: l, created: inserted, batch, manufacture, expiry };
-  }, [restaurantId]);
+  }, [restaurantId, qc]);
 
   const renewMany = useCallback(async (list: RenewalItem[]) => {
     setRenewing(true);
