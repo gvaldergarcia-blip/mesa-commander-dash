@@ -354,17 +354,18 @@ export function FastPrintTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" /> Impressão rápida
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary shrink-0" /> Impressão rápida
           </h2>
-          <p className="text-sm text-muted-foreground">Produto → Lote → Validade original → Imprimir.</p>
+          <p className="text-xs md:text-sm text-muted-foreground">Produto → Lote → Validade original → Imprimir.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onManageProducts}>
+        <Button variant="outline" size="sm" onClick={onManageProducts} className="self-start sm:self-auto shrink-0">
           <Package className="h-4 w-4" /> Cadastro
         </Button>
       </div>
+
 
       {receiptContext && (
         <Card className="p-4 border-primary/40 bg-primary/[0.06] space-y-3">
