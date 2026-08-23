@@ -81,6 +81,40 @@ export function useLabelRenewals() {
     return m;
   }, [products]);
 
+  // Resolução do VALOR ORIGINAL (fabricante) de cada ciclo.
+  // 1) campo original_expiry_date da própria etiqueta
+  // 2) qualquer etiqueta do mesmo ciclo que tenha o campo preenchido
+  // 3) fallback legado: validade da etiqueta RAIZ do ciclo (a mais antiga)
+  const resolveOriginal = useMemo(() => {
+    const cycleKey = (l: Label) =>
+      `${l.label_product_id || l.product_name}::${(l as any).origin_traceability_lot || l.batch || ""}`;
+
+    const originalByCycle = new Map<string, string>();
+    const rootByCycle = new Map<string, { created: number; expiry: string }>();
+    for (const l of labels) {
+      const key = cycleKey(l);
+      const raw = (l as any).original_expiry_date;
+      if (raw && !originalByCycle.has(key)) originalByCycle.set(key, raw);
+      const created = new Date(l.created_at).getTime();
+      const cur = rootByCycle.get(key);
+      if (Number.isFinite(created) && (!cur || created < cur.created)) {
+        rootByCycle.set(key, { created, expiry: l.expiry_date as unknown as string });
+      }
+    }
+
+    return (l: Label): Date | null => {
+      const key = cycleKey(l);
+      const raw =
+        (l as any).original_expiry_date ??
+        originalByCycle.get(key) ??
+        rootByCycle.get(key)?.expiry ??
+        null;
+      if (!raw) return null;
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+  }, [labels]);
+
   const items = useMemo<RenewalItem[]>(() => {
     const now = Date.now();
     const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
@@ -89,24 +123,6 @@ export function useLabelRenewals() {
       now + lookaheadHours * 3600_000,
     );
 
-    // Fallback de "valor original": etiquetas antigas podem não ter gravado
-    // original_expiry_date. Recuperamos pelo mesmo ciclo (produto + lote).
-    const originalByCycle = new Map<string, string>();
-    for (const l of labels) {
-      const raw = (l as any).original_expiry_date;
-      if (!raw) continue;
-      const key = `${l.label_product_id || l.product_name}::${(l as any).origin_traceability_lot || l.batch || ""}`;
-      if (!originalByCycle.has(key)) originalByCycle.set(key, raw);
-    }
-    const resolveOriginal = (l: Label): Date | null => {
-      const raw =
-        (l as any).original_expiry_date ??
-        originalByCycle.get(`${l.label_product_id || l.product_name}::${(l as any).origin_traceability_lot || l.batch || ""}`) ??
-        null;
-      if (!raw) return null;
-      const d = new Date(raw);
-      return Number.isNaN(d.getTime()) ? null : d;
-    };
 
     const out: RenewalItem[] = [];
     for (const l of labels) {
