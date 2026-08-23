@@ -222,7 +222,8 @@ export function useLabelRenewals() {
       });
     }
     return Array.from(map.values());
-  }, [labels]);
+  }, [labels, resolveOriginal]);
+
 
   /** Registra uma nova Manipulação (novo lote MAN-) preservando o histórico. */
   const renewOne = useCallback(async (item: RenewalItem) => {
