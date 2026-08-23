@@ -193,7 +193,7 @@ export function useLabelRenewals() {
       });
     }
     return out.sort((a, b) => a.msLeft - b.msLeft);
-  }, [labels, productById, lookaheadHours]);
+  }, [labels, productById, lookaheadHours, resolveOriginal]);
 
   const renewableItems = useMemo(() => items.filter((i) => i.renewable), [items]);
 
@@ -204,10 +204,9 @@ export function useLabelRenewals() {
     for (const l of labels) {
       if (l.status === "discharged") continue;
       if ((l.units_remaining ?? 0) <= 0) continue;
-      const raw = (l as any).original_expiry_date;
-      if (!raw) continue;
-      const orig = new Date(raw);
-      if (Number.isNaN(orig.getTime()) || orig.getTime() > now) continue;
+      const orig = resolveOriginal(l);
+      if (!orig || orig.getTime() > now) continue;
+
       const key = `${l.label_product_id || l.product_name}`;
       const cur = map.get(key);
       if (cur) {
