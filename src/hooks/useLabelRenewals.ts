@@ -226,7 +226,7 @@ export function useLabelRenewals() {
 
 
   /** Registra uma nova Manipulação (novo lote MAN-) preservando o histórico. */
-  const renewOne = useCallback(async (item: RenewalItem) => {
+  const renewOne = useCallback(async (item: RenewalItem, quantityOverride?: number) => {
     if (!restaurantId) throw new Error("Restaurante não identificado");
     if (!item.renewable) throw new Error("Etiqueta não pode ser renovada automaticamente");
     const l = item.label;
@@ -242,7 +242,7 @@ export function useLabelRenewals() {
       throw new Error("Regra de validade não configurada para este produto");
     }
     let expiry = addRule(manufacture, ruleValue, ruleUnit);
-    const originalExp = (l as any).original_expiry_date ? new Date((l as any).original_expiry_date) : null;
+    const originalExp = item.originalExpiry;
     if (originalExp && originalExp.getTime() <= manufacture.getTime()) {
       throw new Error("Validade original do fabricante já venceu — não é possível renovar");
     }
@@ -251,7 +251,10 @@ export function useLabelRenewals() {
     // RENOVAÇÃO = MESMO CICLO. O lote original NUNCA muda.
     const batch = l.batch ?? null;
 
-    const quantity = Math.max(1, Number(l.units_remaining ?? l.quantity ?? 1));
+    const quantity = Math.max(
+      1,
+      Math.min(50, Math.floor(Number(quantityOverride ?? l.units_remaining ?? l.quantity ?? 1))),
+    );
 
     const { data: inserted, error } = await (supabase as any)
       .from("label_issuances")
@@ -290,13 +293,16 @@ export function useLabelRenewals() {
     if (error) throw error;
 
     // O registro anterior NUNCA é apagado — apenas encerrado, mantendo o histórico.
-    await (supabase as any)
+    const { error: closeError } = await (supabase as any)
       .from("label_issuances")
       .update({ status: "discharged", discharge_reason: "vencimento", resolved_at: manufacture.toISOString() })
       .eq("id", l.id);
+    if (closeError) throw closeError;
+
+    await qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
 
     return { previous: l, created: inserted, batch, manufacture, expiry };
-  }, [restaurantId]);
+  }, [restaurantId, qc]);
 
   const renewMany = useCallback(async (list: RenewalItem[]) => {
     setRenewing(true);
@@ -322,6 +328,7 @@ export function useLabelRenewals() {
     renewableCount: renewableItems.length,
     isLoading,
     renewing,
+    renewOne,
     renewMany,
     lookaheadHours,
     setLookaheadHours,
