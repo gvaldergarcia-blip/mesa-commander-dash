@@ -55,6 +55,53 @@ const escapeHtml = (s: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+/** Regras visuais da etiqueta 80×40mm — compartilhadas entre a impressão inline
+ *  (desktop) e o documento independente usado no celular. */
+const LABEL_RULES = `
+    .label-print-sheet { padding: 0; }
+    .label {
+      width: 80mm; height: 40mm; box-sizing: border-box;
+      padding: 1.6mm 2mm 1.3mm; margin: 0;
+      page-break-inside: avoid; break-inside: avoid; page-break-after: always;
+      background: #fff !important; color: #000 !important;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 6.4pt; line-height: 1.08;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .label:last-child { page-break-after: auto; }
+    .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.4mm; }
+    .top-left { flex: 1; min-width: 0; }
+    .name { font-size: 9.5pt; font-weight: 800; letter-spacing: 0; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cons { font-size: 6pt; font-weight: 700; color: #000; margin-top: 0.2mm; letter-spacing: 0; }
+    .weight { font-size: 9.5pt; font-weight: 800; white-space: nowrap; }
+    .dates { margin-top: 0.8mm; border-top: 0.3mm solid #000; border-bottom: 0.3mm solid #000; padding: 0.7mm 0; }
+    .d-row { display: flex; gap: 1.6mm; font-size: 6.2pt; line-height: 1.12; }
+    .d-row .k { font-weight: 700; min-width: 15mm; }
+    .d-row .v { font-weight: 600; }
+    .local-row { margin-top: 0.7mm; font-size: 6.2pt; }
+    .local-row .k { font-weight: 800; }
+    .local-row .v { font-weight: 700; }
+    .identity { margin-top: 0.5mm; display: flex; flex-wrap: wrap; gap: 0 2.5mm; }
+    .id-row { font-size: 6.2pt; line-height: 1.15; white-space: nowrap; }
+    .id-row .k { font-weight: 800; }
+    .id-row .v { font-weight: 700; }
+    .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.2mm; margin-top: 0.7mm; flex: 1; min-height: 0; }
+    .footer-info { flex: 1; min-width: 0; }
+    .f-line { font-size: 5.7pt; line-height: 1.08; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .f-line .k { font-weight: 700; }
+    .f-line.est { font-weight: 700; font-size: 6pt; }
+    .f-line.addr { font-weight: 500; font-size: 5.6pt; }
+    .qr-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.25mm; flex: 0 0 13mm; }
+    .qr-wrap svg { width: 13mm; height: 13mm; display: block; }
+    .qr-label { font-size: 5pt; font-weight: 800; line-height: 1; letter-spacing: 0; }
+    .allergens { margin-top: 0.35mm; font-size: 5.6pt; font-weight: 800; letter-spacing: 0; border: 0.3mm solid #000; padding: 0.35mm 0.6mm; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ingredients { margin-top: 0.35mm; font-size: 5.4pt; line-height: 1.02; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+    .ingredients .k { font-weight: 700; }
+    .notes { margin-top: 0.35mm; font-size: 5.4pt; font-style: italic; line-height: 1.02; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .notes .k { font-weight: 700; font-style: normal; }
+    .banner { background: #000 !important; color: #fff !important; font-size: 6.6pt; font-weight: 900; letter-spacing: 0.4mm; text-align: center; padding: 0.5mm 0; margin: -0.6mm -0.6mm 0.7mm; }
+`;
+
 /**
  * Imprime as etiquetas no padrão ANVISA (estilo YesChef), 80×40mm.
  */
@@ -156,6 +203,21 @@ function buildLabelHtml(data: PrintLabelData): string {
         </div>`;
 }
 
+/** Detecta ambiente onde a impressão inline (window.print da própria página) é instável:
+ *  celulares (Chrome Android / iOS Safari) e execução dentro de iframe (preview/embed). */
+function needsStandalonePrintWindow() {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isMobileUa = /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(ua);
+  const isTouchSmall =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 900px)").matches &&
+    navigator.maxTouchPoints > 0;
+  let inIframe = false;
+  try { inIframe = window.self !== window.top; } catch { inIframe = true; }
+  return isMobileUa || isTouchSmall || inIframe;
+}
+
 /**
  * Imprime várias etiquetas de produtos diferentes em UM único job de impressão.
  * Cada item respeita o próprio `quantity`.
@@ -186,49 +248,17 @@ export function printLabelsMany(items: PrintLabelData[]) {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .label-print-sheet { padding: 0; }
-    .label {
-      width: 80mm; height: 40mm; box-sizing: border-box;
-      padding: 1.6mm 2mm 1.3mm; margin: 0;
-      page-break-inside: avoid; break-inside: avoid; page-break-after: always;
-      background: #fff !important; color: #000 !important;
-      font-size: 6.4pt; line-height: 1.08;
-      display: flex; flex-direction: column; overflow: hidden;
-    }
-    .label:last-child { page-break-after: auto; }
-    .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.4mm; }
-    .top-left { flex: 1; min-width: 0; }
-    .name { font-size: 9.5pt; font-weight: 800; letter-spacing: 0; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cons { font-size: 6pt; font-weight: 700; color: #000; margin-top: 0.2mm; letter-spacing: 0; }
-    .weight { font-size: 9.5pt; font-weight: 800; white-space: nowrap; }
-    .dates { margin-top: 0.8mm; border-top: 0.3mm solid #000; border-bottom: 0.3mm solid #000; padding: 0.7mm 0; }
-    .d-row { display: flex; gap: 1.6mm; font-size: 6.2pt; line-height: 1.12; }
-    .d-row .k { font-weight: 700; min-width: 15mm; }
-    .d-row .v { font-weight: 600; }
-    .local-row { margin-top: 0.7mm; font-size: 6.2pt; }
-    .local-row .k { font-weight: 800; }
-    .local-row .v { font-weight: 700; }
-    .identity { margin-top: 0.5mm; display: flex; flex-wrap: wrap; gap: 0 2.5mm; }
-    .id-row { font-size: 6.2pt; line-height: 1.15; white-space: nowrap; }
-    .id-row .k { font-weight: 800; }
-    .id-row .v { font-weight: 700; }
-    .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.2mm; margin-top: 0.7mm; flex: 1; min-height: 0; }
-    .footer-info { flex: 1; min-width: 0; }
-    .f-line { font-size: 5.7pt; line-height: 1.08; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .f-line .k { font-weight: 700; }
-    .f-line.est { font-weight: 700; font-size: 6pt; }
-    .f-line.addr { font-weight: 500; font-size: 5.6pt; }
-    .qr-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.25mm; flex: 0 0 13mm; }
-    .qr-wrap svg { width: 13mm; height: 13mm; display: block; }
-    .qr-label { font-size: 5pt; font-weight: 800; line-height: 1; letter-spacing: 0; }
-    .allergens { margin-top: 0.35mm; font-size: 5.6pt; font-weight: 800; letter-spacing: 0; border: 0.3mm solid #000; padding: 0.35mm 0.6mm; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ingredients { margin-top: 0.35mm; font-size: 5.4pt; line-height: 1.02; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
-    .ingredients .k { font-weight: 700; }
-    .notes { margin-top: 0.35mm; font-size: 5.4pt; font-style: italic; line-height: 1.02; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .notes .k { font-weight: 700; font-style: normal; }
-    .banner { background: #000 !important; color: #fff !important; font-size: 6.6pt; font-weight: 900; letter-spacing: 0.4mm; text-align: center; padding: 0.5mm 0; margin: -0.6mm -0.6mm 0.7mm; }
+${LABEL_RULES}
   }
   `;
+
+  // ===== Celular / iframe: abrir documento próprio (Chrome Android e iOS Safari
+  // não imprimem de forma confiável a partir da própria SPA / dentro de iframe).
+  if (needsStandalonePrintWindow()) {
+    const ok = openStandalonePrintDocument(html);
+    if (ok) return;
+    // se o popup foi bloqueado, cai no fluxo inline abaixo
+  }
 
   const existing = document.querySelectorAll(".label-print-runtime, style[data-label-print]");
   existing.forEach((node) => node.remove());
@@ -255,4 +285,73 @@ export function printLabelsMany(items: PrintLabelData[]) {
     window.print();
     setTimeout(cleanup, 60000);
   });
+}
+
+/** Abre uma janela/aba independente com as etiquetas, pronta para imprimir
+ *  (ou "Salvar como PDF" e compartilhar com o app da impressora Bluetooth).
+ *  Retorna false se o popup foi bloqueado. */
+function openStandalonePrintDocument(labelsHtml: string): boolean {
+  let win: Window | null = null;
+  try {
+    win = window.open("", "_blank");
+  } catch {
+    win = null;
+  }
+  if (!win) return false;
+
+  const doc = `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Etiquetas · MesaClik</title>
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: #f4f4f5; color: #111;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, Helvetica, sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; align-items: center;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: #111; color: #fff; }
+  .bar h1 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+  .bar button { appearance: none; border: 0; border-radius: 10px; padding: 12px 16px;
+    font-size: 15px; font-weight: 700; cursor: pointer; }
+  .bar .go { background: #fff; color: #111; }
+  .bar .close { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.35); }
+  .hint { font-size: 12px; line-height: 1.4; color: #52525b; padding: 10px 14px 0; }
+  .label-print-sheet { padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .label { background: #fff; color: #000; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+${LABEL_RULES}
+  @media screen { .label { height: 40mm; page-break-after: auto; } }
+  @media print {
+    @page { size: 80mm 40mm; margin: 0; }
+    html, body { background: #fff; }
+    .bar, .hint { display: none !important; }
+    .label-print-sheet { padding: 0; display: block; }
+    .label { box-shadow: none; page-break-after: always; }
+    .label:last-child { page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <h1>Etiquetas prontas</h1>
+    <button class="close" onclick="window.close()">Fechar</button>
+    <button class="go" onclick="window.print()">Imprimir</button>
+  </div>
+  <div class="hint">Se a impressora Bluetooth não aparecer na lista, escolha <b>Salvar como PDF</b> e compartilhe o arquivo com o aplicativo da impressora. Formato: 80×40&nbsp;mm.</div>
+  ${labelsHtml}
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { try { window.print(); } catch (e) {} }, 250);
+    });
+  <\/script>
+</body>
+</html>`;
+
+  win.document.open();
+  win.document.write(doc);
+  win.document.close();
+  try { win.focus(); } catch {}
+  return true;
 }

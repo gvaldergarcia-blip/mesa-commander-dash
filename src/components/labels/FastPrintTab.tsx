@@ -354,17 +354,18 @@ export function FastPrintTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" /> Impressão rápida
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary shrink-0" /> Impressão rápida
           </h2>
-          <p className="text-sm text-muted-foreground">Produto → Lote → Validade original → Imprimir.</p>
+          <p className="text-xs md:text-sm text-muted-foreground">Produto → Lote → Validade original → Imprimir.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onManageProducts}>
+        <Button variant="outline" size="sm" onClick={onManageProducts} className="self-start sm:self-auto shrink-0">
           <Package className="h-4 w-4" /> Cadastro
         </Button>
       </div>
+
 
       {receiptContext && (
         <Card className="p-4 border-primary/40 bg-primary/[0.06] space-y-3">
@@ -485,11 +486,11 @@ export function FastPrintTab({
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
         {/* Lista de produtos */}
-        <Card className="p-3 md:p-4 bg-card/40 space-y-3">
+        <Card className="p-3 md:p-4 bg-card/40 space-y-3 order-2 lg:order-1">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              autoFocus
+              autoFocus={typeof window !== "undefined" && !("ontouchstart" in window)}
               placeholder="Buscar produto (nome, marca, fornecedor)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -503,7 +504,8 @@ export function FastPrintTab({
               Nenhum produto encontrado. Cadastre o produto uma única vez em <strong>Produtos</strong>.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[62vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[48vh] lg:max-h-[62vh] overflow-y-auto overscroll-contain pr-1">
+
               {filtered.map((p) => {
                 const active = product?.id === p.id;
                 return (
@@ -536,7 +538,10 @@ export function FastPrintTab({
         </Card>
 
         {/* Painel de impressão */}
-        <Card className="p-4 bg-card/40 space-y-4 h-fit lg:sticky lg:top-4">
+        <Card className={cn(
+          "p-4 bg-card/40 space-y-4 h-fit lg:sticky lg:top-4 lg:order-2",
+          product ? "order-1" : "order-3 lg:order-2"
+        )}>
           {!product ? (
             <div className="text-center py-14 text-sm text-muted-foreground">
               Selecione um produto para imprimir.
@@ -638,7 +643,7 @@ export function FastPrintTab({
                 </div>
               )}
 
-              <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="w-full h-14 text-base font-bold">
+              <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="w-full h-14 text-base font-bold shadow-lg">
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
                 IMPRIMIR
               </Button>

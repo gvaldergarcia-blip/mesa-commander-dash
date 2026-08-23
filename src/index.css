@@ -329,3 +329,9 @@
   }
   .orbit-dot { animation: orbit-dot 6s linear infinite; }
 }
+
+@layer utilities {
+  /* Scroll horizontal sem barra visível (navegação mobile) */
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
