@@ -260,7 +260,7 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="w-72 p-0 bg-sidebar-background text-sidebar-foreground border-sidebar-border [&>button]:hidden"
+          className="w-[85vw] max-w-xs p-0 bg-sidebar text-sidebar-foreground border-sidebar-border [&>button]:hidden overflow-y-auto"
         >
           <div className="flex flex-col justify-between h-full">
             {sidebarContent(true)}
