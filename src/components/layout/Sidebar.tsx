@@ -273,7 +273,7 @@ export function Sidebar() {
   // Desktop & tablet (≥768px): unchanged sticky sidebar
   return (
     <aside className={cn(
-      "bg-sidebar-background text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
+      "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
       isCollapsed ? "w-16" : "w-64"
     )}>
       {sidebarContent(false)}
