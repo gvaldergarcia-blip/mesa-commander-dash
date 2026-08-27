@@ -260,7 +260,7 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="w-72 p-0 bg-sidebar-background text-sidebar-foreground border-sidebar-border [&>button]:hidden"
+          className="w-[85vw] max-w-xs p-0 bg-sidebar text-sidebar-foreground border-sidebar-border [&>button]:hidden overflow-y-auto"
         >
           <div className="flex flex-col justify-between h-full">
             {sidebarContent(true)}
@@ -273,7 +273,7 @@ export function Sidebar() {
   // Desktop & tablet (≥768px): unchanged sticky sidebar
   return (
     <aside className={cn(
-      "bg-sidebar-background text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
+      "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
       isCollapsed ? "w-16" : "w-64"
     )}>
       {sidebarContent(false)}
