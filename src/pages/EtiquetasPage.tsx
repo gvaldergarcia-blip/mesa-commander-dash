@@ -39,42 +39,6 @@ export default function EtiquetasPage() {
   const NAV_SECTIONS: {
     label: string;
     items: { value: string; icon: any; label: string; badge?: number }[];
-
-const NAV_SECTIONS_STATIC = [
-  {
-    label: "Operação diária",
-    items: [{ value: "imprimir", icon: "Zap", label: "Imprimir etiqueta" }],
-  },
-  {
-    label: "Diário",
-    items: [
-      { value: "hoje", icon: "Activity", label: "Hoje" },
-      { value: "renovacao", icon: "RefreshCw", label: "Renovação" },
-    ],
-  },
-  {
-    label: "Entradas",
-    items: [
-      { value: "recebimento", icon: "Truck", label: "Recebimento" },
-      { value: "producao", icon: "ChefHat", label: "Produção Interna" },
-    ],
-  },
-  {
-    label: "Operação",
-    items: [{ value: "estoque", icon: "PackageX", label: "Estoque" }],
-  },
-  {
-    label: "Cadastros",
-    items: [
-      { value: "cadastro", icon: "Package", label: "Produtos" },
-      { value: "produtos", icon: "List", label: "Etiquetas ativas" },
-      { value: "funcionarios", icon: "Users", label: "Funcionários" },
-      { value: "dashboard", icon: "LayoutDashboard", label: "Dashboard" },
-      { value: "sms", icon: "MessageSquare", label: "SMS" },
-    ],
-  },
-];
-
   }[] = [
     {
       label: "Operação diária",
