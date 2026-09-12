@@ -161,15 +161,10 @@
   html,
   body,
   #root {
-    height: 100%;
-    overscroll-behavior: none;
-  }
-
-  .mobile-main-scroll {
-    -webkit-overflow-scrolling: touch;
+    min-height: 100%;
+    height: auto;
+    overflow-y: visible;
     overscroll-behavior-y: auto;
-    touch-action: pan-y;
-    scroll-behavior: auto;
   }
 
   input,
