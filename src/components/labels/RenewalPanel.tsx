@@ -257,7 +257,7 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                 className={cn(
                   "p-4 flex flex-col md:flex-row md:items-center gap-3 border transition-all",
                   isMobile && !selectedId && "cursor-pointer",
-                  isMobile && selectedId && "-mx-3 rounded-none border-x-0 bg-transparent pb-28",
+                  isMobile && selectedId && "-mx-3 rounded-none border-x-0 bg-transparent pb-40",
                   item.urgency === "expired"
                     ? "border-destructive/30 bg-destructive/[0.04]"
                     : item.urgency === "today"
@@ -344,7 +344,7 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                         Preenchido com as {l.quantity} impressas anteriormente. Você pode editar.
                       </p>
                       <Button
-                        className="gap-2 max-md:fixed max-md:inset-x-3 max-md:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-md:z-50 max-md:h-14 max-md:text-base max-md:shadow-lg"
+                         className="gap-2 max-md:fixed max-md:inset-x-3 max-md:bottom-[calc(4.75rem+env(safe-area-inset-bottom))] max-md:z-50 max-md:h-12 max-md:text-sm max-md:shadow-lg"
                         disabled={printingId === l.id || !item.renewable}
                         onClick={(event) => { event.stopPropagation(); void reprint(item); }}
                       >

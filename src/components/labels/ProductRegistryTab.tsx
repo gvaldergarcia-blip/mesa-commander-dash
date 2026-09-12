@@ -13,31 +13,45 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<LabelProduct | null>(null);
+  const [conservationFilter, setConservationFilter] = useState("all");
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
-    if (!s) return products;
-    return products.filter((p) =>
+    const byConservation = conservationFilter === "all"
+      ? products
+      : conservationFilter === "produce"
+        ? products.filter((p) => [p.category, p.name].filter(Boolean).join(" ").toLowerCase().includes("hortif"))
+        : products.filter((p) => (p.conservation_method || "refrigerated") === conservationFilter);
+    if (!s) return byConservation;
+    return byConservation.filter((p) =>
       [p.name, p.brand, p.supplier_name, p.category, p.storage_location]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(s)
     );
-  }, [products, search]);
+  }, [conservationFilter, products, search]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-3 md:space-y-4">
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div>
-          <h2 className="text-xl font-bold">Cadastro de produtos</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-lg font-bold md:text-xl">Cadastro de produtos</h2>
+          <p className="hidden text-sm text-muted-foreground md:block">
             Cadastre uma vez. A operação diária informa apenas lote, validade original e quantidade.
           </p>
         </div>
-        <Button onClick={() => { setEditing(null); setOpen(true); }} className="h-11 w-full sm:w-auto">
+        <Button onClick={() => { setEditing(null); setOpen(true); }} className="h-10 w-full sm:h-11 sm:w-auto">
           <Plus className="h-4 w-4" /> Novo produto
         </Button>
+      </div>
+
+      <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
+        {[["all", "Todos"], ["ambient", "Ambiente"], ["refrigerated", "Refrigerado"], ["frozen", "Congelado"], ["produce", "Hortifruti"]].map(([value, label]) => (
+          <Button key={value} type="button" size="sm" variant={conservationFilter === value ? "default" : "outline"} onClick={() => setConservationFilter(value)} className="h-9 shrink-0 px-3">
+            {label}
+          </Button>
+        ))}
       </div>
 
       <div className="relative">
@@ -61,9 +75,9 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
           {filtered.map((p) => {
             const conservation = CONSERVATION_LABEL[(p.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL];
             return (
-              <Card key={p.id} className="rounded-none border-x-0 border-t-0 bg-card/40 p-4 last:border-b-0 sm:rounded-lg sm:border">
+          <Card key={p.id} className="rounded-none border-x-0 border-t-0 bg-card/40 p-3 last:border-b-0 sm:rounded-lg sm:border sm:p-4">
                 <div className="flex items-start gap-3">
-                  <div className="h-14 w-14 shrink-0 rounded-xl bg-muted/60 border border-border/50 flex items-center justify-center overflow-hidden">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/50 bg-muted/60 sm:h-14 sm:w-14 sm:rounded-xl">
                     <Package className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -90,7 +104,7 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex items-end justify-between gap-2">
+                <div className="mt-2.5 flex items-end justify-between gap-2 sm:mt-3">
                   <div className="text-xs text-muted-foreground leading-snug">
                     {p.manipulation_enabled && p.manipulation_validity_value
                       ? <>Após abertura: {p.manipulation_validity_value} {p.manipulation_validity_unit === "hours" ? "hora(s)" : p.manipulation_validity_unit === "months" ? "mês(es)" : "dia(s)"}<br /></>
