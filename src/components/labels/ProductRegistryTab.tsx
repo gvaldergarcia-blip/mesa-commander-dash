@@ -19,9 +19,7 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
     const s = search.toLowerCase().trim();
     const byConservation = conservationFilter === "all"
       ? products
-      : conservationFilter === "produce"
-        ? products.filter((p) => [p.category, p.name].filter(Boolean).join(" ").toLowerCase().includes("hortif"))
-        : products.filter((p) => (p.conservation_method || "refrigerated") === conservationFilter);
+      : products.filter((p) => (p.conservation_method || "refrigerated") === conservationFilter);
     if (!s) return byConservation;
     return byConservation.filter((p) =>
       [p.name, p.brand, p.supplier_name, p.category, p.storage_location]
@@ -47,7 +45,7 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
       </div>
 
       <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
-        {[["all", "Todos"], ["ambient", "Ambiente"], ["refrigerated", "Refrigerado"], ["frozen", "Congelado"], ["produce", "Hortifruti"]].map(([value, label]) => (
+        {[["all", "Todos"], ["ambient", "Ambiente"], ["refrigerated", "Refrigerado"], ["frozen", "Congelado"], ["hot", "Hortifruti"]].map(([value, label]) => (
           <Button key={value} type="button" size="sm" variant={conservationFilter === value ? "default" : "outline"} onClick={() => setConservationFilter(value)} className="h-9 shrink-0 px-3">
             {label}
           </Button>

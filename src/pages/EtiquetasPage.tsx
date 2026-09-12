@@ -21,11 +21,13 @@ import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { getOperationalGroups, type OperationalView } from "@/lib/labels/operationalDashboard";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { MobileLabelsHeader } from "@/components/labels/mobile/MobileLabelsHeader";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function EtiquetasPage() {
   const { labels, dischargeBulk } = useLabels();
   const { items: renewalItems, count: renewalCount } = useLabelRenewals();
   const { restaurant, user } = useRestaurant();
+  const isMobile = useIsMobile();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -84,9 +86,9 @@ export default function EtiquetasPage() {
 
   useEffect(() => {
     if (requestedTab && ALL_ITEMS.some((item) => item.value === requestedTab)) {
-      setTabState(requestedTab);
+      setTabState(requestedTab === "hoje" && !isMobile ? "dashboard" : requestedTab);
     }
-  }, [requestedTab]);
+  }, [isMobile, requestedTab]);
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
   const [receiptContext, setReceiptContext] = useState<ReceiptPrintContext | null>(null);
   const [stockInitialSector, setStockInitialSector] = useState<string | null>(null);

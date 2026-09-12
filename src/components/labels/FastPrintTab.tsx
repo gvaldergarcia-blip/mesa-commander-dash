@@ -105,9 +105,7 @@ export function FastPrintTab({
     const s = search.toLowerCase().trim();
     const byConservation = conservationFilter === "all"
       ? activeProducts
-      : conservationFilter === "produce"
-        ? activeProducts.filter((p) => [p.category, p.name].filter(Boolean).join(" ").toLowerCase().includes("hortif"))
-        : activeProducts.filter((p) => (p.conservation_method || "refrigerated") === conservationFilter);
+      : activeProducts.filter((p) => (p.conservation_method || "refrigerated") === conservationFilter);
     if (!s) return byConservation.slice(0, 24);
     return byConservation
       .filter((p) =>
@@ -465,7 +463,7 @@ export function FastPrintTab({
               ["ambient", "Ambiente"],
               ["refrigerated", "Refrigerado"],
               ["frozen", "Congelado"],
-               ["produce", "Hortifruti"],
+                ["hot", "Hortifruti"],
             ].map(([value, label]) => (
               <Button
                 key={value}
@@ -583,7 +581,7 @@ export function FastPrintTab({
                   onChange={(e) => setBatch(e.target.value)}
                   placeholder="Lote do fabricante"
                   maxLength={40}
-                  className="h-12 text-base"
+                  className="h-11 text-base md:h-12"
                 />
               </div>
 
@@ -594,7 +592,7 @@ export function FastPrintTab({
                   type="date"
                   value={originalExpiry}
                   onChange={(e) => setOriginalExpiry(e.target.value)}
-                  className="h-12 text-base"
+                  className="h-11 text-base md:h-12"
                 />
               </div>
 
@@ -607,10 +605,10 @@ export function FastPrintTab({
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="decimal"
                     placeholder="0"
-                    className="h-12 text-base flex-1"
+                    className="h-11 flex-1 text-base md:h-12"
                   />
                   <Select value={amountUnit} onValueChange={setAmountUnit}>
-                    <SelectTrigger className="h-12 w-24"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-11 w-24 md:h-12"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {AMOUNT_UNITS.map((u) => (
                         <SelectItem key={u} value={u}>{u}</SelectItem>
