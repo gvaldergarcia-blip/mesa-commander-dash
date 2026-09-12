@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Tag, LayoutDashboard, Package, Users, List, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
+import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
 import { useLabels } from "@/hooks/useLabels";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
@@ -69,8 +69,7 @@ export default function EtiquetasPage() {
     {
       label: "Cadastros",
       items: [
-        { value: "cadastro", icon: Package, label: "Produtos" },
-        { value: "produtos", icon: List, label: "Etiquetas ativas" },
+        { value: "cadastro", icon: Package, label: "Cadastro" },
         { value: "funcionarios", icon: Users, label: "Funcionários" },
         { value: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
         { value: "sms", icon: MessageSquare, label: "SMS" },
