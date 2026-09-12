@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   RefreshCw, Loader2, CheckCircle2, AlertTriangle, Clock, MapPin, Package, Lock, Printer,
-  ArrowRight, CalendarDays,
+  ArrowLeft, ArrowRight, CalendarDays, ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
 import { printLabelsMany, type PrintLabelData } from "./LabelPrintSheet";
 import { useLabelRenewals, type RenewalItem } from "@/hooks/useLabelRenewals";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const fmt = (d: Date | string | null | undefined) => {
   if (!d) return "—";
@@ -56,8 +57,10 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
     items, isLoading, lookaheadHours, setLookaheadHours, renewOne,
   } = useLabelRenewals();
   const { restaurant } = useRestaurant();
+  const isMobile = useIsMobile();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     setQuantities((current) => {
@@ -183,7 +186,7 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 md:p-5 bg-gradient-to-br from-primary/[0.06] via-transparent to-transparent border-primary/20">
+      <Card className={cn("p-4 md:p-5 bg-gradient-to-br from-primary/[0.06] via-transparent to-transparent border-primary/20", selectedId && "max-md:hidden")}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-xl bg-primary/15 border border-primary/30">
@@ -240,7 +243,12 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
         </div>
       ) : (
         <div className="grid gap-2.5">
-          {visibleItems.map((item) => {
+          {isMobile && selectedId && (
+            <Button type="button" variant="ghost" onClick={() => setSelectedId(null)} className="h-11 w-fit gap-2 px-2">
+              <ArrowLeft className="h-5 w-5" /> Renovações pendentes
+            </Button>
+          )}
+          {visibleItems.filter((item) => !isMobile || !selectedId || item.label.id === selectedId).map((item) => {
             const t = timeLabel(item);
             const l = item.label;
             return (
@@ -248,12 +256,17 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                 key={l.id}
                 className={cn(
                   "p-4 flex flex-col md:flex-row md:items-center gap-3 border transition-all",
+                  isMobile && !selectedId && "cursor-pointer",
+                  isMobile && selectedId && "-mx-3 rounded-none border-x-0 bg-transparent pb-28",
                   item.urgency === "expired"
                     ? "border-destructive/30 bg-destructive/[0.04]"
                     : item.urgency === "today"
                       ? "border-orange-500/30 bg-orange-500/[0.04]"
                       : "border-border/60",
                 )}
+                onClick={() => {
+                  if (isMobile && !selectedId) setSelectedId(l.id);
+                }}
               >
                 <div className="h-10 w-10 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0">
                   <Package className="h-4 w-4 text-muted-foreground" />
@@ -274,7 +287,7 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                     <div><span className="text-muted-foreground">Responsável</span><div className="text-foreground font-medium truncate">{l.responsible || l.employee_name || "—"}</div></div>
                   </div>
 
-                  <div className="mt-3 rounded-lg border border-border/70 bg-background/50 p-3">
+                  <div className={cn("mt-3 rounded-lg border border-border/70 bg-background/50 p-3", isMobile && !selectedId && "hidden")}>
                     <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                       <CalendarDays className="h-3.5 w-3.5" /> Comparação de validades
                     </div>
@@ -294,7 +307,11 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                   </div>
                 </div>
 
-                <div className="shrink-0 flex flex-col gap-2 w-full md:w-[210px]">
+                {isMobile && !selectedId ? (
+                  <div className="flex w-full items-center justify-between border-t border-border/60 pt-3 text-sm font-semibold text-primary">
+                    Ver renovação <ChevronRight className="h-5 w-5" />
+                  </div>
+                ) : <div className="shrink-0 flex flex-col gap-2 w-full md:w-[210px]">
                   {!item.renewable && item.blockReason && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border/60 rounded-lg px-3 py-2 bg-muted/30">
                       <Lock className="h-3.5 w-3.5 shrink-0" />
@@ -326,13 +343,17 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                       <p className="text-[10px] text-muted-foreground">
                         Preenchido com as {l.quantity} impressas anteriormente. Você pode editar.
                       </p>
-                      <Button className="gap-2" disabled={printingId === l.id || !item.renewable} onClick={() => reprint(item)}>
+                      <Button
+                        className="gap-2 max-md:fixed max-md:inset-x-3 max-md:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-md:z-50 max-md:h-14 max-md:text-base max-md:shadow-lg"
+                        disabled={printingId === l.id || !item.renewable}
+                        onClick={(event) => { event.stopPropagation(); void reprint(item); }}
+                      >
                         {printingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                         Renovar e imprimir
                       </Button>
                     </>
                   )}
-                </div>
+                </div>}
               </Card>
             );
           })}

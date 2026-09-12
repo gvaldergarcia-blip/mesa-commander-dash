@@ -14,6 +14,8 @@ import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { useLabelProducts, LabelProduct } from "@/hooks/useLabelProducts";
 import type { ReceiptPrintContext, ReceiptPrintItem } from "@/lib/labels/receiptContext";
 import { formatQty } from "@/lib/labels/stockUnits";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface Row {
   key: string;
@@ -74,6 +76,7 @@ export function ReceiptEntryTab({
   onManageProducts?: () => void;
 }) {
   const restaurantId = useRestaurantId();
+  const isMobile = useIsMobile();
   const qc = useQueryClient();
   const { products } = useLabelProducts();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -85,6 +88,7 @@ export function ReceiptEntryTab({
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState<"none" | "compute" | "print">("none");
   const [source, setSource] = useState<"manual" | "xml">("manual");
+  const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
 
   const activeProducts = useMemo(
     () => products.filter((p) => (p.status ?? "active") === "active" && (p.origin ?? "received") !== "produced"),
@@ -278,8 +282,17 @@ export function ReceiptEntryTab({
   const busy = saving !== "none";
 
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="space-y-4 max-md:pb-28">
+      <div className="md:hidden" aria-label={`Etapa ${mobileStep} de 3`}>
+        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+          <span>Etapa {mobileStep} de 3</span>
+          <span>{mobileStep === 1 ? "Referência" : mobileStep === 2 ? "Produtos" : "Conferir"}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[1, 2, 3].map((step) => <span key={step} className={cn("h-1.5 rounded-full bg-muted", mobileStep >= step && "bg-primary")} />)}
+        </div>
+      </div>
+      <div className="hidden md:block">
         <h2 className="text-xl font-bold flex items-center gap-2">
           <Truck className="h-5 w-5 text-primary" /> Recebimento
         </h2>
@@ -289,7 +302,7 @@ export function ReceiptEntryTab({
       </div>
 
       {/* NF */}
-      <Card className="p-4 space-y-4 bg-card/40">
+      <Card className={cn("p-4 space-y-4 bg-card/40", mobileStep !== 1 && "max-md:hidden")}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1">
             <Label htmlFor="rc-ref">Nota fiscal / referência</Label>
@@ -336,7 +349,7 @@ export function ReceiptEntryTab({
       </Card>
 
       {/* Itens */}
-      <Card className="p-3 md:p-4 space-y-2 bg-card/40">
+      <Card className={cn("p-3 md:p-4 space-y-2 bg-card/40", mobileStep === 1 && "max-md:hidden")}>
         {unregistered.length > 0 && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/[0.06] p-3 space-y-2">
             <div className="text-sm font-bold text-destructive">
@@ -441,8 +454,29 @@ export function ReceiptEntryTab({
         </div>
       </Card>
 
-      {/* Ações */}
-      <Card className="p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+      {isMobile && mobileStep === 3 && (
+        <Card className="space-y-3 p-4">
+          <h3 className="font-bold">Conferir recebimento</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div><span className="text-muted-foreground">Referência</span><p className="font-semibold">{reference || "Não informada"}</p></div>
+            <div><span className="text-muted-foreground">Fornecedor</span><p className="font-semibold">{supplier || "Não informado"}</p></div>
+            <div><span className="text-muted-foreground">Produtos</span><p className="font-semibold">{validRows.length}</p></div>
+            <div><span className="text-muted-foreground">Temperatura</span><p className="font-semibold">{temperature ? `${temperature} °C` : "Não informada"}</p></div>
+          </div>
+        </Card>
+      )}
+
+      {isMobile && mobileStep < 3 && (
+        <div className="fixed inset-x-0 bottom-0 z-50 flex gap-2 border-t border-border bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+          {mobileStep > 1 && <Button variant="outline" className="h-12 flex-1" onClick={() => setMobileStep(1)}>Voltar</Button>}
+          <Button className="h-12 flex-1" onClick={() => setMobileStep((step) => step === 1 ? 2 : 3)}>
+            {mobileStep === 1 ? "Adicionar produtos" : "Conferir entrada"}
+          </Button>
+        </div>
+      )}
+
+       {/* Ações */}
+      <Card className={cn("p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20", mobileStep !== 3 && "max-md:hidden", "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:flex-row max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]")}>
         <Button variant="outline" size="lg" className="flex-1 h-14 font-bold gap-2" onClick={onlyCompute} disabled={busy || !validRows.length || unregistered.length > 0}>
           {saving === "compute" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           SÓ COMPUTAR
@@ -453,7 +487,7 @@ export function ReceiptEntryTab({
         </Button>
       </Card>
 
-      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+      <p className="hidden text-[11px] text-muted-foreground items-center gap-1.5 md:flex">
         <PackageCheck className="h-3.5 w-3.5" />
         Computar registra apenas a entrada no estoque. Etiquetas impressas aqui são de <strong>produto lacrado</strong> (validade original do fabricante).
       </p>
