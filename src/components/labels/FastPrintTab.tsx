@@ -672,7 +672,7 @@ export function FastPrintTab({
                 />
               )}
 
-              <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:border-t max-md:border-border max-md:bg-background/95 max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:backdrop-blur">
+              <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:border-t max-md:border-border max-md:bg-background max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="h-14 w-full text-base font-bold shadow-lg">
                   {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
                   IMPRIMIR ETIQUETA

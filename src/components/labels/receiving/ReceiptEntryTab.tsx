@@ -467,7 +467,7 @@ export function ReceiptEntryTab({
       )}
 
       {isMobile && mobileStep < 3 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 flex gap-2 border-t border-border bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-50 flex gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {mobileStep > 1 && <Button variant="outline" className="h-12 flex-1" onClick={() => setMobileStep(1)}>Voltar</Button>}
           <Button className="h-12 flex-1" onClick={() => setMobileStep(mobileStep === 1 ? 2 : 3)}>
             {mobileStep === 1 ? "Adicionar produtos" : "Conferir entrada"}
