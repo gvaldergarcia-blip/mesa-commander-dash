@@ -263,12 +263,22 @@ export function FastPrintTab({
     const d = new Date();
     const unit = product.manipulation_validity_unit;
     const value = product.manipulation_validity_value;
-    if (product.manipulation_enabled && value && value > 0) {
-      if (unit === "hours") d.setHours(d.getHours() + value);
-      else if (unit === "months") d.setMonth(d.getMonth() + value);
-      else d.setDate(d.getDate() + value);
+    // Se existe prazo de pós-abertura cadastrado, ele é obrigatoriamente aplicado.
+    if (unit === "immediate") {
+      // Consumo imediato: validade = momento da manipulação.
+    } else if (value && value > 0) {
+      if (unit === "hours") {
+        d.setHours(d.getHours() + value);
+      } else if (unit === "months") {
+        d.setMonth(d.getMonth() + value);
+        d.setHours(23, 59, 0, 0);
+      } else {
+        d.setDate(d.getDate() + value);
+        d.setHours(23, 59, 0, 0);
+      }
     } else {
       d.setDate(d.getDate() + (product.validity_days || 1));
+      d.setHours(23, 59, 0, 0);
     }
     // Nunca ultrapassar a validade original do fabricante.
     if (originalExpiry) {
