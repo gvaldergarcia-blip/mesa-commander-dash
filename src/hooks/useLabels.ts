@@ -99,7 +99,7 @@ export function useLabels() {
       // Recalc effective status
       return rows.map((l) => ({ ...l, status: getLabelEffectiveStatus(l) }));
     },
-    refetchInterval: 20_000,
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
 

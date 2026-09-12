@@ -86,7 +86,7 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
               variant="outline"
               onClick={() => onOpen(card.key)}
               className={cn(
-                "group h-auto min-h-48 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-52",
+                "group h-auto min-h-48 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-[140px] md:min-h-52",
                 card.tone,
               )}
             >

@@ -109,7 +109,7 @@ export function useLabeledProducts() {
       const activeNonExpired = active.filter(
         (l) => classifyExpiry(l.expiry_date) !== "expired",
       );
-      const sumUnits = (arr: typeof active) =>
+      const sumUnits = (arr: Label[]) =>
         arr.reduce(
           (acc, l: any) =>
             acc + Math.max(0, Number(l.quantity ?? 1) - Number(l.units_used ?? 0)),

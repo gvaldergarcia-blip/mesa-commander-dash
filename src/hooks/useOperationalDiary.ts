@@ -59,7 +59,7 @@ export function useOperationalDiary(opts: Options = {}) {
       if (error) throw error;
       return (data || []) as OperationalEvent[];
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
 

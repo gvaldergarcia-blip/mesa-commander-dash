@@ -122,7 +122,7 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta, onOp
   };
 
   const now = Date.now();
-  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const alerts = useMemo(() => {
     // Contamos PRODUTOS (não etiquetas) usando a mesma regra da aba Produtos.
@@ -142,7 +142,7 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta, onOp
 
   const todayEvents = useMemo(
     () => events.filter((e) => new Date(e.occurred_at) >= startOfToday),
-    [events]
+    [events, startOfToday]
   );
 
   const summary = useMemo(() => {
@@ -157,7 +157,7 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta, onOp
       checks:      count("stock_check"),
       productions,
     };
-  }, [todayEvents, labels]);
+  }, [todayEvents, labels, startOfToday]);
 
   return (
     <div className="space-y-5">
