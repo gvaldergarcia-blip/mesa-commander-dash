@@ -6,3 +6,4 @@
 - [x] Transformar o Dashboard de Etiquetas em central operacional com quatro atalhos
 - [x] Simplificar Imprimir etiqueta com lista vertical e prévia 80×40 antes da impressão
 - [x] Compactar o Dashboard de Etiquetas e otimizar sua leitura e fluidez no celular
+- [ ] Corrigir erros de verificação da prévia
