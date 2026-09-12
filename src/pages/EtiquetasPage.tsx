@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
+import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
 import { useLabels } from "@/hooks/useLabels";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
@@ -33,7 +33,7 @@ export default function EtiquetasPage() {
     rawRequestedView === "expired" || rawRequestedView === "tomorrow" || rawRequestedView === "renewal" || rawRequestedView === "ok"
       ? rawRequestedView
       : null;
-  const [tab, setTabState] = useState(requestedTab || "dashboard");
+  const [tab, setTabState] = useState(requestedTab && requestedTab !== "hoje" ? requestedTab : "dashboard");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
