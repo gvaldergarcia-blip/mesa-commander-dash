@@ -7,7 +7,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="flex h-[100dvh] min-h-screen overflow-hidden bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden min-w-0">
         {/* Header com toggle de tema */}
@@ -15,7 +15,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <MobileSidebarTrigger />
           <ThemeToggle />
         </header>
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
           {children}
         </main>
       </div>
