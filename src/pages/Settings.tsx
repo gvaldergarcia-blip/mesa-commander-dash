@@ -393,7 +393,7 @@ function SettingsContent() {
               <span className="hidden sm:inline">Fila</span>
             </TabsTrigger>
           )}
-          {hasModule('reserva') && (
+          {hasModule('reservas') && (
             <TabsTrigger value="reservation" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Reservas</span>
