@@ -134,25 +134,6 @@ export default function EtiquetasPage() {
 
       <Tabs value={tab} onValueChange={setTab} className="mt-2">
           <div className="min-w-0 space-y-5">
-        <TabsContent value="hoje" className="mt-0">
-          <TodayTab
-            onQuickAction={(action) => {
-              if (action === "new-label") setTab("imprimir");
-              else if (action === "new-receipt") setTab("imprimir");
-              else if (action === "shopping") setTab("compras");
-              else if (action === "labels") setTab("imprimir");
-            }}
-            onOpenProducts={(f) => {
-              setProductsStatusFilter(f);
-              setTab("produtos");
-            }}
-            onOpenStockFalta={() => {
-              setStockInitialSector(null);
-              setTab("estoque");
-            }}
-            onOpenRenewals={() => setTab("renovacao")}
-          />
-        </TabsContent>
 
         {/* ===== RENOVAÇÃO DE ETIQUETAS ===== */}
         <TabsContent value="renovacao" className="mt-0">
