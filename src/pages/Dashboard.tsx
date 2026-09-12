@@ -39,11 +39,16 @@ function DashboardContent() {
   const { createReservation } = useReservations();
   const navigate = useNavigate();
   const { hasModule } = useModules();
+  const { count: renewalsCount, endedCycles, isLoading: loadingRenewals } = useLabelRenewals();
+  const { balances, isLoading: loadingStock } = useStockBalance();
 
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
   const { refetch: refetchCustomers } = useRestaurantCustomers();
+
+  const stockCount = balances.size;
+  const endedCyclesCount = endedCycles.length;
 
   const [queueName, setQueueName] = useState("");
   const [queuePhone, setQueuePhone] = useState("");
