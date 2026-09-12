@@ -71,7 +71,9 @@ const LABEL_RULES = `
     .label:last-child { page-break-after: auto; }
     .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.4mm; }
     .top-left { flex: 1; min-width: 0; }
-    .name { font-size: 9.5pt; font-weight: 800; letter-spacing: 0; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .name { font-size: 9.5pt; font-weight: 800; letter-spacing: 0; line-height: 1; white-space: normal; overflow-wrap: anywhere; }
+    .name.medium { font-size: 8pt; }
+    .name.long { font-size: 6.5pt; line-height: 1.05; }
     .cons { font-size: 6pt; font-weight: 700; color: #000; margin-top: 0.2mm; letter-spacing: 0; }
     .weight { font-size: 9.5pt; font-weight: 800; white-space: nowrap; }
     .dates { margin-top: 0.8mm; border-top: 0.3mm solid #000; border-bottom: 0.3mm solid #000; padding: 0.7mm 0; }
@@ -110,6 +112,11 @@ export function printLabels(data: PrintLabelData) {
 }
 
 function buildLabelHtml(data: PrintLabelData): string {
+  const nameClass = data.productName.length > 54
+    ? "name long"
+    : data.productName.length > 32
+      ? "name medium"
+      : "name";
   const qrBlock = data.checklistQrSvg
     ? `<div class="qr-wrap">${data.checklistQrSvg}${
         data.checklistQrLabel ? `<div class="qr-label">${escapeHtml(data.checklistQrLabel)}</div>` : ""
@@ -181,7 +188,7 @@ function buildLabelHtml(data: PrintLabelData): string {
           ${data.banner ? `<div class="banner">${escapeHtml(data.banner.toUpperCase())}</div>` : ""}
           <div class="top">
             <div class="top-left">
-              <div class="name">${escapeHtml(data.productName.toUpperCase())}</div>
+              <div class="${nameClass}">${escapeHtml(data.productName.toUpperCase())}</div>
               ${data.conservationLabel ? `<div class="cons">${escapeHtml(data.conservationLabel.toUpperCase())}</div>` : ""}
             </div>
             ${weight}
