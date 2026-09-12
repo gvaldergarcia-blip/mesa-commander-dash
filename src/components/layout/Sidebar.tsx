@@ -24,11 +24,9 @@ import {
   Activity,
   RefreshCw,
   Truck,
-  ChefHat,
   PackageX,
   Package,
   List,
-  MessageSquare,
   LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,13 +57,11 @@ const LABEL_NAVIGATION = [
   { value: "hoje", name: "Hoje", icon: Activity },
   { value: "renovacao", name: "Renovação", icon: RefreshCw },
   { value: "recebimento", name: "Recebimento", icon: Truck },
-  { value: "producao", name: "Produção Interna", icon: ChefHat },
   { value: "estoque", name: "Estoque", icon: PackageX },
   { value: "cadastro", name: "Produtos", icon: Package },
   { value: "produtos", name: "Etiquetas ativas", icon: List },
   { value: "funcionarios", name: "Funcionários", icon: Users },
   { value: "dashboard", name: "Relatórios", icon: BarChart3 },
-  { value: "sms", name: "SMS", icon: MessageSquare },
 ] as const;
 
 export function Sidebar() {
@@ -352,7 +348,8 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="w-[85vw] max-w-xs p-0 bg-sidebar text-sidebar-foreground border-sidebar-border [&>button]:hidden overflow-y-auto"
+          className="w-[85vw] max-w-xs p-0 bg-sidebar text-sidebar-foreground border-sidebar-border [&>button]:hidden overflow-y-auto [&::-webkit-scrollbar]:w-0"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           <div className="flex flex-col justify-between h-full">
             {sidebarContent(true)}
@@ -364,10 +361,13 @@ export function Sidebar() {
 
   // Desktop & tablet (≥768px): unchanged sticky sidebar
   return (
-    <aside className={cn(
-      "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto",
-      isCollapsed ? "w-16" : "w-64"
-    )}>
+    <aside
+      className={cn(
+        "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto [&::-webkit-scrollbar]:w-0",
+        isCollapsed ? "w-16" : "w-64"
+      )}
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
       {sidebarContent(false)}
     </aside>
   );
