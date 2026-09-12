@@ -342,6 +342,35 @@ function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
+                <div className="flex items-center gap-2 text-warning mb-1">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-medium">A vencer / vencidos</span>
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {loadingRenewals ? "—" : renewalsCount}
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="flex items-center gap-2 text-destructive mb-1">
+                  <Tag className="w-4 h-4" />
+                  <span className="text-sm font-medium">Ciclos encerrados</span>
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {loadingRenewals ? "—" : endedCyclesCount}
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-success/10 border border-success/20">
+                <div className="flex items-center gap-2 text-success mb-1">
+                  <Package className="w-4 h-4" />
+                  <span className="text-sm font-medium">Produtos em estoque</span>
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {loadingStock ? "—" : stockCount}
+                </div>
+              </div>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button variant="outline" className="justify-start" onClick={() => navigate("/etiquetas")}>
                 <Tag className="w-4 h-4 mr-2" />
