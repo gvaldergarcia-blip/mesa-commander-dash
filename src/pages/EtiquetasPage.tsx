@@ -69,8 +69,7 @@ export default function EtiquetasPage() {
     {
       label: "Cadastros",
       items: [
-        { value: "cadastro", icon: Package, label: "Produtos" },
-        { value: "produtos", icon: List, label: "Etiquetas ativas" },
+        { value: "cadastro", icon: Package, label: "Cadastro" },
         { value: "funcionarios", icon: Users, label: "Funcionários" },
         { value: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
         { value: "sms", icon: MessageSquare, label: "SMS" },
