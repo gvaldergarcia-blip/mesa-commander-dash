@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Search, Loader2, Zap, Check, Package, Truck, X, Plus, ChevronRight } from "lucide-react";
+import { ArrowLeft, Printer, Search, Loader2, Zap, Check, Package, Truck, X, Plus, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,6 +25,7 @@ import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewa
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { LabelPrintPreview } from "./LabelPrintPreview";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /** Unidades disponíveis para a quantidade da etiqueta. */
 const AMOUNT_UNITS = ["un", "g", "kg", "ml", "L"];
@@ -62,8 +63,10 @@ export function FastPrintTab({
   const { createLabel } = useLabels();
   const { restaurant } = useRestaurant();
   const { endedCycles } = useLabelRenewals();
+  const isMobile = useIsMobile();
 
   const [search, setSearch] = useState("");
+  const [conservationFilter, setConservationFilter] = useState("all");
   const [product, setProduct] = useState<LabelProduct | null>(null);
   const [batch, setBatch] = useState("");
   const [originalExpiry, setOriginalExpiry] = useState("");
@@ -100,13 +103,16 @@ export function FastPrintTab({
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
-    if (!s) return activeProducts.slice(0, 24);
-    return activeProducts
+    const byConservation = conservationFilter === "all"
+      ? activeProducts
+      : activeProducts.filter((p) => (p.conservation_method || "refrigerated") === conservationFilter);
+    if (!s) return byConservation.slice(0, 24);
+    return byConservation
       .filter((p) =>
         [p.name, p.brand, p.supplier_name, p.category].filter(Boolean).join(" ").toLowerCase().includes(s)
       )
       .slice(0, 24);
-  }, [activeProducts, search]);
+  }, [activeProducts, conservationFilter, search]);
 
   // Recebimento: todos os produtos da NF já vêm marcados para impressão.
   useEffect(() => {
@@ -349,7 +355,7 @@ export function FastPrintTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+      <div className="hidden flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 md:flex">
         <div className="min-w-0">
           <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary shrink-0" /> Impressão rápida
@@ -440,7 +446,7 @@ export function FastPrintTab({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         {/* Lista de produtos */}
-        <Card className="p-3 md:p-4 bg-card/40 space-y-3 order-2 lg:order-1">
+        <Card className={cn("order-2 space-y-3 bg-card/40 p-3 md:p-4 lg:order-1", product && "max-md:hidden")}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -450,6 +456,26 @@ export function FastPrintTab({
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-12 text-base"
             />
+          </div>
+          <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
+            {[
+              ["all", "Todos"],
+              ["ambient", "Ambiente"],
+              ["refrigerated", "Refrigerado"],
+              ["frozen", "Congelado"],
+              ["hot", "Quente"],
+            ].map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={conservationFilter === value ? "default" : "outline"}
+                onClick={() => setConservationFilter(value)}
+                className="h-10 shrink-0"
+              >
+                {label}
+              </Button>
+            ))}
           </div>
           {search.trim() && filtered.length > 0 && (
             <button
@@ -513,8 +539,8 @@ export function FastPrintTab({
 
         {/* Painel de impressão */}
         <Card className={cn(
-          "p-4 bg-card/40 space-y-4 h-fit lg:sticky lg:top-4 lg:order-2",
-          product ? "order-1" : "order-3 lg:order-2"
+          "h-fit space-y-4 bg-card/40 p-4 lg:sticky lg:top-4 lg:order-2",
+          product ? "order-1 max-md:-mx-3 max-md:rounded-none max-md:border-x-0 max-md:bg-transparent max-md:pb-28" : "order-3 max-md:hidden lg:order-2"
         )}>
           {!product ? (
             <div className="text-center py-14 text-sm text-muted-foreground">
@@ -522,13 +548,27 @@ export function FastPrintTab({
             </div>
           ) : (
             <>
-              <div>
+              <div className="flex items-start gap-2">
+                {isMobile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Voltar para produtos"
+                    onClick={() => setProduct(null)}
+                    className="h-11 w-11 shrink-0"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                )}
+                <div className="min-w-0 flex-1">
                 <div className="text-[10px] uppercase text-muted-foreground font-bold">Produto</div>
                 <div className="text-lg font-bold leading-tight">{product.name}</div>
                 <div className="text-xs text-muted-foreground">
                   {[product.brand, product.supplier_name, product.sif ? `${(product as any).inspection_type === "SISP" ? "SISP" : (product as any).inspection_type === "IMPORTADO" ? "REG." : "SIF"} ${product.sif}` : null]
                     .filter(Boolean)
                     .join(" · ") || "—"}
+                </div>
                 </div>
               </div>
 
@@ -632,10 +672,12 @@ export function FastPrintTab({
                 />
               )}
 
-              <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="w-full h-14 text-base font-bold shadow-lg">
-                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
-                IMPRIMIR
-              </Button>
+              <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:border-t max-md:border-border max-md:bg-background/95 max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-md:backdrop-blur">
+                <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="h-14 w-full text-base font-bold shadow-lg">
+                  {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
+                  IMPRIMIR ETIQUETA
+                </Button>
+              </div>
               {!employee && (
                 <p className="text-[11px] text-amber-500 text-center">Cadastre/selecione um responsável para imprimir.</p>
               )}

@@ -136,7 +136,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="inset-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-none p-4 pb-24 sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:p-6">
         <DialogHeader>
           <DialogTitle>{product ? "Editar Produto" : "Novo Produto"}</DialogTitle>
           <DialogDescription>
@@ -414,7 +414,7 @@ export function ProductFormDialog({ open, onOpenChange, product, onSubmit, isSub
             </div>
           )}
 
-          <DialogFooter>
+           <DialogFooter className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-10 max-sm:flex-row max-sm:border-t max-sm:border-border max-sm:bg-background max-sm:p-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancelar
             </Button>

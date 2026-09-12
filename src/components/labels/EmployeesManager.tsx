@@ -15,12 +15,12 @@ export function EmployeesManager() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Funcionários</h2>
           <p className="text-sm text-muted-foreground">Cadastre quem imprime e dá baixa nas etiquetas.</p>
         </div>
-        <Button onClick={() => { setEditing(null); setOpen(true); }} className="gap-2">
+        <Button onClick={() => { setEditing(null); setOpen(true); }} className="h-11 w-full gap-2 sm:w-auto">
           <Plus className="h-4 w-4" /> Novo Funcionário
         </Button>
       </div>
@@ -36,7 +36,7 @@ export function EmployeesManager() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {employees.map((e) => (
-            <Card key={e.id} className="p-4 bg-card/40 border-border/50 flex items-center gap-3">
+            <Card key={e.id} className="flex items-center gap-3 border-border/50 bg-card/40 p-4">
               <div className="h-12 w-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-lg">
                 {e.name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase()}
               </div>
@@ -52,8 +52,8 @@ export function EmployeesManager() {
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <Button size="icon" variant="ghost" onClick={() => { setEditing(e); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDelTarget(e)}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-11 w-11 md:h-9 md:w-9" onClick={() => { setEditing(e); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-11 w-11 text-destructive md:h-9 md:w-9" onClick={() => setDelTarget(e)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </Card>
           ))}

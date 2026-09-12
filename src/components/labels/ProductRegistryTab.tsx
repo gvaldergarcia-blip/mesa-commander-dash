@@ -35,7 +35,7 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
             Cadastre uma vez. A operação diária informa apenas lote, validade original e quantidade.
           </p>
         </div>
-        <Button onClick={() => { setEditing(null); setOpen(true); }}>
+        <Button onClick={() => { setEditing(null); setOpen(true); }} className="h-11 w-full sm:w-auto">
           <Plus className="h-4 w-4" /> Novo produto
         </Button>
       </div>
@@ -57,11 +57,11 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
           Nenhum produto cadastrado ainda.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-md border border-border sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:border-0 xl:grid-cols-3">
           {filtered.map((p) => {
             const conservation = CONSERVATION_LABEL[(p.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL];
             return (
-              <Card key={p.id} className="p-4 bg-card/40">
+              <Card key={p.id} className="rounded-none border-x-0 border-t-0 bg-card/40 p-4 last:border-b-0 sm:rounded-lg sm:border">
                 <div className="flex items-start gap-3">
                   <div className="h-14 w-14 shrink-0 rounded-xl bg-muted/60 border border-border/50 flex items-center justify-center overflow-hidden">
                     <Package className="h-6 w-6 text-muted-foreground" />
@@ -100,17 +100,17 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
                   </div>
                   <div className="flex gap-2 shrink-0">
                     {onPrintProduct && (
-                      <Button size="icon" variant="outline" className="h-9 w-9" title="Imprimir etiqueta" onClick={() => onPrintProduct(p.id)}>
+                      <Button size="icon" variant="outline" className="hidden h-9 w-9 md:inline-flex" title="Imprimir etiqueta" onClick={() => onPrintProduct(p.id)}>
                         <Printer className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button size="icon" variant="outline" className="h-9 w-9" title="Editar" onClick={() => { setEditing(p); setOpen(true); }}>
+                    <Button size="icon" variant="outline" className="h-11 w-11 md:h-9 md:w-9" title="Editar" onClick={() => { setEditing(p); setOpen(true); }}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-9 w-9"
+                      className="h-11 w-11 md:h-9 md:w-9"
                       title="Remover"
                       onClick={() => {
                         if (confirm(`Remover "${p.name}" do cadastro?`)) deleteProduct(p.id);

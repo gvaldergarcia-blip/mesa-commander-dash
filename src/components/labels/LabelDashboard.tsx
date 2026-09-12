@@ -58,19 +58,19 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 py-1 md:space-y-6 md:py-4">
-      <header className="border-b border-border/60 pb-4 md:pb-5">
+    <div className="mx-auto w-full max-w-6xl space-y-4 py-0 md:space-y-6 md:py-4">
+      <header className="border-b border-border/60 pb-3 md:pb-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="mb-1.5 truncate text-sm font-semibold uppercase text-primary">{restaurantName}</p>
-            <h1 className="text-3xl font-bold leading-tight text-foreground md:text-4xl">
+            <h1 className="text-2xl font-bold leading-tight text-foreground md:text-4xl">
               {greeting}, {userName}!
             </h1>
-            <p className="mt-2 text-base text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground md:mt-2 md:text-base">
               Veja o que precisa da sua atenção hoje.
             </p>
           </div>
-          <time className="shrink-0 text-sm font-semibold text-muted-foreground" dateTime={format(now, "yyyy-MM-dd")}>
+          <time className="shrink-0 text-xs font-semibold text-muted-foreground md:text-sm" dateTime={format(now, "yyyy-MM-dd")}>
             {format(now, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </time>
         </div>
@@ -86,22 +86,22 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
               variant="outline"
               onClick={() => onOpen(card.key)}
               className={cn(
-                "group h-auto min-h-48 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-[140px] md:min-h-52",
+                "group h-auto min-h-40 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-52",
                 card.tone,
               )}
             >
-              <span className="flex w-full min-w-0 flex-1 flex-col p-4 md:p-5">
+              <span className="flex w-full min-w-0 flex-1 flex-col p-3 md:p-5">
                 <span className="flex items-start justify-between gap-2">
                   <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", card.iconTone)}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground motion-reduce:transition-none" aria-hidden="true" />
                 </span>
-                <span className={cn("mt-4 text-5xl font-black leading-none tabular-nums", card.valueTone)}>
+                <span className={cn("mt-3 text-4xl font-black leading-none tabular-nums md:mt-4 md:text-5xl", card.valueTone)}>
                   {counts[card.key]}
                 </span>
-                <span className="mt-2 min-h-10 whitespace-normal text-base font-bold leading-tight text-foreground">{card.label}</span>
-                <span className="mt-auto pt-3 whitespace-normal text-sm font-semibold leading-tight text-muted-foreground group-hover:text-foreground">
+                <span className="mt-2 min-h-9 whitespace-normal text-sm font-bold leading-tight text-foreground md:min-h-10 md:text-base">{card.label}</span>
+                <span className="mt-auto pt-2 whitespace-normal text-xs font-semibold leading-tight text-muted-foreground group-hover:text-foreground md:pt-3 md:text-sm">
                   {card.action} <span aria-hidden="true">→</span>
                 </span>
               </span>

@@ -20,6 +20,7 @@ import { ReceiptEntryTab } from "@/components/labels/receiving/ReceiptEntryTab";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { getOperationalGroups, type OperationalView } from "@/lib/labels/operationalDashboard";
 import { useRestaurant } from "@/contexts/RestaurantContext";
+import { MobileLabelsHeader } from "@/components/labels/mobile/MobileLabelsHeader";
 
 export default function EtiquetasPage() {
   const { labels, dischargeBulk } = useLabels();
@@ -117,8 +118,9 @@ export default function EtiquetasPage() {
   }, [setSearchParams]);
 
   return (
-    <div className="p-3 md:p-8 space-y-4 md:space-y-6 max-w-[1500px] mx-auto">
-      {tab !== "dashboard" && <header className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-4 border-b border-border/50 pb-4 md:pb-5">
+    <div className="mx-auto max-w-[1500px] min-w-0 space-y-4 overflow-x-clip p-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:space-y-6 md:p-8">
+      <MobileLabelsHeader activeTab={tab} onTabChange={setTab} />
+      {tab !== "dashboard" && <header className="hidden flex-col justify-between gap-3 border-b border-border/50 pb-4 md:flex md:flex-row md:items-end md:gap-4 md:pb-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 md:gap-3 mb-1">
             <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg border border-primary/20 shrink-0">
