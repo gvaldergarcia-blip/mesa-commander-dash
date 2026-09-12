@@ -202,8 +202,8 @@ export default function EtiquetasPage() {
                 <TodayTab
                   onQuickAction={(action) => {
                     if (action === "new-label") setTab("imprimir");
-                    else if (action === "new-receipt") setTab("imprimir");
-                    else if (action === "shopping") setTab("compras");
+                    else if (action === "new-receipt") setTab("recebimento");
+                    else if (action === "shopping") setTab("estoque");
                     else if (action === "labels") setTab("imprimir");
                   }}
                   onOpenProducts={(f) => {

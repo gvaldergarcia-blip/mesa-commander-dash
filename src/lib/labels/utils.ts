@@ -11,6 +11,10 @@ export const REASON_LABEL: Record<string, string> = {
   use: "Baixa por Uso",
   loss: "Baixa por Perda",
   error: "Baixa por Erro",
+  vencimento: "Baixa por Vencimento",
+  descarte: "Baixa por Descarte",
+  consumo: "Baixa por Consumo",
+  outro: "Baixa (outro motivo)",
 };
 
 export function startOfDay(d: Date) {
