@@ -86,9 +86,9 @@ export function OperationalProductsList({ view, labels, resolveOriginal, onBack,
                     className="mt-5 w-full gap-2 sm:w-auto"
                     variant="destructive"
                     disabled={busyId === label.id}
-                    onClick={() => discharge(label)}
+                    onClick={() => setScanLabel(label)}
                   >
-                    {busyId === label.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+                    {busyId === label.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
                     Dar baixa
                   </Button>
                 )}
@@ -97,6 +97,15 @@ export function OperationalProductsList({ view, labels, resolveOriginal, onBack,
           })}
         </div>
       )}
+
+      <ScanLabelQrDialog
+        open={!!scanLabel}
+        onOpenChange={(open) => !open && setScanLabel(null)}
+        label={scanLabel}
+        onConfirmed={async () => {
+          if (scanLabel) await discharge(scanLabel);
+        }}
+      />
     </div>
   );
 }
