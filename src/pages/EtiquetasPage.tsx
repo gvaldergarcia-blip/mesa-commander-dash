@@ -187,12 +187,31 @@ export default function EtiquetasPage() {
               onDischarge={dischargeBulk}
             />
           ) : (
-            <LabelDashboard
-              restaurantName={restaurant?.name || "Restaurante"}
-              userName={userName}
-              counts={operationalCounts}
-              onOpen={openOperationalView}
-            />
+            <div className="space-y-6">
+              <LabelDashboard
+                restaurantName={restaurant?.name || "Restaurante"}
+                userName={userName}
+                counts={operationalCounts}
+                onOpen={openOperationalView}
+              />
+              <TodayTab
+                onQuickAction={(action) => {
+                  if (action === "new-label") setTab("imprimir");
+                  else if (action === "new-receipt") setTab("imprimir");
+                  else if (action === "shopping") setTab("compras");
+                  else if (action === "labels") setTab("imprimir");
+                }}
+                onOpenProducts={(f) => {
+                  setProductsStatusFilter(f);
+                  setTab("produtos");
+                }}
+                onOpenStockFalta={() => {
+                  setStockInitialSector(null);
+                  setTab("estoque");
+                }}
+                onOpenRenewals={() => setTab("renovacao")}
+              />
+            </div>
           )}
         </TabsContent>
 
