@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,30 +52,31 @@ const CARDS = [
   },
 ] as const;
 
-export function LabelDashboard({ restaurantName, userName, counts, onOpen }: Props) {
-  const hour = new Date().getHours();
+export const LabelDashboard = memo(function LabelDashboard({ restaurantName, userName, counts, onOpen }: Props) {
+  const now = new Date();
+  const hour = now.getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8 py-2 md:py-6">
-      <header className="border-b border-border/60 pb-6 md:pb-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto w-full max-w-6xl space-y-5 py-1 md:space-y-6 md:py-4">
+      <header className="border-b border-border/60 pb-4 md:pb-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <p className="mb-2 text-xs font-semibold uppercase text-primary">{restaurantName}</p>
-            <h1 className="text-3xl font-bold text-foreground md:text-5xl">
+            <p className="mb-1.5 truncate text-sm font-semibold uppercase text-primary">{restaurantName}</p>
+            <h1 className="text-3xl font-bold leading-tight text-foreground md:text-4xl">
               {greeting}, {userName}!
             </h1>
-            <p className="mt-3 text-sm text-muted-foreground md:text-base">
+            <p className="mt-2 text-base text-muted-foreground">
               Veja o que precisa da sua atenção hoje.
             </p>
           </div>
-          <time className="shrink-0 text-sm font-medium text-muted-foreground" dateTime={format(new Date(), "yyyy-MM-dd")}>
-            {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+          <time className="shrink-0 text-sm font-semibold text-muted-foreground" dateTime={format(now, "yyyy-MM-dd")}>
+            {format(now, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </time>
         </div>
       </header>
 
-      <section aria-label="Situação operacional" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section aria-label="Situação operacional" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {CARDS.map((card) => {
           const Icon = card.icon;
           return (
@@ -84,22 +86,22 @@ export function LabelDashboard({ restaurantName, userName, counts, onOpen }: Pro
               variant="outline"
               onClick={() => onOpen(card.key)}
               className={cn(
-                "group h-auto min-h-52 w-full items-stretch justify-start rounded-lg p-0 text-left shadow-sm transition-colors",
+                "group h-auto min-h-48 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-[140px] md:min-h-52",
                 card.tone,
               )}
             >
-              <span className="flex w-full flex-col p-6 md:p-8">
-                <span className="flex items-start justify-between gap-4">
-                  <span className={cn("flex h-11 w-11 items-center justify-center rounded-lg", card.iconTone)}>
-                    <Icon className="h-5 w-5" />
+              <span className="flex w-full min-w-0 flex-1 flex-col p-4 md:p-5">
+                <span className="flex items-start justify-between gap-2">
+                  <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", card.iconTone)}>
+                    <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <ArrowUpRight className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground motion-reduce:transition-none" aria-hidden="true" />
                 </span>
-                <span className={cn("mt-7 text-5xl font-bold leading-none tabular-nums md:text-6xl", card.valueTone)}>
+                <span className={cn("mt-4 text-5xl font-black leading-none tabular-nums", card.valueTone)}>
                   {counts[card.key]}
                 </span>
-                <span className="mt-3 text-lg font-semibold text-foreground">{card.label}</span>
-                <span className="mt-2 text-sm font-medium text-muted-foreground group-hover:text-foreground">
+                <span className="mt-2 min-h-10 whitespace-normal text-base font-bold leading-tight text-foreground">{card.label}</span>
+                <span className="mt-auto pt-3 whitespace-normal text-sm font-semibold leading-tight text-muted-foreground group-hover:text-foreground">
                   {card.action} <span aria-hidden="true">→</span>
                 </span>
               </span>
@@ -109,4 +111,6 @@ export function LabelDashboard({ restaurantName, userName, counts, onOpen }: Pro
       </section>
     </div>
   );
-}
+});
+
+LabelDashboard.displayName = "LabelDashboard";
