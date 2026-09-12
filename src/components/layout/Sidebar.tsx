@@ -79,6 +79,9 @@ export function Sidebar() {
     icon: ICON_MAP[item.icon],
   }));
 
+  // Configurações: item fixo do menu (não é módulo contratável)
+  navigation.push({ name: "Configurações", href: "/settings", icon: Settings });
+
   // Obter inicial do nome do restaurante para fallback
   const restaurantInitial = restaurant?.name?.charAt(0)?.toUpperCase() || 'R';
 
