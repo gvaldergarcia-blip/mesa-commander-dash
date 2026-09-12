@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import type { Label, DischargeReason } from "@/hooks/useLabels";
 import type { OperationalView } from "@/lib/labels/operationalDashboard";
+import { ScanLabelQrDialog } from "./ScanLabelQrDialog";
 
 interface Props {
   view: Exclude<OperationalView, "renewal">;
