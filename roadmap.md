@@ -4,3 +4,4 @@
 - [x] Validade da etiqueta = min(manipulação + pós-abertura cadastrada, validade original), fim do dia 23:59 — FastPrintTab
 - [x] Levar os subtópicos de Etiquetas para um grupo expansível no menu principal
 - [x] Transformar o Dashboard de Etiquetas em central operacional com quatro atalhos
+- [x] Simplificar Imprimir etiqueta com lista vertical e prévia 80×40 antes da impressão

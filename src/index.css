@@ -37,6 +37,10 @@
     
     --warning: 43 96% 56%;
     --warning-foreground: 0 0% 100%;
+
+    /* Etiqueta física: papel e tinta não mudam com o tema da interface */
+    --label-paper: 0 0% 100%;
+    --label-ink: 0 0% 0%;
     
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
@@ -104,6 +108,9 @@
     
     --warning: 43 96% 56%;
     --warning-foreground: 0 0% 100%;
+
+    --label-paper: 0 0% 100%;
+    --label-ink: 0 0% 0%;
     
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;

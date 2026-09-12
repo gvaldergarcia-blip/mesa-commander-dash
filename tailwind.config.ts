@@ -40,6 +40,10 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        label: {
+          paper: "hsl(var(--label-paper))",
+          ink: "hsl(var(--label-ink))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
