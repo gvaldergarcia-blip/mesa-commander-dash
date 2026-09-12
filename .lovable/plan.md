@@ -35,8 +35,8 @@ Um arquivo central descreve cada módulo: chave, nome, ícone, rota, se exige Ad
 - **Tela inicial inteligente:** quem contratou só Etiquetas cai direto na tela de Etiquetas ao entrar, sem passar por um painel de Fila/Reservas vazio. Quem tem vários módulos continua no painel geral.
 - **Painel geral adaptativo:** os blocos de Fila/Reservas do painel só aparecem para quem tem esses módulos; quem tem Etiquetas vê blocos de validade/estoque.
 
-### 4. Onboarding
-Na seleção de serviços do cadastro, o interessado passa a marcar vários serviços (caixas de seleção) em vez de escolher entre fila/reserva/ambos. Na aprovação do restaurante, essa seleção é copiada direto para os módulos da conta. Administradores da plataforma podem ajustar depois.
+### 4. Onboarding (fora de escopo deste chat)
+A seleção de serviços no cadastro e o fluxo de aprovação serão tratados no outro chat (site MesaClik). O painel interno apenas **lê** a informação já gravada na conta do restaurante.
 
 ### 5. Configurações
 Na tela de Plano, mostrar a lista de módulos ativos e os disponíveis para contratar (somente leitura para o restaurante; edição para administrador da plataforma).
@@ -44,14 +44,14 @@ Na tela de Plano, mostrar a lista de módulos ativos e os disponíveis para cont
 ## Detalhes técnicos
 
 - **Banco:** nova coluna `plan_modules_list text[]` em `public.restaurants` (e espelho em `mesaclik.restaurants`), preenchida por migração a partir de `plan_modules`. Gatilho de sincronização já existente é estendido. `plan_modules` fica como campo legado para não quebrar integrações.
-- **Onboarding:** `founder_leads.modules_selected` passa a aceitar lista separada por vírgula; `approve-restaurant` grava `plan_modules_list`.
+- **Integração com o site:** o painel interno assume que o site gravará a lista de módulos em `public.restaurants.plan_modules_list`. Não alteramos o cadastro/onboarding aqui.
 - **Frontend:**
   - `src/config/modules.ts` (novo) — registro declarativo dos módulos.
   - `ModulesContext` — expandido para carregar a lista, manter compatibilidade com `hasModule('fila'|'reserva')` e expor `modules: ModuleKey[]`.
   - `ModuleGuard` — passa a aceitar qualquer chave e renderizar tela de bloqueio.
   - `Sidebar` e `App.tsx` — geradas a partir do registro.
   - `RoleGuard` e as feature flags atuais continuam funcionando por cima do filtro de módulos.
-- **Ordem segura de implementação:** (1) migração com conversão automática; (2) registro de módulos + contexto; (3) menu e rotas; (4) tela inicial e painel adaptativos; (5) onboarding; (6) tela de Plano.
+- **Ordem segura de implementação (painel interno):** (1) migração com conversão automática; (2) registro de módulos + contexto; (3) menu e rotas; (4) tela inicial e painel adaptativos; (5) tela de Plano.
 
 ## Riscos e garantias
 - Ninguém perde acesso: a conversão dá a todos os restaurantes atuais todos os módulos que já enxergam hoje.
