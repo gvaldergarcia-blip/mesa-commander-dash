@@ -85,7 +85,7 @@ export function Sidebar() {
   // Close mobile drawer whenever the route changes
   useEffect(() => {
     if (isMobile) setMobileOpen(false);
-  }, [location.pathname, isMobile]);
+  }, [location.pathname, location.search, isMobile]);
 
   useEffect(() => {
     if (labelsRouteActive) setLabelsOpen(true);
@@ -365,7 +365,7 @@ export function Sidebar() {
   // Desktop & tablet (≥768px): unchanged sticky sidebar
   return (
     <aside className={cn(
-      "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0",
+      "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto",
       isCollapsed ? "w-16" : "w-64"
     )}>
       {sidebarContent(false)}

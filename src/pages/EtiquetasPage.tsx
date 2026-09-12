@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
+import { Tag, LayoutDashboard, Package, Users, List, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
 import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
@@ -27,8 +25,6 @@ import { ProducaoInternaTab } from "@/components/labels/ProducaoInternaTab";
 import { ReceiptEntryTab } from "@/components/labels/receiving/ReceiptEntryTab";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function EtiquetasPage() {
