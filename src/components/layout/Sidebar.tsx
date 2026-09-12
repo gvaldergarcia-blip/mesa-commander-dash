@@ -21,12 +21,10 @@ import {
   Sparkles,
   ChevronDown,
   Zap,
-  Activity,
   RefreshCw,
   Truck,
   PackageX,
   Package,
-  List,
   LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,12 +53,10 @@ const ICON_MAP: Record<ModuleIcon, LucideIcon> = {
 const LABEL_NAVIGATION = [
   { value: "dashboard", name: "Dashboard", icon: LayoutDashboard },
   { value: "imprimir", name: "Imprimir etiqueta", icon: Zap },
-  { value: "hoje", name: "Hoje", icon: Activity },
   { value: "renovacao", name: "Renovação", icon: RefreshCw },
   { value: "recebimento", name: "Recebimento", icon: Truck },
   { value: "estoque", name: "Estoque", icon: PackageX },
-  { value: "cadastro", name: "Produtos", icon: Package },
-  { value: "produtos", name: "Etiquetas ativas", icon: List },
+  { value: "cadastro", name: "Cadastro", icon: Package },
   { value: "funcionarios", name: "Funcionários", icon: Users },
 ] as const;
 

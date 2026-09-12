@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
+import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
 import { useLabels } from "@/hooks/useLabels";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
@@ -33,7 +33,7 @@ export default function EtiquetasPage() {
     rawRequestedView === "expired" || rawRequestedView === "tomorrow" || rawRequestedView === "renewal" || rawRequestedView === "ok"
       ? rawRequestedView
       : null;
-  const [tab, setTabState] = useState(requestedTab || "dashboard");
+  const [tab, setTabState] = useState(requestedTab && requestedTab !== "hoje" ? requestedTab : "dashboard");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
@@ -49,7 +49,6 @@ export default function EtiquetasPage() {
     {
       label: "Diário",
       items: [
-        { value: "hoje", icon: Activity, label: "Hoje" },
         { value: "renovacao", icon: RefreshCw, label: "Renovação", badge: renewalCount },
       ],
     },
@@ -135,25 +134,6 @@ export default function EtiquetasPage() {
 
       <Tabs value={tab} onValueChange={setTab} className="mt-2">
           <div className="min-w-0 space-y-5">
-        <TabsContent value="hoje" className="mt-0">
-          <TodayTab
-            onQuickAction={(action) => {
-              if (action === "new-label") setTab("imprimir");
-              else if (action === "new-receipt") setTab("imprimir");
-              else if (action === "shopping") setTab("compras");
-              else if (action === "labels") setTab("imprimir");
-            }}
-            onOpenProducts={(f) => {
-              setProductsStatusFilter(f);
-              setTab("produtos");
-            }}
-            onOpenStockFalta={() => {
-              setStockInitialSector(null);
-              setTab("estoque");
-            }}
-            onOpenRenewals={() => setTab("renovacao")}
-          />
-        </TabsContent>
 
         {/* ===== RENOVAÇÃO DE ETIQUETAS ===== */}
         <TabsContent value="renovacao" className="mt-0">
@@ -207,12 +187,31 @@ export default function EtiquetasPage() {
               onDischarge={dischargeBulk}
             />
           ) : (
-            <LabelDashboard
-              restaurantName={restaurant?.name || "Restaurante"}
-              userName={userName}
-              counts={operationalCounts}
-              onOpen={openOperationalView}
-            />
+            <div className="space-y-6">
+              <LabelDashboard
+                restaurantName={restaurant?.name || "Restaurante"}
+                userName={userName}
+                counts={operationalCounts}
+                onOpen={openOperationalView}
+              />
+              <TodayTab
+                onQuickAction={(action) => {
+                  if (action === "new-label") setTab("imprimir");
+                  else if (action === "new-receipt") setTab("imprimir");
+                  else if (action === "shopping") setTab("compras");
+                  else if (action === "labels") setTab("imprimir");
+                }}
+                onOpenProducts={(f) => {
+                  setProductsStatusFilter(f);
+                  setTab("produtos");
+                }}
+                onOpenStockFalta={() => {
+                  setStockInitialSector(null);
+                  setTab("estoque");
+                }}
+                onOpenRenewals={() => setTab("renovacao")}
+              />
+            </div>
           )}
         </TabsContent>
 
