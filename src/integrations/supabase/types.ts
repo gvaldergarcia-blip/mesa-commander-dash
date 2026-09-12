@@ -4141,6 +4141,7 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           plan_modules: string
+          plan_modules_list: string[] | null
           plan_status: string | null
           social_autopilot_categories: string[]
           social_autopilot_enabled: boolean
@@ -4182,6 +4183,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan_modules?: string
+          plan_modules_list?: string[] | null
           plan_status?: string | null
           social_autopilot_categories?: string[]
           social_autopilot_enabled?: boolean
@@ -4223,6 +4225,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan_modules?: string
+          plan_modules_list?: string[] | null
           plan_status?: string | null
           social_autopilot_categories?: string[]
           social_autopilot_enabled?: boolean
@@ -5251,6 +5254,7 @@ export type Database = {
       }
     }
     Functions: {
+      array_distinct: { Args: { arr: string[] }; Returns: string[] }
       cancel_dish_campaign: { Args: { p_id: string }; Returns: undefined }
       cancel_my_queue_entry: {
         Args: { p_restaurante_id: string }
@@ -5370,6 +5374,10 @@ export type Database = {
         Returns: number
       }
       generate_label_unique_code: { Args: never; Returns: string }
+      get_contracted_modules: {
+        Args: { p_restaurant_id: string }
+        Returns: string[]
+      }
       get_customer_queue_history: {
         Args: { p_email?: string; p_phone?: string; p_restaurant_id: string }
         Returns: {

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 
 import { useModules } from "@/contexts/ModulesContext";
 import {
@@ -19,33 +18,31 @@ import {
   Film,
   ClipboardList,
   Tag,
-  Monitor,
-  
+  Sparkles,
+  LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FEATURE_FLAGS } from "@/config/feature-flags";
+import { MODULES, ModuleIcon } from "@/config/modules";
 import { useTheme } from "@/hooks/useTheme";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
-const allNavigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, requiresFeature: null, requiresModule: null, adminOnly: false },
-  { name: "Fila", href: "/queue", icon: Users, requiresFeature: null, requiresModule: 'fila' as const, adminOnly: false },
-  { name: "Reservas", href: "/reservations", icon: Calendar, requiresFeature: null, requiresModule: 'reserva' as const, adminOnly: false },
-  { name: "Clientes", href: "/customers", icon: UserCheck, requiresFeature: null, requiresModule: null, adminOnly: true },
-  
-  { name: "Promoções", href: "/promotions", icon: Megaphone, requiresFeature: "CUPONS_ENABLED" as const, requiresModule: null, adminOnly: true },
-  { name: "Marketing IA", href: "/marketing/video", icon: Film, requiresFeature: "MARKETING_IA_ENABLED" as const, requiresModule: null, adminOnly: true },
-  { name: "MesaClik Studio", href: "/marketing/creator", icon: Sparkles, requiresFeature: null, requiresModule: null, adminOnly: true },
-  
-  { name: "Relatórios", href: "/reports", icon: BarChart3, requiresFeature: null, requiresModule: null, adminOnly: true },
-  { name: "Checklists", href: "/checklists", icon: ClipboardList, requiresFeature: null, requiresModule: null, adminOnly: false },
-  { name: "Etiquetas", href: "/etiquetas", icon: Tag, requiresFeature: null, requiresModule: null, adminOnly: false },
-  { name: "Configurações", href: "/settings", icon: Settings, requiresFeature: null, requiresModule: null, adminOnly: true },
-];
+const ICON_MAP: Record<ModuleIcon, LucideIcon> = {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  UserCheck,
+  Megaphone,
+  BarChart3,
+  ClipboardList,
+  Tag,
+  Film,
+  Sparkles,
+};
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -69,16 +66,18 @@ export function Sidebar() {
     window.addEventListener('mesaclik:open-sidebar', open);
     return () => window.removeEventListener('mesaclik:open-sidebar', open);
   }, [isMobile]);
-  
-  // Filtra itens de navegação com base nas feature flags, módulos e perfil
-  const navigation = allNavigation.filter((item) => {
-    if (item.requiresFeature !== null && !FEATURE_FLAGS[item.requiresFeature]) return false;
-    if (item.requiresModule !== null && !hasModule(item.requiresModule)) return false;
+
+  // Gera itens de navegação a partir do registro central de módulos
+  const navigation = MODULES.filter((item) => {
+    if (item.featureFlag && !FEATURE_FLAGS[item.featureFlag]) return false;
+    if (!hasModule(item.key)) return false;
     if (item.adminOnly && !isAdmin) return false;
     return true;
-  });
-  
-  // Remove duplicate useRestaurant call — already destructured above
+  }).map((item) => ({
+    name: item.name,
+    href: item.href,
+    icon: ICON_MAP[item.icon],
+  }));
 
   // Obter inicial do nome do restaurante para fallback
   const restaurantInitial = restaurant?.name?.charAt(0)?.toUpperCase() || 'R';
@@ -148,7 +147,7 @@ export function Sidebar() {
                 )}>
                   {item.name}
                 </span>
-                
+
                 {/* Tooltip for collapsed state */}
                 {!showLabels && (
                   <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-popover text-popover-foreground text-xs font-medium rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap z-50 shadow-lg border">
@@ -211,7 +210,7 @@ export function Sidebar() {
             Sair
           </span>
         </button>
-        
+
         {/* Restaurant Info - Exibe nome e logo oficiais das Configurações */}
         <div className={cn(
           "flex items-center gap-3 px-3 py-2 rounded-lg bg-sidebar-accent/30",
@@ -220,9 +219,9 @@ export function Sidebar() {
           {/* Avatar com logo ou inicial */}
           <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
             {restaurant?.image_url ? (
-              <img 
-                src={restaurant.image_url} 
-                alt={restaurant.name} 
+              <img
+                src={restaurant.image_url}
+                alt={restaurant.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';

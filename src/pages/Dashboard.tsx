@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus } from "lucide-react";
+import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus, Tag, AlertTriangle, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { useRestaurantCustomers } from "@/hooks/useRestaurantCustomers";
+import { useLabelRenewals } from "@/hooks/useLabelRenewals";
+import { useStockBalance } from "@/hooks/useStockBalance";
 import {
   Dialog,
   DialogContent,
@@ -37,11 +39,16 @@ function DashboardContent() {
   const { createReservation } = useReservations();
   const navigate = useNavigate();
   const { hasModule } = useModules();
+  const { count: renewalsCount, endedCycles, isLoading: loadingRenewals } = useLabelRenewals();
+  const { balances, isLoading: loadingStock } = useStockBalance();
 
   const [isQueueDialogOpen, setIsQueueDialogOpen] = useState(false);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
   const { refetch: refetchCustomers } = useRestaurantCustomers();
+
+  const stockCount = balances.size;
+  const endedCyclesCount = endedCycles.length;
 
   const [queueName, setQueueName] = useState("");
   const [queuePhone, setQueuePhone] = useState("");
@@ -277,14 +284,18 @@ function DashboardContent() {
               </Dialog>
             )}
 
-            <Button className="w-full justify-start" variant="outline" onClick={() => setIsCreateCustomerOpen(true)}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Cadastrar Cliente
-            </Button>
+            {hasModule("clientes") && (
+              <Button className="w-full justify-start" variant="outline" onClick={() => setIsCreateCustomerOpen(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Cadastrar Cliente
+              </Button>
+            )}
 
-            <CreateCustomerDialog open={isCreateCustomerOpen} onOpenChange={setIsCreateCustomerOpen} onSuccess={refetchCustomers} />
+            {hasModule("clientes") && (
+              <CreateCustomerDialog open={isCreateCustomerOpen} onOpenChange={setIsCreateCustomerOpen} onSuccess={refetchCustomers} />
+            )}
 
-            {FEATURE_FLAGS.CUPONS_ENABLED && (
+            {hasModule("promocoes") && FEATURE_FLAGS.CUPONS_ENABLED && (
               <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/promotions")}>
                 <Megaphone className="w-4 h-4 mr-2" />
                 Enviar Promoção
@@ -317,6 +328,54 @@ function DashboardContent() {
                 <div className="text-2xl font-bold text-muted-foreground">{metrics.canceledToday}</div>
                 <div className="text-sm text-muted-foreground">Cancelados</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasModule("etiquetas") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              Etiquetas & Validade
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
+                <div className="flex items-center gap-2 text-warning mb-1">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-medium">A vencer / vencidos</span>
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {loadingRenewals ? "—" : renewalsCount}
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="flex items-center gap-2 text-destructive mb-1">
+                  <Tag className="w-4 h-4" />
+                  <span className="text-sm font-medium">Ciclos encerrados</span>
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {loadingRenewals ? "—" : endedCyclesCount}
+                </div>
+              </div>
+              <div className="p-4 rounded-lg bg-success/10 border border-success/20">
+                <div className="flex items-center gap-2 text-success mb-1">
+                  <Package className="w-4 h-4" />
+                  <span className="text-sm font-medium">Produtos em estoque</span>
+                </div>
+                <div className="text-2xl font-bold text-foreground">
+                  {loadingStock ? "—" : stockCount}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button variant="outline" className="justify-start" onClick={() => navigate("/etiquetas")}>
+                <Tag className="w-4 h-4 mr-2" />
+                Ir para Etiquetas
+              </Button>
             </div>
           </CardContent>
         </Card>
