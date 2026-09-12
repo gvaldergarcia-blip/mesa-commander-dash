@@ -348,7 +348,8 @@ export function Sidebar() {
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
-          className="w-[85vw] max-w-xs p-0 bg-sidebar text-sidebar-foreground border-sidebar-border [&>button]:hidden overflow-y-auto"
+          className="w-[85vw] max-w-xs p-0 bg-sidebar text-sidebar-foreground border-sidebar-border [&>button]:hidden overflow-y-auto [&::-webkit-scrollbar]:w-0"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           <div className="flex flex-col justify-between h-full">
             {sidebarContent(true)}
@@ -360,10 +361,13 @@ export function Sidebar() {
 
   // Desktop & tablet (≥768px): unchanged sticky sidebar
   return (
-    <aside className={cn(
-      "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto",
-      isCollapsed ? "w-16" : "w-64"
-    )}>
+    <aside
+      className={cn(
+        "bg-sidebar text-sidebar-foreground flex flex-col justify-between transition-all duration-300 border-r border-sidebar-border sticky top-0 h-screen shrink-0 overflow-y-auto [&::-webkit-scrollbar]:w-0",
+        isCollapsed ? "w-16" : "w-64"
+      )}
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
       {sidebarContent(false)}
     </aside>
   );
