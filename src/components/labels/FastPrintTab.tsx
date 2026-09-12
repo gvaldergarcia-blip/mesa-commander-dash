@@ -668,6 +668,8 @@ export function FastPrintTab({
                   brand={[product.brand, product.supplier_name].filter(Boolean).join(" / ") || null}
                   responsible={employee.name}
                   restaurantName={restaurant?.name}
+                  restaurantCnpj={restaurantLegal?.cnpj}
+                  restaurantCep={restaurantLegal?.cep}
                   allergens={product.allergens}
                 />
               )}
