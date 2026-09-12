@@ -174,7 +174,7 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta, onOp
       </div>
 
       {/* Resumo do dia */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="hidden grid-cols-2 gap-3 md:grid md:grid-cols-5">
         <SummaryCard icon={PackagePlus} label="Recebimentos hoje" value={summary.receipts} tone="emerald" />
         <SummaryCard icon={ChefHat}     label="Produções internas" value={summary.productions} tone="primary" />
         <SummaryCard icon={Printer}     label="Etiquetas emitidas" value={summary.issued} tone="primary" />
@@ -231,7 +231,7 @@ export function TodayTab({ onQuickAction, onOpenProducts, onOpenStockFalta, onOp
       )}
 
       {/* Distribuição por método de conservação */}
-      <ConservationDonutCard />
+      <div className="hidden md:block"><ConservationDonutCard /></div>
 
     </div>
   );

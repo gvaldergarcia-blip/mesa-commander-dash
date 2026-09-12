@@ -291,13 +291,13 @@ export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
                     <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                       <CalendarDays className="h-3.5 w-3.5" /> Comparação de validades
                     </div>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                    <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-[1fr_auto_1fr] md:gap-3">
                       <div>
                         <div className="text-[10px] uppercase text-muted-foreground">Original do fabricante</div>
                         <div className="font-bold text-foreground">{item.originalExpiry ? fmt(item.originalExpiry) : "Não informada"}</div>
                         <div className="text-[10px] text-muted-foreground">limite máximo do produto</div>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <ArrowRight className="h-4 w-4 rotate-90 text-muted-foreground md:rotate-0" />
                       <div>
                         <div className="text-[10px] uppercase text-muted-foreground">Pós-abertura · {item.ruleLabel || "sem regra"}</div>
                         <div className="font-bold text-emerald-600 dark:text-emerald-400">{item.nextExpiry ? fmt(item.nextExpiry) : "Não calculada"}</div>
