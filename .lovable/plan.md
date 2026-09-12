@@ -44,7 +44,7 @@ Na tela de Plano, mostrar a lista de módulos ativos e os disponíveis para cont
 ## Detalhes técnicos
 
 - **Banco:** nova coluna `plan_modules_list text[]` em `public.restaurants` (e espelho em `mesaclik.restaurants`), preenchida por migração a partir de `plan_modules`. Gatilho de sincronização já existente é estendido. `plan_modules` fica como campo legado para não quebrar integrações.
-- **Onboarding:** `founder_leads.modules_selected` passa a aceitar lista separada por vírgula; `approve-restaurant` grava `plan_modules_list`.
+- **Integração com o site:** o painel interno assume que o site gravará a lista de módulos em `public.restaurants.plan_modules_list`. Não alteramos o cadastro/onboarding aqui.
 - **Frontend:**
   - `src/config/modules.ts` (novo) — registro declarativo dos módulos.
   - `ModulesContext` — expandido para carregar a lista, manter compatibilidade com `hasModule('fila'|'reserva')` e expor `modules: ModuleKey[]`.
