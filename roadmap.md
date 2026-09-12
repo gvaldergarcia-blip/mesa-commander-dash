@@ -7,3 +7,9 @@
 - [x] Simplificar Imprimir etiqueta com lista vertical e prévia 80×40 antes da impressão
 - [x] Compactar o Dashboard de Etiquetas e otimizar sua leitura e fluidez no celular
 - [x] Corrigir erros de verificação da prévia
+- [ ] Fase 1: criar shell mobile do módulo Etiquetas com contexto e navegação sempre visíveis
+- [ ] Fase 2: adaptar Dashboard e Imprimir etiqueta para fluxos mobile próprios
+- [ ] Fase 2: adaptar Renovação e Recebimento para telas operacionais mobile
+- [ ] Fase 2: adaptar Cadastro, Estoque e Funcionários para listas e formulários mobile
+- [ ] Validar 320/375/390/430 px, tablet e desktop sem regressões
+- [ ] Fase 3: replicar o padrão aprovado nos demais módulos após validação de Etiquetas
