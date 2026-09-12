@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, CalendarDays, Loader2, MapPin, PackageCheck, User } from "lucide-react";
+import { ArrowLeft, CalendarDays, Loader2, MapPin, QrCode, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
