@@ -51,7 +51,7 @@ Na tela de Plano, mostrar a lista de módulos ativos e os disponíveis para cont
   - `ModuleGuard` — passa a aceitar qualquer chave e renderizar tela de bloqueio.
   - `Sidebar` e `App.tsx` — geradas a partir do registro.
   - `RoleGuard` e as feature flags atuais continuam funcionando por cima do filtro de módulos.
-- **Ordem segura de implementação:** (1) migração com conversão automática; (2) registro de módulos + contexto; (3) menu e rotas; (4) tela inicial e painel adaptativos; (5) onboarding; (6) tela de Plano.
+- **Ordem segura de implementação (painel interno):** (1) migração com conversão automática; (2) registro de módulos + contexto; (3) menu e rotas; (4) tela inicial e painel adaptativos; (5) tela de Plano.
 
 ## Riscos e garantias
 - Ninguém perde acesso: a conversão dá a todos os restaurantes atuais todos os módulos que já enxergam hoje.
