@@ -28,7 +28,11 @@ export default function EtiquetasPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const requestedView = searchParams.get("view") as OperationalView | null;
+  const rawRequestedView = searchParams.get("view");
+  const requestedView: OperationalView | null =
+    rawRequestedView === "expired" || rawRequestedView === "tomorrow" || rawRequestedView === "renewal" || rawRequestedView === "ok"
+      ? rawRequestedView
+      : null;
   const [tab, setTabState] = useState(requestedTab || "dashboard");
 
   // Navegação lateral agrupada por seção
