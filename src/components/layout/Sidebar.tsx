@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useModules } from "@/contexts/ModulesContext";
 import {
@@ -19,6 +19,16 @@ import {
   ClipboardList,
   Tag,
   Sparkles,
+  ChevronDown,
+  Zap,
+  Activity,
+  RefreshCw,
+  Truck,
+  ChefHat,
+  PackageX,
+  Package,
+  List,
+  MessageSquare,
   LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +54,20 @@ const ICON_MAP: Record<ModuleIcon, LucideIcon> = {
   Sparkles,
 };
 
+const LABEL_NAVIGATION = [
+  { value: "imprimir", name: "Imprimir etiqueta", icon: Zap },
+  { value: "hoje", name: "Hoje", icon: Activity },
+  { value: "renovacao", name: "Renovação", icon: RefreshCw },
+  { value: "recebimento", name: "Recebimento", icon: Truck },
+  { value: "producao", name: "Produção Interna", icon: ChefHat },
+  { value: "estoque", name: "Estoque", icon: PackageX },
+  { value: "cadastro", name: "Produtos", icon: Package },
+  { value: "produtos", name: "Etiquetas ativas", icon: List },
+  { value: "funcionarios", name: "Funcionários", icon: Users },
+  { value: "dashboard", name: "Relatórios", icon: BarChart3 },
+  { value: "sms", name: "SMS", icon: MessageSquare },
+] as const;
+
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -53,11 +77,19 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const labelsRouteActive = location.pathname === "/etiquetas";
+  const [labelsOpen, setLabelsOpen] = useState(labelsRouteActive);
+  const activeLabelTab = new URLSearchParams(location.search).get("tab") || "imprimir";
 
   // Close mobile drawer whenever the route changes
   useEffect(() => {
     if (isMobile) setMobileOpen(false);
   }, [location.pathname, isMobile]);
+
+  useEffect(() => {
+    if (labelsRouteActive) setLabelsOpen(true);
+  }, [labelsRouteActive]);
 
   // Listen for global "open sidebar" events from the header hamburger
   useEffect(() => {
@@ -129,7 +161,65 @@ export function Sidebar() {
         {/* Navigation */}
         <nav className="px-3 py-4">
           <div className="space-y-1">
-            {navigation.map((item) => (
+            {navigation.map((item) => item.href === "/etiquetas" ? (
+              <div key={item.name}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    if (!showLabels) {
+                      navigate("/etiquetas?tab=imprimir");
+                      return;
+                    }
+                    if (!labelsRouteActive) navigate("/etiquetas?tab=imprimir");
+                    setLabelsOpen((open) => !open);
+                  }}
+                  aria-expanded={showLabels && labelsOpen}
+                  className={cn(
+                    "w-full h-auto justify-start px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative",
+                    labelsRouteActive
+                      ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/40",
+                    !showLabels && "justify-center"
+                  )}
+                >
+                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                  <span className={cn(
+                    "ml-3 flex-1 text-left transition-all duration-200",
+                    !showLabels && "opacity-0 w-0 overflow-hidden ml-0"
+                  )}>
+                    {item.name}
+                  </span>
+                  {showLabels && (
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", labelsOpen && "rotate-180")} />
+                  )}
+                </Button>
+
+                {showLabels && labelsOpen && (
+                  <div className="ml-5 mt-1 space-y-0.5 border-l border-sidebar-border pl-3">
+                    {LABEL_NAVIGATION.map((subitem) => {
+                      const SubIcon = subitem.icon;
+                      const active = labelsRouteActive && activeLabelTab === subitem.value;
+                      return (
+                        <NavLink
+                          key={subitem.value}
+                          to={`/etiquetas?tab=${subitem.value}`}
+                          className={cn(
+                            "flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium transition-colors",
+                            active
+                              ? "bg-sidebar-accent text-sidebar-foreground"
+                              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+                          )}
+                        >
+                          <SubIcon className="h-4 w-4 shrink-0" />
+                          <span>{subitem.name}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
               <NavLink
                 key={item.name}
                 to={item.href}

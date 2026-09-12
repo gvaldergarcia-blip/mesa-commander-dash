@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useSearchParams } from "react-router-dom";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tag, Loader2, LayoutDashboard, Printer, Package, Users, List, Clock, MessageSquare, ShoppingCart, PackageX, PackagePlus, Activity, TrendingDown, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
@@ -37,7 +38,9 @@ export default function EtiquetasPage() {
   const { missingProducts } = useStockStatus();
   const { count: renewalCount } = useLabelRenewals();
 
-  const [tab, setTab] = useState("imprimir");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [tab, setTabState] = useState(requestedTab || "imprimir");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
@@ -82,7 +85,16 @@ export default function EtiquetasPage() {
     },
   ];
   const ALL_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
-  const currentItem = ALL_ITEMS.find((i) => i.value === tab) ?? ALL_ITEMS[0];
+  const setTab = (value: string) => {
+    setTabState(value);
+    setSearchParams({ tab: value }, { replace: true });
+  };
+
+  useEffect(() => {
+    if (requestedTab && ALL_ITEMS.some((item) => item.value === requestedTab)) {
+      setTabState(requestedTab);
+    }
+  }, [requestedTab]);
   const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
   const [statFilter, setStatFilter] = useState<string | null>(null);
 
@@ -155,86 +167,6 @@ export default function EtiquetasPage() {
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-2">
-        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-5">
-          {/* ===== SIDEBAR (desktop) ===== */}
-          <aside className="hidden md:block">
-            <nav className="sticky top-4 rounded-2xl border border-border/60 bg-card/40 backdrop-blur p-2 space-y-4">
-              {NAV_SECTIONS.map((section) => (
-                <div key={section.label}>
-                  <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-                    {section.label}
-                  </div>
-                  <div className="space-y-0.5">
-                    {section.items.map((item) => {
-                      const Icon = item.icon;
-                      const active = tab === item.value;
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() => setTab(item.value)}
-                          className={cn(
-                            "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all text-left",
-                            active
-                              ? "bg-primary/15 text-primary border border-primary/30 shadow-sm"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
-                          )}
-                        >
-                          <Icon className="h-4 w-4 shrink-0" />
-                          <span className="flex-1 truncate">{item.label}</span>
-                          {item.badge && item.badge > 0 ? (
-                            <span className={cn(
-                              "h-5 min-w-5 px-1.5 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
-                              active ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"
-                            )}>
-                              {item.badge}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-          </aside>
-
-          {/* ===== NAV MOBILE (pills roláveis — resposta imediata, sem dropdown) ===== */}
-          <div className="md:hidden -mx-3 px-3">
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none [-webkit-overflow-scrolling:touch]">
-              {ALL_ITEMS.map((item) => {
-                const Icon = item.icon;
-                const active = tab === item.value;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => setTab(item.value)}
-                    className={cn(
-                      "shrink-0 inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full text-[13px] font-semibold border transition-colors",
-                      active
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                        : "bg-card/50 text-muted-foreground border-border/60 active:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="whitespace-nowrap">{item.label}</span>
-                    {item.badge && item.badge > 0 ? (
-                      <span className={cn(
-                        "h-4 min-w-4 px-1 rounded-full text-[10px] font-bold inline-flex items-center justify-center",
-                        active ? "bg-primary-foreground text-primary" : "bg-destructive text-destructive-foreground"
-                      )}>
-                        {item.badge}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-
-          {/* ===== CONTEÚDO ===== */}
           <div className="min-w-0 space-y-5">
         <TabsContent value="hoje" className="mt-0">
           <TodayTab
@@ -341,7 +273,6 @@ export default function EtiquetasPage() {
           <SmsLogsTab />
         </TabsContent>
           </div>
-        </div>
       </Tabs>
 
       {/* Dialogs removidos — cadastro de produtos agora é automático via Recebimento. */}
