@@ -1,70 +1,65 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/contexts/RestaurantContext';
+import { ModuleKey } from '@/config/modules';
 
 export type PlanModules = 'FILA' | 'RESERVA' | 'FILA_RESERVA';
 
 interface ModulesContextType {
   planModules: PlanModules | null;
-  hasModule: (mod: 'fila' | 'reserva') => boolean;
+  /** Lista de módulos contratados pelo restaurante. */
+  modules: ModuleKey[];
+  /** Verifica se um módulo está contratado. */
+  hasModule: (mod: ModuleKey) => boolean;
+  /** Retorna o primeiro módulo contratado que pode ser a tela inicial. */
+  homeModule: ModuleKey | null;
   isLoading: boolean;
 }
 
 const ModulesContext = createContext<ModulesContextType | undefined>(undefined);
 
+function parseModulesList(value: unknown): ModuleKey[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => (typeof v === 'string' ? v.trim().toLowerCase() : ''))
+      .filter(Boolean) as ModuleKey[];
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value
+      .split(/[,;|]/)
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean) as ModuleKey[];
+  }
+  return [];
+}
+
 /**
- * Captura plan_modules do hash da URL (passado pelo site institucional)
- * ou consulta a coluna restaurants.plan_modules via Supabase como fallback.
+ * Converte o campo legado plan_modules em uma lista de módulos.
  */
-function getPlanModulesFromHash(): PlanModules | null {
-  // Check hash fragments (#...&plan_modules=FILA)
-  if (window.location.hash) {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const pm = hashParams.get('plan_modules')?.toUpperCase();
-    if (pm === 'FILA' || pm === 'RESERVA' || pm === 'FILA_RESERVA') {
-      return pm as PlanModules;
-    }
-  }
-
-  // Check query params (?plan_modules=FILA)
-  const queryParams = new URLSearchParams(window.location.search);
-  const pm = queryParams.get('plan_modules')?.toUpperCase();
-  if (pm === 'FILA' || pm === 'RESERVA' || pm === 'FILA_RESERVA') {
-    return pm as PlanModules;
-  }
-
-  return null;
+function legacyToModules(legacy: string | null): ModuleKey[] {
+  const pm = (legacy || 'FILA_RESERVA').toUpperCase();
+  if (pm === 'FILA') return ['fila'];
+  if (pm === 'RESERVA') return ['reservas'];
+  return ['fila', 'reservas'];
 }
 
 export function ModulesProvider({ children }: { children: ReactNode }) {
-  const { restaurantId } = useRestaurant();
+  const { restaurantId, restaurant } = useRestaurant();
   const [planModules, setPlanModules] = useState<PlanModules | null>(null);
+  const [modules, setModules] = useState<ModuleKey[]>(['fila', 'reservas']);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Try to capture from URL hash/query (set once on mount)
-    const fromUrl = getPlanModulesFromHash();
-    if (fromUrl) {
-      console.log('[ModulesContext] plan_modules from URL:', fromUrl);
-      setPlanModules(fromUrl);
-      // Persist to sessionStorage for SPA navigation
-      sessionStorage.setItem('mesaclik_plan_modules', fromUrl);
-      setIsLoading(false);
-      return;
+    // Se o restaurante já veio com plan_modules_list (Realtime/RestaurantContext),
+    // usamos direto para evitar flicker.
+    const listFromRestaurant = parseModulesList((restaurant as any)?.plan_modules_list);
+    if (listFromRestaurant.length > 0) {
+      setModules(listFromRestaurant);
     }
+  }, [restaurant]);
 
-    // 2. Try sessionStorage (persisted from previous URL capture)
-    const fromSession = sessionStorage.getItem('mesaclik_plan_modules') as PlanModules | null;
-    if (fromSession && ['FILA', 'RESERVA', 'FILA_RESERVA'].includes(fromSession)) {
-      console.log('[ModulesContext] plan_modules from sessionStorage:', fromSession);
-      setPlanModules(fromSession);
-      setIsLoading(false);
-      return;
-    }
-
-    // 3. Fallback: fetch from DB
+  useEffect(() => {
     if (!restaurantId) {
-      setPlanModules(null);
       setIsLoading(false);
       return;
     }
@@ -74,22 +69,25 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
         const { data, error } = await (supabase as any)
           .schema('public')
           .from('restaurants')
-          .select('plan_modules')
+          .select('plan_modules, plan_modules_list')
           .eq('id', restaurantId)
           .single();
 
         if (error) {
-          console.error('[ModulesContext] Error fetching plan_modules:', error);
-          setPlanModules('FILA_RESERVA'); // safe fallback
+          console.error('[ModulesContext] Error fetching modules:', error);
+          setPlanModules('FILA_RESERVA');
+          setModules(['fila', 'reservas']);
         } else {
-          const pm = (data?.plan_modules || 'FILA_RESERVA').toUpperCase() as PlanModules;
-          console.log('[ModulesContext] plan_modules from DB:', pm);
-          setPlanModules(pm);
-          sessionStorage.setItem('mesaclik_plan_modules', pm);
+          const legacy = (data?.plan_modules || 'FILA_RESERVA').toUpperCase() as PlanModules;
+          const list = parseModulesList(data?.plan_modules_list);
+          const merged = list.length > 0 ? list : legacyToModules(legacy);
+          setPlanModules(legacy);
+          setModules(merged);
         }
       } catch (err) {
         console.error('[ModulesContext] Unexpected error:', err);
         setPlanModules('FILA_RESERVA');
+        setModules(['fila', 'reservas']);
       } finally {
         setIsLoading(false);
       }
@@ -98,16 +96,19 @@ export function ModulesProvider({ children }: { children: ReactNode }) {
     fetchFromDB();
   }, [restaurantId]);
 
-  const hasModule = (mod: 'fila' | 'reserva'): boolean => {
-    if (!planModules) return true; // loading fallback
-    if (planModules === 'FILA_RESERVA') return true;
-    if (mod === 'fila') return planModules === 'FILA';
-    if (mod === 'reserva') return planModules === 'RESERVA';
-    return false;
+  const hasModule = (mod: ModuleKey): boolean => {
+    if (isLoading) return true; // permissivo durante carregamento
+    return modules.includes(mod);
   };
 
+  const homeModule = ((): ModuleKey | null => {
+    if (modules.includes('dashboard')) return 'dashboard';
+    const candidate = modules.find((m) => m !== 'dashboard');
+    return candidate || null;
+  })();
+
   return (
-    <ModulesContext.Provider value={{ planModules, hasModule, isLoading }}>
+    <ModulesContext.Provider value={{ planModules, modules, hasModule, homeModule, isLoading }}>
       {children}
     </ModulesContext.Provider>
   );
@@ -119,7 +120,9 @@ export function useModules() {
     // Safe fallback (outside provider)
     return {
       planModules: 'FILA_RESERVA' as PlanModules,
+      modules: ['fila', 'reservas'] as ModuleKey[],
       hasModule: () => true,
+      homeModule: 'fila' as ModuleKey,
       isLoading: false,
     };
   }

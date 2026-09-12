@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus } from "lucide-react";
+import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -277,14 +277,18 @@ function DashboardContent() {
               </Dialog>
             )}
 
-            <Button className="w-full justify-start" variant="outline" onClick={() => setIsCreateCustomerOpen(true)}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Cadastrar Cliente
-            </Button>
+            {hasModule("clientes") && (
+              <Button className="w-full justify-start" variant="outline" onClick={() => setIsCreateCustomerOpen(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Cadastrar Cliente
+              </Button>
+            )}
 
-            <CreateCustomerDialog open={isCreateCustomerOpen} onOpenChange={setIsCreateCustomerOpen} onSuccess={refetchCustomers} />
+            {hasModule("clientes") && (
+              <CreateCustomerDialog open={isCreateCustomerOpen} onOpenChange={setIsCreateCustomerOpen} onSuccess={refetchCustomers} />
+            )}
 
-            {FEATURE_FLAGS.CUPONS_ENABLED && (
+            {hasModule("promocoes") && FEATURE_FLAGS.CUPONS_ENABLED && (
               <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/promotions")}>
                 <Megaphone className="w-4 h-4 mr-2" />
                 Enviar Promoção
@@ -317,6 +321,25 @@ function DashboardContent() {
                 <div className="text-2xl font-bold text-muted-foreground">{metrics.canceledToday}</div>
                 <div className="text-sm text-muted-foreground">Cancelados</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasModule("etiquetas") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              Etiquetas & Validade
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button variant="outline" className="justify-start" onClick={() => navigate("/etiquetas")}>
+                <Tag className="w-4 h-4 mr-2" />
+                Ir para Etiquetas
+              </Button>
             </div>
           </CardContent>
         </Card>

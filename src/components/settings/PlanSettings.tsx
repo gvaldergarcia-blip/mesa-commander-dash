@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CONTRACTABLE_MODULES, ModuleKey } from "@/config/modules";
 
 type PlanStatus = "trialing" | "active" | "expired" | "canceled";
 
@@ -81,7 +82,7 @@ function resolveStatus(sub: SubscriptionData | null): PlanStatus {
 
 export function PlanSettings() {
   const { restaurantId } = useRestaurant();
-  const { planModules } = useModules();
+  const { planModules, modules } = useModules();
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -115,8 +116,8 @@ export function PlanSettings() {
 
   const status = resolveStatus(subscription);
   const statusCfg = STATUS_CONFIG[status];
-  const modules = planModules || "FILA_RESERVA";
-  const planName = getPlanName(modules);
+  const modulesLegacy = planModules || "FILA_RESERVA";
+  const planName = getPlanName(modulesLegacy);
 
   const trial =
     subscription && (status === "trialing" || status === "expired")
@@ -282,23 +283,24 @@ export function PlanSettings() {
         </Card>
       )}
 
-      {/* Modules Card — always visible */}
+      {/* Modules Card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Módulos do seu plano</CardTitle>
           <CardDescription>Funcionalidades incluídas na sua assinatura</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <ModuleRow
-            label="Fila Virtual"
-            description="Gerencie a espera dos clientes com fila digital"
-            active={modules === "FILA" || modules === "FILA_RESERVA"}
-          />
-          <ModuleRow
-            label="Reservas"
-            description="Aceite e gerencie reservas online"
-            active={modules === "RESERVA" || modules === "FILA_RESERVA"}
-          />
+          {CONTRACTABLE_MODULES.map((mod) => {
+            const active = modules.includes(mod.key);
+            return (
+              <ModuleRow
+                key={mod.key}
+                label={mod.name}
+                description={mod.description}
+                active={active}
+              />
+            );
+          })}
         </CardContent>
       </Card>
 

@@ -6,10 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { RestaurantProvider } from "@/contexts/RestaurantContext";
-import { ModulesProvider } from "@/contexts/ModulesContext";
+import { ModulesProvider, useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ModuleGuard } from "@/components/layout/ModuleGuard";
 import { RoleGuard } from "@/components/layout/RoleGuard";
+import { MODULES_BY_KEY } from "@/config/modules";
 import Dashboard from "./pages/Dashboard";
 import Queue from "./pages/Queue";
 import Reservations from "./pages/Reservations";
@@ -49,7 +50,10 @@ import ReservaQrEntrar from "./pages/reserva/ReservaQrEntrar";
 import TermosDeUso from "./pages/legal/TermosDeUso";
 import PoliticaPrivacidade from "./pages/legal/PoliticaPrivacidade";
 
-// Marketing (público)
+// Redirect rotas antigas
+// import { Navigate } from "react-router-dom";
+
+// Rotas públicas marketing (sem DashboardLayout)
 import MarketingOptIn from "./pages/marketing/MarketingOptIn";
 import MarketingUnsubscribe from "./pages/marketing/MarketingUnsubscribe";
 
@@ -92,12 +96,12 @@ function useClearCacheOnUserChange() {
 }
 
 // Componente wrapper para rotas que requerem feature flags
-const FeatureGuard = ({ 
-  feature, 
-  children, 
-  featureName 
-}: { 
-  feature: keyof typeof FEATURE_FLAGS; 
+const FeatureGuard = ({
+  feature,
+  children,
+  featureName
+}: {
+  feature: keyof typeof FEATURE_FLAGS;
   children: React.ReactNode;
   featureName: string;
 }) => {
@@ -106,6 +110,25 @@ const FeatureGuard = ({
   }
   return <>{children}</>;
 };
+
+/**
+ * Redireciona a raiz do painel para o único módulo contratado,
+ * ou para o dashboard quando há vários módulos.
+ */
+function HomeRedirect() {
+  const { isLoading, homeModule, modules } = useModules();
+
+  if (isLoading) return null;
+
+  // Se só existe um módulo contratado (ex: apenas etiquetas), vai direto para ele.
+  const contractable = modules.filter((m) => m !== 'dashboard');
+  if (contractable.length === 1 && homeModule) {
+    const target = MODULES_BY_KEY[homeModule]?.href;
+    if (target) return <Navigate to={target} replace />;
+  }
+
+  return <Navigate to="/dashboard" replace />;
+}
 
 const App = () => {
   // Restaurar sessão de tokens passados via URL pelo site institucional
@@ -132,7 +155,7 @@ const App = () => {
         {/* Rota pública de Reserva */}
         <Route path="/reserva/final" element={<ReservaFinal />} />
         <Route path="/reserva/:restaurantId" element={<ReservaQrEntrar />} />
-        
+
         {/* Rotas públicas legais (sem DashboardLayout) */}
         <Route path="/legal/termos-de-uso" element={<TermosDeUso />} />
         <Route path="/legal/politica-de-privacidade" element={<PoliticaPrivacidade />} />
@@ -161,55 +184,75 @@ const App = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/" element={<HomeRedirect />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/queue" element={
                       <ModuleGuard module="fila"><Queue /></ModuleGuard>
                     } />
                     <Route path="/reservations" element={
-                      <ModuleGuard module="reserva"><Reservations /></ModuleGuard>
+                      <ModuleGuard module="reservas"><Reservations /></ModuleGuard>
                     } />
                   <Route path="/customers" element={
-                    <RoleGuard><CustomersPage /></RoleGuard>
+                    <ModuleGuard module="clientes">
+                      <RoleGuard><CustomersPage /></RoleGuard>
+                    </ModuleGuard>
                   } />
                   <Route path="/customers/:customerId" element={
-                    <RoleGuard><CustomerProfile /></RoleGuard>
+                    <ModuleGuard module="clientes">
+                      <RoleGuard><CustomerProfile /></RoleGuard>
+                    </ModuleGuard>
                   } />
                   {/* Rotas protegidas por feature flag - Cupons/Promoções */}
                   <Route path="/promotions" element={
-                    <RoleGuard>
-                      <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
-                        <Promotions />
-                      </FeatureGuard>
-                    </RoleGuard>
+                    <ModuleGuard module="promocoes">
+                      <RoleGuard>
+                        <FeatureGuard feature="CUPONS_ENABLED" featureName="Promoções e Marketing">
+                          <Promotions />
+                        </FeatureGuard>
+                      </RoleGuard>
+                    </ModuleGuard>
                   } />
                   <Route path="/cupons" element={
-                    <RoleGuard>
-                      <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
-                        <Coupons />
-                      </FeatureGuard>
-                    </RoleGuard>
+                    <ModuleGuard module="promocoes">
+                      <RoleGuard>
+                        <FeatureGuard feature="CUPONS_ENABLED" featureName="Cupons">
+                          <Coupons />
+                        </FeatureGuard>
+                      </RoleGuard>
+                    </ModuleGuard>
                   } />
                   <Route path="/reports" element={
-                    <RoleGuard><Reports /></RoleGuard>
+                    <ModuleGuard module="relatorios">
+                      <RoleGuard><Reports /></RoleGuard>
+                    </ModuleGuard>
                   } />
                   <Route path="/intelligence" element={
-                    <RoleGuard><Intelligence /></RoleGuard>
+                    <ModuleGuard module="relatorios">
+                      <RoleGuard><Intelligence /></RoleGuard>
+                    </ModuleGuard>
                   } />
                   <Route path="/marketing/video" element={
-                    <RoleGuard>
-                      <FeatureGuard feature="MARKETING_IA_ENABLED" featureName="Marketing IA">
-                        <VideoGenerator />
-                      </FeatureGuard>
-                    </RoleGuard>
+                    <ModuleGuard module="marketing_ia">
+                      <RoleGuard>
+                        <FeatureGuard feature="MARKETING_IA_ENABLED" featureName="Marketing IA">
+                          <VideoGenerator />
+                        </FeatureGuard>
+                      </RoleGuard>
+                    </ModuleGuard>
                   } />
                   <Route path="/marketing/creator" element={
-                    <RoleGuard>
-                      <IACreatorMarketing />
-                    </RoleGuard>
+                    <ModuleGuard module="studio">
+                      <RoleGuard>
+                        <IACreatorMarketing />
+                      </RoleGuard>
+                    </ModuleGuard>
                   } />
-                  <Route path="/checklists" element={<ChecklistsPage />} />
-                  <Route path="/etiquetas" element={<EtiquetasPage />} />
+                  <Route path="/checklists" element={
+                    <ModuleGuard module="checklist"><ChecklistsPage /></ModuleGuard>
+                  } />
+                  <Route path="/etiquetas" element={
+                    <ModuleGuard module="etiquetas"><EtiquetasPage /></ModuleGuard>
+                  } />
                   <Route path="/settings" element={
                     <RoleGuard><Settings /></RoleGuard>
                   } />
