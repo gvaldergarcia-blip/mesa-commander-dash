@@ -23,6 +23,7 @@ const TITLES = {
 
 export function OperationalProductsList({ view, labels, resolveOriginal, onBack, onDischarge }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scanLabel, setScanLabel] = useState<Label | null>(null);
   const copy = TITLES[view];
 
   const discharge = async (label: Label) => {
