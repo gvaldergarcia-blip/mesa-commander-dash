@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Plus, Search, Pencil, Trash2, Loader2, Printer } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Loader2, Printer, Package, Snowflake } from "lucide-react";
 import { useLabelProducts, LabelProduct } from "@/hooks/useLabelProducts";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { CONSERVATION_LABEL } from "@/lib/labels/utils";
