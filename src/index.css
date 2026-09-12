@@ -158,6 +158,20 @@
 }
 
 @media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  .mobile-main-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
+    scroll-behavior: auto;
+  }
+
   input,
   select,
   textarea {

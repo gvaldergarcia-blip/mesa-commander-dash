@@ -23,7 +23,7 @@ export function MobileLabelsHeader({ activeTab, onTabChange }: MobileLabelsHeade
   const current = MOBILE_LABEL_TABS.find((item) => item.value === activeTab) ?? MOBILE_LABEL_TABS[0];
 
   return (
-    <div className="sticky top-0 z-40 -mx-3 -mt-3 border-b border-border bg-background/95 backdrop-blur md:hidden">
+    <div className="sticky top-0 z-40 -mx-3 -mt-3 border-b border-border bg-background md:hidden">
       <div className="flex min-h-16 items-center gap-3 px-4 py-2.5">
         <MobileSidebarTrigger />
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">

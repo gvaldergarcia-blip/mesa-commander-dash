@@ -11,15 +11,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const labelsMobileHeader = location.pathname === "/etiquetas";
 
   return (
-    <div className="flex h-[100dvh] min-h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-background">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-h-screen overflow-hidden min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header com toggle de tema */}
         <header className={labelsMobileHeader ? "hidden h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 md:flex md:px-6" : "flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 md:px-6"}>
           <MobileSidebarTrigger />
           <ThemeToggle />
         </header>
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+        <main className="mobile-main-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>
