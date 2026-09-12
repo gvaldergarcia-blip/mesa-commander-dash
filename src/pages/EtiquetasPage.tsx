@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Tag, LayoutDashboard, Package, Users, List, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
+import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
 import { useLabels } from "@/hooks/useLabels";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
