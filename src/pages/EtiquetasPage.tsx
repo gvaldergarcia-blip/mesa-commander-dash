@@ -21,11 +21,13 @@ import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { getOperationalGroups, type OperationalView } from "@/lib/labels/operationalDashboard";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { MobileLabelsHeader } from "@/components/labels/mobile/MobileLabelsHeader";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function EtiquetasPage() {
   const { labels, dischargeBulk } = useLabels();
   const { items: renewalItems, count: renewalCount } = useLabelRenewals();
   const { restaurant, user } = useRestaurant();
+  const isMobile = useIsMobile();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -34,7 +36,7 @@ export default function EtiquetasPage() {
     rawRequestedView === "expired" || rawRequestedView === "tomorrow" || rawRequestedView === "renewal" || rawRequestedView === "ok"
       ? rawRequestedView
       : null;
-  const [tab, setTabState] = useState(requestedTab && requestedTab !== "hoje" ? requestedTab : "dashboard");
+  const [tab, setTabState] = useState(requestedTab || "dashboard");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
@@ -76,7 +78,7 @@ export default function EtiquetasPage() {
       ],
     },
   ];
-  const ALL_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+  const ALL_ITEMS = [...NAV_SECTIONS.flatMap((s) => s.items), { value: "hoje", icon: LayoutDashboard, label: "Hoje" }];
   const setTab = (value: string) => {
     setTabState(value);
     setSearchParams({ tab: value }, { replace: true });
@@ -84,9 +86,9 @@ export default function EtiquetasPage() {
 
   useEffect(() => {
     if (requestedTab && ALL_ITEMS.some((item) => item.value === requestedTab)) {
-      setTabState(requestedTab);
+      setTabState(requestedTab === "hoje" && !isMobile ? "dashboard" : requestedTab);
     }
-  }, [requestedTab]);
+  }, [isMobile, requestedTab]);
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
   const [receiptContext, setReceiptContext] = useState<ReceiptPrintContext | null>(null);
   const [stockInitialSector, setStockInitialSector] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export default function EtiquetasPage() {
   }, [setSearchParams]);
 
   return (
-    <div className="mx-auto max-w-[1500px] min-w-0 space-y-4 overflow-x-clip p-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:space-y-6 md:p-8">
+    <div className="mx-auto max-w-[1500px] min-w-0 space-y-3 overflow-x-clip p-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:space-y-6 md:p-8">
       <MobileLabelsHeader activeTab={tab} onTabChange={setTab} />
       {tab !== "dashboard" && <header className="hidden flex-col justify-between gap-3 border-b border-border/50 pb-4 md:flex md:flex-row md:items-end md:gap-4 md:pb-5">
         <div className="min-w-0">
@@ -189,32 +191,52 @@ export default function EtiquetasPage() {
               onDischarge={dischargeBulk}
             />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               <LabelDashboard
                 restaurantName={restaurant?.name || "Restaurante"}
                 userName={userName}
                 counts={operationalCounts}
                 onOpen={openOperationalView}
               />
-              <TodayTab
-                onQuickAction={(action) => {
-                  if (action === "new-label") setTab("imprimir");
-                  else if (action === "new-receipt") setTab("imprimir");
-                  else if (action === "shopping") setTab("compras");
-                  else if (action === "labels") setTab("imprimir");
-                }}
-                onOpenProducts={(f) => {
-                  setProductsStatusFilter(f);
-                  setTab("produtos");
-                }}
-                onOpenStockFalta={() => {
-                  setStockInitialSector(null);
-                  setTab("estoque");
-                }}
-                onOpenRenewals={() => setTab("renovacao")}
-              />
+              <div className="hidden md:block">
+                <TodayTab
+                  onQuickAction={(action) => {
+                    if (action === "new-label") setTab("imprimir");
+                    else if (action === "new-receipt") setTab("imprimir");
+                    else if (action === "shopping") setTab("compras");
+                    else if (action === "labels") setTab("imprimir");
+                  }}
+                  onOpenProducts={(f) => {
+                    setProductsStatusFilter(f);
+                    setTab("produtos");
+                  }}
+                  onOpenStockFalta={() => {
+                    setStockInitialSector(null);
+                    setTab("estoque");
+                  }}
+                  onOpenRenewals={() => setTab("renovacao")}
+                />
+              </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="hoje" className="mt-0 md:hidden">
+          <TodayTab
+            onQuickAction={(action) => {
+              if (action === "new-receipt") setTab("recebimento");
+              else setTab("imprimir");
+            }}
+            onOpenProducts={(f) => {
+              setProductsStatusFilter(f);
+              setTab("produtos");
+            }}
+            onOpenStockFalta={() => {
+              setStockInitialSector(null);
+              setTab("estoque");
+            }}
+            onOpenRenewals={() => setTab("renovacao")}
+          />
         </TabsContent>
 
         {/* ===== ESTOQUE (marcação rápida) ===== */}

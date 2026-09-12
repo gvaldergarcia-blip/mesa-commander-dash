@@ -58,15 +58,15 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4 py-0 md:space-y-6 md:py-4">
-      <header className="border-b border-border/60 pb-3 md:pb-5">
+    <div className="mx-auto w-full max-w-6xl space-y-3 py-0 md:space-y-6 md:py-4">
+      <header className="border-b border-border/60 pb-2.5 md:pb-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <p className="mb-1.5 truncate text-sm font-semibold uppercase text-primary">{restaurantName}</p>
-            <h1 className="text-2xl font-bold leading-tight text-foreground md:text-4xl">
+            <p className="mb-1 truncate text-xs font-semibold uppercase text-primary md:mb-1.5 md:text-sm">{restaurantName}</p>
+            <h1 className="text-xl font-bold leading-tight text-foreground md:text-4xl">
               {greeting}, {userName}!
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground md:mt-2 md:text-base">
+            <p className="mt-0.5 text-xs text-muted-foreground md:mt-2 md:text-base">
               Veja o que precisa da sua atenção hoje.
             </p>
           </div>
@@ -76,7 +76,7 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
         </div>
       </header>
 
-      <section aria-label="Situação operacional" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="Situação operacional" className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4">
         {CARDS.map((card) => {
           const Icon = card.icon;
           return (
@@ -86,22 +86,22 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
               variant="outline"
               onClick={() => onOpen(card.key)}
               className={cn(
-                "group h-auto min-h-40 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-52",
+                "group h-auto min-h-32 w-full min-w-0 items-stretch justify-start overflow-hidden rounded-lg p-0 text-left shadow-sm transition-colors motion-reduce:transition-none md:min-h-52",
                 card.tone,
               )}
             >
-              <span className="flex w-full min-w-0 flex-1 flex-col p-3 md:p-5">
+              <span className="flex w-full min-w-0 flex-1 flex-col p-2.5 md:p-5">
                 <span className="flex items-start justify-between gap-2">
-                  <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", card.iconTone)}>
-                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md md:h-10 md:w-10 md:rounded-lg", card.iconTone)}>
+                    <Icon className="h-4 w-4 md:h-5 md:w-5" aria-hidden="true" />
                   </span>
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground motion-reduce:transition-none" aria-hidden="true" />
                 </span>
-                <span className={cn("mt-3 text-4xl font-black leading-none tabular-nums md:mt-4 md:text-5xl", card.valueTone)}>
+                <span className={cn("mt-2 text-3xl font-black leading-none tabular-nums md:mt-4 md:text-5xl", card.valueTone)}>
                   {counts[card.key]}
                 </span>
-                <span className="mt-2 min-h-9 whitespace-normal text-sm font-bold leading-tight text-foreground md:min-h-10 md:text-base">{card.label}</span>
-                <span className="mt-auto pt-2 whitespace-normal text-xs font-semibold leading-tight text-muted-foreground group-hover:text-foreground md:pt-3 md:text-sm">
+                <span className="mt-1.5 min-h-8 whitespace-normal text-xs font-bold leading-tight text-foreground md:mt-2 md:min-h-10 md:text-base">{card.label}</span>
+                <span className="mt-auto hidden whitespace-normal pt-2 text-xs font-semibold leading-tight text-muted-foreground group-hover:text-foreground md:block md:pt-3 md:text-sm">
                   {card.action} <span aria-hidden="true">→</span>
                 </span>
               </span>

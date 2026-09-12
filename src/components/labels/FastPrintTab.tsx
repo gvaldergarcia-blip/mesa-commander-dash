@@ -354,7 +354,7 @@ export function FastPrintTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4">
       <div className="hidden flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 md:flex">
         <div className="min-w-0">
           <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
@@ -446,7 +446,7 @@ export function FastPrintTab({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         {/* Lista de produtos */}
-        <Card className={cn("order-2 space-y-3 bg-card/40 p-3 md:p-4 lg:order-1", product && "max-md:hidden")}>
+        <Card className={cn("order-2 space-y-2.5 bg-card/40 p-2.5 md:space-y-3 md:p-4 lg:order-1", product && "max-md:hidden")}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -454,7 +454,7 @@ export function FastPrintTab({
               placeholder="Buscar produto (nome, marca, fornecedor)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-12 text-base"
+              className="h-11 pl-9 text-base md:h-12"
             />
           </div>
           <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
@@ -463,7 +463,7 @@ export function FastPrintTab({
               ["ambient", "Ambiente"],
               ["refrigerated", "Refrigerado"],
               ["frozen", "Congelado"],
-              ["hot", "Quente"],
+                ["hot", "Hortifruti"],
             ].map(([value, label]) => (
               <Button
                 key={value}
@@ -471,7 +471,7 @@ export function FastPrintTab({
                 size="sm"
                 variant={conservationFilter === value ? "default" : "outline"}
                 onClick={() => setConservationFilter(value)}
-                className="h-10 shrink-0"
+                className="h-9 shrink-0 px-3"
               >
                 {label}
               </Button>
@@ -507,14 +507,14 @@ export function FastPrintTab({
                     key={p.id}
                     onClick={() => selectProduct(p)}
                     className={cn(
-                      "flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
+                      "flex min-h-14 w-full items-center gap-2.5 px-2.5 py-2 text-left transition-colors md:min-h-16 md:gap-3 md:px-3 md:py-2.5",
                       active
                         ? "bg-primary/10"
                         : "bg-card/40 hover:bg-muted/50"
                     )}
                   >
                     <div className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border",
+                       "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border md:h-10 md:w-10",
                       active ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-muted/40 text-muted-foreground",
                     )}>
                       {active ? <Check className="h-5 w-5" /> : <Package className="h-5 w-5" />}
@@ -539,8 +539,8 @@ export function FastPrintTab({
 
         {/* Painel de impressão */}
         <Card className={cn(
-          "h-fit space-y-4 bg-card/40 p-4 lg:sticky lg:top-4 lg:order-2",
-          product ? "order-1 max-md:-mx-3 max-md:rounded-none max-md:border-x-0 max-md:bg-transparent max-md:pb-28" : "order-3 max-md:hidden lg:order-2"
+          "h-fit space-y-3 bg-card/40 p-3 md:space-y-4 md:p-4 lg:sticky lg:top-4 lg:order-2",
+          product ? "order-1 max-md:-mx-3 max-md:rounded-none max-md:border-x-0 max-md:bg-transparent max-md:pb-36" : "order-3 max-md:hidden lg:order-2"
         )}>
           {!product ? (
             <div className="text-center py-14 text-sm text-muted-foreground">
@@ -581,7 +581,7 @@ export function FastPrintTab({
                   onChange={(e) => setBatch(e.target.value)}
                   placeholder="Lote do fabricante"
                   maxLength={40}
-                  className="h-12 text-base"
+                  className="h-11 text-base md:h-12"
                 />
               </div>
 
@@ -592,7 +592,7 @@ export function FastPrintTab({
                   type="date"
                   value={originalExpiry}
                   onChange={(e) => setOriginalExpiry(e.target.value)}
-                  className="h-12 text-base"
+                  className="h-11 text-base md:h-12"
                 />
               </div>
 
@@ -605,10 +605,10 @@ export function FastPrintTab({
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="decimal"
                     placeholder="0"
-                    className="h-12 text-base flex-1"
+                    className="h-11 flex-1 text-base md:h-12"
                   />
                   <Select value={amountUnit} onValueChange={setAmountUnit}>
-                    <SelectTrigger className="h-12 w-24"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-11 w-24 md:h-12"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {AMOUNT_UNITS.map((u) => (
                         <SelectItem key={u} value={u}>{u}</SelectItem>
@@ -672,8 +672,8 @@ export function FastPrintTab({
                 />
               )}
 
-              <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:border-t max-md:border-border max-md:bg-background max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="h-14 w-full text-base font-bold shadow-lg">
+              <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-md:z-50 max-md:border-t max-md:border-border max-md:bg-background max-md:p-2.5">
+                <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="h-12 w-full text-sm font-bold shadow-lg">
                   {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
                   IMPRIMIR ETIQUETA
                 </Button>

@@ -282,7 +282,7 @@ export function ReceiptEntryTab({
   const busy = saving !== "none";
 
   return (
-    <div className="space-y-4 max-md:pb-28">
+    <div className="space-y-3 max-md:pb-40 md:space-y-4">
       <div className="md:hidden" aria-label={`Etapa ${mobileStep} de 3`}>
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
           <span>Etapa {mobileStep} de 3</span>
@@ -467,7 +467,7 @@ export function ReceiptEntryTab({
       )}
 
       {isMobile && mobileStep < 3 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 flex gap-2 border-t border-border bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 flex gap-2 border-t border-border bg-background p-2.5">
           {mobileStep > 1 && <Button variant="outline" className="h-12 flex-1" onClick={() => setMobileStep(1)}>Voltar</Button>}
           <Button className="h-12 flex-1" onClick={() => setMobileStep(mobileStep === 1 ? 2 : 3)}>
             {mobileStep === 1 ? "Adicionar produtos" : "Conferir entrada"}
@@ -476,7 +476,7 @@ export function ReceiptEntryTab({
       )}
 
        {/* Ações */}
-      <Card className={cn("p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20", mobileStep !== 3 && "max-md:hidden", "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:flex-row max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))]")}>
+      <Card className={cn("p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20", mobileStep !== 3 && "max-md:hidden", "max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-md:z-50 max-md:flex-row max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:p-2.5")}>
         <Button variant="outline" size="lg" className="h-14 flex-1 gap-1 px-2 text-xs font-bold sm:gap-2 sm:text-sm" onClick={onlyCompute} disabled={busy || !validRows.length || unregistered.length > 0}>
           {saving === "compute" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           SÓ COMPUTAR
