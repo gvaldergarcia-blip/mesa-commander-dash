@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ArrowLeft, CalendarDays, Loader2, MapPin, PackageCheck, User } from "lucide-react";
+import { ArrowLeft, CalendarDays, Loader2, MapPin, QrCode, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import type { Label, DischargeReason } from "@/hooks/useLabels";
 import type { OperationalView } from "@/lib/labels/operationalDashboard";
+import { ScanLabelQrDialog } from "./ScanLabelQrDialog";
 
 interface Props {
   view: Exclude<OperationalView, "renewal">;
@@ -22,6 +23,7 @@ const TITLES = {
 
 export function OperationalProductsList({ view, labels, resolveOriginal, onBack, onDischarge }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scanLabel, setScanLabel] = useState<Label | null>(null);
   const copy = TITLES[view];
 
   const discharge = async (label: Label) => {
@@ -84,9 +86,9 @@ export function OperationalProductsList({ view, labels, resolveOriginal, onBack,
                     className="mt-5 w-full gap-2 sm:w-auto"
                     variant="destructive"
                     disabled={busyId === label.id}
-                    onClick={() => discharge(label)}
+                    onClick={() => setScanLabel(label)}
                   >
-                    {busyId === label.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+                    {busyId === label.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
                     Dar baixa
                   </Button>
                 )}
@@ -95,6 +97,15 @@ export function OperationalProductsList({ view, labels, resolveOriginal, onBack,
           })}
         </div>
       )}
+
+      <ScanLabelQrDialog
+        open={!!scanLabel}
+        onOpenChange={(open) => !open && setScanLabel(null)}
+        label={scanLabel}
+        onConfirmed={async () => {
+          if (scanLabel) await discharge(scanLabel);
+        }}
+      />
     </div>
   );
 }
