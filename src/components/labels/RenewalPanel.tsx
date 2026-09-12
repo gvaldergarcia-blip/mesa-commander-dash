@@ -47,7 +47,11 @@ function timeLabel(item: RenewalItem): { text: string; tone: string } {
   return { text: `Vence em ${h}h`, tone: "text-amber-500" };
 }
 
-export function RenewalPanel() {
+interface RenewalPanelProps {
+  actionOnly?: boolean;
+}
+
+export function RenewalPanel({ actionOnly = false }: RenewalPanelProps) {
   const {
     items, isLoading, lookaheadHours, setLookaheadHours, renewOne,
   } = useLabelRenewals();
@@ -66,6 +70,13 @@ export function RenewalPanel() {
       return next;
     });
   }, [items]);
+
+  const visibleItems = useMemo(
+    () => actionOnly
+      ? items.filter((item) => item.renewable && (item.urgency === "expired" || item.urgency === "today"))
+      : items,
+    [actionOnly, items],
+  );
 
   const { data: legal } = useQuery({
     queryKey: ["restaurant-legal", restaurant?.id],
@@ -161,10 +172,10 @@ export function RenewalPanel() {
   };
 
   const counts = useMemo(() => ({
-    expired: items.filter((i) => i.urgency === "expired").length,
-    today: items.filter((i) => i.urgency === "today").length,
-    soon: items.filter((i) => i.urgency === "soon").length,
-  }), [items]);
+    expired: visibleItems.filter((i) => i.urgency === "expired").length,
+    today: visibleItems.filter((i) => i.urgency === "today").length,
+    soon: visibleItems.filter((i) => i.urgency === "soon").length,
+  }), [visibleItems]);
 
   if (isLoading) {
     return <div className="flex justify-center py-14"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -208,7 +219,7 @@ export function RenewalPanel() {
           </div>
         </div>
 
-        {items.length > 0 && (
+        {visibleItems.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4">
             <Badge variant="outline" className="border-destructive/40 text-destructive">{counts.expired} vencidas</Badge>
             <Badge variant="outline" className="border-orange-500/40 text-orange-500">{counts.today} vencem hoje</Badge>
@@ -217,7 +228,7 @@ export function RenewalPanel() {
         )}
       </Card>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-border/50 rounded-2xl">
           <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-3">
             <CheckCircle2 className="h-6 w-6 text-emerald-500" />
@@ -229,7 +240,7 @@ export function RenewalPanel() {
         </div>
       ) : (
         <div className="grid gap-2.5">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const t = timeLabel(item);
             const l = item.label;
             return (

@@ -44,11 +44,6 @@ export function getOperationalGroups(labels: Label[], renewalItems: RenewalItem[
   afterTomorrow.setDate(afterTomorrow.getDate() + 1);
 
   const resolveOriginal = buildOriginalExpiryResolver(labels);
-  const renewalIds = new Set(
-    renewalItems
-      .filter((item) => item.renewable && (item.urgency === "expired" || item.urgency === "today"))
-      .map((item) => item.label.id),
-  );
   const active = labels.filter(
     (label) => label.status !== "discharged" && Number(label.units_remaining ?? 0) > 0,
   );
