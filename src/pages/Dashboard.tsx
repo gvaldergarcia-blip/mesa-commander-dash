@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus, Tag } from "lucide-react";
+import { Users, Calendar, TrendingUp, UserCheck, Megaphone, UserPlus, Tag, AlertTriangle, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "@/components/ui/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { useModules } from "@/contexts/ModulesContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { CreateCustomerDialog } from "@/components/customers/CreateCustomerDialog";
 import { useRestaurantCustomers } from "@/hooks/useRestaurantCustomers";
+import { useLabelRenewals } from "@/hooks/useLabelRenewals";
+import { useStockBalance } from "@/hooks/useStockBalance";
 import {
   Dialog,
   DialogContent,
