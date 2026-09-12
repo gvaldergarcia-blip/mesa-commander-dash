@@ -149,11 +149,12 @@
   }
 
   body {
-    @apply bg-background text-foreground overflow-x-hidden;
+    @apply bg-background text-foreground;
   }
 
-  html {
-    overflow-x: hidden;
+  html,
+  body {
+    overflow-x: clip;
   }
 }
 
@@ -163,8 +164,10 @@
   #root {
     min-height: 100%;
     height: auto;
-    overflow-y: visible;
-    overscroll-behavior-y: auto;
+  }
+
+  body {
+    touch-action: pan-y;
   }
 
   input,

@@ -19,7 +19,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <MobileSidebarTrigger />
           <ThemeToggle />
         </header>
-        <main className="min-w-0 flex-1 overflow-x-hidden md:min-h-0 md:overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-x-clip md:min-h-0 md:overflow-x-hidden md:overflow-y-auto">
           {children}
         </main>
       </div>
