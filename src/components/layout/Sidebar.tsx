@@ -24,11 +24,9 @@ import {
   Activity,
   RefreshCw,
   Truck,
-  ChefHat,
   PackageX,
   Package,
   List,
-  MessageSquare,
   LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,13 +57,11 @@ const LABEL_NAVIGATION = [
   { value: "hoje", name: "Hoje", icon: Activity },
   { value: "renovacao", name: "Renovação", icon: RefreshCw },
   { value: "recebimento", name: "Recebimento", icon: Truck },
-  { value: "producao", name: "Produção Interna", icon: ChefHat },
   { value: "estoque", name: "Estoque", icon: PackageX },
   { value: "cadastro", name: "Produtos", icon: Package },
   { value: "produtos", name: "Etiquetas ativas", icon: List },
   { value: "funcionarios", name: "Funcionários", icon: Users },
   { value: "dashboard", name: "Relatórios", icon: BarChart3 },
-  { value: "sms", name: "SMS", icon: MessageSquare },
 ] as const;
 
 export function Sidebar() {
