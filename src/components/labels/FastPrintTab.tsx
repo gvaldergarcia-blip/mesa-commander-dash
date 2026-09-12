@@ -327,7 +327,7 @@ export function FastPrintTab({
         quantity: count,
       });
       toast.success(`${count} etiqueta(s) de ${product.name} enviadas para impressão`);
-      // Novo ciclo: encerra o ciclo anterior preservando o histórico.
+      // Encerra a emissão anterior preservando o histórico do produto.
       if (newCycle?.labelIds?.length) {
         await (supabase as any)
           .from("label_issuances")

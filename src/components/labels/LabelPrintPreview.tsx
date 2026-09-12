@@ -40,7 +40,7 @@ export function LabelPrintPreview({
         <span className="text-[11px] text-muted-foreground">80 × 40 mm</span>
       </div>
 
-      <div className="aspect-[2/1] w-full overflow-hidden rounded-md border-2 border-foreground/80 bg-card p-3 text-card-foreground shadow-sm">
+      <div className="aspect-[2/1] w-full overflow-hidden rounded-md border-2 border-label-ink/80 bg-label-paper p-3 text-label-ink shadow-sm">
         <div className="flex h-full flex-col overflow-hidden text-[9px] leading-tight sm:text-[10px]">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -50,7 +50,7 @@ export function LabelPrintPreview({
             {quantityWeight && <p className="shrink-0 text-xs font-extrabold sm:text-sm">{quantityWeight}</p>}
           </div>
 
-          <div className="my-1 border-y border-foreground/80 py-1 font-semibold">
+          <div className="my-1 border-y border-label-ink/80 py-1 font-semibold">
             <p><strong>VAL. ORIGINAL:</strong> {showDate(originalExpiryDate)}</p>
             <p><strong>MANIPULAÇÃO:</strong> {showDate(manipulationDate)}</p>
             <p><strong>VALIDADE:</strong> {showDate(expiryDate)}</p>
@@ -71,7 +71,7 @@ export function LabelPrintPreview({
             </div>
           </div>
 
-          {allergens && <p className="mt-1 truncate border border-foreground/80 px-1 text-center font-extrabold uppercase">CONTÉM: {allergens}</p>}
+          {allergens && <p className="mt-1 truncate border border-label-ink/80 px-1 text-center font-extrabold uppercase">CONTÉM: {allergens}</p>}
         </div>
       </div>
     </section>
