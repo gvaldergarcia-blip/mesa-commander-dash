@@ -49,7 +49,6 @@ export default function EtiquetasPage() {
     {
       label: "Diário",
       items: [
-        { value: "hoje", icon: Activity, label: "Hoje" },
         { value: "renovacao", icon: RefreshCw, label: "Renovação", badge: renewalCount },
       ],
     },
