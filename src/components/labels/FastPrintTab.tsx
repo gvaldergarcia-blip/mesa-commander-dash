@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Search, Loader2, Zap, Check, Package, AlertTriangle, Truck, X, Plus } from "lucide-react";
+import { Printer, Search, Loader2, Zap, Check, Package, Truck, X, Plus, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -24,6 +24,7 @@ import { getSiteBaseUrl } from "@/config/site-url";
 import { useLabelRenewals, type EndedCycleProduct } from "@/hooks/useLabelRenewals";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
 import { ProductFormDialog } from "./ProductFormDialog";
+import { LabelPrintPreview } from "./LabelPrintPreview";
 
 /** Unidades disponíveis para a quantidade da etiqueta. */
 const AMOUNT_UNITS = ["un", "g", "kg", "ml", "L"];
@@ -74,7 +75,6 @@ export function FastPrintTab({
   const [submitting, setSubmitting] = useState(false);
   /** Ciclo anterior encerrado que está sendo reetiquetado (novo valor original + novo lote). */
   const [newCycle, setNewCycle] = useState<EndedCycleProduct | null>(null);
-  const [selectedEnded, setSelectedEnded] = useState<string[]>([]);
   const batchRef = useRef<HTMLInputElement>(null);
   /** Itens do recebimento selecionados para impressão (pré-selecionados conforme a NF). */
   const [selectedReceiptItems, setSelectedReceiptItems] = useState<string[]>([]);
@@ -107,11 +107,6 @@ export function FastPrintTab({
       )
       .slice(0, 24);
   }, [activeProducts, search]);
-
-  // Produtos com validade original atingida vêm pré-selecionados.
-  useEffect(() => {
-    setSelectedEnded(endedCycles.map((c) => c.productId || c.productName));
-  }, [endedCycles.length]);
 
   // Recebimento: todos os produtos da NF já vêm marcados para impressão.
   useEffect(() => {
@@ -213,21 +208,6 @@ export function FastPrintTab({
     }
   };
 
-  /** Inicia um NOVO CICLO: novo lote gerado + novo valor original obrigatório. */
-  const startNewCycle = async (c: EndedCycleProduct) => {
-    const p = activeProducts.find((x) => x.id === c.productId) || activeProducts.find((x) => x.name === c.productName);
-    if (!p) {
-      toast.error("Produto não encontrado no cadastro");
-      return;
-    }
-    selectProduct(p);
-    setNewCycle(c);
-    setBatch("");
-    setOriginalExpiry("");
-    toast.info("Novo ciclo: informe o lote e o novo valor original (validade do fabricante).");
-    setTimeout(() => batchRef.current?.focus(), 50);
-  };
-
   const selectProduct = (p: LabelProduct) => {
     setProduct(p);
     setBatch("");
@@ -236,7 +216,9 @@ export function FastPrintTab({
     const parsed = parseDefaultWeight(p.default_weight);
     setAmount(parsed?.amount ?? "1");
     setAmountUnit(parsed?.unit ?? (p.unit || "un"));
-    setNewCycle(null);
+    setNewCycle(
+      endedCycles.find((cycle) => cycle.productId === p.id || (!cycle.productId && cycle.productName === p.name)) || null,
+    );
     setEmployeeId(p.default_employee_id || employeeId || activeEmployees[0]?.id || "");
     setTimeout(() => batchRef.current?.focus(), 50);
   };
@@ -456,48 +438,7 @@ export function FastPrintTab({
         </Card>
       )}
 
-      {endedCycles.length > 0 && (
-        <Card className="p-4 border-destructive/40 bg-destructive/[0.05] space-y-3">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-            <div>
-              <div className="font-bold text-destructive">Produtos com validade original atingida</div>
-              <p className="text-xs text-muted-foreground">
-                Estes produtos encerraram o ciclo original e precisam iniciar um <strong>novo ciclo</strong> de
-                etiquetagem (novo lote + novo valor original). O histórico anterior é preservado.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            {endedCycles.map((c) => {
-              const key = c.productId || c.productName;
-              const checked = selectedEnded.includes(key);
-              return (
-                <div key={key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(v) =>
-                      setSelectedEnded((prev) => (v ? [...prev, key] : prev.filter((k) => k !== key)))
-                    }
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold truncate">{c.productName}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Ciclo anterior · lote {c.previousLot || "—"} · valor original{" "}
-                      {c.previousOriginalExpiry ? format(c.previousOriginalExpiry, "dd/MM/yyyy", { locale: ptBR }) : "—"}
-                    </div>
-                  </div>
-                  <Button size="sm" variant="destructive" disabled={!checked} onClick={() => startNewCycle(c)}>
-                    Novo ciclo
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         {/* Lista de produtos */}
         <Card className="p-3 md:p-4 bg-card/40 space-y-3 order-2 lg:order-1">
           <div className="relative">
@@ -531,7 +472,7 @@ export function FastPrintTab({
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[48vh] lg:max-h-[62vh] overflow-y-auto overscroll-contain pr-1">
+            <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
 
               {filtered.map((p) => {
                 const active = product?.id === p.id;
@@ -540,23 +481,29 @@ export function FastPrintTab({
                     key={p.id}
                     onClick={() => selectProduct(p)}
                     className={cn(
-                      "p-3 rounded-xl border text-left transition-all",
+                      "flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
                       active
-                        ? "border-primary bg-primary/10 shadow-sm"
-                        : "border-border/50 bg-card/40 hover:border-primary/50 hover:bg-primary/5"
+                        ? "bg-primary/10"
+                        : "bg-card/40 hover:bg-muted/50"
                     )}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold truncate flex-1">{p.name}</span>
-                      {active && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    <div className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border",
+                      active ? "border-primary/50 bg-primary/10 text-primary" : "border-border bg-muted/40 text-muted-foreground",
+                    )}>
+                      {active ? <Check className="h-5 w-5" /> : <Package className="h-5 w-5" />}
                     </div>
-                    <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                      {[p.brand, p.supplier_name].filter(Boolean).join(" · ") || "Sem marca"}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-bold">{p.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {[p.brand, p.supplier_name, p.category].filter(Boolean).join(" · ") || "Sem marca"}
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        {CONSERVATION_LABEL[(p.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL]}
+                        {p.storage_location ? ` · ${p.storage_location}` : ""}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {CONSERVATION_LABEL[(p.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL]}
-                      {p.storage_location ? ` · ${p.storage_location}` : ""}
-                    </div>
+                    <ChevronRight className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} />
                   </button>
                 );
               })}
@@ -586,7 +533,7 @@ export function FastPrintTab({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="fp-batch">Lote {newCycle && <span className="text-destructive text-[11px]">(novo ciclo)</span>}</Label>
+                <Label htmlFor="fp-batch">Lote</Label>
                 <Input
                   id="fp-batch"
                   ref={batchRef}
@@ -599,9 +546,7 @@ export function FastPrintTab({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="fp-orig">
-                  Valor original {newCycle && <span className="text-destructive text-[11px]">obrigatório no novo ciclo</span>}
-                </Label>
+                <Label htmlFor="fp-orig">Validade original</Label>
                 <Input
                   id="fp-orig"
                   type="date"
@@ -668,6 +613,23 @@ export function FastPrintTab({
                     <span className="font-bold text-primary">{format(computedExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
                   </div>
                 </div>
+              )}
+
+              {computedExpiry && employee && (
+                <LabelPrintPreview
+                  productName={product.name}
+                  conservationLabel={CONSERVATION_LABEL[(product.conservation_method || "refrigerated") as keyof typeof CONSERVATION_LABEL]}
+                  quantityWeight={amount.trim() ? `${amount.trim()} ${amountUnit}` : product.default_weight}
+                  originalExpiryDate={originalExpiry ? new Date(`${originalExpiry}T23:59:00`) : null}
+                  manipulationDate={now}
+                  expiryDate={computedExpiry}
+                  batch={batch.trim() || null}
+                  storageLocation={product.storage_location}
+                  brand={[product.brand, product.supplier_name].filter(Boolean).join(" / ") || null}
+                  responsible={employee.name}
+                  restaurantName={restaurant?.name}
+                  allergens={product.allergens}
+                />
               )}
 
               <Button onClick={handlePrint} disabled={!canPrint} size="lg" className="w-full h-14 text-base font-bold shadow-lg">
