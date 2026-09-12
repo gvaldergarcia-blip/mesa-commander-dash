@@ -53,21 +53,54 @@ export function getOperationalGroups(labels: Label[], renewalItems: RenewalItem[
     (label) => label.status !== "discharged" && Number(label.units_remaining ?? 0) > 0,
   );
 
+  const groups = new Map<string, Label[]>();
+  for (const label of active) {
+    const key = label.label_product_id || `name:${label.product_name.toLowerCase().trim()}`;
+    const group = groups.get(key) ?? [];
+    group.push(label);
+    groups.set(key, group);
+  }
+
   const expired: Label[] = [];
   const tomorrow: Label[] = [];
   const ok: Label[] = [];
+  const renewal: RenewalItem[] = [];
 
-  for (const label of active) {
-    const original = resolveOriginal(label);
-    if (original && original.getTime() <= now.getTime()) {
-      expired.push(label);
+  for (const productLabels of groups.values()) {
+    const ordered = [...productLabels].sort((a, b) => {
+      const aTime = resolveOriginal(a)?.getTime() ?? Number.POSITIVE_INFINITY;
+      const bTime = resolveOriginal(b)?.getTime() ?? Number.POSITIVE_INFINITY;
+      return aTime - bTime;
+    });
+    const expiredLabel = ordered.find((label) => {
+      const original = resolveOriginal(label);
+      return original && original.getTime() <= now.getTime();
+    });
+    if (expiredLabel) {
+      expired.push(expiredLabel);
       continue;
     }
-    if (original && original >= tomorrowStart && original < afterTomorrow) {
-      tomorrow.push(label);
+    const tomorrowLabel = ordered.find((label) => {
+      const original = resolveOriginal(label);
+      return original && original >= tomorrowStart && original < afterTomorrow;
+    });
+    if (tomorrowLabel) {
+      tomorrow.push(tomorrowLabel);
       continue;
     }
-    if (!renewalIds.has(label.id)) ok.push(label);
+    const renewalItem = renewalItems.find(
+      (item) => productLabels.some((label) => label.id === item.label.id)
+        && item.renewable
+        && (item.urgency === "expired" || item.urgency === "today"),
+    );
+    if (renewalItem) {
+      renewal.push(renewalItem);
+      continue;
+    }
+    const newest = [...productLabels].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )[0];
+    if (newest) ok.push(newest);
   }
 
   const byOriginalExpiry = (a: Label, b: Label) => {
@@ -83,9 +116,7 @@ export function getOperationalGroups(labels: Label[], renewalItems: RenewalItem[
   return {
     expired,
     tomorrow,
-    renewal: renewalItems.filter(
-      (item) => item.renewable && (item.urgency === "expired" || item.urgency === "today"),
-    ),
+    renewal,
     ok,
     resolveOriginal,
   };
