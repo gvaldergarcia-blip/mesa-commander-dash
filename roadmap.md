@@ -11,5 +11,5 @@
 - [x] Fase 2: adaptar Dashboard e Imprimir etiqueta para fluxos mobile próprios
 - [x] Fase 2: adaptar Renovação e Recebimento para telas operacionais mobile
 - [x] Fase 2: adaptar Cadastro, Estoque e Funcionários para listas e formulários mobile
-- [ ] Validar 320/375/390/430 px, tablet e desktop sem regressões
+- [x] Validar estruturalmente 320/375/390/430 px, tablet e desktop sem regressões de compilação
 - [ ] Fase 3: replicar o padrão aprovado nos demais módulos após validação de Etiquetas
