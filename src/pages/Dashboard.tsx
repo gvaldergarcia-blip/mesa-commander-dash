@@ -148,7 +148,7 @@ function DashboardContent() {
             />
           </>
         )}
-        {hasModule("reserva") && (
+        {hasModule("reservas") && (
           <MetricCard
             title="Reservas Hoje"
             value={metrics.reservationsToday.toString()}
@@ -242,7 +242,7 @@ function DashboardContent() {
               </Dialog>
             )}
 
-            {hasModule("reserva") && (
+            {hasModule("reservas") && (
               <Dialog open={isReservationDialogOpen} onOpenChange={setIsReservationDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full justify-start" variant="outline">

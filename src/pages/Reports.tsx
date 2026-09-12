@@ -550,9 +550,9 @@ function ReportsContent() {
       {/* ============================================ */}
       {/* SEÇÕES SEPARADAS: FILA vs RESERVA */}
       {/* ============================================ */}
-      <Tabs defaultValue={hasModule('fila') ? (hasModule('reserva') ? 'all' : 'queue') : 'reservations'} className="space-y-6">
+      <Tabs defaultValue={hasModule('fila') ? (hasModule('reservas') ? 'all' : 'queue') : 'reservations'} className="space-y-6">
         <TabsList className="bg-transparent p-0 h-auto gap-1 border-b border-border w-full justify-start rounded-none">
-          {hasModule('fila') && hasModule('reserva') && (
+          {hasModule('fila') && hasModule('reservas') && (
             <TabsTrigger
               value="all"
               className="gap-2 px-4 py-3 rounded-none bg-transparent text-muted-foreground font-medium border-b-[3px] border-transparent transition-all duration-200 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:font-bold data-[state=active]:border-primary data-[state=active]:shadow-none hover:text-foreground"
@@ -570,7 +570,7 @@ function ReportsContent() {
               Fila
             </TabsTrigger>
           )}
-          {hasModule('reserva') && (
+          {hasModule('reservas') && (
             <TabsTrigger
               value="reservations"
               className="gap-2 px-4 py-3 rounded-none bg-transparent text-muted-foreground font-medium border-b-[3px] border-transparent transition-all duration-200 data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:font-bold data-[state=active]:border-primary data-[state=active]:shadow-none hover:text-foreground"
