@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Tag, LayoutDashboard, Package, Users, List, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
@@ -94,23 +94,29 @@ export default function EtiquetasPage() {
   const [productsStatusFilter, setProductsStatusFilter] = useState<"all" | "ok" | "critical" | "expired" | "warning">("all");
 
   const operational = useMemo(() => getOperationalGroups(labels, renewalItems), [labels, renewalItems]);
+  const operationalCounts = useMemo<Record<OperationalView, number>>(() => ({
+    expired: operational.expired.length,
+    tomorrow: operational.tomorrow.length,
+    renewal: operational.renewal.length,
+    ok: operational.ok.length,
+  }), [operational.expired.length, operational.tomorrow.length, operational.renewal.length, operational.ok.length]);
   const userName = user?.user_metadata?.full_name
     || user?.user_metadata?.name
     || user?.email?.split("@")[0]
     || "equipe";
 
-  const openOperationalView = (view: OperationalView) => {
+  const openOperationalView = useCallback((view: OperationalView) => {
     if (view === "renewal") {
       setTabState("renovacao");
       setSearchParams({ tab: "renovacao", view: "pending" }, { replace: true });
       return;
     }
     setSearchParams({ tab: "dashboard", view }, { replace: true });
-  };
+  }, [setSearchParams]);
 
-  const closeOperationalView = () => {
+  const closeOperationalView = useCallback(() => {
     setSearchParams({ tab: "dashboard" }, { replace: true });
-  };
+  }, [setSearchParams]);
 
   return (
     <div className="p-3 md:p-8 space-y-4 md:space-y-6 max-w-[1500px] mx-auto">
@@ -205,12 +211,7 @@ export default function EtiquetasPage() {
             <LabelDashboard
               restaurantName={restaurant?.name || "Restaurante"}
               userName={userName}
-              counts={{
-                expired: operational.expired.length,
-                tomorrow: operational.tomorrow.length,
-                renewal: operational.renewal.length,
-                ok: operational.ok.length,
-              }}
+              counts={operationalCounts}
               onOpen={openOperationalView}
             />
           )}
