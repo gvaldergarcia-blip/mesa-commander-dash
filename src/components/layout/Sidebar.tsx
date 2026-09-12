@@ -53,6 +53,7 @@ const ICON_MAP: Record<ModuleIcon, LucideIcon> = {
 };
 
 const LABEL_NAVIGATION = [
+  { value: "dashboard", name: "Dashboard", icon: LayoutDashboard },
   { value: "imprimir", name: "Imprimir etiqueta", icon: Zap },
   { value: "hoje", name: "Hoje", icon: Activity },
   { value: "renovacao", name: "Renovação", icon: RefreshCw },
@@ -61,7 +62,6 @@ const LABEL_NAVIGATION = [
   { value: "cadastro", name: "Produtos", icon: Package },
   { value: "produtos", name: "Etiquetas ativas", icon: List },
   { value: "funcionarios", name: "Funcionários", icon: Users },
-  { value: "dashboard", name: "Relatórios", icon: BarChart3 },
 ] as const;
 
 export function Sidebar() {
@@ -76,7 +76,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const labelsRouteActive = location.pathname === "/etiquetas";
   const [labelsOpen, setLabelsOpen] = useState(labelsRouteActive);
-  const activeLabelTab = new URLSearchParams(location.search).get("tab") || "imprimir";
+  const activeLabelTab = new URLSearchParams(location.search).get("tab") || "dashboard";
 
   // Close mobile drawer whenever the route changes
   useEffect(() => {
@@ -164,10 +164,10 @@ export function Sidebar() {
                   variant="ghost"
                   onClick={() => {
                     if (!showLabels) {
-                      navigate("/etiquetas?tab=imprimir");
+                      navigate("/etiquetas?tab=dashboard");
                       return;
                     }
-                    if (!labelsRouteActive) navigate("/etiquetas?tab=imprimir");
+                    if (!labelsRouteActive) navigate("/etiquetas?tab=dashboard");
                     setLabelsOpen((open) => !open);
                   }}
                   aria-expanded={showLabels && labelsOpen}

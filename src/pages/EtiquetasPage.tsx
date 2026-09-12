@@ -3,40 +3,37 @@ import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Tag, LayoutDashboard, Package, Users, List, MessageSquare, PackageX, Activity, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
-import { useLabelProducts } from "@/hooks/useLabelProducts";
 import { useLabels } from "@/hooks/useLabels";
-import { useLabelEmployees } from "@/hooks/useLabelEmployees";
 import { EmployeesManager } from "@/components/labels/EmployeesManager";
 import { SmsLogsTab } from "@/components/labels/SmsLogsTab";
 import { StockCheckTab } from "@/components/labels/StockCheckTab";
-import { StockReportsTab } from "@/components/labels/StockReportsTab";
-import { SmartReprintCard } from "@/components/labels/SmartReprintCard";
 import { FastPrintTab } from "@/components/labels/FastPrintTab";
 import { ProductRegistryTab } from "@/components/labels/ProductRegistryTab";
-import { useStockStatus } from "@/hooks/useStockStatus";
 import { LabelDashboard } from "@/components/labels/LabelDashboard";
+import { OperationalProductsList } from "@/components/labels/OperationalProductsList";
 import { TodayTab } from "@/components/labels/TodayTab";
 import { RenewalPanel } from "@/components/labels/RenewalPanel";
 import { useLabelRenewals } from "@/hooks/useLabelRenewals";
-import { LabelFilters, LabelFiltersState, emptyFilters } from "@/components/labels/LabelFilters";
-import { LabelsList } from "@/components/labels/LabelsList";
 import { LabeledProductsTab } from "@/components/labels/LabeledProductsTab";
 import { ProducaoInternaTab } from "@/components/labels/ProducaoInternaTab";
 import { ReceiptEntryTab } from "@/components/labels/receiving/ReceiptEntryTab";
 import type { ReceiptPrintContext } from "@/lib/labels/receiptContext";
-import { computeStats, classifyExpiry, toCsv, downloadCsv } from "@/lib/labels/utils";
-import { toast } from "sonner";
+import { getOperationalGroups, type OperationalView } from "@/lib/labels/operationalDashboard";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 
 export default function EtiquetasPage() {
-  const { products, isLoading: prodLoading, createProduct, updateProduct, deleteProduct, isMutating } = useLabelProducts();
-  const { labels, isLoading: labelsLoading } = useLabels();
-  const { employees } = useLabelEmployees();
-  const { missingProducts } = useStockStatus();
-  const { count: renewalCount } = useLabelRenewals();
+  const { labels, dischargeBulk } = useLabels();
+  const { items: renewalItems, count: renewalCount } = useLabelRenewals();
+  const { restaurant, user } = useRestaurant();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const [tab, setTabState] = useState(requestedTab || "imprimir");
+  const rawRequestedView = searchParams.get("view");
+  const requestedView: OperationalView | null =
+    rawRequestedView === "expired" || rawRequestedView === "tomorrow" || rawRequestedView === "renewal" || rawRequestedView === "ok"
+      ? rawRequestedView
+      : null;
+  const [tab, setTabState] = useState(requestedTab || "dashboard");
 
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
@@ -75,7 +72,7 @@ export default function EtiquetasPage() {
         { value: "cadastro", icon: Package, label: "Produtos" },
         { value: "produtos", icon: List, label: "Etiquetas ativas" },
         { value: "funcionarios", icon: Users, label: "Funcionários" },
-        { value: "dashboard", icon: LayoutDashboard, label: "Relatórios" },
+        { value: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
         { value: "sms", icon: MessageSquare, label: "SMS" },
       ],
     },
@@ -91,64 +88,33 @@ export default function EtiquetasPage() {
       setTabState(requestedTab);
     }
   }, [requestedTab]);
-  const [filters, setFilters] = useState<LabelFiltersState>(emptyFilters);
-  const [statFilter, setStatFilter] = useState<string | null>(null);
-
   const [printInitialProduct, setPrintInitialProduct] = useState<string | null>(null);
   const [receiptContext, setReceiptContext] = useState<ReceiptPrintContext | null>(null);
   const [stockInitialSector, setStockInitialSector] = useState<string | null>(null);
   const [productsStatusFilter, setProductsStatusFilter] = useState<"all" | "ok" | "critical" | "expired" | "warning">("all");
 
-  const stats = useMemo(() => computeStats(labels), [labels]);
+  const operational = useMemo(() => getOperationalGroups(labels, renewalItems), [labels, renewalItems]);
+  const userName = user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || user?.email?.split("@")[0]
+    || "equipe";
 
-  // Toast alert: vencem hoje
-  useEffect(() => {
-    if (!labelsLoading && stats.today > 0) {
-      const key = `etq-alert-${new Date().toDateString()}`;
-      if (!sessionStorage.getItem(key)) {
-        toast.warning(`⚠️ ${stats.today} produto(s) vencem hoje`, {
-          action: { label: "Ver", onClick: () => setStatFilter("today") },
-        });
-        sessionStorage.setItem(key, "1");
-      }
+  const openOperationalView = (view: OperationalView) => {
+    if (view === "renewal") {
+      setTabState("renovacao");
+      setSearchParams({ tab: "renovacao", view: "pending" }, { replace: true });
+      return;
     }
-  }, [labelsLoading, stats.today]);
+    setSearchParams({ tab: "dashboard", view }, { replace: true });
+  };
 
-  const filtered = useMemo(() => {
-    return labels.filter((l) => {
-      // stat card filter
-      if (statFilter === "expired" && classifyExpiry(l.expiry_date) !== "expired") return false;
-      if (statFilter === "today" && classifyExpiry(l.expiry_date) !== "today") return false;
-      if (statFilter === "tomorrow" && classifyExpiry(l.expiry_date) !== "tomorrow") return false;
-      if (statFilter === "expired" || statFilter === "today" || statFilter === "tomorrow") {
-        if (l.status === "discharged") return false;
-      }
-      if (filters.expiredOnly && classifyExpiry(l.expiry_date) !== "expired") return false;
-      // text
-      if (filters.search && !l.product_name.toLowerCase().includes(filters.search.toLowerCase())) return false;
-      if (filters.employeeId !== "all" && l.employee_id !== filters.employeeId) return false;
-      if (filters.conservation !== "all" && l.conservation_method !== filters.conservation) return false;
-      if (filters.status !== "all") {
-        if (filters.status === "today") {
-          if (classifyExpiry(l.expiry_date) !== "today" || l.status === "discharged") return false;
-        } else if (l.status !== filters.status) return false;
-      }
-      if (filters.startDate && new Date(l.created_at) < new Date(filters.startDate)) return false;
-      if (filters.endDate) {
-        const end = new Date(filters.endDate); end.setHours(23, 59, 59, 999);
-        if (new Date(l.created_at) > end) return false;
-      }
-      return true;
-    });
-  }, [labels, statFilter, filters]);
-
-  const handleExport = () => {
-    downloadCsv(`etiquetas-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(filtered));
+  const closeOperationalView = () => {
+    setSearchParams({ tab: "dashboard" }, { replace: true });
   };
 
   return (
     <div className="p-3 md:p-8 space-y-4 md:space-y-6 max-w-[1500px] mx-auto">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-4 border-b border-border/50 pb-4 md:pb-5">
+      {tab !== "dashboard" && <header className="flex flex-col md:flex-row md:items-end justify-between gap-3 md:gap-4 border-b border-border/50 pb-4 md:pb-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 md:gap-3 mb-1">
             <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg border border-primary/20 shrink-0">
@@ -160,7 +126,7 @@ export default function EtiquetasPage() {
             Gestão de validade, rastreabilidade e baixas para sua cozinha.
           </p>
         </div>
-      </header>
+      </header>}
 
       <Tabs value={tab} onValueChange={setTab} className="mt-2">
           <div className="min-w-0 space-y-5">
@@ -186,7 +152,7 @@ export default function EtiquetasPage() {
 
         {/* ===== RENOVAÇÃO DE ETIQUETAS ===== */}
         <TabsContent value="renovacao" className="mt-0">
-          <RenewalPanel />
+          <RenewalPanel actionOnly={searchParams.get("view") === "pending"} />
         </TabsContent>
 
         {/* ===== IMPRESSÃO RÁPIDA ===== */}
@@ -225,14 +191,29 @@ export default function EtiquetasPage() {
           <ProducaoInternaTab />
         </TabsContent>
 
-        {/* ===== RELATÓRIOS (Centro de Inteligência Operacional) ===== */}
-        <TabsContent value="dashboard" className="space-y-5">
-          <StockReportsTab
-            onOpenSector={(sector) => {
-              setStockInitialSector(sector ?? null);
-              setTab("estoque");
-            }}
-          />
+        {/* ===== CENTRAL OPERACIONAL ===== */}
+        <TabsContent value="dashboard" className="mt-0">
+          {requestedView && requestedView !== "renewal" ? (
+            <OperationalProductsList
+              view={requestedView}
+              labels={operational[requestedView]}
+              resolveOriginal={operational.resolveOriginal}
+              onBack={closeOperationalView}
+              onDischarge={dischargeBulk}
+            />
+          ) : (
+            <LabelDashboard
+              restaurantName={restaurant?.name || "Restaurante"}
+              userName={userName}
+              counts={{
+                expired: operational.expired.length,
+                tomorrow: operational.tomorrow.length,
+                renewal: operational.renewal.length,
+                ok: operational.ok.length,
+              }}
+              onOpen={openOperationalView}
+            />
+          )}
         </TabsContent>
 
         {/* ===== ESTOQUE (marcação rápida) ===== */}

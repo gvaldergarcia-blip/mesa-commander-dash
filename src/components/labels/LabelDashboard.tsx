@@ -1,196 +1,112 @@
-import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Tag, Package, Users, ShieldCheck, Activity, Snowflake, Flame, Thermometer, Refrigerator, CheckCircle2 } from "lucide-react";
-import { Label } from "@/hooks/useLabels";
-import { LabelStats, CONSERVATION_LABEL } from "@/lib/labels/utils";
-import { LabelStatsCards } from "./LabelStatsCards";
-import { formatDistanceToNow } from "date-fns";
+import { AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { OperationalView } from "@/lib/labels/operationalDashboard";
 
 interface Props {
-  labels: Label[];
-  stats: LabelStats;
-  productCount: number;
-  activeFilter: string | null;
-  onSelectStat: (f: string | null) => void;
-  onQuickAction: (action: "new-label" | "new-product" | "new-employee" | "validity") => void;
+  restaurantName: string;
+  userName: string;
+  counts: Record<OperationalView, number>;
+  onOpen: (view: OperationalView) => void;
 }
 
-const CONSERVATION_COLORS: Record<string, string> = {
-  refrigerated: "hsl(199 89% 58%)", // sky
-  frozen: "hsl(217 91% 65%)",       // blue
-  ambient: "hsl(38 92% 60%)",       // amber
-  hot: "hsl(15 90% 58%)",           // orange
-};
+const CARDS = [
+  {
+    key: "expired",
+    label: "Itens vencidos",
+    action: "Ver agora",
+    icon: AlertTriangle,
+    tone: "border-destructive/35 bg-destructive/[0.07] hover:border-destructive/65",
+    iconTone: "bg-destructive/15 text-destructive",
+    valueTone: "text-destructive",
+  },
+  {
+    key: "tomorrow",
+    label: "Vencem amanhã",
+    action: "Ver produtos",
+    icon: CalendarClock,
+    tone: "border-warning/35 bg-warning/[0.07] hover:border-warning/65",
+    iconTone: "bg-warning/15 text-warning",
+    valueTone: "text-warning",
+  },
+  {
+    key: "renewal",
+    label: "Precisam de renovação",
+    action: "Ver para renovar",
+    icon: RefreshCw,
+    tone: "border-primary/35 bg-primary/[0.07] hover:border-primary/65",
+    iconTone: "bg-primary/15 text-primary",
+    valueTone: "text-primary",
+  },
+  {
+    key: "ok",
+    label: "Tudo certo",
+    action: "Produtos OK",
+    icon: CheckCircle2,
+    tone: "border-success/35 bg-success/[0.07] hover:border-success/65",
+    iconTone: "bg-success/15 text-success",
+    valueTone: "text-success",
+  },
+] as const;
 
-const CONSERVATION_ICONS: Record<string, any> = {
-  refrigerated: Refrigerator,
-  frozen: Snowflake,
-  ambient: Thermometer,
-  hot: Flame,
-};
-
-export function LabelDashboard({ labels, stats, productCount, activeFilter, onSelectStat, onQuickAction }: Props) {
-  const conservationData = useMemo(() => {
-    const counts: Record<string, number> = { refrigerated: 0, frozen: 0, ambient: 0, hot: 0 };
-    labels.forEach((l) => {
-      const k = l.conservation_method || "refrigerated";
-      counts[k] = (counts[k] || 0) + 1;
-    });
-    return Object.entries(counts).map(([key, value]) => ({
-      key,
-      name: CONSERVATION_LABEL[key] || key,
-      value,
-    }));
-  }, [labels]);
-
-  const totalConservation = conservationData.reduce((s, d) => s + d.value, 0);
-
-  const quickActions = [
-    { key: "new-employee", label: "Novo Funcionário", desc: "Cadastrar funcionário", icon: Users, color: "from-violet-500/20 to-violet-500/5", iconBox: "bg-violet-500/20 text-violet-400" },
-    { key: "validity", label: "Verificar Validades", desc: "Controle de vencimentos", icon: ShieldCheck, color: "from-amber-500/20 to-amber-500/5", iconBox: "bg-amber-500/20 text-amber-400" },
-  ] as const;
+export function LabelDashboard({ restaurantName, userName, counts, onOpen }: Props) {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
-    <div className="space-y-6">
-      {/* Stat cards */}
-      <LabelStatsCards
-        stats={stats}
-        productCount={productCount}
-        activeFilter={activeFilter}
-        onSelect={onSelectStat}
-      />
+    <div className="mx-auto w-full max-w-6xl space-y-8 py-2 md:py-6">
+      <header className="border-b border-border/60 pb-6 md:pb-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="mb-2 text-xs font-semibold uppercase text-primary">{restaurantName}</p>
+            <h1 className="text-3xl font-bold text-foreground md:text-5xl">
+              {greeting}, {userName}!
+            </h1>
+            <p className="mt-3 text-sm text-muted-foreground md:text-base">
+              Veja o que precisa da sua atenção hoje.
+            </p>
+          </div>
+          <time className="shrink-0 text-sm font-medium text-muted-foreground" dateTime={format(new Date(), "yyyy-MM-dd")}>
+            {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+          </time>
+        </div>
+      </header>
 
-      {/* Quick Actions */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <Activity className="h-4 w-4 text-primary" />
-          <h2 className="text-sm uppercase tracking-widest font-bold text-muted-foreground">Ações Rápidas</h2>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {quickActions.map((a) => {
-            const Icon = a.icon;
-            return (
-              <button
-                key={a.key}
-                onClick={() => onQuickAction(a.key as any)}
-                className={cn(
-                  "group rounded-2xl border border-border/50 bg-gradient-to-br p-5 text-left",
-                  "hover:border-primary/40 hover:-translate-y-0.5 transition-all",
-                  a.color
-                )}
-              >
-                <div className={cn("inline-flex p-3 rounded-xl mb-3", a.iconBox)}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="font-bold text-base group-hover:text-primary transition-colors">{a.label}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{a.desc}</div>
-              </button>
-            );
-          })}
-        </div>
+      <section aria-label="Situação operacional" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {CARDS.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Button
+              key={card.key}
+              type="button"
+              variant="outline"
+              onClick={() => onOpen(card.key)}
+              className={cn(
+                "group h-auto min-h-52 w-full items-stretch justify-start rounded-lg p-0 text-left shadow-sm transition-colors",
+                card.tone,
+              )}
+            >
+              <span className="flex w-full flex-col p-6 md:p-8">
+                <span className="flex items-start justify-between gap-4">
+                  <span className={cn("flex h-11 w-11 items-center justify-center rounded-lg", card.iconTone)}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <ArrowUpRight className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </span>
+                <span className={cn("mt-7 text-5xl font-bold leading-none tabular-nums md:text-6xl", card.valueTone)}>
+                  {counts[card.key]}
+                </span>
+                <span className="mt-3 text-lg font-semibold text-foreground">{card.label}</span>
+                <span className="mt-2 text-sm font-medium text-muted-foreground group-hover:text-foreground">
+                  {card.action} <span aria-hidden="true">→</span>
+                </span>
+              </span>
+            </Button>
+          );
+        })}
       </section>
-
-      {/* Conservation + System Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card/40 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Thermometer className="h-4 w-4 text-primary" />
-              <h3 className="text-sm uppercase tracking-widest font-bold text-muted-foreground">Métodos de Conservação</h3>
-            </div>
-            <span className="text-xs text-muted-foreground tabular-nums">{totalConservation} etiquetas</span>
-          </div>
-
-          {totalConservation === 0 ? (
-            <div className="text-center py-10 text-sm text-muted-foreground">Sem dados de conservação ainda.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-              <div className="relative h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={conservationData}
-                      cx="50%" cy="50%"
-                      innerRadius={60} outerRadius={90}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="hsl(var(--background))"
-                      strokeWidth={3}
-                    >
-                      {conservationData.map((d) => (
-                        <Cell key={d.key} fill={CONSERVATION_COLORS[d.key]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <div className="text-3xl font-extrabold tabular-nums">{totalConservation}</div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Total</div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {conservationData.map((d) => {
-                  const Icon = CONSERVATION_ICONS[d.key];
-                  const pct = totalConservation > 0 ? Math.round((d.value / totalConservation) * 100) : 0;
-                  return (
-                    <div key={d.key} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30">
-                      <div className="p-2 rounded-lg" style={{ background: `${CONSERVATION_COLORS[d.key]}25`, color: CONSERVATION_COLORS[d.key] }}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate">{d.name}</div>
-                        <div className="text-[11px] text-muted-foreground">{pct}% do total</div>
-                      </div>
-                      <div className="text-lg font-bold tabular-nums">{d.value}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-4 w-4 text-primary" />
-            <h3 className="text-sm uppercase tracking-widest font-bold text-muted-foreground">Status do Sistema</h3>
-          </div>
-          <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                <span className="text-sm font-bold text-emerald-300">Sistema Online</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Todos os serviços funcionando normalmente.</p>
-            </div>
-            <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Activity className="h-4 w-4 text-sky-400" />
-                <span className="text-sm font-bold text-sky-300">Última Sincronização</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {labels.length > 0
-                  ? formatDistanceToNow(new Date(labels[0].created_at), { addSuffix: true, locale: ptBR })
-                  : "agora mesmo"}
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-violet-500/10 border border-violet-500/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Tag className="h-4 w-4 text-violet-400" />
-                <span className="text-sm font-bold text-violet-300">Etiquetas Ativas</span>
-              </div>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {labels.filter((l) => l.status === "active").length} etiquetas em uso
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
