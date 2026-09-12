@@ -100,17 +100,17 @@ export function ProductRegistryTab({ onPrintProduct }: { onPrintProduct?: (id: s
                   </div>
                   <div className="flex gap-2 shrink-0">
                     {onPrintProduct && (
-                      <Button size="icon" variant="outline" className="h-9 w-9" title="Imprimir etiqueta" onClick={() => onPrintProduct(p.id)}>
+                      <Button size="icon" variant="outline" className="hidden h-9 w-9 md:inline-flex" title="Imprimir etiqueta" onClick={() => onPrintProduct(p.id)}>
                         <Printer className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button size="icon" variant="outline" className="h-9 w-9" title="Editar" onClick={() => { setEditing(p); setOpen(true); }}>
+                    <Button size="icon" variant="outline" className="h-11 w-11 md:h-9 md:w-9" title="Editar" onClick={() => { setEditing(p); setOpen(true); }}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-9 w-9"
+                      className="h-11 w-11 md:h-9 md:w-9"
                       title="Remover"
                       onClick={() => {
                         if (confirm(`Remover "${p.name}" do cadastro?`)) deleteProduct(p.id);
