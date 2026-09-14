@@ -256,13 +256,52 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
 
           <p className="text-center text-sm text-muted-foreground">{label?.product_name}</p>
 
-          {(phase === "invalid" || phase === "error") && (
-            <div className="flex w-full gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Cancelar
+          {manualMode && phase !== "success" && (
+            <div className="w-full space-y-2">
+              <Input
+                autoFocus
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                placeholder={`Código da etiqueta (ex.: ${label?.unique_code ?? "000000"})`}
+                className="h-11 text-base"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void confirmManual();
+                }}
+              />
+              {(phase === "invalid" || phase === "error") && errorMsg && (
+                <p className="text-xs text-destructive">{errorMsg}</p>
+              )}
+              <Button className="w-full" onClick={confirmManual} disabled={!manualCode.trim()}>
+                Confirmar baixa
               </Button>
-              <Button className="flex-1" onClick={retry}>
-                Tentar novamente
+            </div>
+          )}
+
+          {phase !== "success" && (
+            <div className="flex w-full flex-col gap-2">
+              {(phase === "invalid" || phase === "error") && !manualMode && (
+                <Button className="w-full" onClick={retry}>
+                  Tentar novamente
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  if (manualMode) {
+                    setManualMode(false);
+                    void retry();
+                  } else {
+                    void stopScanner();
+                    setErrorMsg("");
+                    setManualMode(true);
+                  }
+                }}
+              >
+                {manualMode ? "Usar a câmera" : "Digitar código da etiqueta"}
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                Cancelar
               </Button>
             </div>
           )}
