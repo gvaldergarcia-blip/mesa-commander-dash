@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import type { Label } from "@/hooks/useLabels";
@@ -21,6 +23,8 @@ const normalize = (value: string) => value.trim().toLowerCase();
 export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Props) {
   const [phase, setPhase] = useState<Phase>("starting");
   const [errorMsg, setErrorMsg] = useState("");
+  const [manualCode, setManualCode] = useState("");
+  const [manualMode, setManualMode] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const stoppedRef = useRef(false);
   const handledRef = useRef(false);
@@ -115,11 +119,16 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
     handledRef.current = false;
     setPhase("starting");
     setErrorMsg("");
+    setManualCode("");
+    setManualMode(false);
 
     const boot = async () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, 60));
         if (cancelled) return;
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Este navegador não permite usar a câmera aqui.");
+        }
         try {
           await startScanner(true);
         } catch {
@@ -140,6 +149,28 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
       void stopScanner();
     };
   }, [open, label?.id]);
+
+  const confirmManual = async () => {
+    if (!label) return;
+    const typed = manualCode.trim();
+    if (!typed) return;
+    if (!matches(typed, label)) {
+      setErrorMsg("O código digitado não corresponde a esta etiqueta.");
+      setPhase("invalid");
+      return;
+    }
+    try {
+      handledRef.current = true;
+      setPhase("success");
+      await stopScanner();
+      await onConfirmed();
+      window.setTimeout(() => onOpenChange(false), 700);
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "Não foi possível dar baixa.");
+      setPhase("error");
+      handledRef.current = false;
+    }
+  };
 
   const retry = async () => {
     await stopScanner();
@@ -184,7 +215,12 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-2">
-          <div className="relative aspect-square w-full max-w-[300px] overflow-hidden rounded-lg border-2 border-primary/40 bg-black">
+          <div
+            className={cn(
+              "relative aspect-square w-full max-w-[300px] overflow-hidden rounded-lg border-2 border-primary/40 bg-black",
+              manualMode && "hidden"
+            )}
+          >
             <div id={REGION_ID} className="h-full w-full" />
 
             {phase === "starting" && (
@@ -222,13 +258,52 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
 
           <p className="text-center text-sm text-muted-foreground">{label?.product_name}</p>
 
-          {(phase === "invalid" || phase === "error") && (
-            <div className="flex w-full gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Cancelar
+          {manualMode && phase !== "success" && (
+            <div className="w-full space-y-2">
+              <Input
+                autoFocus
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                placeholder={`Código da etiqueta (ex.: ${label?.unique_code ?? "000000"})`}
+                className="h-11 text-base"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void confirmManual();
+                }}
+              />
+              {(phase === "invalid" || phase === "error") && errorMsg && (
+                <p className="text-xs text-destructive">{errorMsg}</p>
+              )}
+              <Button className="w-full" onClick={confirmManual} disabled={!manualCode.trim()}>
+                Confirmar baixa
               </Button>
-              <Button className="flex-1" onClick={retry}>
-                Tentar novamente
+            </div>
+          )}
+
+          {phase !== "success" && (
+            <div className="flex w-full flex-col gap-2">
+              {(phase === "invalid" || phase === "error") && !manualMode && (
+                <Button className="w-full" onClick={retry}>
+                  Tentar novamente
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  if (manualMode) {
+                    setManualMode(false);
+                    void retry();
+                  } else {
+                    void stopScanner();
+                    setErrorMsg("");
+                    setManualMode(true);
+                  }
+                }}
+              >
+                {manualMode ? "Usar a câmera" : "Digitar código da etiqueta"}
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)}>
+                Cancelar
               </Button>
             </div>
           )}
