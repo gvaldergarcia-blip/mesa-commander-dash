@@ -141,6 +141,28 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
     };
   }, [open, label?.id]);
 
+  const confirmManual = async () => {
+    if (!label) return;
+    const typed = manualCode.trim();
+    if (!typed) return;
+    if (!matches(typed, label)) {
+      setErrorMsg("O código digitado não corresponde a esta etiqueta.");
+      setPhase("invalid");
+      return;
+    }
+    try {
+      handledRef.current = true;
+      setPhase("success");
+      await stopScanner();
+      await onConfirmed();
+      window.setTimeout(() => onOpenChange(false), 700);
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "Não foi possível dar baixa.");
+      setPhase("error");
+      handledRef.current = false;
+    }
+  };
+
   const retry = async () => {
     await stopScanner();
     stoppedRef.current = false;
