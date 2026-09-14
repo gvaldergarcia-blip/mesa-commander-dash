@@ -117,11 +117,16 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
     handledRef.current = false;
     setPhase("starting");
     setErrorMsg("");
+    setManualCode("");
+    setManualMode(false);
 
     const boot = async () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, 60));
         if (cancelled) return;
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Este navegador não permite usar a câmera aqui.");
+        }
         try {
           await startScanner(true);
         } catch {
