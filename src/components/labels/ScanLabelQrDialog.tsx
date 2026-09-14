@@ -213,7 +213,12 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4 py-2">
-          <div className="relative aspect-square w-full max-w-[300px] overflow-hidden rounded-lg border-2 border-primary/40 bg-black">
+          <div
+            className={cn(
+              "relative aspect-square w-full max-w-[300px] overflow-hidden rounded-lg border-2 border-primary/40 bg-black",
+              manualMode && "hidden"
+            )}
+          >
             <div id={REGION_ID} className="h-full w-full" />
 
             {phase === "starting" && (
