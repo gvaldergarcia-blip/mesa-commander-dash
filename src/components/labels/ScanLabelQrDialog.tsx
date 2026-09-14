@@ -21,6 +21,8 @@ const normalize = (value: string) => value.trim().toLowerCase();
 export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Props) {
   const [phase, setPhase] = useState<Phase>("starting");
   const [errorMsg, setErrorMsg] = useState("");
+  const [manualCode, setManualCode] = useState("");
+  const [manualMode, setManualMode] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const stoppedRef = useRef(false);
   const handledRef = useRef(false);
