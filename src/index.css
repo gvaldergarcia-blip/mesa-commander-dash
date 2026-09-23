@@ -152,22 +152,25 @@
     @apply bg-background text-foreground;
   }
 
-  html,
-  body {
+  /* Evita rolagem lateral sem transformar o body em container de rolagem
+     (isso quebrava o gesto de subir no iOS/Android). */
+  html {
     overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
   }
 }
 
 @media (max-width: 767px) {
   html,
-  body,
-  #root {
-    min-height: 100%;
+  body {
     height: auto;
+    min-height: 100%;
+    overscroll-behavior-y: auto;
   }
 
-  body {
-    touch-action: pan-y;
+  #root {
+    height: auto;
+    min-height: 100%;
   }
 
   input,
@@ -176,6 +179,7 @@
     font-size: 16px;
   }
 }
+
 
 /* Brilho sutil no laranja primário (botões, sidebar ativa, badges) */
 @layer components {
