@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLabelsLiveSync } from "@/hooks/useLabelsLiveSync";
+import { ScanLabelQrDialog } from "@/components/labels/ScanLabelQrDialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Tag, LayoutDashboard, Package, Users, MessageSquare, PackageX, ChefHat, RefreshCw, Zap, Truck } from "lucide-react";
 
@@ -28,6 +30,9 @@ export default function EtiquetasPage() {
   const { items: renewalItems, count: renewalCount } = useLabelRenewals();
   const { restaurant, user } = useRestaurant();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const [usageScanOpen, setUsageScanOpen] = useState(false);
+  useLabelsLiveSync();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
@@ -197,6 +202,7 @@ export default function EtiquetasPage() {
                 userName={userName}
                 counts={operationalCounts}
                 onOpen={openOperationalView}
+                onUsageScan={() => setUsageScanOpen(true)}
               />
               <div className="hidden md:block">
                 <TodayTab
@@ -275,6 +281,16 @@ export default function EtiquetasPage() {
           </div>
       </Tabs>
 
+      <ScanLabelQrDialog
+        open={usageScanOpen}
+        onOpenChange={setUsageScanOpen}
+        label={null}
+        onConfirmed={() => {}}
+        onAnyCode={(code) => {
+          setUsageScanOpen(false);
+          navigate(`/etiquetas/scan/${encodeURIComponent(code)}?op=use`);
+        }}
+      />
       {/* Dialogs removidos — cadastro de produtos agora é automático via Recebimento. */}
     </div>
   );

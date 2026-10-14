@@ -164,7 +164,7 @@ export function useReceipts() {
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
-      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] }); qc.invalidateQueries({ queryKey: ["label_stock_balance", restaurantId] });
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
@@ -238,7 +238,7 @@ export function useReceipts() {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
-      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] }); qc.invalidateQueries({ queryKey: ["label_stock_balance", restaurantId] });
       qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
       const resolved = Number(r?.restock_resolved || 0);
       if (resolved > 0) {
@@ -389,7 +389,7 @@ export function useReceipts() {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
-      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] }); qc.invalidateQueries({ queryKey: ["label_stock_balance", restaurantId] });
       qc.invalidateQueries({ queryKey: ["product_stock_status", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_products", restaurantId] });
       toast.success("Pendências resolvidas e etiquetas prontas.");
@@ -408,7 +408,7 @@ export function useReceipts() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
-      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["label_movements", restaurantId] }); qc.invalidateQueries({ queryKey: ["label_stock_balance", restaurantId] });
       qc.invalidateQueries({ queryKey: ["label_products", restaurantId] });
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
       qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });

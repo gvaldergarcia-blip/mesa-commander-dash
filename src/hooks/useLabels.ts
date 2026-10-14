@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { invalidateLabelData } from "@/hooks/useLabelsLiveSync";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
@@ -103,29 +103,6 @@ export function useLabels() {
     refetchOnWindowFocus: true,
   });
 
-  // Realtime: refetch when any label_issuance changes (e.g., discharge via QR on mobile)
-  useEffect(() => {
-    if (!restaurantId) return;
-    const channel = supabase
-      .channel(`label_issuances:${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "label_issuances",
-          filter: `restaurant_id=eq.${restaurantId}`,
-        },
-        () => {
-          qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [restaurantId, qc]);
-
   const createLabel = useMutation({
     mutationFn: async (input: LabelCreateInput) => {
       if (!restaurantId) throw new Error("Restaurante não identificado");
@@ -157,7 +134,7 @@ export function useLabels() {
       if (error) throw error;
       return data as Label;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["labels", restaurantId] }),
+    onSuccess: () => invalidateLabelData(qc, restaurantId),
     onError: (e: any) => toast.error(e.message || "Erro ao registrar etiqueta"),
   });
 
@@ -198,7 +175,7 @@ export function useLabels() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
+      invalidateLabelData(qc, restaurantId);
       toast.success("Etiquetas baixadas");
     },
     onError: (e: any) => toast.error(e.message || "Erro ao baixar etiquetas"),
