@@ -12,13 +12,27 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   label: Label | null;
   onConfirmed: () => void | Promise<void>;
+  /** Modo livre: sem etiqueta alvo, devolve o código lido (ex.: Baixa por uso). */
+  onAnyCode?: (code: string) => void;
+}
+
+export function extractLabelCode(raw: string) {
+  const v = raw.trim();
+  try {
+    const url = new URL(v);
+    for (const key of ["code", "unique_code"]) { const q = url.searchParams.get(key); if (q) return q; }
+    const seg = url.pathname.split("/").filter(Boolean);
+    if (seg.length) return decodeURIComponent(seg[seg.length - 1]);
+  } catch { /* not url */ }
+  try { const j = JSON.parse(v); if (typeof j?.code === "string") return j.code; if (typeof j?.unique_code === "string") return j.unique_code; } catch { /* not json */ }
+  return v;
 }
 
 type Phase = "starting" | "scanning" | "success" | "invalid" | "error";
 
 const normalize = (value: string) => value.trim().toLowerCase();
 
-export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Props) {
+export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAnyCode }: Props) {
   const [phase, setPhase] = useState<Phase>("starting");
   const [errorMsg, setErrorMsg] = useState("");
   const [manualCode, setManualCode] = useState("");
@@ -79,7 +93,15 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
   };
 
   const handleDecoded = async (decodedText: string) => {
-    if (!label || handledRef.current) return;
+    if (handledRef.current) return;
+    if (!label) {
+      if (!onAnyCode) return;
+      handledRef.current = true;
+      setPhase("success");
+      await stopScanner();
+      onAnyCode(extractLabelCode(decodedText));
+      return;
+    }
     handledRef.current = true;
 
     if (!matches(decodedText, label)) {
@@ -171,7 +193,7 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
   };
 
   useEffect(() => {
-    if (!open || !label) return;
+    if (!open || (!label && !onAnyCode)) return;
 
     let cancelled = false;
     handledRef.current = false;
@@ -202,9 +224,14 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
   }, [open, label?.id]);
 
   const confirmManual = async () => {
-    if (!label) return;
     const typed = manualCode.trim();
     if (!typed) return;
+    if (!label) {
+      if (!onAnyCode) return;
+      await stopScanner();
+      onAnyCode(extractLabelCode(typed));
+      return;
+    }
     if (!matches(typed, label)) {
       setErrorMsg("O código digitado não corresponde a esta etiqueta.");
       setPhase("invalid");
