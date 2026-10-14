@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
@@ -64,6 +64,15 @@ export function useLabelRenewals() {
   const { labels, isLoading } = useLabels();
   const { products } = useLabelProducts();
   const [renewing, setRenewing] = useState(false);
+  // Relógio interno: sem ele, os dados em cache não mudam de referência e um item
+  // cuja validade original vence com a tela aberta continuaria na Renovação.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    const onVis = () => { if (document.visibilityState === "visible") setNowTick(Date.now()); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
 
   const [lookaheadHours, setLookaheadHoursState] = useState<number>(() => {
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(LOOKAHEAD_KEY) : null;
@@ -104,19 +113,22 @@ export function useLabelRenewals() {
 
     return (l: Label): Date | null => {
       const key = cycleKey(l);
-      const raw =
-        (l as any).original_expiry_date ??
-        originalByCycle.get(key) ??
-        rootByCycle.get(key)?.expiry ??
-        null;
-      if (!raw) return null;
-      const d = new Date(raw);
-      return Number.isNaN(d.getTime()) ? null : d;
+      // Usa a validade original mais restritiva entre as fontes conhecidas do ciclo.
+      const candidates = [(l as any).original_expiry_date, originalByCycle.get(key)]
+        .filter(Boolean)
+        .map((r) => new Date(r as string))
+        .filter((d) => !Number.isNaN(d.getTime()));
+      if (candidates.length === 0) {
+        const root = rootByCycle.get(key)?.expiry;
+        const d = root ? new Date(root) : null;
+        return d && !Number.isNaN(d.getTime()) ? d : null;
+      }
+      return new Date(Math.min(...candidates.map((d) => d.getTime())));
     };
   }, [labels]);
 
   const items = useMemo<RenewalItem[]>(() => {
-    const now = Date.now();
+    const now = Math.max(nowTick, Date.now());
     const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
     const horizon = Math.max(
       endOfToday.getTime(),
@@ -193,13 +205,13 @@ export function useLabelRenewals() {
       });
     }
     return out.sort((a, b) => a.msLeft - b.msLeft);
-  }, [labels, productById, lookaheadHours, resolveOriginal]);
+  }, [labels, productById, lookaheadHours, resolveOriginal, nowTick]);
 
   const renewableItems = useMemo(() => items.filter((i) => i.renewable), [items]);
 
   /** Produtos cujo VALOR ORIGINAL já foi atingido — precisam de novo ciclo (novo lote + novo valor original). */
   const endedCycles = useMemo<EndedCycleProduct[]>(() => {
-    const now = Date.now();
+    const now = Math.max(nowTick, Date.now());
     const map = new Map<string, EndedCycleProduct>();
     for (const l of labels) {
       if (l.status === "discharged") continue;
@@ -222,7 +234,7 @@ export function useLabelRenewals() {
       });
     }
     return Array.from(map.values());
-  }, [labels, resolveOriginal]);
+  }, [labels, resolveOriginal, nowTick]);
 
 
   /** Registra uma nova Manipulação (novo lote MAN-) preservando o histórico. */
