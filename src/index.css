@@ -152,10 +152,7 @@
     @apply bg-background text-foreground;
   }
 
-  /* Evita rolagem lateral sem transformar o body em container de rolagem
-     (isso quebrava o gesto de subir no iOS/Android). */
   html {
-    overflow-x: clip;
     -webkit-text-size-adjust: 100%;
   }
 }
@@ -165,7 +162,9 @@
   body {
     height: auto;
     min-height: 100%;
-    overscroll-behavior-y: auto;
+    /* Impede que o gesto "vaze" para a página/app que envolve o MesaClik
+       ao chegar no fim da rolagem — era isso que travava a subida. */
+    overscroll-behavior-y: none;
   }
 
   #root {
