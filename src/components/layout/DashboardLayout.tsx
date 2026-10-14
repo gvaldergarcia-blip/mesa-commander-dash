@@ -11,7 +11,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const labelsMobileHeader = location.pathname === "/etiquetas";
 
   return (
-    <div className="flex min-h-[100dvh] bg-background md:h-[100dvh] md:min-h-0 md:overflow-hidden">
+    <div className="flex min-h-[100dvh] max-w-full overflow-x-clip bg-background md:h-[100dvh] md:min-h-0 md:overflow-hidden">
       <Sidebar />
       <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col md:min-h-0 md:overflow-hidden">
         {/* Header com toggle de tema */}
