@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
+import { QrCode, AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ interface Props {
   userName: string;
   counts: Record<OperationalView, number>;
   onOpen: (view: OperationalView) => void;
+  onUsageScan?: () => void;
 }
 
 const CARDS = [
@@ -52,7 +53,7 @@ const CARDS = [
   },
 ] as const;
 
-export const LabelDashboard = memo(function LabelDashboard({ restaurantName, userName, counts, onOpen }: Props) {
+export const LabelDashboard = memo(function LabelDashboard({ restaurantName, userName, counts, onOpen, onUsageScan }: Props) {
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
@@ -109,6 +110,13 @@ export const LabelDashboard = memo(function LabelDashboard({ restaurantName, use
           );
         })}
       </section>
+
+      {onUsageScan && (
+        <Button type="button" size="lg" onClick={onUsageScan} className="h-12 w-full gap-2 text-base font-bold md:h-14">
+          <QrCode className="h-5 w-5" aria-hidden="true" />
+          Baixa por uso — escanear etiqueta
+        </Button>
+      )}
     </div>
   );
 });
