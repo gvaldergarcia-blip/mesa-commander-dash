@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Html5Qrcode } from "html5-qrcode";
+import jsQR from "jsqr";
 import type { Label } from "@/hooks/useLabels";
 
 interface Props {
@@ -16,8 +16,6 @@ interface Props {
 
 type Phase = "starting" | "scanning" | "success" | "invalid" | "error";
 
-const REGION_ID = "label-discharge-qr-reader";
-
 const normalize = (value: string) => value.trim().toLowerCase();
 
 export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Props) {
@@ -25,7 +23,10 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
   const [errorMsg, setErrorMsg] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [manualMode, setManualMode] = useState(false);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
   const stoppedRef = useRef(false);
   const handledRef = useRef(false);
 
@@ -60,16 +61,20 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
   };
 
   const stopScanner = async () => {
-    if (stoppedRef.current) return;
     stoppedRef.current = true;
-    const scanner = scannerRef.current;
-    scannerRef.current = null;
-    if (!scanner) return;
-    try {
-      if (scanner.isScanning) await scanner.stop();
-      await scanner.clear();
-    } catch {
-      // ignore teardown noise
+    if (rafRef.current) {
+      window.clearTimeout(rafRef.current);
+      rafRef.current = null;
+    }
+    const stream = streamRef.current;
+    streamRef.current = null;
+    stream?.getTracks().forEach((t) => {
+      try { t.stop(); } catch { /* ignore */ }
+    });
+    const video = videoRef.current;
+    if (video) {
+      try { video.pause(); } catch { /* ignore */ }
+      video.srcObject = null;
     }
   };
 
@@ -95,27 +100,80 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
     }
   };
 
-  const startScanner = async (exactEnvironment = true) => {
-    const scanner = new Html5Qrcode(REGION_ID, false);
-    scannerRef.current = scanner;
+  /** Lê quadros do vídeo e procura o QR (jsQR), ~8 vezes por segundo. */
+  const scanLoop = () => {
+    if (stoppedRef.current || handledRef.current) return;
+    const video = videoRef.current;
+    if (video && video.readyState >= 2 && video.videoWidth > 0) {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      // Recorte central quadrado (onde fica a mira), reduzido para leitura rápida.
+      const side = Math.min(vw, vh);
+      const sx = (vw - side) / 2;
+      const sy = (vh - side) / 2;
+      const size = Math.min(720, side);
+      const canvas = canvasRef.current ?? (canvasRef.current = document.createElement("canvas"));
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true } as any) as CanvasRenderingContext2D | null;
+      if (ctx) {
+        ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
+        const img = ctx.getImageData(0, 0, size, size);
+        const code = jsQR(img.data, size, size, { inversionAttempts: "attemptBoth" });
+        if (code?.data) {
+          void handleDecoded(code.data);
+          return;
+        }
+      }
+    }
+    rafRef.current = window.setTimeout(scanLoop, 120);
+  };
 
-    await scanner.start(
-      (exactEnvironment
-        ? { facingMode: { exact: "environment" } }
-        : { facingMode: "environment" }) as MediaTrackConstraints,
-      { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 1, disableFlip: false },
-      handleDecoded,
-      () => {},
-    );
+  const cameraErrorMessage = (err: any): string => {
+    const name = err?.name || "";
+    if (name === "NotAllowedError" || name === "SecurityError") {
+      return "Permissão da câmera negada. Libere a câmera para este site nas configurações do navegador (no iPhone: Ajustes › navegador › Câmera) e toque em Tentar novamente.";
+    }
+    if (name === "NotFoundError" || name === "OverconstrainedError") return "Nenhuma câmera encontrada neste aparelho.";
+    if (name === "NotReadableError" || name === "AbortError") return "A câmera está sendo usada por outro app. Feche-o e tente novamente.";
+    if (!window.isSecureContext) return "A câmera só funciona em endereço seguro (https).";
+    return typeof err === "string" ? err : err?.message || "Não foi possível acessar a câmera.";
+  };
 
+  const startScanner = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Este navegador não permite usar a câmera aqui. Abra o link no Safari ou Chrome.");
+    }
+    stoppedRef.current = false;
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+    } catch (err: any) {
+      if (err?.name === "NotAllowedError" || err?.name === "SecurityError") throw err;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+    }
+    if (stoppedRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    streamRef.current = stream;
+    const video = videoRef.current;
+    if (!video) throw new Error("Visualização da câmera indisponível.");
+    video.setAttribute("playsinline", "true");
+    video.muted = true;
+    video.srcObject = stream;
+    await video.play().catch(() => { /* iOS às vezes rejeita, mas segue tocando */ });
     setPhase("scanning");
+    scanLoop();
   };
 
   useEffect(() => {
     if (!open || !label) return;
 
     let cancelled = false;
-    stoppedRef.current = false;
     handledRef.current = false;
     setPhase("starting");
     setErrorMsg("");
@@ -124,20 +182,13 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
 
     const boot = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 60));
+        // Aguarda o diálogo montar o <video>.
+        await new Promise((resolve) => setTimeout(resolve, 120));
         if (cancelled) return;
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("Este navegador não permite usar a câmera aqui.");
-        }
-        try {
-          await startScanner(true);
-        } catch {
-          await stopScanner();
-          stoppedRef.current = false;
-          await startScanner(false);
-        }
+        await startScanner();
       } catch (err: any) {
-        setErrorMsg(err?.message ?? "Não foi possível acessar a câmera.");
+        if (cancelled) return;
+        setErrorMsg(cameraErrorMessage(err));
         setPhase("error");
       }
     };
@@ -179,10 +230,9 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
     setPhase("starting");
     setErrorMsg("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, 80));
-      await startScanner(false);
+      await startScanner();
     } catch (err: any) {
-      setErrorMsg(err?.message ?? "Falha ao reiniciar a câmera.");
+      setErrorMsg(cameraErrorMessage(err));
       setPhase("error");
     }
   };
@@ -221,7 +271,7 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
               manualMode && "hidden"
             )}
           >
-            <div id={REGION_ID} className="h-full w-full" />
+            <video ref={videoRef} playsInline muted autoPlay className="h-full w-full object-cover" />
 
             {phase === "starting" && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 text-sm">
@@ -251,7 +301,7 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed }: Pr
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/95 px-4 text-center">
                 <XCircle className="h-12 w-12 text-destructive" />
                 <p className="text-sm font-medium">Não foi possível acessar a câmera</p>
-                <p className="break-words text-[11px] text-muted-foreground">{errorMsg}</p>
+                <p className="break-words text-xs text-muted-foreground">{errorMsg}</p>
               </div>
             )}
           </div>
