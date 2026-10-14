@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Printer, Search, Loader2, Zap, Check, Package, Truck, X, Plus, ChevronRight } from "lucide-react";
+import { ArrowLeft, Printer, Search, Loader2, Zap, Check, Package, Truck, X, Plus, ChevronRight, ChevronDown, Hash, CalendarDays, UserRound, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -548,56 +548,65 @@ export function FastPrintTab({
             </div>
           ) : (
             <>
-              <div className="flex items-start gap-2">
-                {isMobile && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Voltar para produtos"
-                    onClick={() => setProduct(null)}
-                    className="h-11 w-11 shrink-0"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
-                )}
+              {/* Produto selecionado */}
+              <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card/60 p-2.5 md:p-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+                  <Package className="h-5 w-5" />
+                </div>
                 <div className="min-w-0 flex-1">
-                <div className="text-[10px] uppercase text-muted-foreground font-bold">Produto</div>
-                <div className="text-lg font-bold leading-tight">{product.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {[product.brand, product.supplier_name, product.sif ? `${(product as any).inspection_type === "SISP" ? "SISP" : (product as any).inspection_type === "IMPORTADO" ? "REG." : "SIF"} ${product.sif}` : null]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Produto selecionado</div>
+                  <div className="line-clamp-2 text-base font-bold leading-tight text-foreground md:text-lg">{product.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {[product.brand, product.supplier_name, product.sif ? `${(product as any).inspection_type === "SISP" ? "SISP" : (product as any).inspection_type === "IMPORTADO" ? "REG." : "SIF"} ${product.sif}` : null]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </div>
                 </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Alterar produto"
+                  onClick={() => setProduct(null)}
+                  className="h-11 shrink-0 gap-1 px-2 text-xs font-semibold text-primary hover:text-primary"
+                >
+                  {isMobile ? <ArrowLeft className="h-4 w-4" /> : null}
+                  Alterar
+                </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="fp-batch" className="text-xs font-semibold text-muted-foreground">Lote</Label>
+                <div className="relative">
+                  <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="fp-batch"
+                    ref={batchRef}
+                    value={batch}
+                    onChange={(e) => setBatch(e.target.value)}
+                    placeholder="Lote do fabricante"
+                    maxLength={40}
+                    className="h-11 pl-9 text-base focus-visible:ring-primary md:h-12"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="fp-batch">Lote</Label>
-                <Input
-                  id="fp-batch"
-                  ref={batchRef}
-                  value={batch}
-                  onChange={(e) => setBatch(e.target.value)}
-                  placeholder="Lote do fabricante"
-                  maxLength={40}
-                  className="h-11 text-base md:h-12"
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="fp-orig" className="text-xs font-semibold text-muted-foreground">Validade original</Label>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="fp-orig"
+                    type="date"
+                    value={originalExpiry}
+                    onChange={(e) => setOriginalExpiry(e.target.value)}
+                    className="h-11 pl-9 text-base focus-visible:ring-primary md:h-12"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="fp-orig">Validade original</Label>
-                <Input
-                  id="fp-orig"
-                  type="date"
-                  value={originalExpiry}
-                  onChange={(e) => setOriginalExpiry(e.target.value)}
-                  className="h-11 text-base md:h-12"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="fp-amount">Quantidade (peso ou unidades)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="fp-amount" className="text-xs font-semibold text-muted-foreground">Quantidade</Label>
                 <div className="flex gap-2">
                   <Input
                     id="fp-amount"
@@ -605,54 +614,77 @@ export function FastPrintTab({
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="decimal"
                     placeholder="0"
-                    className="h-11 flex-1 text-base md:h-12"
+                    className="h-11 w-24 shrink-0 text-base font-semibold focus-visible:ring-primary md:h-12"
                   />
-                  <Select value={amountUnit} onValueChange={setAmountUnit}>
-                    <SelectTrigger className="h-11 w-24 md:h-12"><SelectValue /></SelectTrigger>
+                  <div role="radiogroup" aria-label="Unidade" className="grid min-w-0 flex-1 grid-cols-5 gap-1 rounded-lg border border-border/60 bg-muted/30 p-1">
+                    {AMOUNT_UNITS.map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        role="radio"
+                        aria-checked={amountUnit === u}
+                        onClick={() => setAmountUnit(u)}
+                        className={cn(
+                          "rounded-md text-sm font-semibold transition-colors",
+                          amountUnit === u
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Preenchido pelo cadastro do produto — ajuste se necessário.</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Responsável</Label>
+                  <Select value={employeeId} onValueChange={setEmployeeId}>
+                    <SelectTrigger className="h-11 bg-background/60 text-base font-medium md:h-12">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <SelectValue placeholder="Selecione" />
+                      </div>
+                    </SelectTrigger>
                     <SelectContent>
-                      {AMOUNT_UNITS.map((u) => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                      {activeEmployees.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Preenchido pelo cadastro do produto — ajuste se necessário.
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <Label>Responsável</Label>
-                <Select value={employeeId} onValueChange={setEmployeeId}>
-                  <SelectTrigger className="h-11"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {activeEmployees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40">
-                <span className="text-sm font-semibold">Etiquetas</span>
-                <div className="flex items-center gap-3">
-                  <Button type="button" size="icon" variant="outline" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</Button>
-                  <span className="text-lg font-bold w-8 text-center">{qty}</span>
-                  <Button type="button" size="icon" variant="outline" onClick={() => setQty((q) => Math.min(50, q + 1))}>+</Button>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Etiquetas</Label>
+                  <div className="flex h-11 items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-1 md:h-12">
+                    <Button type="button" size="icon" variant="ghost" aria-label="Diminuir" className="h-9 w-9" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</Button>
+                    <span className="w-8 text-center text-lg font-bold">{qty}</span>
+                    <Button type="button" size="icon" variant="ghost" aria-label="Aumentar" className="h-9 w-9" onClick={() => setQty((q) => Math.min(50, q + 1))}>+</Button>
+                  </div>
                 </div>
               </div>
 
               {computedExpiry && (
-                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Manipulação</span>
-                    <span className="font-semibold">{format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                <details className="group rounded-xl border border-border/60 bg-muted/20">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">Informações adicionais</span>
+                    <span className="text-xs font-bold text-primary">{format(computedExpiry, "dd/MM HH:mm", { locale: ptBR })}</span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="space-y-1 border-t border-border/60 px-3 py-2.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Manipulação</span>
+                      <span className="font-semibold">{format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Validade da etiqueta</span>
+                      <span className="font-bold text-primary">{format(computedExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Validade da etiqueta</span>
-                    <span className="font-bold text-primary">{format(computedExpiry, "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                  </div>
-                </div>
+                </details>
               )}
 
               {computedExpiry && employee && (
