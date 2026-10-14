@@ -325,7 +325,7 @@ export function useLabelRenewals() {
         results.push(await renewOne(it));
       }
       qc.invalidateQueries({ queryKey: ["labels", restaurantId] });
-      qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] });
+      qc.invalidateQueries({ queryKey: ["operational-diary", restaurantId] }); qc.invalidateQueries({ queryKey: ["label_stock_balance", restaurantId] });
       return results;
     } finally {
       setRenewing(false);
