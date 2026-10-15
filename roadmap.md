@@ -1,7 +1,7 @@
 # Roadmap
 
-- [ ] Conferir exclusão de validade original vencida em todas as superfícies de renovação com testes.
-- [ ] Alinhar prévia ao modelo realmente impresso, sem QR Code, preservando a impressão final.
+- [x] Conferir exclusão de validade original vencida: cinco testes passaram; resolução unificada entre Renovação e Dashboard, incluindo validade mais antiga do ciclo. Conta real não verificada por autenticação externa.
+- [x] Alinhar prévia ao modelo realmente impresso, sem QR Code, preservando a impressão final; conferida com dados fictícios em 320/390/579/1280 px.
 
 - [x] Remover prazo pós-abertura automático do cadastro no recebimento; 8 testes passaram e formulário mobile conferido com produtos fictícios: nenhum envio sem prazo, valores informados preservados. Gravação em conta real indisponível por autenticação externa.
 
