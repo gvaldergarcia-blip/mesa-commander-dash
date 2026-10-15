@@ -60,7 +60,8 @@ export function BulkRegisterDrawer({
       key: i.key, name: i.name, unit: i.unit || "un", category: "", conservation: "refrigerated",
       sector: "", manipValue: "3", manipUnit: "days", linkTo: null, error: null, selected: false,
     })));
-  }, [open, items]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const suggestions = useMemo(() => {
     const m: Record<string, LabelProduct | null> = {};
