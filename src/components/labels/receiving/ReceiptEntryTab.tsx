@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Truck, FileUp, Loader2, Plus, Trash2, Thermometer, Printer, Save, PackageCheck,
+  Truck, FileUp, Loader2, Plus, Trash2, Thermometer, Printer, Save, PackageCheck, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -98,6 +98,18 @@ export function ReceiptEntryTab({
   const [saving, setSaving] = useState<"none" | "compute" | "print">("none");
   const [source, setSource] = useState<"manual" | "xml">("manual");
   const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const selectedRowIndex = Math.max(0, rows.findIndex((row) => row.key === selectedRowKey));
+  const selectedRow = rows[selectedRowIndex];
+  const productStripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isMobile || !selectedRow) return;
+    const strip = productStripRef.current;
+    const item = strip?.querySelector<HTMLElement>(`[data-row-key="${selectedRow.key}"]`);
+    if (!strip || !item) return;
+    strip.scrollTo({ left: item.offsetLeft - strip.offsetLeft - (strip.clientWidth - item.clientWidth) / 2, behavior: "instant" });
+  }, [isMobile, selectedRow?.key, mobileStep]);
 
   const activeProducts = useMemo(
     () => products.filter((p) => (p.status ?? "active") === "active" && (p.origin ?? "received") !== "produced"),
@@ -471,8 +483,8 @@ export function ReceiptEntryTab({
       </div>
 
       {/* NF */}
-      <Card className={cn("p-4 space-y-4 bg-card/40", mobileStep !== 1 && "max-md:hidden")}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <Card className={cn("p-4 space-y-4 bg-card/40 max-md:p-3 max-md:space-y-3", mobileStep !== 1 && "max-md:hidden")}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 [&>div]:min-w-0">
           <div className="space-y-1">
             <Label htmlFor="rc-ref">Nota fiscal / referência</Label>
             <Input id="rc-ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="NF 000.123.456" className="h-11" />
@@ -481,7 +493,7 @@ export function ReceiptEntryTab({
             <Label htmlFor="rc-sup">Fornecedor</Label>
             <Input id="rc-sup" value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Nome do fornecedor" className="h-11" />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 max-md:col-span-2">
             <Label htmlFor="rc-temp" className="flex items-center gap-1.5">
               <Thermometer className="h-3.5 w-3.5" /> Temperatura (°C) — opcional
             </Label>
@@ -536,7 +548,7 @@ export function ReceiptEntryTab({
 
         {/* Resumo quantitativo da NF — o que efetivamente entrou no estoque. */}
         {validRows.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pb-1">
+          <div className="hidden md:flex flex-wrap gap-1.5 pb-1">
             {validRows.map((r) => (
               <span
                 key={`sum-${r.key}`}
@@ -549,14 +561,41 @@ export function ReceiptEntryTab({
             ))}
           </div>
         )}
+        <div ref={productStripRef} className="scrollbar-none relative flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain py-1 md:hidden" aria-label="Produtos da nota">
+          {rows.map((r, index) => (
+            <Button
+              key={r.key}
+              data-row-key={r.key}
+              variant="outline"
+              aria-pressed={selectedRow?.key === r.key}
+              onClick={() => setSelectedRowKey(r.key)}
+              className={cn("h-12 max-w-[220px] shrink-0 justify-start gap-2 px-3", selectedRow?.key === r.key && "border-primary bg-primary/10 text-primary")}
+            >
+              <span className="text-xs text-muted-foreground">{index + 1}</span>
+              <span className="min-w-0 text-left">
+                <span className="block truncate text-sm">{r.name.trim() || "Novo produto"}</span>
+                <span className="block text-xs text-muted-foreground">{formatQty(Number(r.quantity.replace(",", ".")) || 0, r.unit)}</span>
+              </span>
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-2 md:hidden">
+          <span className="text-xs font-medium text-muted-foreground">Produto {selectedRowIndex + 1} de {rows.length}</span>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Produto anterior" disabled={selectedRowIndex === 0} onClick={() => setSelectedRowKey(rows[selectedRowIndex - 1]?.key ?? null)}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Próximo produto" disabled={selectedRowIndex >= rows.length - 1} onClick={() => setSelectedRowKey(rows[selectedRowIndex + 1]?.key ?? null)}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-10 w-10" aria-label="Adicionar produto" disabled={busy} onClick={() => { const row = newRow(); setRows((prev) => [...prev, row]); setSelectedRowKey(row.key); }}><Plus className="h-4 w-4" /></Button>
+          </div>
+        </div>
         <div className="space-y-2">
-          {rows.map((r) => {
+          {(isMobile ? rows.filter((r) => r.key === selectedRow?.key) : rows).map((r) => {
             const matched = r.productId ? activeProducts.find((p) => p.id === r.productId) : null;
             return (
-              <div key={r.key} className="grid grid-cols-1 md:grid-cols-[1fr_90px_80px_110px_80px_130px_150px_40px] gap-2 items-end rounded-xl border border-border/60 p-3">
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Produto</Label>
+              <div key={r.key} className="grid grid-cols-2 md:grid-cols-[1fr_90px_80px_110px_80px_130px_150px_40px] gap-2 items-end rounded-xl border border-border/60 p-3 max-md:rounded-none max-md:border-0 max-md:p-0 [&>div]:min-w-0 [&_label]:max-md:text-xs [&_input]:max-md:h-11 [&_input]:min-w-0 [&_input]:max-w-full">
+                <div className="space-y-1 max-md:col-span-2">
+                  <Label htmlFor={`rc-name-${r.key}`} className="text-[11px]">Produto</Label>
                   <Input
+                    id={`rc-name-${r.key}`}
                     value={r.name}
                     onChange={(e) => {
                       const name = e.target.value;
@@ -575,16 +614,17 @@ export function ReceiptEntryTab({
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Qtd</Label>
-                  <Input value={r.quantity} onChange={(e) => patch(r.key, { quantity: e.target.value })} inputMode="decimal" className="h-10" />
+                  <Label htmlFor={`rc-qty-${r.key}`} className="text-[11px]">Qtd</Label>
+                  <Input id={`rc-qty-${r.key}`} value={r.quantity} onChange={(e) => patch(r.key, { quantity: e.target.value })} inputMode="decimal" className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Un.</Label>
-                  <Input value={r.unit} onChange={(e) => patch(r.key, { unit: e.target.value })} className="h-10" />
+                  <Label htmlFor={`rc-unit-${r.key}`} className="text-[11px]">Un.</Label>
+                  <Input id={`rc-unit-${r.key}`} value={r.unit} onChange={(e) => patch(r.key, { unit: e.target.value })} className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Peso</Label>
+                  <Label htmlFor={`rc-weight-${r.key}`} className="text-[11px]">Peso</Label>
                   <Input
+                    id={`rc-weight-${r.key}`}
                     value={r.weight}
                     onChange={(e) => patch(r.key, { weight: e.target.value })}
                     inputMode="decimal"
@@ -593,21 +633,22 @@ export function ReceiptEntryTab({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Un. peso</Label>
-                  <Input value={r.weightUnit} onChange={(e) => patch(r.key, { weightUnit: e.target.value })} className="h-10" />
+                  <Label htmlFor={`rc-weight-unit-${r.key}`} className="text-[11px]">Un. peso</Label>
+                  <Input id={`rc-weight-unit-${r.key}`} value={r.weightUnit} onChange={(e) => patch(r.key, { weightUnit: e.target.value })} className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Lote</Label>
-                  <Input value={r.batch} onChange={(e) => patch(r.key, { batch: e.target.value })} placeholder="Lote do fabricante" className="h-10" />
+                  <Label htmlFor={`rc-batch-${r.key}`} className="text-[11px]">Lote</Label>
+                  <Input id={`rc-batch-${r.key}`} value={r.batch} onChange={(e) => patch(r.key, { batch: e.target.value })} placeholder="Lote do fabricante" className="h-10" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">Validade original</Label>
-                  <Input type="date" value={r.originalExpiry} onChange={(e) => patch(r.key, { originalExpiry: e.target.value })} className="h-10" />
+                  <Label htmlFor={`rc-expiry-${r.key}`} className="text-[11px]">Validade original</Label>
+                  <Input id={`rc-expiry-${r.key}`} type="date" value={r.originalExpiry} onChange={(e) => patch(r.key, { originalExpiry: e.target.value })} className="h-10 max-md:px-1" />
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-destructive"
+                  className="text-destructive max-md:ml-auto max-md:col-span-2"
+                  aria-label="Remover produto"
                   onClick={() => setRows((prev) => (prev.length === 1 ? [newRow()] : prev.filter((x) => x.key !== r.key)))}
                 >
                   <Trash2 className="h-4 w-4" />
