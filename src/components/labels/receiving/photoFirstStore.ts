@@ -183,7 +183,7 @@ async function persistNow() {
     // Se não há trabalho, apague o rascunho remoto ao invés de guardar vazio.
     if (s.photos.length === 0 && (!s.groups || s.groups.length === 0)) {
       if (s.draftId) {
-        await supabase.from("label_receipt_drafts" as any).delete().eq("restaurant_id", s.restaurantId);
+        await supabase.from("label_receipt_drafts" as any).delete().eq("restaurant_id", s.restaurantId).eq("kind", "photo");
       }
       state = { ...state, draftId: null, syncing: false }; emit();
       return;
@@ -193,12 +193,13 @@ async function persistNow() {
     const payload: any = {
       id: draftId,
       restaurant_id: s.restaurantId,
+      kind: "photo",
       updated_by: userData?.user?.id ?? null,
       ...serialize(s),
     };
     const { error } = await supabase
       .from("label_receipt_drafts" as any)
-      .upsert(payload, { onConflict: "restaurant_id" });
+      .upsert(payload, { onConflict: "restaurant_id,kind" });
     if (error) console.warn("[photoFirstStore] persist error", error);
   } catch (e) {
     console.warn("[photoFirstStore] persist exception", e);
@@ -262,7 +263,7 @@ export const photoFirstStore = {
     void (async () => {
       try {
         if (restaurantId) {
-          await supabase.from("label_receipt_drafts" as any).delete().eq("restaurant_id", restaurantId);
+          await supabase.from("label_receipt_drafts" as any).delete().eq("restaurant_id", restaurantId).eq("kind", "photo");
         }
         const paths = photos.map((p) => p.storage_path).filter(Boolean) as string[];
         if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
@@ -293,6 +294,7 @@ export const photoFirstStore = {
         .from("label_receipt_drafts" as any)
         .select("*")
         .eq("restaurant_id", restaurantId)
+        .eq("kind", "photo")
         .maybeSingle();
       if (error) console.warn("[photoFirstStore] hydrate", error);
       if (data) {
