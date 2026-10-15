@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Remover prazo pós-abertura automático do cadastro no recebimento; 8 testes passaram e formulário mobile conferido com produtos fictícios: nenhum envio sem prazo, valores informados preservados. Gravação em conta real indisponível por autenticação externa.
+
 - [x] Atualizar saldo e histórico após Só computar; exigir lote e validade original em todos os produtos para imprimir com aviso visível. Quatro testes passaram e bloqueio/liberação conferidos com 12 produtos fictícios; gravação em conta real não verificada por ausência de sessão disponível.
 
 - [x] Compactar Recebimento no celular com um produto por vez e campos pareados; seleção e edição verificadas com nota fictícia em 320/375/390/430/579 px e desktop, sem alterar operações.
