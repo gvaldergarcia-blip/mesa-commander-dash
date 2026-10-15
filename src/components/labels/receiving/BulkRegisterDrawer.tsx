@@ -58,7 +58,7 @@ export function BulkRegisterDrawer({
     if (!open) return;
     setLines(items.map((i) => ({
       key: i.key, name: i.name, unit: i.unit || "un", category: "", conservation: "refrigerated",
-      sector: "", manipValue: "3", manipUnit: "days", linkTo: null, error: null, selected: false,
+      sector: "", manipValue: "", manipUnit: "days", linkTo: null, error: null, selected: false,
     })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -149,7 +149,7 @@ export function BulkRegisterDrawer({
                     </Select>
                     <SectorCombobox value={l.sector} onChange={(v) => up(l.key, { sector: v })} />
                     <div className="flex gap-1">
-                      <Input value={l.manipValue} onChange={(e) => up(l.key, { manipValue: e.target.value })} inputMode="numeric" className="h-10 w-16" aria-label="Validade pós-abertura" />
+                      <Input value={l.manipValue} onChange={(e) => up(l.key, { manipValue: e.target.value })} inputMode="numeric" placeholder="Prazo" required aria-invalid={!!l.error} className="h-10 w-16" aria-label="Validade pós-abertura" />
                       <Select value={l.manipUnit} onValueChange={(v) => up(l.key, { manipUnit: v as any })}>
                         <SelectTrigger className="h-10 flex-1"><SelectValue /></SelectTrigger>
                         <SelectContent><SelectItem value="days">dias</SelectItem><SelectItem value="hours">horas</SelectItem></SelectContent>
@@ -157,7 +157,7 @@ export function BulkRegisterDrawer({
                     </div>
                   </div>
                 )}
-                {!l.linkTo && <p className="text-[11px] text-muted-foreground">Validade pós-abertura (obrigatória)</p>}
+                {!l.linkTo && <p className="text-[11px] text-muted-foreground">Validade pós-abertura obrigatória: informe o prazo exato deste produto em dias ou horas.</p>}
               </div>
             );
           })}

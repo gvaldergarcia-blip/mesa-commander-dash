@@ -14,8 +14,8 @@ export function buildQuickProductInput(f: {
 }): { input?: LabelProductInput; error?: string } {
   const trimmed = f.name.trim();
   if (!trimmed) return { error: "Informe o nome" };
-  const manip = parseInt(f.manipValue, 10);
-  if (!manip || manip < 1) return { error: "Informe a validade pós-abertura" };
+  const manip = Number(f.manipValue.trim());
+  if (!Number.isSafeInteger(manip) || manip < 1) return { error: "Informe a validade pós-abertura deste produto em dias ou horas" };
   return {
     input: {
       name: trimmed.charAt(0).toUpperCase() + trimmed.slice(1),
