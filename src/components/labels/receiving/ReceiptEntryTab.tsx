@@ -80,6 +80,8 @@ export function ReceiptEntryTab({
   const qc = useQueryClient();
   const { products } = useLabelProducts();
   const fileRef = useRef<HTMLInputElement>(null);
+  /** Trava contra clique duplo: impede duas entradas no estoque para a mesma nota. */
+  const lockRef = useRef(false);
 
   const [reference, setReference] = useState("");
   const [supplier, setSupplier] = useState("");
@@ -153,7 +155,7 @@ export function ReceiptEntryTab({
   };
 
   /** Computa: registra a ENTRADA no estoque digital. Nunca dá baixa. */
-  const compute = async (): Promise<ReceiptPrintContext | null> => {
+  const compute = async (mode: "compute" | "print"): Promise<ReceiptPrintContext | null> => {
     if (!restaurantId) {
       toast.error("Restaurante não identificado");
       return null;
@@ -162,10 +164,19 @@ export function ReceiptEntryTab({
       toast.error("Adicione pelo menos um produto");
       return null;
     }
-    if (unregistered.length) {
+    const badQty = validRows.filter((r) => num(r.quantity) == null);
+    if (badQty.length) {
+      toast.error(`Corrija a quantidade de: ${badQty.map((r) => r.name.trim()).join(", ")}`);
+      return null;
+    }
+    if (mode === "print" && unregistered.length) {
       toast.error(
         `Cadastre primeiro: ${unregistered.map((r) => r.name.trim()).join(", ")}`,
       );
+      return null;
+    }
+    if (mode === "compute" && !validRows.some((r) => r.productId)) {
+      toast.error("Nenhum produto da nota está cadastrado. Cadastre pelo menos um para computar.");
       return null;
     }
     const temp = temperature.trim() ? Number(temperature.replace(",", ".")) : null;
@@ -196,8 +207,9 @@ export function ReceiptEntryTab({
       weight_unit: num(r.weight) != null ? r.weightUnit || "kg" : null,
       supplier_lot: r.batch.trim() || null,
       original_expiry_date: r.originalExpiry || null,
-      needs_info: false,
-      missing_fields: [],
+      // Produto sem cadastro fica registrado na nota (rastreável), mas não entra no saldo.
+      needs_info: !r.productId,
+      missing_fields: r.productId ? [] : ["product_id"],
       labels_prepared: 0,
     }));
     const { error: iErr } = await (supabase as any).from("label_receipt_items").insert(payload);
@@ -205,7 +217,7 @@ export function ReceiptEntryTab({
 
     // Registro da ENTRADA no estoque digital (sem qualquer baixa).
     const { error: mErr } = await (supabase as any).from("label_stock_movements").insert(
-      validRows.map((r) => ({
+      validRows.filter((r) => r.productId).map((r) => ({
         restaurant_id: restaurantId,
         event_type: "receipt",
         product_id: r.productId,
@@ -249,24 +261,31 @@ export function ReceiptEntryTab({
   };
 
   const onlyCompute = async () => {
+    if (lockRef.current) return;
+    lockRef.current = true;
     setSaving("compute");
     try {
-      const ctx = await compute();
+      const skipped = unregistered.length;
+      const ctx = await compute("compute");
       if (ctx) {
-        toast.success(`Entrada registrada: ${ctx.items.length} produto(s)`);
+        toast.success(`Entrada registrada no estoque: ${ctx.items.length - skipped} produto(s)`);
+        if (skipped) toast.warning(`${skipped} produto(s) sem cadastro ficaram fora do estoque.`);
         reset();
       }
     } catch (e: any) {
       toast.error(e.message || "Erro ao computar recebimento");
     } finally {
+      lockRef.current = false;
       setSaving("none");
     }
   };
 
   const computeAndPrint = async () => {
+    if (lockRef.current) return;
+    lockRef.current = true;
     setSaving("print");
     try {
-      const ctx = await compute();
+      const ctx = await compute("print");
       if (ctx) {
         toast.success("Entrada registrada. Selecione as etiquetas para imprimir.");
         reset();
@@ -275,6 +294,7 @@ export function ReceiptEntryTab({
     } catch (e: any) {
       toast.error(e.message || "Erro ao computar recebimento");
     } finally {
+      lockRef.current = false;
       setSaving("none");
     }
   };
@@ -356,7 +376,7 @@ export function ReceiptEntryTab({
               {unregistered.length} produto(s) não cadastrado(s)
             </div>
             <p className="text-xs text-muted-foreground">
-              Cadastre estes produtos antes de computar a entrada:{" "}
+              Para imprimir, cadastre antes. "Só computar" funciona sem eles — mas esses itens não entram no estoque:{" "}
               <strong className="text-foreground">{unregistered.map((r) => r.name.trim()).join(", ")}</strong>
             </p>
             {onManageProducts && (
@@ -477,7 +497,7 @@ export function ReceiptEntryTab({
 
        {/* Ações */}
       <Card className={cn("p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20", mobileStep !== 3 && "max-md:hidden", "max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-md:z-50 max-md:flex-row max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:p-2.5")}>
-        <Button variant="outline" size="lg" className="h-14 flex-1 gap-1 px-2 text-xs font-bold sm:gap-2 sm:text-sm" onClick={onlyCompute} disabled={busy || !validRows.length || unregistered.length > 0}>
+        <Button variant="outline" size="lg" className="h-14 flex-1 gap-1 px-2 text-xs font-bold sm:gap-2 sm:text-sm" onClick={onlyCompute} disabled={busy || !validRows.some((r) => r.productId)} title="Registra a entrada no estoque sem imprimir. Lote e validade não são obrigatórios.">
           {saving === "compute" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           SÓ COMPUTAR
         </Button>
@@ -489,7 +509,7 @@ export function ReceiptEntryTab({
 
       <p className="hidden text-[11px] text-muted-foreground items-center gap-1.5 md:flex">
         <PackageCheck className="h-3.5 w-3.5" />
-        Computar registra apenas a entrada no estoque. Etiquetas impressas aqui são de <strong>produto lacrado</strong> (validade original do fabricante).
+        <strong>Só computar</strong> registra a entrada no estoque sem exigir lote ou validade. Etiquetas impressas aqui são de <strong>produto lacrado</strong> (validade original do fabricante).
       </p>
     </div>
   );
