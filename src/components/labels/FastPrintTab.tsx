@@ -703,6 +703,11 @@ export function FastPrintTab({
                   restaurantCnpj={restaurantLegal?.cnpj}
                   restaurantCep={restaurantLegal?.cep}
                   allergens={product.allergens}
+                  ingredients={product.ingredients}
+                  notes={product.default_observation || product.notes}
+                  sif={product.sif}
+                  cif={product.cif}
+                  inspectionType={(product as any).inspection_type || null}
                 />
               )}
 

@@ -57,7 +57,7 @@ const escapeHtml = (s: string) =>
 
 /** Regras visuais da etiqueta 80×40mm — compartilhadas entre a impressão inline
  *  (desktop) e o documento independente usado no celular. */
-const LABEL_RULES = `
+export const LABEL_RULES = `
     .label-print-sheet { padding: 0; }
     .label {
       width: 80mm; height: 40mm; box-sizing: border-box;
@@ -111,7 +111,7 @@ export function printLabels(data: PrintLabelData) {
   return printLabelsMany([data]);
 }
 
-function buildLabelHtml(data: PrintLabelData): string {
+export function buildLabelHtml(data: PrintLabelData): string {
   const nameClass = data.productName.length > 54
     ? "name long"
     : data.productName.length > 32
