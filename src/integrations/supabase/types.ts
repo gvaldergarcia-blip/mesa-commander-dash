@@ -1902,6 +1902,8 @@ export type Database = {
           finalized_receipt_id: string | null
           groups: Json
           id: string
+          kind: string
+          payload: Json
           photos: Json
           reference: string | null
           restaurant_id: string
@@ -1914,6 +1916,8 @@ export type Database = {
           finalized_receipt_id?: string | null
           groups?: Json
           id?: string
+          kind?: string
+          payload?: Json
           photos?: Json
           reference?: string | null
           restaurant_id: string
@@ -1926,6 +1930,8 @@ export type Database = {
           finalized_receipt_id?: string | null
           groups?: Json
           id?: string
+          kind?: string
+          payload?: Json
           photos?: Json
           reference?: string | null
           restaurant_id?: string
