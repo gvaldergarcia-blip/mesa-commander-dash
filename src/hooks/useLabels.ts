@@ -157,6 +157,7 @@ export function useLabels() {
           _units: remaining,
         });
         if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Erro ao baixar etiqueta");
         // Dispara notificação SMS/WhatsApp (fire-and-forget)
         try {
           await (supabase as any).functions.invoke("send-label-discharge-alert", {

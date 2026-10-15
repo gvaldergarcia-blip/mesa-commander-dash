@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Corrigir largura da tela QR e manter exclusivamente baixa por uso.
+- [ ] Garantir baixa por vencimento da validade original sobre todo saldo do lote e impedir renovação vencida no servidor.
+- [ ] Validar consumo exato, testes de regras e apresentação mobile; leitura/gravação autenticada depende de sessão externa.
+
 - [x] Conferir exclusão de validade original vencida: cinco testes passaram; resolução unificada entre Renovação e Dashboard, incluindo validade mais antiga do ciclo. Conta real não verificada por autenticação externa.
 - [x] Alinhar prévia ao modelo realmente impresso, sem QR Code, preservando a impressão final; conferida com dados fictícios em 320/390/579/1280 px.
 

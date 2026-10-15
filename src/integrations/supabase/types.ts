@@ -5599,6 +5599,12 @@ export type Database = {
       }
       label_balance_by_code: { Args: { _code: string }; Returns: Json }
       label_confirm_receipt: { Args: { _receipt_id: string }; Returns: Json }
+      label_cycle_ids: {
+        Args: { _id: string }
+        Returns: {
+          id: string
+        }[]
+      }
       label_finalize_receipt: { Args: { _receipt_id: string }; Returns: Json }
       label_generate_manipulation_lot: { Args: never; Returns: string }
       label_generate_production_lot: { Args: never; Returns: string }
@@ -5611,6 +5617,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      label_lot_balance: { Args: { _id: string }; Returns: number }
       label_match_alias: {
         Args: { _raw: string; _restaurant_id: string }
         Returns: string
