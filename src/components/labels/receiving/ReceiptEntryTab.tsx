@@ -18,6 +18,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { BulkRegisterDrawer } from "./BulkRegisterDrawer";
 import { normAlias } from "@/lib/labels/productInput";
+import { buildReceiptStockMovements, missingReceiptPrintFields, RECEIPT_REFRESH_KEYS } from "@/lib/labels/receiptRules";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 /** Marca rascunhos salvos por esta sessão: ao voltar para a aba, restaura direto sem aviso. */
@@ -119,6 +120,7 @@ export function ReceiptEntryTab({
   const validRows = rows.filter((r) => r.name.trim().length > 1);
   /** Produtos da nota que ainda não existem no cadastro — bloqueiam o computar. */
   const unregistered = validRows.filter((r) => !r.productId);
+  const missingPrintFields = missingReceiptPrintFields(validRows);
 
   /** Vínculo aprendido (nome da nota → produto) tem prioridade sobre a busca por nome. */
   const resolveProduct = useCallback(
@@ -303,6 +305,10 @@ export function ReceiptEntryTab({
       );
       return null;
     }
+    if (mode === "print" && missingPrintFields.length) {
+      toast.error("Para imprimir, preencha a validade original e o lote de todos os produtos.");
+      return null;
+    }
     if (mode === "compute" && !validRows.some((r) => r.productId)) {
       toast.error("Nenhum produto da nota está cadastrado. Cadastre pelo menos um para computar.");
       return null;
@@ -345,26 +351,11 @@ export function ReceiptEntryTab({
 
     // Registro da ENTRADA no estoque digital (sem qualquer baixa).
     const { error: mErr } = await (supabase as any).from("label_stock_movements").insert(
-      validRows.filter((r) => r.productId).map((r) => ({
-        restaurant_id: restaurantId,
-        event_type: "receipt",
-        product_id: r.productId,
-        receipt_id: receipt.id,
-        quantity: Number(r.quantity.replace(",", ".")) || 1,
-        unit: r.unit || "un",
-        occurred_at: new Date().toISOString(),
-        notes: [
-          reference.trim() ? `NF ${reference.trim()}` : null,
-          r.batch.trim() ? `Lote ${r.batch.trim()}` : null,
-          num(r.weight) ? `Peso ${num(r.weight)} ${r.weightUnit || "kg"}` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ") || null,
-      })),
+      buildReceiptStockMovements(validRows, restaurantId, receipt.id, reference),
     );
     if (mErr) throw mErr;
 
-    qc.invalidateQueries({ queryKey: ["label_receipts", restaurantId] });
+    await Promise.all(RECEIPT_REFRESH_KEYS.map((key) => qc.invalidateQueries({ queryKey: [key, restaurantId] })));
 
     const items: ReceiptPrintItem[] = validRows.map((r) => ({
       key: r.key,
@@ -681,12 +672,18 @@ export function ReceiptEntryTab({
       )}
 
        {/* Ações */}
-      <Card className={cn("p-4 flex flex-col sm:flex-row gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20", mobileStep !== 3 && "max-md:hidden", "max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-md:z-50 max-md:flex-row max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:p-2.5")}>
+      <Card className={cn("p-4 flex flex-col sm:flex-row sm:flex-wrap gap-3 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20", mobileStep !== 3 && "max-md:hidden", "max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-md:z-50 max-md:flex-row max-md:flex-wrap max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:p-2.5")}>
+        {missingPrintFields.length > 0 && (
+          <p id="receipt-print-warning" role="status" className="w-full text-xs font-medium text-warning sm:basis-full">
+            Para imprimir, preencha a validade original e o lote de todos os produtos. Faltam dados em {missingPrintFields.length} produto(s).
+            <Button variant="link" size="sm" className="h-auto px-1 py-0 text-xs md:hidden" onClick={() => { setSelectedRowKey(missingPrintFields[0]?.key ?? null); setMobileStep(2); }}>Preencher</Button>
+          </p>
+        )}
         <Button variant="outline" size="lg" className="h-14 flex-1 gap-1 px-2 text-xs font-bold sm:gap-2 sm:text-sm" onClick={onlyCompute} disabled={busy || !validRows.some((r) => r.productId)} title="Registra a entrada no estoque sem imprimir. Lote e validade não são obrigatórios.">
           {saving === "compute" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           SÓ COMPUTAR
         </Button>
-        <Button size="lg" className="h-14 flex-1 gap-1 px-2 text-xs font-bold sm:gap-2 sm:text-sm" onClick={computeAndPrint} disabled={busy || !validRows.length || unregistered.length > 0}>
+        <Button size="lg" className="h-14 flex-1 gap-1 px-2 text-xs font-bold sm:gap-2 sm:text-sm" onClick={computeAndPrint} disabled={busy || !validRows.length || unregistered.length > 0 || missingPrintFields.length > 0} aria-describedby={missingPrintFields.length ? "receipt-print-warning" : undefined}>
           {saving === "print" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
           IMPRIMIR E COMPUTAR
         </Button>
