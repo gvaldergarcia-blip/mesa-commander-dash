@@ -6,6 +6,19 @@
 
 @layer base {
   :root {
+    --scan-background: 240 27% 8%;
+    --scan-foreground: 0 0% 100%;
+    --scan-surface: 240 27% 12%;
+    --scan-muted: 240 28% 14%;
+    --scan-border: 240 20% 22%;
+    --scan-primary: 25 100% 50%;
+    --scan-success: 145 46% 51%;
+    --scan-success-muted: 143 61% 20%;
+    --scan-success-foreground: 141 79% 85%;
+    --scan-danger: 0 75% 58%;
+    --scan-danger-foreground: 0 96% 89%;
+    --scan-secondary: 215 20% 65%;
+    --scan-warning: 27 82% 57%;
     /* Restaurant Brand Colors */
     --background: 28 100% 98%;
     --foreground: 20 14.3% 4.1%;
