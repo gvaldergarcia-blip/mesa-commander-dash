@@ -14,6 +14,21 @@ export default {
     },
     extend: {
       colors: {
+        scan: {
+          background: "hsl(var(--scan-background))",
+          foreground: "hsl(var(--scan-foreground))",
+          surface: "hsl(var(--scan-surface))",
+          muted: "hsl(var(--scan-muted))",
+          border: "hsl(var(--scan-border))",
+          primary: "hsl(var(--scan-primary))",
+          success: "hsl(var(--scan-success))",
+          "success-muted": "hsl(var(--scan-success-muted))",
+          "success-foreground": "hsl(var(--scan-success-foreground))",
+          danger: "hsl(var(--scan-danger))",
+          "danger-foreground": "hsl(var(--scan-danger-foreground))",
+          secondary: "hsl(var(--scan-secondary))",
+          warning: "hsl(var(--scan-warning))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
