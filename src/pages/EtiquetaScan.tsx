@@ -3,16 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, CalendarDays, CalendarX, User, CheckCircle2, XCircle,
-  Utensils, AlertTriangle, Package, X, Building2, Hash, Printer, ShieldCheck,
-  Snowflake, Flame, Thermometer, Refrigerator, Trash2, ChevronDown,
+  Utensils, Package, X, Building2, Hash, ShieldCheck,
+  Snowflake, Flame, Thermometer, Refrigerator,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CONSERVATION_LABEL, REASON_LABEL, classifyExpiry } from "@/lib/labels/utils";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
@@ -56,7 +53,7 @@ export default function EtiquetaScan() {
     ];
     for (const c of candidates) {
       const v = String(c || "").toLowerCase().trim();
-      if (v === "g" || v === "kg" || v === "un") return v;
+      if (["g", "kg", "un", "ml", "l"].includes(v)) return v;
       if (v === "gr" || v === "grama" || v === "gramas") return "g";
       if (v === "quilo" || v === "quilos") return "kg";
     }
@@ -206,7 +203,7 @@ export default function EtiquetaScan() {
   // Urgency
   const urgency = isDischarged
     ? { label: "BAIXADA", bg: "#2D2D44", text: "#A0AEC0", border: "#2D2D44" }
-    : isExpired
+      : isExpired
     ? { label: "VENCIDA", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
     : cls === "today"
     ? { label: "VENCE HOJE", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
