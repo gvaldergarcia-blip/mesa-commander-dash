@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantId } from "@/contexts/RestaurantContext";
 import { useLabels, type Label } from "@/hooks/useLabels";
 import { useLabelProducts, type LabelProduct } from "@/hooks/useLabelProducts";
+import { buildOriginalExpiryResolver, isRenewalCandidate } from "@/lib/labels/originalExpiry";
 
 const LOOKAHEAD_KEY = "mesaclik:label-renewal-lookahead-hours";
 export const DEFAULT_LOOKAHEAD_HOURS = 12;
@@ -94,38 +95,7 @@ export function useLabelRenewals() {
   // 1) campo original_expiry_date da própria etiqueta
   // 2) qualquer etiqueta do mesmo ciclo que tenha o campo preenchido
   // 3) fallback legado: validade da etiqueta RAIZ do ciclo (a mais antiga)
-  const resolveOriginal = useMemo(() => {
-    const cycleKey = (l: Label) =>
-      `${l.label_product_id || l.product_name}::${(l as any).origin_traceability_lot || l.batch || ""}`;
-
-    const originalByCycle = new Map<string, string>();
-    const rootByCycle = new Map<string, { created: number; expiry: string }>();
-    for (const l of labels) {
-      const key = cycleKey(l);
-      const raw = (l as any).original_expiry_date;
-      if (raw && !originalByCycle.has(key)) originalByCycle.set(key, raw);
-      const created = new Date(l.created_at).getTime();
-      const cur = rootByCycle.get(key);
-      if (Number.isFinite(created) && (!cur || created < cur.created)) {
-        rootByCycle.set(key, { created, expiry: l.expiry_date as unknown as string });
-      }
-    }
-
-    return (l: Label): Date | null => {
-      const key = cycleKey(l);
-      // Usa a validade original mais restritiva entre as fontes conhecidas do ciclo.
-      const candidates = [(l as any).original_expiry_date, originalByCycle.get(key)]
-        .filter(Boolean)
-        .map((r) => new Date(r as string))
-        .filter((d) => !Number.isNaN(d.getTime()));
-      if (candidates.length === 0) {
-        const root = rootByCycle.get(key)?.expiry;
-        const d = root ? new Date(root) : null;
-        return d && !Number.isNaN(d.getTime()) ? d : null;
-      }
-      return new Date(Math.min(...candidates.map((d) => d.getTime())));
-    };
-  }, [labels]);
+  const resolveOriginal = useMemo(() => buildOriginalExpiryResolver(labels), [labels]);
 
   const items = useMemo<RenewalItem[]>(() => {
     const now = Math.max(nowTick, Date.now());
@@ -138,7 +108,8 @@ export function useLabelRenewals() {
 
     const out: RenewalItem[] = [];
     for (const l of labels) {
-      if (l.status === "discharged") continue;
+      const originalExp = resolveOriginal(l);
+      if (!isRenewalCandidate(l, originalExp, now, horizon)) continue;
       const exp = new Date(l.expiry_date).getTime();
       if (!Number.isFinite(exp)) continue;
       if (exp > horizon) continue;
@@ -150,10 +121,10 @@ export function useLabelRenewals() {
       const hasManipRule =
         !!product?.manipulation_enabled && Number(product?.manipulation_validity_value || 0) > 0;
       const value = hasManipRule
-        ? Number(product!.manipulation_validity_value)
+        ? Number(product?.manipulation_validity_value)
         : Number(product?.validity_days || 0);
       const unit = hasManipRule
-        ? product!.manipulation_validity_unit || "days"
+        ? product?.manipulation_validity_unit || "days"
         : product?.validity_days
           ? "days"
           : null;
@@ -163,7 +134,6 @@ export function useLabelRenewals() {
       let nextExpiry: Date | null = null;
       let ruleLabel: string | null = null;
 
-      const originalExp = resolveOriginal(l);
       const cycleEnded = !!originalExp && originalExp.getTime() <= now;
       // Validade ORIGINAL vencida = fim do ciclo. Não é renovação: exige novo
       // ciclo em "Imprimir etiqueta". Some da tela de Renovação.
@@ -248,8 +218,8 @@ export function useLabelRenewals() {
     const manufacture = new Date();
     const p = item.product;
     const hasManipRule = !!p?.manipulation_enabled && Number(p?.manipulation_validity_value || 0) > 0;
-    const ruleValue = hasManipRule ? Number(p!.manipulation_validity_value) : Number(p?.validity_days || 0);
-    const ruleUnit = hasManipRule ? (p!.manipulation_validity_unit || "days") : "days";
+    const ruleValue = hasManipRule ? Number(p?.manipulation_validity_value) : Number(p?.validity_days || 0);
+    const ruleUnit = hasManipRule ? (p?.manipulation_validity_unit || "days") : "days";
     if (!(ruleValue > 0) || !["hours", "days", "months"].includes(ruleUnit)) {
       throw new Error("Regra de validade não configurada para este produto");
     }

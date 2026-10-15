@@ -1,39 +1,9 @@
 import type { Label } from "@/hooks/useLabels";
 import type { RenewalItem } from "@/hooks/useLabelRenewals";
+import { buildOriginalExpiryResolver } from "./originalExpiry";
+export { buildOriginalExpiryResolver } from "./originalExpiry";
 
 export type OperationalView = "expired" | "tomorrow" | "renewal" | "ok";
-
-function cycleKey(label: Label) {
-  const traceability = (label as Label & { origin_traceability_lot?: string | null }).origin_traceability_lot;
-  return `${label.label_product_id || label.product_name}::${traceability || label.batch || ""}`;
-}
-
-export function buildOriginalExpiryResolver(labels: Label[]) {
-  const originalByCycle = new Map<string, string>();
-  const rootByCycle = new Map<string, { created: number; expiry: string }>();
-
-  for (const label of labels) {
-    const key = cycleKey(label);
-    if (label.original_expiry_date && !originalByCycle.has(key)) {
-      originalByCycle.set(key, label.original_expiry_date);
-    }
-    const created = new Date(label.created_at).getTime();
-    const current = rootByCycle.get(key);
-    if (Number.isFinite(created) && (!current || created < current.created)) {
-      rootByCycle.set(key, { created, expiry: label.expiry_date });
-    }
-  }
-
-  return (label: Label): Date | null => {
-    const raw = label.original_expiry_date
-      ?? originalByCycle.get(cycleKey(label))
-      ?? rootByCycle.get(cycleKey(label))?.expiry
-      ?? null;
-    if (!raw) return null;
-    const date = new Date(raw);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
-}
 
 export function getOperationalGroups(labels: Label[], renewalItems: RenewalItem[]) {
   const now = new Date();
