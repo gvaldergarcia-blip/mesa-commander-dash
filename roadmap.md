@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Compactar Recebimento no celular com um produto por vez e campos pareados; seleção e edição verificadas com nota fictícia em 320/375/390/430/579 px e desktop, sem alterar operações.
+
 - [x] Corrigir erro "Cannot read properties of null (reading 'useRef')" (React duplicado no Vite)
 - [x] Validade da etiqueta = min(manipulação + pós-abertura cadastrada, validade original), fim do dia 23:59 — FastPrintTab
 - [x] Levar os subtópicos de Etiquetas para um grupo expansível no menu principal
