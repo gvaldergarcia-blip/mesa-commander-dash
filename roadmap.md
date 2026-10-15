@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Remover prazo pós-abertura automático do cadastro no recebimento e validar que cada produto novo exige prazo informado.
+- [x] Remover prazo pós-abertura automático do cadastro no recebimento; 8 testes passaram e formulário mobile conferido com produtos fictícios: nenhum envio sem prazo, valores informados preservados. Gravação em conta real indisponível por autenticação externa.
 
 - [x] Atualizar saldo e histórico após Só computar; exigir lote e validade original em todos os produtos para imprimir com aviso visível. Quatro testes passaram e bloqueio/liberação conferidos com 12 produtos fictícios; gravação em conta real não verificada por ausência de sessão disponível.
 
