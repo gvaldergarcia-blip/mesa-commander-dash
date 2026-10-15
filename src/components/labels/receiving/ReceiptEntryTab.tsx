@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,12 @@ import type { ReceiptPrintContext, ReceiptPrintItem } from "@/lib/labels/receipt
 import { formatQty } from "@/lib/labels/stockUnits";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { BulkRegisterDrawer } from "./BulkRegisterDrawer";
+import { normAlias } from "@/lib/labels/productInput";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+/** Marca rascunhos salvos por esta sessão: ao voltar para a aba, restaura direto sem aviso. */
+let sessionOwnsDraft = false;
 
 interface Row {
   key: string;
@@ -79,6 +85,7 @@ export function ReceiptEntryTab({
   const isMobile = useIsMobile();
   const qc = useQueryClient();
   const { products } = useLabelProducts();
+  const [aliases, setAliases] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   /** Trava contra clique duplo: impede duas entradas no estoque para a mesma nota. */
   const lockRef = useRef(false);
@@ -100,6 +107,115 @@ export function ReceiptEntryTab({
   const validRows = rows.filter((r) => r.name.trim().length > 1);
   /** Produtos da nota que ainda não existem no cadastro — bloqueiam o computar. */
   const unregistered = validRows.filter((r) => !r.productId);
+
+  /** Vínculo aprendido (nome da nota → produto) tem prioridade sobre a busca por nome. */
+  const resolveProduct = useCallback(
+    (raw: string): string | null => aliases[normAlias(raw)] ?? matchProduct(raw, activeProducts)?.id ?? null,
+    [aliases, activeProducts],
+  );
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    void (supabase as any).from("label_product_aliases").select("alias_normalized, product_id")
+      .eq("restaurant_id", restaurantId).then(({ data }: any) => {
+        const m: Record<string, string> = {};
+        for (const a of data || []) m[a.alias_normalized] = a.product_id;
+        setAliases(m);
+      });
+  }, [restaurantId]);
+
+  // ===== Rascunho persistente (label_receipt_drafts, kind = "entry") =====
+  const [draftReady, setDraftReady] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<any | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const startedAtRef = useRef<string | null>(null);
+
+  const applyDraft = (row: any) => {
+    const pl = row.payload || {};
+    setReference(row.reference ?? "");
+    setSupplier(pl.supplier ?? "");
+    setTemperature(pl.temperature ?? "");
+    setSource(pl.source === "xml" ? "xml" : "manual");
+    setRows(Array.isArray(pl.rows) && pl.rows.length ? pl.rows : [newRow()]);
+    startedAtRef.current = pl.started_at ?? row.created_at;
+  };
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    let alive = true;
+    setDraftReady(false);
+    void (supabase as any).from("label_receipt_drafts").select("*")
+      .eq("restaurant_id", restaurantId).eq("kind", "entry").maybeSingle()
+      .then(({ data }: any) => {
+        if (!alive) return;
+        const has = data && Array.isArray(data.payload?.rows) && data.payload.rows.some((x: Row) => x.name?.trim());
+        if (has && sessionOwnsDraft) { applyDraft(data); setDraftReady(true); }
+        else if (has) setPendingDraft(data);
+        else setDraftReady(true);
+      });
+    return () => { alive = false; };
+  }, [restaurantId]);
+
+  const deleteDraft = useCallback(async () => {
+    if (!restaurantId) return;
+    sessionOwnsDraft = false;
+    startedAtRef.current = null;
+    await (supabase as any).from("label_receipt_drafts").delete().eq("restaurant_id", restaurantId).eq("kind", "entry");
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (!draftReady || !restaurantId) return;
+    const hasWork = rows.some((x) => x.name.trim()) ;
+    const t = setTimeout(async () => {
+      if (!hasWork) { if (sessionOwnsDraft) await deleteDraft(); setSaveState("idle"); return; }
+      setSaveState("saving");
+      if (!startedAtRef.current) startedAtRef.current = new Date().toISOString();
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await (supabase as any).from("label_receipt_drafts").upsert({
+        restaurant_id: restaurantId, kind: "entry", reference: reference || null, updated_by: u?.user?.id ?? null,
+        updated_at: new Date().toISOString(),
+        payload: { rows, supplier, temperature, source, started_at: startedAtRef.current },
+      }, { onConflict: "restaurant_id,kind" });
+      sessionOwnsDraft = !error;
+      setSaveState(error ? "idle" : "saved");
+    }, 800);
+    return () => clearTimeout(t);
+  }, [rows, reference, supplier, temperature, source, draftReady, restaurantId, deleteDraft]);
+
+  const saveBulk = async (entries: Array<{ key: string; name: string; linkTo: string | null; input?: any }>) => {
+    const errs: Record<string, string> = {};
+    const links: Record<string, string> = {};
+    for (const e of entries) {
+      try {
+        let pid = e.linkTo;
+        if (!pid) {
+          const { data, error } = await (supabase as any).from("label_products")
+            .insert({ restaurant_id: restaurantId, ...e.input }).select("id").single();
+          if (error) throw error;
+          pid = data.id;
+        }
+        links[e.key] = pid!;
+        await (supabase as any).rpc("label_learn_alias", { _restaurant_id: restaurantId, _raw: e.name, _product_id: pid });
+      } catch (err: any) {
+        errs[e.key] = err?.message || "Erro ao salvar";
+      }
+    }
+    const linked = Object.keys(links).length;
+    if (linked) {
+      setRows((prev) => prev.map((r) => (links[r.key] ? { ...r, productId: links[r.key] } : r)));
+      setAliases((a) => {
+        const n = { ...a };
+        for (const e of entries) if (links[e.key]) n[normAlias(e.name)] = links[e.key];
+        return n;
+      });
+      await qc.invalidateQueries({ queryKey: ["label_products", restaurantId] });
+      toast.success(`${linked} produto(s) cadastrado(s) e vinculado(s)`);
+    }
+    if (Object.keys(errs).length) toast.error(`${Object.keys(errs).length} item(ns) com erro — corrija e salve de novo`);
+    return errs;
+  };
 
   const patch = (key: string, data: Partial<Row>) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...data } : r)));
@@ -124,11 +240,11 @@ export function ReceiptEntryTab({
       setSource("xml");
       setRows(
         items.map((i) => {
-          const match = matchProduct(String(i.raw_name || ""), activeProducts);
+          const matchId = resolveProduct(String(i.raw_name || ""));
           return {
             key: Math.random().toString(36).slice(2),
             name: String(i.raw_name || "").trim(),
-            productId: match?.id ?? null,
+            productId: matchId,
             quantity: String(i.quantity ?? 1),
             unit: String(i.unit || "un"),
             // Peso vem da NF quando existir — e continua editável pelo operador.
@@ -140,7 +256,7 @@ export function ReceiptEntryTab({
         }),
       );
       toast.success(`${items.length} produto(s) lidos da nota fiscal`);
-      const missing = items.filter((i) => !matchProduct(String(i.raw_name || ""), activeProducts));
+      const missing = items.filter((i) => !resolveProduct(String(i.raw_name || "")));
       if (missing.length) {
         toast.warning(
           `${missing.length} produto(s) da nota não estão cadastrados. Cadastre antes de computar.`,
@@ -253,6 +369,7 @@ export function ReceiptEntryTab({
   };
 
   const reset = () => {
+    void deleteDraft();
     setReference("");
     setSupplier("");
     setTemperature("");
@@ -303,6 +420,38 @@ export function ReceiptEntryTab({
 
   return (
     <div className="space-y-3 max-md:pb-40 md:space-y-4">
+      {pendingDraft && (
+        <Card className="flex flex-col gap-3 border-primary/40 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium">
+            Você tem um recebimento em andamento ({(pendingDraft.payload?.rows || []).filter((x: Row) => x.name?.trim()).length} itens, iniciado às{" "}
+            {new Date(pendingDraft.payload?.started_at || pendingDraft.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setConfirmDiscard(true)}>Descartar</Button>
+            <Button onClick={() => { applyDraft(pendingDraft); sessionOwnsDraft = true; setPendingDraft(null); setDraftReady(true); }}>Continuar</Button>
+          </div>
+        </Card>
+      )}
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar recebimento em andamento?</AlertDialogTitle>
+            <AlertDialogDescription>Os produtos já lidos serão apagados. Isso não pode ser desfeito.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { await deleteDraft(); setPendingDraft(null); setDraftReady(true); }}>Descartar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <BulkRegisterDrawer
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        items={unregistered.map((r) => ({ key: r.key, name: r.name.trim(), unit: r.unit }))}
+        supplier={supplier}
+        products={activeProducts}
+        onSave={saveBulk}
+      />
       <div className="md:hidden" aria-label={`Etapa ${mobileStep} de 3`}>
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
           <span>Etapa {mobileStep} de 3</span>
@@ -371,24 +520,18 @@ export function ReceiptEntryTab({
       {/* Itens */}
       <Card className={cn("p-3 md:p-4 space-y-2 bg-card/40", mobileStep !== 2 && "max-md:hidden")}>
         {unregistered.length > 0 && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/[0.06] p-3 space-y-2">
-            <div className="text-sm font-bold text-destructive">
-              {unregistered.length} produto(s) não cadastrado(s)
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Para imprimir, cadastre antes. "Só computar" funciona sem eles — mas esses itens não entram no estoque:{" "}
-              <strong className="text-foreground">{unregistered.map((r) => r.name.trim()).join(", ")}</strong>
-            </p>
-            {onManageProducts && (
-              <Button size="sm" variant="destructive" onClick={onManageProducts}>
-                Cadastrar produtos
-              </Button>
-            )}
-          </div>
+          <Button variant="destructive" className="h-11 w-full gap-2" onClick={() => setBulkOpen(true)}>
+            <Plus className="h-4 w-4" /> Cadastrar {unregistered.length} produto{unregistered.length === 1 ? "" : "s"}
+          </Button>
         )}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Produtos recebidos</h3>
-          <Badge variant="outline" className="text-[10px]">{validRows.length} item(ns)</Badge>
+          <div className="flex items-center gap-2">
+            {saveState !== "idle" && (
+              <span className="text-[11px] text-muted-foreground" aria-live="polite">{saveState === "saving" ? "Salvando…" : "Salvo"}</span>
+            )}
+            <Badge variant="outline" className="text-[10px]">{validRows.length} item(ns)</Badge>
+          </div>
         </div>
 
         {/* Resumo quantitativo da NF — o que efetivamente entrou no estoque. */}
@@ -417,8 +560,7 @@ export function ReceiptEntryTab({
                     value={r.name}
                     onChange={(e) => {
                       const name = e.target.value;
-                      const m = matchProduct(name, activeProducts);
-                      patch(r.key, { name, productId: m?.id ?? null });
+                      patch(r.key, { name, productId: resolveProduct(name) });
                     }}
                     placeholder="Nome do produto"
                     className="h-10"
@@ -427,7 +569,9 @@ export function ReceiptEntryTab({
                     <strong className="text-xs text-foreground">
                       {formatQty(Number(r.quantity.replace(",", ".")) || 0, r.unit)}
                     </strong>
-                    <span className="truncate">{matched ? `Cadastro: ${matched.name}` : "Sem vínculo com o cadastro"}</span>
+                    {matched ? <span className="truncate">Cadastro: {matched.name}</span>
+                      : r.name.trim() ? <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Não cadastrado</Badge>
+                      : <span className="truncate">Sem vínculo com o cadastro</span>}
                   </div>
                 </div>
                 <div className="space-y-1">
