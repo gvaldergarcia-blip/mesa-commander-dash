@@ -171,19 +171,7 @@
 }
 
 @media (max-width: 767px) {
-  html,
-  body {
-    height: auto;
-    min-height: 100%;
-    /* Impede que o gesto "vaze" para a página/app que envolve o MesaClik
-       ao chegar no fim da rolagem — era isso que travava a subida. */
-    overscroll-behavior-y: none;
-  }
 
-  #root {
-    height: auto;
-    min-height: 100%;
-  }
 
   input,
   select,
