@@ -36,5 +36,29 @@ export function useHiddenSectors() {
 
   const restoreAll = useCallback(() => persist([]), [persist]);
 
-  return { hidden, hideSector, restoreAll };
+  // Setores criados manualmente pelo restaurante (cards próprios).
+  const customKey = `mesaclik:custom-sectors:${restaurantId || 'anon'}`;
+  const [custom, setCustom] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(customKey);
+      setCustom(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      setCustom([]);
+    }
+  }, [customKey]);
+
+  const addSector = useCallback(
+    (name: string) => {
+      const v = name.trim().replace(/\s+/g, ' ');
+      if (!v) return;
+      const next = Array.from(new Set([...custom, v]));
+      setCustom(next);
+      try { localStorage.setItem(customKey, JSON.stringify(next)); } catch { /* ignore */ }
+      if (hidden.includes(v)) persist(hidden.filter((h) => h !== v));
+    },
+    [custom, customKey, hidden, persist],
+  );
+
+  return { hidden, hideSector, restoreAll, custom, addSector };
 }

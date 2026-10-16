@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Search, PackageCheck, PackageX, ArrowLeft, Trash2, RotateCcw, History, Boxes, Clock,
+  Search, Plus, PackageCheck, PackageX, ArrowLeft, Trash2, RotateCcw, History, Boxes, Clock,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -115,7 +115,9 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
   const { items, isLoading } = useLabeledProducts();
   const { products: registry } = useLabelProducts();
   const { balances } = useStockBalance();
-  const { hidden, hideSector, restoreAll } = useHiddenSectors();
+  const { hidden, hideSector, restoreAll, custom, addSector } = useHiddenSectors();
+  const [newSectorOpen, setNewSectorOpen] = useState(false);
+  const [newSectorName, setNewSectorName] = useState('');
   const [sectorToDelete, setSectorToDelete] = useState<string | null>(null);
   const [historyProduct, setHistoryProduct] = useState<LabeledProduct | null>(null);
 
@@ -162,12 +164,12 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
   const sectors = useMemo(() => {
     const fromActive = products.map((p) => p.sector);
     const fromAll = [...items.map((p) => p.sector), ...registry.map((r) => r.storage_location ?? null)];
-    const all = mergeSectors([...fromActive, ...fromAll]);
+    const all = mergeSectors([...fromActive, ...fromAll, ...custom]);
     const hasNone = products.some((p) => !p.sector);
     const full = hasNone ? [...all, 'Sem setor'] : all;
     const withProducts = new Set(products.map((p) => sectorOf(p)));
     return full.filter((s) => withProducts.has(s) || !hidden.includes(s));
-  }, [products, items, registry, hidden]);
+  }, [products, items, registry, hidden, custom]);
 
   const bySector = useMemo(() => {
     const map = new Map<string, LabeledProduct[]>();
@@ -225,12 +227,45 @@ export function StockCheckTab({ initialSector = null }: StockCheckTabProps = {})
               O Recebimento diz quanto entrou. O QR Code diz quanto saiu. Aqui você vê quanto resta.
             </p>
           </div>
-          {hidden.length > 0 && (
-            <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={restoreAll}>
-              <RotateCcw className="h-3.5 w-3.5" /> Restaurar setores ({hidden.length})
+          <div className="flex flex-wrap justify-end gap-2 shrink-0">
+            <Button size="sm" className="gap-1.5" onClick={() => { setNewSectorName(''); setNewSectorOpen(true); }}>
+              <Plus className="h-3.5 w-3.5" /> Novo setor
             </Button>
-          )}
+            {hidden.length > 0 && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={restoreAll}>
+                <RotateCcw className="h-3.5 w-3.5" /> Restaurar setores ({hidden.length})
+              </Button>
+            )}
+          </div>
         </div>
+
+        <AlertDialog open={newSectorOpen} onOpenChange={setNewSectorOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Novo setor</AlertDialogTitle>
+              <AlertDialogDescription>Dê um nome ao card, como “Freezer 2” ou “Despensa”.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+              autoFocus
+              maxLength={40}
+              placeholder="Nome do setor"
+              value={newSectorName}
+              onChange={(e) => setNewSectorName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newSectorName.trim()) { addSector(newSectorName); setNewSectorOpen(false); }
+              }}
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={!newSectorName.trim()}
+                onClick={() => addSector(newSectorName)}
+              >
+                Criar setor
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {Summary}
 
