@@ -283,6 +283,7 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
     setErrorMsg("");
     setManualCode("");
     setManualMode(false);
+    setBlocked(false);
 
     const boot = async () => {
       try {
@@ -338,6 +339,7 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
     handledRef.current = false;
     setPhase("starting");
     setErrorMsg("");
+    setBlocked(false);
     try {
       await startScanner();
     } catch (err: any) {

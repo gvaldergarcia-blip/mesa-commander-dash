@@ -43,6 +43,15 @@ export default function EtiquetasPage() {
       : null;
   const [tab, setTabState] = useState(requestedTab || "dashboard");
 
+  // Link direto (ex.: aberto em nova aba para liberar a câmera): abre a leitura de baixa por uso.
+  useEffect(() => {
+    if (searchParams.get("scan") !== "uso") return;
+    setUsageScanOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("scan");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   // Navegação lateral agrupada por seção
   const NAV_SECTIONS: {
     label: string;
