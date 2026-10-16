@@ -90,6 +90,8 @@ export function LabelPrintPreview({
             className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
             style={{ width: LABEL_WIDTH_PX, height: LABEL_HEIGHT_PX, transform: `scale(${scale})` }}
           />
+          {/* Keep swipe hit-testing in the page, not the scaled iframe, on iOS. */}
+          <div aria-hidden="true" className="absolute inset-0 z-10 touch-pan-y" />
         </div>
       </div>
     </section>
