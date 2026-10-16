@@ -202,14 +202,14 @@ export default function EtiquetaScan() {
 
   // Urgency
   const urgency = isDischarged
-    ? { label: "BAIXADA", bg: "#2D2D44", text: "#A0AEC0", border: "#2D2D44" }
-      : isExpired
-    ? { label: "VENCIDA", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
+    ? { label: "BAIXADA", badge: "bg-scan-border text-scan-secondary", border: "border-l-scan-border" }
+    : isExpired
+    ? { label: "VENCIDA", badge: "bg-scan-danger/20 text-scan-danger-foreground", border: "border-l-scan-danger" }
     : cls === "today"
-    ? { label: "VENCE HOJE", bg: "#7F1D1D", text: "#FECACA", border: "#E53E3E" }
+    ? { label: "VENCE HOJE", badge: "bg-scan-danger/20 text-scan-danger-foreground", border: "border-l-scan-danger" }
     : cls === "tomorrow"
-    ? { label: "ATENÇÃO", bg: "#78350F", text: "#FED7AA", border: "#ED8936" }
-    : { label: "OK", bg: "#14532D", text: "#BBF7D0", border: "#48BB78" };
+    ? { label: "ATENÇÃO", badge: "bg-scan-warning/20 text-scan-warning", border: "border-l-scan-warning" }
+    : { label: "OK", badge: "bg-scan-success-muted text-scan-success-foreground", border: "border-l-scan-success" };
 
   const ConsIcon = conservationIcon(label.conservation_method);
 
@@ -229,7 +229,7 @@ export default function EtiquetaScan() {
               </div>
             </div>
           </div>
-          <Button onClick={closeNav} className="text-scan-secondary hover:text-scan-foreground p-2" aria-label="Fechar">
+          <Button variant="ghost" size="icon" onClick={closeNav} className="text-scan-secondary hover:text-scan-foreground p-2" aria-label="Fechar">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -247,8 +247,7 @@ export default function EtiquetaScan() {
 
         {/* Card */}
         <div
-          className="bg-scan-surface rounded-3xl border border-scan-border overflow-hidden"
-          style={{ borderLeftWidth: 4, borderLeftColor: urgency.border }}
+          className={`bg-scan-surface rounded-3xl border border-scan-border border-l-4 overflow-hidden ${urgency.border}`}
         >
           {/* Product name + status badge */}
           <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
@@ -261,8 +260,7 @@ export default function EtiquetaScan() {
               <h2 className="text-2xl font-bold text-scan-foreground leading-tight">{label.product_name}</h2>
             </div>
             <span
-              className="px-3 py-1.5 rounded-full text-[11px] font-extrabold tracking-wider shrink-0"
-              style={{ background: urgency.bg, color: urgency.text }}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold tracking-wider shrink-0 ${urgency.badge}`}
             >
               {urgency.label}
             </span>
@@ -299,13 +297,7 @@ export default function EtiquetaScan() {
               </div>
             </div>
             <div
-              className="flex items-center justify-between rounded-xl px-3 py-2.5"
-              style={{
-                background: isExpired ? "#3a1414" : "#1A1A2E",
-                borderWidth: 1,
-                borderStyle: "solid",
-                borderColor: isExpired ? "#7F1D1D" : "#2D2D44",
-              }}
+              className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${isExpired ? "bg-scan-danger/10 border-scan-danger/30" : "bg-scan-muted border-scan-border"}`}
             >
               <div className={`flex items-center gap-2 text-xs font-semibold ${isExpired ? "text-scan-danger-foreground" : "text-scan-warning"}`}>
                 <CalendarX className="h-4 w-4" /> Vencimento
@@ -406,11 +398,12 @@ export default function EtiquetaScan() {
                     <div className="grid h-14 shrink-0 grid-flow-col auto-cols-fr rounded-xl bg-scan-background border border-scan-border p-1 gap-1" aria-label="Unidade da quantidade consumida">
                       {unitOptions.map((u) => (
                         <Button
+                          variant="ghost"
                           key={u}
                           type="button"
                           onClick={() => setUsedUnit(u)}
                           aria-pressed={effUnit === u}
-                          title={u === "g" ? "Gramas" : u === "kg" ? "Quilos" : "Unidades"}
+                          title={u === "g" ? "Gramas" : u === "kg" ? "Quilos" : u === "ml" ? "Mililitros" : u === "l" ? "Litros" : "Unidades"}
                           className={`min-w-10 px-2 rounded-lg text-sm font-bold transition-colors ${
                             effUnit === u ? "bg-scan-success text-scan-background" : "text-scan-secondary hover:text-scan-foreground"
                           }`}
@@ -482,29 +475,20 @@ export default function EtiquetaScan() {
                     missingUseQty ||
                     overBalance
                   }
-                  className={`w-full h-14 rounded-2xl disabled:bg-scan-border disabled:text-scan-secondary text-scan-foreground font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors ${
-                    reason === "use"
-                      ? "bg-scan-success hover:bg-scan-success text-scan-background"
-                      : "bg-scan-danger hover:bg-scan-danger"
-                  }`}
+                  className="w-full h-14 rounded-2xl disabled:bg-scan-border disabled:text-scan-secondary font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors bg-scan-success hover:bg-scan-success text-scan-background"
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
                       Registrando...
                     </>
-                  ) : reason === "use" ? (
+                  ) : (
                     <>
                       <Utensils className="h-5 w-5" />
                       Confirmar uso
                       {qtyValid && !overBalance
                         ? ` (${balance ? formatBase(usedBase, balance.base) : `${usedQty.replace(".", ",")} ${effUnit}`})`
                         : ""}
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-5 w-5" />
-                      Baixar Etiqueta
                     </>
                   )}
                 </Button>
