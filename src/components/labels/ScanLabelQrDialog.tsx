@@ -388,6 +388,16 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
 
           {phase !== "success" && (
             <div className="flex w-full flex-col gap-2">
+              <label className="inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground">
+                Fotografar QR
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void stopScanner(); void decodePhoto(f); }}
+                />
+              </label>
               {(phase === "invalid" || phase === "error") && !manualMode && (
                 <Button className="w-full" onClick={retry}>
                   Tentar novamente
