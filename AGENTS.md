@@ -7,4 +7,5 @@
 - Share original-expiry cycle resolution between Renewal and Dashboard through originalExpiry, with rule tests, so cached labels cannot disagree about manufacturer expiry.
 - Render the pre-print preview from LabelPrintSheet's existing HTML and styles at a uniformly scaled physical size, omitting QR data, so the final print design stays unchanged.
 - Keep a noninteractive gesture surface above the print-preview iframe so mobile swipes stay in the page's scroll context rather than entering an embedded document.
+- On mobile, DashboardLayout's root is the single fixed scroll container and keeps scrollTop 1px from both edges on touchstart, so iOS gestures never chain to the body or a wrapping frame and lock scrolling.
 - Share receipt print-field validation and stock movement construction through receiptRules, with rule tests; receipt success refreshes stock balances and movement history directly instead of relying on realtime delivery.
