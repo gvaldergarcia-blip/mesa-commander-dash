@@ -15,18 +15,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // iOS: quando a rolagem encosta no topo/fim, o próximo gesto "vaza" para a
   // página (ou o app) que envolve o MesaClik e a tela parece travar. Mantendo
   // a área sempre 1px longe das bordas, o gesto fica sempre dentro dela.
+  // O ajuste é feito quando a rolagem para (não no toque), para não "engolir"
+  // o primeiro gesto do usuário.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const onTouchStart = () => {
-      if (window.innerWidth >= 768) return;
+    let timer: number | undefined;
+    let touching = false;
+    const nudge = () => {
+      if (touching || window.innerWidth >= 768) return;
       const max = el.scrollHeight - el.clientHeight;
-      if (max <= 1) return;
+      if (max <= 2) return;
       if (el.scrollTop <= 0) el.scrollTop = 1;
       else if (el.scrollTop >= max) el.scrollTop = max - 1;
     };
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    return () => el.removeEventListener("touchstart", onTouchStart);
+    const onScroll = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(nudge, 120);
+    };
+    const onStart = () => { touching = true; window.clearTimeout(timer); };
+    const onEnd = () => { touching = false; window.clearTimeout(timer); timer = window.setTimeout(nudge, 120); };
+    nudge();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
   }, []);
 
   return (
