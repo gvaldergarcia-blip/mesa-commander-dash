@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Corrigir gesto de retorno ao topo em Imprimir etiqueta, mantendo a prévia e a impressão intactas; validar gestos sobre a prévia no celular.
+
 - [x] Corrigir largura da tela QR e manter exclusivamente baixa por uso; conferida em 320/375/390/430/768/1280 px com serviço simulado.
 - [x] Garantir baixa por vencimento da validade original sobre todo saldo do lote identificado e impedir renovação vencida no servidor; teste transacional sintético passou, preservando outro lote válido e sem deixar dados de teste.
 - [x] Validar consumo exato, 16 testes de regras e apresentação mobile; teste no banco passou para 45 g consumidos, unidade incompatível, saldo insuficiente e repetição de baixa.
