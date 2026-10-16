@@ -154,12 +154,42 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
   const cameraErrorMessage = (err: any): string => {
     const name = err?.name || "";
     if (name === "NotAllowedError" || name === "SecurityError") {
-      return "Permissão da câmera negada. Libere a câmera para este site nas configurações do navegador (no iPhone: Ajustes › navegador › Câmera) e toque em Tentar novamente.";
+      return "O navegador bloqueou a câmera ao vivo. Toque em \"Fotografar QR\" abaixo — funciona sem permissão. Para liberar a câmera ao vivo: Ajustes do iPhone › Chrome (ou Safari) › Câmera › Permitir.";
     }
     if (name === "NotFoundError" || name === "OverconstrainedError") return "Nenhuma câmera encontrada neste aparelho.";
     if (name === "NotReadableError" || name === "AbortError") return "A câmera está sendo usada por outro app. Feche-o e tente novamente.";
     if (!window.isSecureContext) return "A câmera só funciona em endereço seguro (https).";
     return typeof err === "string" ? err : err?.message || "Não foi possível acessar a câmera.";
+  };
+
+  /** Lê o QR de uma foto tirada pela câmera nativa (não depende da permissão do navegador). */
+  const decodePhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setErrorMsg("");
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("img")); img.src = url; });
+      const tryDecode = (max: number) => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        const ctx = c.getContext("2d")!; ctx.drawImage(img, 0, 0, w, h);
+        return jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "attemptBoth" });
+      };
+      const code = tryDecode(1000) ?? tryDecode(1600) ?? tryDecode(600);
+      URL.revokeObjectURL(url);
+      if (!code?.data) {
+        setErrorMsg("Não encontramos o QR na foto. Aproxime e tente de novo.");
+        setPhase("error");
+        return;
+      }
+      handledRef.current = false;
+      await handleDecoded(code.data);
+    } catch {
+      setErrorMsg("Não foi possível ler a foto. Tente novamente.");
+      setPhase("error");
+    }
   };
 
   const startScanner = async () => {
@@ -358,6 +388,16 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
 
           {phase !== "success" && (
             <div className="flex w-full flex-col gap-2">
+              <label className="inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground">
+                Fotografar QR
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void stopScanner(); void decodePhoto(f); }}
+                />
+              </label>
               {(phase === "invalid" || phase === "error") && !manualMode && (
                 <Button className="w-full" onClick={retry}>
                   Tentar novamente
