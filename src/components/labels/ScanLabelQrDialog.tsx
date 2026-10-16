@@ -440,7 +440,17 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
 
           {phase !== "success" && (
             <div className="flex w-full flex-col gap-2">
-              <label className="inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground">
+              {blocked && phase === "error" && !manualMode && env.inFrame && (
+                <Button className="w-full" onClick={openInNewTab}>
+                  Abrir em nova aba
+                </Button>
+              )}
+              <label
+                className={cn(
+                  "inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md px-4 text-sm font-medium",
+                  blocked ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                )}
+              >
                 Fotografar QR
                 <input
                   type="file"
@@ -451,8 +461,21 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
                 />
               </label>
               {(phase === "invalid" || phase === "error") && !manualMode && (
-                <Button className="w-full" onClick={retry}>
+                <Button className="w-full" variant={blocked ? "outline" : "default"} onClick={retry}>
                   Tentar novamente
+                </Button>
+              )}
+              {blocked && phase === "error" && !manualMode && !env.inFrame && (
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => {
+                    const url = new URL(window.location.href);
+                    if (onAnyCode && !label) url.searchParams.set("scan", "uso");
+                    window.location.href = url.toString();
+                  }}
+                >
+                  Recarregar página
                 </Button>
               )}
               <Button
