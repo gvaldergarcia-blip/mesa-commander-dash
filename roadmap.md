@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Corrigir gesto de retorno ao topo em Imprimir etiqueta, mantendo a prévia e a impressão intactas; validar gestos sobre a prévia no celular.
+- [x] Proteger os gestos sobre a prévia em Imprimir etiqueta; 12 gestos de subida passaram em 320/375/390/430 px com dados fictícios, sem alterar a impressão. Confirmação em iPhone físico pendente.
 
 - [x] Corrigir largura da tela QR e manter exclusivamente baixa por uso; conferida em 320/375/390/430/768/1280 px com serviço simulado.
 - [x] Garantir baixa por vencimento da validade original sobre todo saldo do lote identificado e impedir renovação vencida no servidor; teste transacional sintético passou, preservando outro lote válido e sem deixar dados de teste.
