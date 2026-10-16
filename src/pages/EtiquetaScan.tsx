@@ -475,29 +475,20 @@ export default function EtiquetaScan() {
                     missingUseQty ||
                     overBalance
                   }
-                  className={`w-full h-14 rounded-2xl disabled:bg-scan-border disabled:text-scan-secondary text-scan-foreground font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors ${
-                    reason === "use"
-                      ? "bg-scan-success hover:bg-scan-success text-scan-background"
-                      : "bg-scan-danger hover:bg-scan-danger"
-                  }`}
+                  className="w-full h-14 rounded-2xl disabled:bg-scan-border disabled:text-scan-secondary font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-colors bg-scan-success hover:bg-scan-success text-scan-background"
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
                       Registrando...
                     </>
-                  ) : reason === "use" ? (
+                  ) : (
                     <>
                       <Utensils className="h-5 w-5" />
                       Confirmar uso
                       {qtyValid && !overBalance
                         ? ` (${balance ? formatBase(usedBase, balance.base) : `${usedQty.replace(".", ",")} ${effUnit}`})`
                         : ""}
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-5 w-5" />
-                      Baixar Etiqueta
                     </>
                   )}
                 </Button>
