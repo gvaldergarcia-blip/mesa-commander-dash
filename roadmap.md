@@ -1,8 +1,9 @@
 # Roadmap
 
-- [ ] Corrigir largura da tela QR e manter exclusivamente baixa por uso.
-- [ ] Garantir baixa por vencimento da validade original sobre todo saldo do lote e impedir renovação vencida no servidor.
-- [ ] Validar consumo exato, testes de regras e apresentação mobile; leitura/gravação autenticada depende de sessão externa.
+- [x] Corrigir largura da tela QR e manter exclusivamente baixa por uso; conferida em 320/375/390/430/768/1280 px com serviço simulado.
+- [x] Garantir baixa por vencimento da validade original sobre todo saldo do lote identificado e impedir renovação vencida no servidor; teste transacional sintético passou, preservando outro lote válido e sem deixar dados de teste.
+- [x] Validar consumo exato, 16 testes de regras e apresentação mobile; teste no banco passou para 45 g consumidos, unidade incompatível, saldo insuficiente e repetição de baixa.
+- [ ] Validar leitura/gravação pela tela em conta real: bloqueado pela ausência de sessão de autenticação externa; saldos antigos sem vínculo inequívoco de lote exigem conferência do recebimento.
 
 - [x] Conferir exclusão de validade original vencida: cinco testes passaram; resolução unificada entre Renovação e Dashboard, incluindo validade mais antiga do ciclo. Conta real não verificada por autenticação externa.
 - [x] Alinhar prévia ao modelo realmente impresso, sem QR Code, preservando a impressão final; conferida com dados fictícios em 320/390/579/1280 px.
