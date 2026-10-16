@@ -30,6 +30,47 @@ export function extractLabelCode(raw: string) {
 
 type Phase = "starting" | "scanning" | "success" | "invalid" | "error";
 
+type CameraEnv = {
+  inFrame: boolean;
+  inApp: boolean;
+  browser: "safari" | "chrome-ios" | "other-ios" | "android" | "desktop";
+};
+
+function detectCameraEnv(): CameraEnv {
+  if (typeof window === "undefined") return { inFrame: false, inApp: false, browser: "desktop" };
+  const ua = navigator.userAgent || "";
+  let inFrame = false;
+  try { inFrame = window.self !== window.top; } catch { inFrame = true; }
+  const inApp = /Instagram|FBAN|FBAV|FB_IAB|Line\/|WhatsApp|TikTok|Snapchat|GSA\//i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const browser: CameraEnv["browser"] = isIOS
+    ? /CriOS/i.test(ua) ? "chrome-ios" : /FxiOS|EdgiOS|OPiOS/i.test(ua) ? "other-ios" : "safari"
+    : /Android/i.test(ua) ? "android" : "desktop";
+  return { inFrame, inApp, browser };
+}
+
+/** Explica o bloqueio do jeito certo para cada navegador: liberar o app nos Ajustes não remove o bloqueio salvo para o site. */
+function blockedCameraMessage(env: CameraEnv): string {
+  if (env.inFrame) {
+    return "A câmera está bloqueada porque o MesaClik está aberto dentro de outra página. Toque em \"Abrir em nova aba\" para liberar.";
+  }
+  if (env.inApp) {
+    return "Este link foi aberto dentro de outro app (WhatsApp, Instagram…), que não libera a câmera. Abra o MesaClik direto no Safari ou no Chrome.";
+  }
+  switch (env.browser) {
+    case "chrome-ios":
+      return "Liberar nos Ajustes do iPhone não basta: o Chrome guarda um bloqueio só para este site. Toque no ícone à esquerda do endereço › Permissões › Câmera › ativar. Depois toque em \"Recarregar página\".";
+    case "safari":
+      return "Liberar nos Ajustes do iPhone não basta: o Safari guarda um bloqueio só para este site. Toque em \"aA\" na barra de endereço › Ajustes do Site › Câmera › Permitir. Depois toque em \"Recarregar página\".";
+    case "other-ios":
+      return "O navegador guardou um bloqueio de câmera para este site. Abra o MesaClik no Safari ou no Chrome e permita a câmera quando ele perguntar.";
+    case "android":
+      return "O Chrome guardou um bloqueio para este site. Toque no ícone à esquerda do endereço › Permissões › Câmera › Permitir. Depois toque em \"Recarregar página\".";
+    default:
+      return "O navegador bloqueou a câmera para este site. Clique no ícone à esquerda do endereço, permita a câmera e recarregue a página.";
+  }
+}
+
 const normalize = (value: string) => value.trim().toLowerCase();
 
 export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAnyCode }: Props) {
@@ -37,6 +78,8 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
   const [errorMsg, setErrorMsg] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [manualMode, setManualMode] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [env] = useState<CameraEnv>(detectCameraEnv);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -154,12 +197,21 @@ export function ScanLabelQrDialog({ open, onOpenChange, label, onConfirmed, onAn
   const cameraErrorMessage = (err: any): string => {
     const name = err?.name || "";
     if (name === "NotAllowedError" || name === "SecurityError") {
-      return "O navegador bloqueou a câmera ao vivo. Toque em \"Fotografar QR\" abaixo — funciona sem permissão. Para liberar a câmera ao vivo: Ajustes do iPhone › Chrome (ou Safari) › Câmera › Permitir.";
+      setBlocked(true);
+      return blockedCameraMessage(env);
     }
     if (name === "NotFoundError" || name === "OverconstrainedError") return "Nenhuma câmera encontrada neste aparelho.";
     if (name === "NotReadableError" || name === "AbortError") return "A câmera está sendo usada por outro app. Feche-o e tente novamente.";
     if (!window.isSecureContext) return "A câmera só funciona em endereço seguro (https).";
     return typeof err === "string" ? err : err?.message || "Não foi possível acessar a câmera.";
+  };
+
+  const openInNewTab = () => {
+    const url = onAnyCode && !label ? `${window.location.origin}/etiquetas?scan=uso` : window.location.href;
+    const win = window.open(url, "_blank", "noopener");
+    if (!win) {
+      try { (window.top ?? window).location.href = url; } catch { window.location.href = url; }
+    }
   };
 
   /** Lê o QR de uma foto tirada pela câmera nativa (não depende da permissão do navegador). */
