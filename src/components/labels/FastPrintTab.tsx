@@ -243,7 +243,8 @@ export function FastPrintTab({
     },
   });
 
-  const now = useMemo(() => new Date(), [product, batch, originalExpiry]);
+  // Recalculado a cada render para a prévia nunca mostrar horário de manipulação congelado.
+  const now = new Date();
 
   /** Validade da etiqueta = agora + regra de validade após manipulação/abertura do cadastro. */
   const computedExpiry = useMemo(() => {
@@ -719,6 +720,11 @@ export function FastPrintTab({
               </div>
               {!employee && (
                 <p className="text-[11px] text-amber-500 text-center">Cadastre/selecione um responsável para imprimir.</p>
+              )}
+              {newCycle && !originalExpiry && (
+                <p className="text-[11px] text-amber-500 text-center">
+                  A validade original anterior deste produto venceu. Informe o novo lote e a nova validade original para imprimir.
+                </p>
               )}
             </>
           )}
